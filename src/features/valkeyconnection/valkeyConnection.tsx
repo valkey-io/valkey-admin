@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { setConnecting as valkeySetConnecting, setConnected as valkeySetConnected, selectStatus, selectConnected } from './valkeyConnectionSlice';
 import { useAppDispatch } from '../../hooks/hooks';
 import { useSelector } from 'react-redux';
-import { setLastCommand } from '../valkeycommand/valkeycommandSlice';
+import { sendPending } from '../valkeycommand/valkeycommandSlice';
 
 export function Connection() {
     const dispatch = useAppDispatch();
@@ -27,7 +27,7 @@ export function Connection() {
             {valkeyConnected ?
                 <div>
                     <input type='text' value={text} onChange={(e) => setText(e.target.value)} />
-                    <button onClick={() => dispatch(setLastCommand(text))}>Send</button>
+                    <button onClick={() => dispatch(sendPending({ command: text, pending: true }))}>Send</button>
                     <div>
                         <button onClick={() => dispatch(valkeySetConnected(false))}>Disconnect</button>
                     </div>

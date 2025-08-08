@@ -4,25 +4,26 @@ const valkeycommandSlice = createSlice({
     name: 'valkeycommand',
     initialState: {
         lastCommand: "",
-        response: "",
-        loading: false,
+        response: null,
+        pending: false,
         error: null
     },
     reducers: {
-        setLastCommand: (state, action) => {
-            state.lastCommand = action.payload
-        },
-        setResponse: (state, action) => {
+        sendFulfilled: (state, action) => {
             state.response = action.payload
+            state.pending = false
         },
-        setLoading: (state, action) => {
-            state.loading = action.payload
+        sendPending: (state, action) => {
+            state.lastCommand = action.payload.command
+            state.pending = action.payload.pending
+            state.response = null
         },
-        setCommandError: (state, action) => {
+        sendFailed: (state, action) => {
             state.error = action.payload
+            state.pending = false
         }
     }
 })
 
 export default valkeycommandSlice.reducer;
-export const { setLastCommand, setResponse, setLoading, setCommandError } = valkeycommandSlice.actions
+export const { sendFulfilled, sendPending, sendFailed } = valkeycommandSlice.actions
