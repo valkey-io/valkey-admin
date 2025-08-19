@@ -8,6 +8,7 @@ import { store } from './store.ts'
 import { BrowserRouter, Routes, Route } from "react-router";
 import { SendCommand } from '@/components/SendCommand.tsx'
 import RequireConnection from './components/RequireConnection.tsx'
+import { Navigate } from 'react-router'
 
 createRoot(document.getElementById('root')!).render(
   // <StrictMode>
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route element={<App />}>
+          <Route path="/" element={<Navigate to="/connect" replace />} />
           <Route path="/connect" element={<Connection />} />
           <Route element={<RequireConnection />}>
             <Route path="/dashboard" element={<Dashboard />} />
