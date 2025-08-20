@@ -40,64 +40,62 @@ export function Connection() {
     }, [isConnected, navigate, hasRedirected, dispatch])
 
     return (
-        <div>
-            <div className="flex items-center justify-center min-h-screen">
-                <Card className="w-full max-w-sm">
-                    <CardHeader>
-                        <CardTitle>Connect to Valkey</CardTitle>
-                        <CardDescription>
-                            Enter your server's host and port to connect.
-                        </CardDescription>
 
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit}>
-                            <div className="flex flex-col gap-6">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="host">Host</Label>
-                                    <Input
-                                        id="host"
-                                        type="text"
-                                        value={host}
-                                        placeholder="localhost"
-                                        required
-                                        onChange={e => setHost(e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="port">Port</Label>
-                                    <Input
-                                        id="port"
-                                        type="number"
-                                        value={port}
-                                        placeholder="6379"
-                                        required
-                                        onChange={e => setPort(e.target.value)}
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <div className="flex items-center">
-                                        <Label htmlFor="username">Username</Label>
-                                    </div>
-                                    <Input id="username" type="username" onChange={e => setUsername(e.target.value)} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <div className="flex items-center">
-                                        <Label htmlFor="password">Password</Label>
-                                    </div>
-                                    <Input id="password" type="password" onChange={(e) => setPassword(e.target.value)} />
-                                </div>
+        <Card className="w-full max-w-sm flex items-center justify-center min-h-screen">
+            <CardHeader>
+                <CardTitle>Connect to Valkey</CardTitle>
+                <CardDescription>
+                    Enter your server's host and port to connect.
+                </CardDescription>
+
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit}>
+                    <div className="flex flex-col gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="host">Host</Label>
+                            <Input
+                                id="host"
+                                type="text"
+                                value={host}
+                                placeholder="localhost"
+                                required
+                                onChange={e => setHost(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="port">Port</Label>
+                            <Input
+                                id="port"
+                                type="number"
+                                value={port}
+                                placeholder="6379"
+                                required
+                                onChange={e => setPort(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <div className="flex items-center">
+                                <Label htmlFor="username">Username</Label>
                             </div>
-                            <div className="grid gap-2 mt-8">
-                                <Button type="submit" className="w-full">
-                                    Connect
-                                </Button>
+                            <Input id="username" type="username" onChange={e => setUsername(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <div className="flex items-center">
+                                <Label htmlFor="password">Password</Label>
                             </div>
-                        </form>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                            <Input id="password" type="password" onChange={(e) => setPassword(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid gap-2 mt-8">
+                        <Button type="submit" className="w-full">
+                            Connect
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+
 
     )
 }

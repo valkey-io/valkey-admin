@@ -20,13 +20,16 @@ function App() {
 
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen app-container">
+
+    <div className="flex min-h-screen app-container">
+      <SidebarProvider>
         <AppSidebar />
-        <Outlet />
-        <Toaster />
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+      <Outlet />
+      <Toaster />
+
+    </div>
+
   )
 }
 
