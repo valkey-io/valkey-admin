@@ -1,9 +1,9 @@
 import { type PayloadAction, type Middleware } from '@reduxjs/toolkit';
-import { setError as setError, setConnecting, setConnected } from '@common/features/valkeyconnection/valkeyConnectionSlice';
-import { selectConnected, selectConnecting } from '../../selectors/valkeyConnectionSelectors'
-import { getSocket } from '../ws/wsMiddleware';
-import { sendFailed, sendPending } from '@common/features/valkeycommand/valkeycommandSlice';
-import { setData } from '@common/features/valkeyinfo/valkeyInfoSlice';
+import { setError as setError, setConnecting, setConnected } from '@/state/valkey-features/connection/valkeyConnectionSlice.ts';
+import { selectConnected, selectConnecting } from '../../valkey-features/connection/valkeyConnectionSelectors.ts'
+import { getSocket } from '../ws/wsMiddleware.ts';
+import { sendFailed, sendPending } from '@/state/valkey-features/command/valkeyCommandSlice.ts';
+import { setData } from '@/state/valkey-features/info/valkeyInfoSlice.ts';
 import { toast } from 'sonner';
 
 export const valkeyMiddleware: Middleware = store => next => async (action) => {

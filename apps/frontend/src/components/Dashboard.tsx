@@ -1,7 +1,8 @@
-
 import { useSelector } from "react-redux";
-import { selectData } from "../selectors/valkeyInfoSelectors";
+import { selectData } from "@/state/valkey-features/info/valkeyInfoSelectors.ts";
 import { Card } from "./ui/card";
+import RouteContainer from "@/components/ui/route-container.tsx"
+
 export function Dashboard() {
     const {
         total_commands_processed,
@@ -11,9 +12,7 @@ export function Dashboard() {
         bytes_per_key,
     } = useSelector(selectData)
     return (
-        <div className="space-y-6">
-            <h1 className="text-4xl font-bold">Dashboard</h1>
-
+        <RouteContainer title={"Dashboard"}>
             <div className="flex flex-wrap gap-4">
                 {[
                     ["Total Commands Processed", total_commands_processed],
@@ -28,7 +27,6 @@ export function Dashboard() {
                     </Card>
                 ))}
             </div>
-        </div>
-    );
-
+        </RouteContainer>
+    )
 }

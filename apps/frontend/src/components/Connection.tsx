@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { setRedirected, setConnecting as valkeySetConnecting } from '../../../../common/features/valkeyconnection/valkeyConnectionSlice';
-import { selectConnected, selectRedirected } from '@/selectors/valkeyConnectionSelectors';
+import { setRedirected, setConnecting as valkeySetConnecting } from '@/state/valkey-features/connection/valkeyConnectionSlice';
+import { selectConnected, selectRedirected } from '@/state/valkey-features/connection/valkeyConnectionSelectors.ts';
 import { useAppDispatch } from '../hooks/hooks';
 import { Button } from "./ui/button"
 import {
@@ -40,14 +40,12 @@ export function Connection() {
     }, [isConnected, navigate, hasRedirected, dispatch])
 
     return (
-
-        <Card className="w-full max-w-sm flex items-center justify-center min-h-screen">
+        <Card className="m-auto min-w-[30rem]">
             <CardHeader>
                 <CardTitle>Connect to Valkey</CardTitle>
                 <CardDescription>
                     Enter your server's host and port to connect.
                 </CardDescription>
-
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit}>
@@ -95,7 +93,5 @@ export function Connection() {
                 </form>
             </CardContent>
         </Card>
-
-
     )
 }

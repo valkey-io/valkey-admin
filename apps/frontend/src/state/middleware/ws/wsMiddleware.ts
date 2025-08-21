@@ -1,5 +1,5 @@
 import { type PayloadAction, type Middleware } from '@reduxjs/toolkit';
-import { setConnected, setError } from '@common/features/wsconnection/wsConnectionSlice';
+import { setConnected, setError } from '@/state/wsconnection/wsConnectionSlice.ts';
 
 let socket: WebSocket | null = null;
 

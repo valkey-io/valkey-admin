@@ -12,14 +12,16 @@ wss.on('connection', (ws: WebSocket) => {
 
     ws.on('message', async (message) => {
         const action = JSON.parse(message.toString());
+        console.log("on message", action.type === VALKEY.CONNECTION.setConnecting, action)
 
-        if (action.type === VALKEY.setConnecting) {
+        if (action.type === VALKEY.CONNECTION.setConnecting) {
             client = await connectToValkey(ws, action.payload)
         }
-        if (action.type === VALKEY.sendPending && client) {
+        if (action.type === VALKEY.COMMAND.sendPending && client) {
             await sendValkeyRunCommand(client, ws, action.payload)
         }
-        if (action.type === VALKEY.setData && client) {
+        if (action.type === VALKEY.STATS.setData && client) {
+            console.log("here now")
             setDashboardData(client, ws)
         }
     })
@@ -51,7 +53,7 @@ async function connectToValkey(ws: WebSocket, payload: { host: string, port: num
         })
 
         ws.send(JSON.stringify({
-            type: VALKEY.setConnected,
+            type: VALKEY.CONNECTION.setConnected,
             payload: {
                 status: true,
             },
@@ -62,7 +64,7 @@ async function connectToValkey(ws: WebSocket, payload: { host: string, port: num
     catch (err) {
         console.log("Error connecting to Valkey", err)
         ws.send(JSON.stringify({
-            type: VALKEY.setError,
+            type: VALKEY.CONNECTION.setError,
             payload: err
         }))
     }
@@ -82,7 +84,7 @@ async function setDashboardData(client: GlideClient, ws: WebSocket) {
     }, {} as Record<string, string>)
 
     ws.send(JSON.stringify({
-        type: VALKEY.setData,
+        type: VALKEY.STATS.setData,
         payload: {
             info: info,
             memory: memoryStats,
@@ -107,17 +109,20 @@ async function sendValkeyRunCommand(client: GlideClient, ws: WebSocket, payload:
         console.log("Raw response is: ", rawResponse)
         if (rawResponse.includes("ResponseError")) {
             ws.send(JSON.stringify({
-                type: VALKEY.sendFailed,
+                meta: { command: payload.command },
+                type: VALKEY.COMMAND.sendFailed,
                 payload: rawResponse
-            }));
+            }))
         }
         ws.send(JSON.stringify({
-            type: VALKEY.sendFulfilled,
+            meta: { command: payload.command },
+            type: VALKEY.COMMAND.sendFulfilled,
             payload: response
         }))
     } catch (err) {
         ws.send(JSON.stringify({
-            type: VALKEY.sendFailed,
+            meta: { command: payload.command },
+            type: VALKEY.COMMAND.sendFailed,
             payload: err
         }))
         console.log("Error sending command to Valkey", err)

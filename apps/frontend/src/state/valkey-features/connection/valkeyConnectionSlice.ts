@@ -1,7 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
+import {VALKEY} from "@common/src/constants.ts"
 
 const valkeyConnectionSlice = createSlice({
-    name: 'valkeyconnection',
+    name: VALKEY.CONNECTION.name,
     initialState: {
         status: "Not Connected",
         connected: false,

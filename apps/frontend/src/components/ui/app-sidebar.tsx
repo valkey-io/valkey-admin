@@ -8,8 +8,8 @@ import {
     SidebarMenuItem,
     SidebarMenuButton
 } from "@/components/ui/sidebar"
-import { setConnected as valkeySetConnected } from "@common/features/valkeyconnection/valkeyConnectionSlice"
-import { selectConnected } from "@/selectors/valkeyConnectionSelectors"
+import { setConnected as valkeySetConnected } from "@/state/valkey-features/connection/valkeyConnectionSlice"
+import { selectConnected } from "@/state/valkey-features/connection/valkeyConnectionSelectors.ts"
 import { useSelector } from "react-redux"
 import { Button } from "./button"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -25,8 +25,8 @@ export function AppSidebar() {
         navigate("/connect")
     }
     return (
-        <Sidebar>
-            <SidebarHeader>
+        <Sidebar className="app-sidebar h-dvh flex flex-col">
+            <SidebarHeader className="text-4xl font-bold text-center p-4">
                 Skyscope
             </SidebarHeader>
 
@@ -34,10 +34,7 @@ export function AppSidebar() {
                 <SidebarGroup>
                     <SidebarMenu>
                         <SidebarMenuItem key="Connection">
-                            <SidebarMenuButton asChild>
-                                <Link to="/connect">Connect</Link>
-                            </SidebarMenuButton>
-                            {isConnected && (
+                            {isConnected &&
                                 <>
                                     <SidebarMenuButton asChild>
                                         <Link to="/sendcommand">Send Command</Link>
@@ -45,22 +42,21 @@ export function AppSidebar() {
                                     <SidebarMenuButton asChild>
                                         <Link to="/dashboard">Dashboard</Link>
                                     </SidebarMenuButton>
-                                    <SidebarMenuButton asChild>
-                                        <div className="flex justify-end">
-                                            <Button onClick={handleDisconnect}>
-                                                Disconnect
-                                            </Button>
-                                        </div>
-                                    </SidebarMenuButton>
                                 </>
-                            )
                             }
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="p-4">
+                {isConnected &&
+                    <SidebarMenuButton asChild>
+                        <Button onClick={handleDisconnect} variant="outline">
+                            Disconnect
+                        </Button>
+                    </SidebarMenuButton>
+                }
             </SidebarFooter>
         </Sidebar>
     )
