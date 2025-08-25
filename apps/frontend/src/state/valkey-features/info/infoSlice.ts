@@ -12,6 +12,8 @@ const infoSlice = createSlice({
             connected_clients: null,
             keys_count: null,
             bytes_per_key: null,
+            server_name: null,
+            tcp_port: null,
         },
     },
     reducers: {
@@ -25,6 +27,8 @@ const infoSlice = createSlice({
             state.data.dataset_bytes = action.payload.memory['dataset.bytes']
             state.data.keys_count = action.payload.memory['keys.count']
             state.data.bytes_per_key = action.payload.memory['keys.bytes-per-key'];
+            state.data.server_name = action.payload.info['server_name'];
+            state.data.tcp_port = action.payload.info['tcp_port'];
         },
         setError: (state, action) => {
             state.error = action.payload

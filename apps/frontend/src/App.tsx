@@ -2,7 +2,7 @@ import {useEffect} from 'react'
 import {useDispatch} from 'react-redux'
 import {setConnecting} from '@/state/wsconnection/wsConnectionSlice'
 import {SidebarInset, SidebarProvider} from './components/ui/sidebar'
-import {AppSidebar} from './components/ui/app-sidebar'
+import { AppSidebar } from './components/ui/app-sidebar'
 import {Outlet} from 'react-router'
 import {Toaster} from './components/ui/sonner'
 
