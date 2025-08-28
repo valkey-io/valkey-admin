@@ -1,37 +1,40 @@
+import { useAppDispatch } from "@/hooks/hooks";
+import { X } from "lucide-react";
+
 type ConnectionFormProps = {
-  onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
-  host: string;
-  port: string;
-  username: string;
-  password: string;
-  setHost: (host: string) => void;
-  setPort: (port: string) => void;
-  setUsername: (username: string) => void;
-  setPassword: (password: string) => void;
 };
 
-function ConnectionForm({
-  onSubmit,
-  onClose,
-  host,
-  port,
-  username,
-  password,
-  setHost,
-  setPort,
-  setUsername,
-  setPassword,
-}: ConnectionFormProps) {
+import { setConnecting as valkeySetConnecting } from "@/state/valkey-features/connection/connectionSlice.ts";
+import { useState } from "react";
+
+function ConnectionForm({ onClose }: ConnectionFormProps) {
+  const dispatch = useAppDispatch();
+  const [host, setHost] = useState("localhost");
+  const [port, setPort] = useState("6379");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    dispatch(
+      valkeySetConnecting({ status: true, host, port, username, password })
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg border">
-        <h2 className="text-lg font-semibold">Connection Form</h2>
+        <div className="flex justify-between">
+          <h2 className="text-lg font-semibold">Connection Form</h2>
+          <button onClick={onClose} className="hover:text-tw-primary">
+            <X size={20} />
+          </button>
+        </div>
         <span className="text-sm font-light">
           Enter your server's host and port to connect.
         </span>
-
-        <form className="space-y-4 mt-4" onSubmit={onSubmit}>
+        <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
           <div>
             <label className="block mb-1 text-sm">Host</label>
             <input
@@ -43,7 +46,6 @@ function ConnectionForm({
               onChange={(e) => setHost(e.target.value)}
             />
           </div>
-
           <div>
             <label className="block mb-1 text-sm">Port</label>
             <input
@@ -55,7 +57,6 @@ function ConnectionForm({
               onChange={(e) => setPort(e.target.value)}
             />
           </div>
-
           <div>
             <label className="block mb-1 text-sm">Username</label>
             <input
@@ -75,18 +76,11 @@ function ConnectionForm({
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-
-          <div className="flex justify-end space-x-2 pt-4 text-sm">
+          <div className="pt-2 text-sm">
             <button
-              onClick={onClose}
-              type="button"
-              className="px-4 py-1 bg-gray-200 rounded hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
+              disabled={!host || !port}
               type="submit"
-              className="px-4 py-1 bg-tw-primary text-white rounded hover:bg-tw-primary/90"
+              className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
             >
               Connect
             </button>

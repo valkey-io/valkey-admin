@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   setRedirected,
-  setConnecting as valkeySetConnecting,
 } from "@/state/valkey-features/connection/connectionSlice.ts";
 import {
   selectConnected,
@@ -19,10 +18,6 @@ import ConnectionForm from "./ui/connection-form";
 export function Connection() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [host, setHost] = useState("localhost");
-  const [port, setPort] = useState("6379");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [showConnectionForm, setShowConnectionForm] = useState(false);
 
   const { server_name, tcp_port } = useSelector(selectData);
@@ -32,14 +27,6 @@ export function Connection() {
 
   const handleDisconnect = () => {
     dispatch(valkeySetConnected(false));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    dispatch(
-      valkeySetConnecting({ status: true, host, port, username, password })
-    );
-    setShowConnectionForm(false);
   };
 
   useEffect(() => {
@@ -65,16 +52,7 @@ export function Connection() {
       </div>
       {showConnectionForm && (
         <ConnectionForm
-          onSubmit={handleSubmit}
           onClose={() => setShowConnectionForm(false)}
-          host={host}
-          port={port}
-          username={username}
-          password={password}
-          setHost={setHost}
-          setPort={setPort}
-          setUsername={setUsername}
-          setPassword={setPassword}
         />
       )}
       {/* Connected DBs */}
