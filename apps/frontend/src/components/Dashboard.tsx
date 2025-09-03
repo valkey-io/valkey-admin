@@ -5,7 +5,6 @@ import { AppHeader } from "./ui/app-header";
 import { LayoutDashboard } from "lucide-react";
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors";
 
-
 export function Dashboard() {
   const {
     total_commands_processed,

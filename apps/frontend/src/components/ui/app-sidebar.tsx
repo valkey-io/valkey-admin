@@ -22,16 +22,19 @@ export function AppSidebar() {
 
   const getNavItemClasses = (path: string) => {
     return location.pathname === path
-      ? "bg-tw-primary text-white border border-white rounded"
+      ? "bg-tw-primary text-white rounded"
       : "text-gray-600 hover:text-tw-primary";
   };
 
   return (
     <nav
-      className={`bg-white ${isExpanded ? "w-52 items-start" : "w-18 items-center"
-        } h-screen p-4 shadow-lg border-r-2 flex flex-col justify-between transition-all duration-300 items-center relative`}
+      className={`bg-white ${
+        isExpanded ? "w-52" : "w-18"
+      } h-screen p-4 shadow-lg border-r-2 flex flex-col justify-between transition-all duration-300 items-start relative`}
     >
-      <div className={`flex ${isExpanded ? "items-start" : "items-center"}  flex-col`}>
+      <div
+        className="flex flex-col items-start w-full"
+      >
         {/* Header */}
         <div className="flex items-center" title="Skyscope">
           <img src="../../assets/img/logo.png" alt="logo" className="h-8" />
@@ -66,7 +69,7 @@ export function AppSidebar() {
               <li key={to}>
                 <Link
                   to={to}
-                  className={`flex p-2 ${getNavItemClasses(to)}`}
+                  className={`flex p-2 text-nowrap ${getNavItemClasses(to)} h-10`}
                   title={title}
                 >
                   <Icon size={22} />
@@ -103,7 +106,7 @@ export function AppSidebar() {
                   href={item.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex p-2 text-gray-600 hover:text-tw-primary"
+                  className="flex p-2 text-nowrap items-center text-gray-600 hover:text-tw-primary h-10"
                   title={item.title}
                 >
                   <item.icon size={22} />
@@ -112,11 +115,11 @@ export function AppSidebar() {
               ) : (
                 <Link
                   to={item.to || ""}
-                  className={`flex p-2 ${getNavItemClasses(item.to || "")}`}
+                  className={`flex p-2 items-center ${getNavItemClasses(item.to || "")} h-10`}
                   title={item.title}
                 >
                   <item.icon size={22} />
-                  {isExpanded && <span className="ml-3">{item.title}</span>}
+                  {isExpanded && <span className="ml-3 text-nowrap">{item.title}</span>}
                 </Link>
               )}
             </li>

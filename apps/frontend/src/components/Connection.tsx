@@ -14,7 +14,7 @@ import { resetConnection } from "@/state/valkey-features/connection/connectionSl
 import { HousePlug, Unplug, Pencil } from "lucide-react";
 import ConnectionForm from "./ui/connection-form";
 import EditForm from "./ui/edit-form";
-import { CONNECTED } from "@common/src/constants"
+import { CONNECTED } from "@common/src/constants";
 
 export function Connection() {
   const dispatch = useAppDispatch();
@@ -25,7 +25,7 @@ export function Connection() {
   const connectionDetails = useSelector(selectConnectionDetails);
   const { server_name } = useSelector(selectData);
 
-  const isConnected = useSelector(selectStatus) === CONNECTED
+  const isConnected = useSelector(selectStatus) === CONNECTED;
   const hasRedirected = useSelector(selectRedirected);
 
   const handleDisconnect = () => {
@@ -59,27 +59,21 @@ export function Connection() {
       {showEditForm && <EditForm onClose={() => setShowEditForm(false)} />}
       {/* Connected DBs */}
       <div className="border-t-1 mt-8 flex flex-col flex-1">
-        <table className="min-w-full table-auto divide-y divide-gray-200">
-          <thead className="text-sm bg-gray-50 sticky top-0 z-10">
+        <table className="min-w-full table-fixed divide-y">
+          <thead className="text-sm bg-gray-200 sticky top-0 z-10 border-y-1 border-gray-300">
             <tr className="">
-              <th scope="col" className="font-medium text-start">
+              <th className="w-1/4 font-medium py-1 text-start">
                 Database Name
               </th>
-              <th scope="col" className="font-medium text-start">
-                Host:Port
-              </th>
-              <th scope="col" className="font-medium text-start">
-                Activity
-              </th>
-              <th scope="col" className="font-medium text-center">
-                Actions
-              </th>
+              <th className="w-1/4 font-medium py-1 text-center">Host:Port</th>
+              <th className="w-1/4 font-medium py-1 text-center">Activity</th>
+              <th className="w-1/4 font-medium py-1 text-center">Actions</th>
             </tr>
           </thead>
-          {isConnected ? (
-            <tbody className="font-light hover:bg-gray-50">
+          <tbody className="font-light bg-gray-50 hover:bg-gray-100">
+            {isConnected ? (
               <tr>
-                <td>
+                <td className="py-1">
                   <button
                     onClick={() => navigate("/dashboard")}
                     className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
@@ -87,11 +81,11 @@ export function Connection() {
                     {server_name}
                   </button>
                 </td>
-                <td>
+                <td className="py-1 text-center">
                   {connectionDetails.host}:{connectionDetails.port}
                 </td>
-                <td>TBD</td>
-                <td className="text-center space-x-2">
+                <td className="py-1 text-center">TBD</td>
+                <td className="text-center space-x-1 py-1">
                   <button
                     onClick={handleDisconnect}
                     title="Disconnect"
@@ -108,8 +102,8 @@ export function Connection() {
                   </button>
                 </td>
               </tr>
-            </tbody>
-          ) : null}
+            ) : null}
+          </tbody>
         </table>
         {!isConnected && (
           <div className=" bg-white flex-1 flex items-center justify-center flex-col gap-2">
