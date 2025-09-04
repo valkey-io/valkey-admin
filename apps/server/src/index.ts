@@ -8,41 +8,58 @@ console.log("Websocket server running on localhost:8080")
 
 wss.on('connection', (ws: WebSocket) => {
     console.log("Client connected.")
-    let client: GlideClient | undefined;
+    const clients: Map<string, GlideClient> = new Map();
 
     ws.on('message', async (message) => {
         console.log("Received message:", message.toString())
         const action = JSON.parse(message.toString());
+        const connectionId = action.payload.connectionId
 
         if (action.type === VALKEY.CONNECTION.connectPending) {
-            client = await connectToValkey(ws, action.payload)
+            await connectToValkey(ws, action.payload, clients)
         }
-        if (action.type === VALKEY.COMMAND.sendRequested && client) {
-            await sendValkeyRunCommand(client, ws, action.payload)
+        if (action.type === VALKEY.COMMAND.sendRequested) {
+            const client = clients.get(connectionId)
+            if (client) {
+                await sendValkeyRunCommand(client, ws, action.payload)
+            }
+            else {
+                ws.send(JSON.stringify({
+                    type: VALKEY.COMMAND.sendFailed,
+                    payload: {
+                        error: "Invalid connection Id"
+                    }
+                }))
+            }
         }
-        if (action.type === VALKEY.STATS.setData && client) {
-            await setDashboardData(client, ws)
+        if (action.type === VALKEY.STATS.setData) {
+            const client = clients.get(connectionId);
+            if (client) {
+                await setDashboardData(client, ws)
+            }
         }
         if (action.type === VALKEY.CONNECTION.resetConnection) {
-            ws.send(JSON.stringify({
-                type: VALKEY.CONNECTION.closeConnection,
-            }))
+            const client = clients.get(connectionId);
+            if (client) {
+                client.close()
+                clients.delete(connectionId)
+            }
         }
     })
     ws.onerror = (err) => {
         console.error("WebSocket error:", err);
     }
-
     ws.on('close', (code, reason) => {
-        if (client) {
-            client.close()
-        }
-        console.log("Client disconnected. Reason: ", code, reason.toString())
+        // Close all Valkey connections
+        clients.forEach(client => client.close());
+        clients.clear();
+
+        console.log("Client disconnected. Reason:", code, reason.toString())
     })
 
 })
 
-async function connectToValkey(ws: WebSocket, payload: { host: string, port: number }) {
+async function connectToValkey(ws: WebSocket, payload: { host: string, port: number, connectionId: string }, clients: Map<string, GlideClient>) {
     const addresses = [
         {
             host: payload.host,
@@ -56,11 +73,13 @@ async function connectToValkey(ws: WebSocket, payload: { host: string, port: num
             clientName: "test_client"
         })
 
+        clients.set(payload.connectionId, client)
+
         ws.send(JSON.stringify({
             type: VALKEY.CONNECTION.connectFulfilled,
             payload: {
-                status: true,
-            },
+                connectionId: payload.connectionId
+            }
         }))
 
         return client;
@@ -69,7 +88,10 @@ async function connectToValkey(ws: WebSocket, payload: { host: string, port: num
         console.log("Error connecting to Valkey", err)
         ws.send(JSON.stringify({
             type: VALKEY.CONNECTION.connectRejected,
-            payload: err
+            payload: {
+                err,
+                connectionId: payload.connectionId
+            }
         }))
     }
 }

@@ -17,8 +17,9 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const connectionId = `${host}:${port}`;
     dispatch(
-      connectPending({ host, port, username, password })
+      connectPending({ host, port, username, password, connectionId })
     );
   };
 
