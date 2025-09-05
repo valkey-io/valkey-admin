@@ -121,7 +121,7 @@ const parseInfo = (infoStr: string): Record<string, string> => infoStr
     return acc
   }, {} as Record<string, string>)
 
-async function sendValkeyRunCommand(client: GlideClient, ws: WebSocket, payload: { command: string }) {
+async function sendValkeyRunCommand(client: GlideClient, ws: WebSocket, payload: { command: string, connectionId: string }) {
   try {
     const rawResponse = await client.customCommand(payload.command.split(" ")) as string
     const response = parseInfo(rawResponse)
@@ -132,11 +132,11 @@ async function sendValkeyRunCommand(client: GlideClient, ws: WebSocket, payload:
       }))
     }
     ws.send(JSON.stringify({
-      meta: {command: payload.command}, type: VALKEY.COMMAND.sendFulfilled, payload: response
+      meta: {connectionId: payload.connectionId, command: payload.command}, type: VALKEY.COMMAND.sendFulfilled, payload: response
     }))
   } catch (err) {
     ws.send(JSON.stringify({
-      meta: {command: payload.command}, type: VALKEY.COMMAND.sendFailed, payload: err
+      meta: {connectionId: payload.connectionId, command: payload.command}, type: VALKEY.COMMAND.sendFailed, payload: err
     }))
     console.log("Error sending command to Valkey", err)
   }
