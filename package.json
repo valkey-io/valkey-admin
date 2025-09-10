@@ -9,8 +9,10 @@
   ],
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@stylistic/eslint-plugin": "^5.3.1",
     "concurrently": "^9.2.0",
     "eslint": "^9.32.0",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -20,6 +22,5 @@
   "scripts": {
     "dev": "concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
     "lint": "eslint ."
-  },
-  "dependencies": {}
+  }
 }
