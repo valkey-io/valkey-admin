@@ -30,7 +30,7 @@ const ThemeToggle: React.FC = () => {
         className={`flex items-center gap-1 px-3 py-1 transition-colors ${
           !isDark
             ? "bg-tw-primary text-white"
-            : "bg-white text-gray-700 hover:bg-gray-100"
+            : "bg-tw-dark-primary text-white hover:bg-gray-700"
         }`}
       >
         Light
