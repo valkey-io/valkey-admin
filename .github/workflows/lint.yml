@@ -5,8 +5,7 @@ name: Lint Code
 on:
   pull_request:
     branches:
-      - main # Adjust to your main branch name
-
+      - main
 # Define the jobs to be run
 jobs:
   lint:
