@@ -86,7 +86,7 @@ export const ConnectionEntry = ({ connectionId, connection }: ConnectionEntryPro
             Connect
           </Button>
         }
-        <Button className="text-destructive" onClick={() => alert("todo")} variant="ghost">
+        <Button onClick={() => alert("todo")} variant="destructiveGhost">
           <Trash2Icon />
           Delete
         </Button>

@@ -18,8 +18,7 @@ wss.on('connection', (ws: WebSocket) => {
       action = JSON.parse(message.toString())
       connectionId = action.payload.connectionId
     } catch (e) {
-      console.error("shitt", e)
-      console.log(action)
+      console.log("Failed to parse the message", action)
     }
 
     if (action.type === VALKEY.CONNECTION.connectPending) {
