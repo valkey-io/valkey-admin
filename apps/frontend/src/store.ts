@@ -6,13 +6,15 @@ import valkeyInfoReducer from "@/state/valkey-features/info/infoSlice.ts"
 import { rxjsMiddleware } from "./state/middleware/rxjsMiddleware/rxjsMiddlware"
 import { VALKEY } from "@common/src/constants.ts"
 import { registerEpics } from "./state/epics/rootEpic"
+import keyBrowserReducer from "@/state/valkey-features/keys/keyBrowserSlice.ts";
 
 export const store = configureStore({
     reducer: {
         websocket: wsConnectionReducer,
         [VALKEY.CONNECTION.name]: valkeyConnectionReducer,
         [VALKEY.COMMAND.name]: valkeyCommandReducer,
-        [VALKEY.STATS.name]: valkeyInfoReducer
+        [VALKEY.STATS.name]: valkeyInfoReducer,
+        [VALKEY.KEYS.name]: keyBrowserReducer,
     },
     middleware: getDefaultMiddleware => {
         return getDefaultMiddleware({

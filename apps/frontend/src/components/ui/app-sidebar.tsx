@@ -8,6 +8,7 @@ import {
   Cog,
   CircleQuestionMark,
   Github,
+  Compass
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react";
@@ -54,12 +55,12 @@ export function AppSidebar() {
                       title: "Dashboard",
                       icon: LayoutDashboard,
                     },
-                    { to: `/${id}/sendcommand`, title: "Send Command", icon: Send },
                     {
-                      to: "/",
-                      title: "Monitoring",
-                      icon: ChartNoAxesCombined,
+                      to: `/${id}/browse`,
+                      title: "Key Browser",
+                      icon: Compass,
                     },
+                    { to: `/${id}/sendcommand`, title: "Send Command", icon: Send },
                   ]
                 : []),
             ].map(({ to, title, icon: Icon }) => (
