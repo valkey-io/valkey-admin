@@ -39,10 +39,10 @@ async function main() {
     ...I.map(i => cluster.setBit("bitmap", i, 1)),
   ])
 
-  // streams: sequential to preserve increasing timestamps (no sleep)
+  // streams gotta be sequential
   for (let i = 1; i <= 5; i++) {
     await cluster.xAdd("stream", "*", { sensor: `${1000 + i}`, value: `${20 + i}` })
-    await sleep(50) // sleep here is to have to make each xAdd get a unique, increasing timestamp
+    await sleep(50) // sleep here is to make each xAdd get a unique, increasing timestamp
   }
 
   console.log("Loaded entries for all Valkey data types.")
