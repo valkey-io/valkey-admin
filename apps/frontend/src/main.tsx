@@ -11,6 +11,7 @@ import { SendCommand } from "@/components/SendCommand.tsx"
 import RequireConnection from "./components/RequireConnection.tsx"
 import Settings from "./components/Settings.tsx"
 import LearnMore from "./components/LearnMore.tsx"
+import { KeyBrowser } from "./components/KeyBrowser.tsx"
 import "./css/index.css"
 
 const AppWithHistory = () => {
@@ -34,6 +35,7 @@ const AppWithHistory = () => {
         <Route element={<RequireConnection/>}>
           <Route path="/:id/dashboard/" element={<Dashboard/>}/>
           <Route path="/:id/sendcommand" element={<SendCommand/>}/>
+          <Route path="/:id/browse" element={<KeyBrowser/>}/>
         </Route>
       </Route>
     </Routes>

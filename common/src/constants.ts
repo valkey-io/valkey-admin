@@ -37,6 +37,11 @@ export const VALKEY = {
     STATS: makeNamespace("valkeyStats", {
         setData: "setData",
     } as const),
+    KEYS: makeNamespace("keyBrowser", {
+        getKeysRequested: "getKeysRequested",
+        getKeysFulfilled: "getKeysFulfilled",
+        getKeysFailed: "getKeysFailed",
+    } as const),
 } as const
 
 export const CONNECTED = "Connected"
