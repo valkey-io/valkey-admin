@@ -1,48 +1,177 @@
-x-valkey-common: &valkey-common
-  build: .
-  restart: unless-stopped
-  healthcheck:
-    test: ["CMD", "valkey-cli", "ping"]
-    interval: 2s
-    timeout: 1s
-    retries: 20
-  # all services share the same default network so they can reach each other by service name
-
 services:
-  valkey-a:
-    <<: *valkey-common
-    container_name: valkey-a
-    ports:
-      - "6379:6379"
-    environment:
-      RUN_POPULATE: "1"   # set to "0" to skip populate_data.py
-      INSTANCE_NAME: "valkey-a"
+  valkey-7000:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7000
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7000
+      --cluster-announce-bus-port 17000
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7000", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7000:7000","17000:17000"]
     volumes:
-      - valkey_data_a:/data
+      - valkey-7000:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
 
-  valkey-b:
-    <<: *valkey-common
-    container_name: valkey-b
-    ports:
-      - "6380:6379"
-    environment:
-      RUN_POPULATE: "1"
-      INSTANCE_NAME: "valkey-b"
+  valkey-7001:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7001
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7001
+      --cluster-announce-bus-port 17001
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7001", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7001:7001","17001:17001"]
     volumes:
-      - valkey_data_b:/data
+      - valkey-7001:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
 
-  valkey-c:
-    <<: *valkey-common
-    container_name: valkey-c
-    ports:
-      - "6381:6379"
-    environment:
-      RUN_POPULATE: "0"
-      INSTANCE_NAME: "valkey-c"
+  valkey-7002:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7002
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7002
+      --cluster-announce-bus-port 17002
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7002", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7002:7002","17002:17002"]
     volumes:
-      - valkey_data_c:/data
+      - valkey-7002:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
+
+  valkey-7003:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7003
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7003
+      --cluster-announce-bus-port 17003
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7003", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7003:7003","17003:17003"]
+    volumes:
+      - valkey-7003:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
+
+  valkey-7004:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7004
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7004
+      --cluster-announce-bus-port 17004
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7004", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7004:7004","17004:17004"]
+    volumes:
+      - valkey-7004:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
+
+  valkey-7005:
+    image: valkey/valkey:latest
+    command: >
+      valkey-server
+      --port 7005
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-ip host.docker.internal
+      --cluster-announce-port 7005
+      --cluster-announce-bus-port 17005
+      --appendonly no
+      --protected-mode no
+      --loadmodule /opt/modules/rejson.so
+    healthcheck: { test: ["CMD", "valkey-cli", "-p", "7005", "PING"], interval: 2s, timeout: 1s, retries: 30 }
+    ports: ["7005:7005","17005:17005"]
+    volumes:
+      - valkey-7005:/data
+      - ./rejson.so:/opt/modules/rejson.so:ro
+    networks: [ valnet ]
+
+  cluster-init:
+    image: valkey/valkey:latest
+    depends_on:
+      valkey-7000: { condition: service_healthy }
+      valkey-7001: { condition: service_healthy }
+      valkey-7002: { condition: service_healthy }
+      valkey-7003: { condition: service_healthy }
+      valkey-7004: { condition: service_healthy }
+      valkey-7005: { condition: service_healthy }
+    networks: [ valnet ]
+    volumes:
+      - ./scripts/cluster_init.sh:/usr/local/bin/cluster_init.sh:ro
+    entrypoint: ["/usr/local/bin/cluster_init.sh"]
+    restart: "no"
+
+  populate:
+    image: node:20
+    depends_on:
+      cluster-init:
+        condition: service_completed_successfully
+    working_dir: /app
+    volumes:
+      - ./populate.mjs:/app/populate.mjs:ro
+    environment:
+      # inside Docker network; on host use 127.0.0.1:7000 instead
+      VALKEY_START_NODE: "valkey-7000:7000"
+    networks: [ valnet ]
+    command: >
+      sh -c "
+        npm -s install @valkey/client >/dev/null 2>&1 &&
+        node populate.mjs
+      "
+
+networks:
+  valnet:
 
 volumes:
-  valkey_data_a:
-  valkey_data_b:
-  valkey_data_c:
+  valkey-7000:
+  valkey-7001:
+  valkey-7002:
+  valkey-7003:
+  valkey-7004:
+  valkey-7005:
+  populate_node_modules: {}
