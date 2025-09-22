@@ -45,3 +45,32 @@ export async function getKeys(client: GlideClient, ws: WebSocket, payload: {
       console.log("Error getting keys from Valkey", err)
     }
   }
+
+  export async function getKeyType(client: GlideClient, ws: WebSocket, payload: {
+    connectionId: string
+    key: string
+  }) {
+    try {
+      // TYPE command is used to get the type of a key
+      const keyType = await client.customCommand(["TYPE", payload.key]) as string
+      
+      ws.send(JSON.stringify({
+        type: VALKEY.KEYS.getKeyTypeFulfilled,
+        payload: {
+          connectionId: payload.connectionId,
+          key: payload.key,
+          keyType: keyType
+        }
+      }))
+    } catch (err) {
+      ws.send(JSON.stringify({
+        type: VALKEY.KEYS.getKeyTypeFailed,
+        payload: {
+          connectionId: payload.connectionId,
+          key: payload.key,
+          error: err instanceof Error ? err.message : String(err)
+        }
+      }))
+      console.log("Error getting key type from Valkey", err)
+    }
+  }
