@@ -8,18 +8,22 @@ import {
   selectKeys,
   selectLoading,
   selectError,
-  selectKeyType,
-  selectKeyTTL,
 } from "@/state/valkey-features/keys/keyBrowserSelectors";
 import { useAppDispatch } from "@/hooks/hooks";
 import { useParams } from "react-router";
 import { AppHeader } from "./ui/app-header";
-import {convertTTL} from "@common/src/ttl-conversion";
+import { convertTTL } from "@common/src/ttl-conversion";
+import { formatBytes } from "@common/src/bytes-conversion";
+import { calculateTotalMemoryUsage } from "@common/src/memoryUsage-claculation";
 import { Compass, RefreshCcw, Key } from "lucide-react";
+import { toUpper } from "ramda";
 
 interface KeyInfo {
-  key: string;
-  type?: string;
+  name: string;
+  type: string;
+  ttl: number;
+  size: number;
+  collectionSize?: number;
 }
 
 export function KeyBrowser() {
@@ -30,8 +34,6 @@ export function KeyBrowser() {
   const keys: KeyInfo[] = useSelector(selectKeys(id!));
   const loading = useSelector(selectLoading(id!));
   const error = useSelector(selectError(id!));
-  const selectedKeyType = useSelector(selectKeyType(id!, selectedKey));
-  const selectedKeyTTL = useSelector(selectKeyTTL(id!, selectedKey));
 
   useEffect(() => {
     if (id) {
@@ -46,11 +48,19 @@ export function KeyBrowser() {
   const handleKeyClick = (keyName: string) => {
     setSelectedKey(keyName);
 
-    const keyInfo = keys.find((k) => k.key === keyName);
+    const keyInfo = keys.find((k) => k.name === keyName);
     if (keyInfo && !keyInfo.type) {
       dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }));
     }
   };
+
+  // Get selected key info from the keys data
+  const selectedKeyInfo = selectedKey
+    ? keys.find((k) => k.name === selectedKey)
+    : null;
+
+  // Calculate total memory usage
+  const totalMemoryUsage = calculateTotalMemoryUsage(keys);
 
   return (
     <div className="flex flex-col h-screen p-4">
@@ -66,7 +76,9 @@ export function KeyBrowser() {
           <span className="font-light text-sm">Total Keys</span>
         </div>
         <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
-          <span className="text-2xl font-semibold">TBD</span>
+          <span className="text-2xl font-semibold">
+            {formatBytes(totalMemoryUsage)}
+          </span>
           <span className="font-light text-sm">Memory Usage</span>
         </div>
         <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
@@ -104,13 +116,31 @@ export function KeyBrowser() {
           ) : (
             <div className="h-full dark:border-tw-dark-border border rounded overflow-hidden">
               <ul className="h-full overflow-y-auto space-y-2 p-2">
-                {keys.map((keyInfo: { key: string }, index) => (
+                {keys.map((keyInfo: KeyInfo, index) => (
                   <li
                     key={index}
-                    className="h-10 p-2 dark:border-tw-dark-border border hover:text-tw-primary cursor-pointer rounded flex items-center gap-2"
-                    onClick={() => handleKeyClick(keyInfo.key)}
+                    className="h-16 p-2 dark:border-tw-dark-border border hover:text-tw-primary cursor-pointer rounded flex items-center gap-2 justify-between"
+                    onClick={() => handleKeyClick(keyInfo.name)}
                   >
-                    <Key size={16} /> {keyInfo.key}
+                    <div className=" items-center gap-2">
+                      <span className="flex items-center gap-2">
+                        <Key size={16} /> {keyInfo.name}
+                      </span>
+                      <div className="ml-6 text-xs font-light text-tw-primary">
+                        {toUpper(keyInfo.type)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      {keyInfo.size && (
+                        <span className="bg-tw-accent text-xs px-2 py-1 text-tw-primary rounded-full">
+                          {formatBytes(keyInfo.size)}
+                        </span>
+                      )}
+                      {/* text-red-400 is a placehodler for now, will change to a custom tw color */}
+                      <span className="bg-tw-accent2 text-xs px-2 py-1 text-red-400 rounded-full">
+                        {convertTTL(keyInfo.ttl)}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -121,19 +151,29 @@ export function KeyBrowser() {
         {/* Key Details */}
         <div className="w-1/2 pl-2">
           <div className="h-full dark:border-tw-dark-border border rounded">
-            {selectedKey ? (
-              <div className="p-4 text-sm font-light overflow-y-auto flex justify-between items-center">
-                <span className="font-semibold mb-2 flex items-center gap-2">
-                  <Key size={16} />
-                  {selectedKey}
-                </span>
-                <div className="space-x-2">
-                  <span className="bg-tw-accent2 text-sm px-2 py-1 w-12 rounded">
-                    {convertTTL(selectedKeyTTL)}
+            {selectedKey && selectedKeyInfo ? (
+              <div className="p-4 text-sm font-light overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-semibold flex items-center gap-2">
+                    <Key size={16} />
+                    {selectedKey}
                   </span>
-                  <span className="bg-tw-accent text-sm px-2 py-1 w-12 rounded">
-                    {selectedKeyType}
-                  </span>
+                  <div className="space-x-2">
+                    <span className="bg-tw-accent2 text-xs px-2 py-1 text-red-400 rounded-full">
+                      {convertTTL(selectedKeyInfo.ttl)}
+                    </span>
+                    <span className="bg-tw-accent text-xs px-2 py-1 rounded-full">
+                      {selectedKeyInfo.type}
+                    </span>
+                    <span className="bg-tw-accent text-xs px-2 py-1 rounded-full">
+                      {formatBytes(selectedKeyInfo.size)}
+                    </span>
+                    {selectedKeyInfo.collectionSize !== undefined && (
+                      <span className="bg-tw-accent text-xs px-2 py-1 rounded-full">
+                        {selectedKeyInfo.collectionSize.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (

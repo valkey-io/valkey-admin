@@ -1,9 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 
 interface KeyInfo {
-  key: string
+  name: string
   type?: string
   ttl?: number
+  size?: number
+  collectionSize?: number
 }
 
 interface KeyBrowserState {
@@ -40,13 +42,13 @@ const keyBrowserSlice = createSlice({
     },
     getKeysFulfilled: (state, action: PayloadAction<{ 
       connectionId: string
-      keys: string[]
+      keys: KeyInfo[]
       cursor: string 
     }>) => {
       const { connectionId, keys, cursor } = action.payload
       if (state[connectionId]) {
         state[connectionId].loading = false
-        state[connectionId].keys = keys.map(key => ({ key }))
+        state[connectionId].keys = keys
         state[connectionId].cursor = cursor
       }
     },
@@ -72,13 +74,17 @@ const keyBrowserSlice = createSlice({
       key: string
       keyType: string 
       ttl: number
+      size: number
+      collectionSize?: number
     }>) => {
-      const { connectionId, key, keyType, ttl } = action.payload
+      const { connectionId, key, keyType, ttl, size, collectionSize } = action.payload
       if (state[connectionId]) {
-        const existingKey = state[connectionId].keys.find(k => k.key === key)
+        const existingKey = state[connectionId].keys.find(k => k.name === key)
         if (existingKey) {
           existingKey.type = keyType
           existingKey.ttl = ttl
+          if (size !== undefined) existingKey.size = size
+          if (collectionSize !== undefined) existingKey.collectionSize = collectionSize
         }
         delete state[connectionId].keyTypeLoading[key]
       }

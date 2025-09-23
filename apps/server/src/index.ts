@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { Decoder, GlideClient } from "@valkey/valkey-glide";
 import { VALKEY } from "../../../common/src/constants.ts";
-import { getKeys, getKeyInfo } from "./keys-browser.ts";
+import { getKeys, getKeyInfoSingle } from "./keys-browser.ts";
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -72,7 +72,7 @@ wss.on("connection", (ws: WebSocket) => {
       console.log("Handling getKeyTypeRequested for key:", action.payload?.key);
       const client = clients.get(connectionId);
       if (client) {
-        await getKeyInfo(client, ws, action.payload);
+        await getKeyInfoSingle(client, ws, action.payload);
       } else {
         console.log("No client found for connectionId:", connectionId);
         ws.send(

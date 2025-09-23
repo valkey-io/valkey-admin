@@ -25,17 +25,30 @@ export const selectKeyTypeLoading = (id: string) => (state: RootState) =>
 export const selectKeyTypeLoadingForKey = (id: string, key: string) => (state: RootState) =>
   R.pathOr(false, [VALKEY.KEYS.name, id, "keyTypeLoading", key], state)
 
-export const selectKeyType = (id: string, key: string | null | undefined) => (state: RootState) => {
-  if (!key) return undefined;
+export const selectKeyType = (id: string, keyName: string | null | undefined) => (state: RootState) => {
+  if (!keyName) return undefined;
   
   const keys = selectKeys(id)(state);
-  return keys.find(k => k.key === key)?.type;
+  return keys.find(k => k.name === keyName)?.type;
 };
 
-export const selectKeyTTL = (id: string, key: string | null | undefined) => (state: RootState) => {
-  if (!key) return undefined;
+export const selectKeyTTL = (id: string, keyName: string | null | undefined) => (state: RootState) => {
+  if (!keyName) return undefined;
   
   const keys = selectKeys(id)(state);
-  return keys.find(k => k.key === key)?.ttl;
+  return keys.find(k => k.name === keyName)?.ttl;
 };
 
+export const selectKeySize = (id: string, keyName: string | null | undefined) => (state: RootState) => {
+  if (!keyName) return undefined;
+  
+  const keys = selectKeys(id)(state);
+  return keys.find(k => k.name === keyName)?.size;
+};
+
+export const selectKeyCollectionSize = (id: string, keyName: string | null | undefined) => (state: RootState) => {
+  if (!keyName) return undefined;
+  
+  const keys = selectKeys(id)(state);
+  return keys.find(k => k.name === keyName)?.collectionSize;
+};
