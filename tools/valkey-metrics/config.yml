@@ -1,0 +1,32 @@
+valkey:
+# leave blank and set VALKEY_URL in docker-compose
+# url: "valkey://:password@my-cluster.example.com:6379"
+
+server:
+  port: 3000
+  data_dir: "/app/data"
+
+collector:
+  batch_ms: 60000
+  batch_max: 500
+
+epics:
+  - name: "memory"
+    type: "memory_stats"
+    poll_ms: 5000
+    file_prefix: "memory"
+
+  - name: "cpu"
+    type: "info_cpu"
+    poll_ms: 5000
+    file_prefix: "cpu"
+
+  - name: "slowlog"
+    type: "slowlog_get"
+    poll_ms: 60000
+    file_prefix: "slowlog"
+
+  - name: "slowlog_len"
+    type: "slowlog_len"
+    poll_ms: 60000
+    file_prefix: "slowlog_len"

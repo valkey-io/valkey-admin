@@ -1,0 +1,25 @@
+services:
+  metrics:
+    build: .
+    container_name: valkey-metrics
+    environment:
+      CONFIG_PATH: "/app/config.yml"
+      PORT: "3000"
+      DATA_DIR: "/app/data"
+      VALKEY_URL: "valkey://host.docker.internal:7000" # single URL (router, one seed, or any reachable node)
+      BATCH_MS: "1000"
+      BATCH_MAX: "50"
+      DEBUG_METRICS: "1"
+      LOG_LEVEL: "debug" # or info/warn/error/silent
+      LOG_FORMAT: "pretty" # or json
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  metrics_data:

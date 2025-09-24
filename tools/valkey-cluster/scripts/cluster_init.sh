@@ -5,9 +5,9 @@ HOST=host.docker.internal
 
 echo "Checking cluster..."
 info="$(valkey-cli -h "$HOST" -p 7000 CLUSTER INFO 2>/dev/null || true | tr -d '\r')"
-state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
+epics="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
 
-if [ "${state:-}" = "ok" ]; then
+if [ "${epics:-}" = "ok" ]; then
   echo "🫡 Cluster already healthy."
   exit 0
 fi
@@ -34,7 +34,7 @@ printf "Waiting for cluster to stabilize"
 i=0
 while [ "$i" -lt 120 ]; do
   info="$(valkey-cli -h "$HOST" -p 7000 CLUSTER INFO 2>/dev/null | tr -d '\r' || true)"
-  state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
+  epics="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
   known="$(printf '%s\n' "$info" | awk -F: '/^cluster_known_nodes/ {print $2}')"
   size="$(printf  '%s\n' "$info" | awk -F: '/^cluster_size/  {print $2}')"
   slots="$(printf '%s\n' "$info" | awk -F: '/^cluster_slots_assigned/ {print $2}')"

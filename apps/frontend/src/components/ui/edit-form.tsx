@@ -9,7 +9,7 @@ import {
   updateConnectionDetails,
   connectPending,
 } from "@/state/valkey-features/connection/connectionSlice.ts";
-// import { resetConnection } from "@/state/valkey-features/connection/connectionSlice.ts";
+// import { resetConnection } from "@/epics/valkey-features/connection/connectionSlice.ts";
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors";
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
