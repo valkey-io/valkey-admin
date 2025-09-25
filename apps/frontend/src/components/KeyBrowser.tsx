@@ -4,6 +4,7 @@ import * as R from "ramda";
 import {
   getKeysRequested,
   getKeyTypeRequested,
+  deleteKeyRequested,
 } from "@/state/valkey-features/keys/keyBrowserSlice";
 import {
   selectKeys,
@@ -18,7 +19,16 @@ import { CustomTooltip } from "./ui/custom-tooltip";
 import { convertTTL } from "@common/src/ttl-conversion";
 import { formatBytes } from "@common/src/bytes-conversion";
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation";
-import { Compass, RefreshCcw, Key, Hourglass, Database } from "lucide-react";
+import {
+  Compass,
+  RefreshCcw,
+  Key,
+  Hourglass,
+  Database,
+  Trash,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import DeleteModal from "./ui/delete-modal";
 
 interface KeyInfo {
   name: string;
@@ -32,6 +42,11 @@ export function KeyBrowser() {
   const { id } = useParams();
   const dispatch = useAppDispatch();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const handleDeleteModal = () => {
+    setIsDeleteModalOpen(!isDeleteModalOpen);
+  };
 
   const keys: KeyInfo[] = useSelector(selectKeys(id!));
   const loading = useSelector(selectLoading(id!));
@@ -54,6 +69,11 @@ export function KeyBrowser() {
     if (R.isNotEmpty(keyInfo) && !keyInfo!.type) {
       dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }));
     }
+  };
+
+  const handleKeyDelete = (keyName: string) => {
+    dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }));
+    setSelectedKey(null);
   };
 
   // Get selected key info from the keys data
@@ -137,14 +157,22 @@ export function KeyBrowser() {
                         {keyInfo.size && (
                           <CustomTooltip content="Size">
                             <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
-                            <Database size={20} className="text-white bg-tw-primary p-1 rounded-full"/> {formatBytes(keyInfo.size)}
+                              <Database
+                                size={20}
+                                className="text-white bg-tw-primary p-1 rounded-full"
+                              />{" "}
+                              {formatBytes(keyInfo.size)}
                             </span>
                           </CustomTooltip>
                         )}
                         {/* text-red-400 is a placehodler for now, will change to a custom tw color */}
                         <CustomTooltip content="TTL">
                           <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
-                            <Hourglass size={20} className="text-white bg-tw-primary p-1 rounded-full"/> {convertTTL(keyInfo.ttl)}
+                            <Hourglass
+                              size={20}
+                              className="text-white bg-tw-primary p-1 rounded-full"
+                            />{" "}
+                            {convertTTL(keyInfo.ttl)}
                           </span>
                         </CustomTooltip>
                       </div>
@@ -160,12 +188,12 @@ export function KeyBrowser() {
             <div className="h-full dark:border-tw-dark-border border rounded">
               {selectedKey && selectedKeyInfo ? (
                 <div className="p-4 text-sm font-light overflow-y-auto">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold flex items-center gap-2">
                       <Key size={16} />
                       {selectedKey}
                     </span>
-                    <div className="space-x-2">
+                    <div className="space-x-2 flex items-center relative">
                       <CustomTooltip content="TTL">
                         <span className="text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
                           {convertTTL(selectedKeyInfo.ttl)}
@@ -188,8 +216,24 @@ export function KeyBrowser() {
                           </span>
                         </CustomTooltip>
                       )}
+                      <CustomTooltip content="Delete">
+                        <Button
+                          onClick={handleDeleteModal}
+                          variant={"destructiveGhost"}
+                          className="mr-0.5"
+                        >
+                          <Trash />
+                        </Button>
+                      </CustomTooltip>
                     </div>
                   </div>
+                  {isDeleteModalOpen && (
+                    <DeleteModal
+                      keyName={selectedKeyInfo.name}
+                      onConfirm={() => handleKeyDelete(selectedKeyInfo.name)}
+                      onCancel={handleDeleteModal}
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="h-full p-4 text-sm font-light flex items-center justify-center text-gray-500">
