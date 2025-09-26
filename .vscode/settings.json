@@ -1,0 +1,5 @@
+{
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always" // Always ensure fixes on both explicit and auto saves.
+    }
+}
