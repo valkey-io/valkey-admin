@@ -1,12 +1,4 @@
-import type { ReactNode } from "react"
-import {
-  type ConnectionState,
-  connectPending,
-  closeConnection,
-} from "@/state/valkey-features/connection/connectionSlice"
 import { CONNECTED, ERROR } from "@common/src/constants.ts"
-import { Button } from "@/components/ui/button.tsx"
-import { cn } from "@/lib/utils.ts"
 import {
   AlertCircleIcon,
   CircleChevronRight,
@@ -14,11 +6,19 @@ import {
   CircleSmallIcon,
   PencilIcon,
   PowerIcon, PowerOffIcon,
-  Trash2Icon,
+  Trash2Icon
 } from "lucide-react"
+import { Link } from "react-router"
+import type { ReactNode } from "react"
+import {
+  type ConnectionState,
+  connectPending,
+  closeConnection
+} from "@/state/valkey-features/connection/connectionSlice"
+import { Button } from "@/components/ui/button.tsx"
+import { cn } from "@/lib/utils.ts"
 import history from "@/history.ts"
 import { useAppDispatch } from "@/hooks/hooks.ts"
-import { Link } from "react-router"
 
 type ConnectionEntryProps = {
   connectionId: string,
@@ -57,8 +57,8 @@ export const ConnectionEntry = ({ connectionId, connection }: ConnectionEntryPro
         {connection.status}
       </div>
       {
-        <Button className={cn(!isConnected && "pointer-events-none", "justify-self-start")} asChild variant="link">
-          <Link to={`/${connectionId}/dashboard`} title={label}>{label}</Link>
+        <Button asChild className={cn(!isConnected && "pointer-events-none", "justify-self-start")} variant="link">
+          <Link title={label} to={`/${connectionId}/dashboard`}>{label}</Link>
         </Button>
       }
       <div className="flex flex-row justify-end">

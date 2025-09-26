@@ -1,34 +1,34 @@
-import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import * as R from "ramda";
-import {
-  getKeysRequested,
-  getKeyTypeRequested,
-  deleteKeyRequested,
-} from "@/state/valkey-features/keys/keyBrowserSlice";
-import {
-  selectKeys,
-  selectLoading,
-  selectError,
-} from "@/state/valkey-features/keys/keyBrowserSelectors";
-import { useAppDispatch } from "@/hooks/hooks";
-import { useParams } from "react-router";
-import { AppHeader } from "./ui/app-header";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { CustomTooltip } from "./ui/custom-tooltip";
-import { convertTTL } from "@common/src/ttl-conversion";
-import { formatBytes } from "@common/src/bytes-conversion";
-import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation";
+import { useEffect, useState } from "react"
+import { useSelector } from "react-redux"
+import * as R from "ramda"
+import { useParams } from "react-router"
+import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { convertTTL } from "@common/src/ttl-conversion"
+import { formatBytes } from "@common/src/bytes-conversion"
+import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import {
   Compass,
   RefreshCcw,
   Key,
   Hourglass,
   Database,
-  Trash,
-} from "lucide-react";
-import { Button } from "./ui/button";
-import DeleteModal from "./ui/delete-modal";
+  Trash
+} from "lucide-react"
+import { CustomTooltip } from "./ui/custom-tooltip"
+import { AppHeader } from "./ui/app-header"
+import { Button } from "./ui/button"
+import DeleteModal from "./ui/delete-modal"
+import { useAppDispatch } from "@/hooks/hooks"
+import {
+  selectKeys,
+  selectLoading,
+  selectError
+} from "@/state/valkey-features/keys/keyBrowserSelectors"
+import {
+  getKeysRequested,
+  getKeyTypeRequested,
+  deleteKeyRequested
+} from "@/state/valkey-features/keys/keyBrowserSlice"
 
 interface KeyInfo {
   name: string;
@@ -45,54 +45,54 @@ interface ElementInfo {
 }
 
 export function KeyBrowser() {
-  const { id } = useParams();
-  const dispatch = useAppDispatch();
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const { id } = useParams()
+  const dispatch = useAppDispatch()
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const handleDeleteModal = () => {
-    setIsDeleteModalOpen(!isDeleteModalOpen);
-  };
+    setIsDeleteModalOpen(!isDeleteModalOpen)
+  }
 
-  const keys: KeyInfo[] = useSelector(selectKeys(id!));
-  const loading = useSelector(selectLoading(id!));
-  const error = useSelector(selectError(id!));
+  const keys: KeyInfo[] = useSelector(selectKeys(id!))
+  const loading = useSelector(selectLoading(id!))
+  const error = useSelector(selectError(id!))
 
   useEffect(() => {
     if (id) {
-      dispatch(getKeysRequested({ connectionId: id! }));
+      dispatch(getKeysRequested({ connectionId: id! }))
     }
-  }, [id, dispatch]);
+  }, [id, dispatch])
 
   const handleRefresh = () => {
-    dispatch(getKeysRequested({ connectionId: id! }));
-  };
+    dispatch(getKeysRequested({ connectionId: id! }))
+  }
 
   const handleKeyClick = (keyName: string) => {
-    setSelectedKey(keyName);
+    setSelectedKey(keyName)
 
-    const keyInfo = keys.find((k) => k.name === keyName);
+    const keyInfo = keys.find((k) => k.name === keyName)
     if (R.isNotEmpty(keyInfo) && !keyInfo!.type) {
-      dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }));
+      dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }))
     }
-  };
+  }
 
   const handleKeyDelete = (keyName: string) => {
-    dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }));
-    setSelectedKey(null);
-  };
+    dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }))
+    setSelectedKey(null)
+  }
 
   // Get selected key info from the keys data
   const selectedKeyInfo = selectedKey
     ? keys.find((k) => k.name === selectedKey)
-    : null;
+    : null
 
   // Calculate total memory usage
-  const totalMemoryUsage = calculateTotalMemoryUsage(keys);
+  const totalMemoryUsage = calculateTotalMemoryUsage(keys)
 
   return (
     <div className="flex flex-col h-screen p-4">
-      <AppHeader title="Key Browser" icon={<Compass size={20} />} />
+      <AppHeader icon={<Compass size={20} />} title="Key Browser" />
 
       {loading && <div className="ml-2">Loading keys...</div>}
       {error && <div className="ml-2">Error loading keys: {error}</div>}
@@ -122,12 +122,12 @@ export function KeyBrowser() {
       {/* Search and Refresh */}
       <div className="flex items-center w-full mb-4">
         <input
-          placeholder="search"
           className="w-full h-10 p-2 dark:border-tw-dark-border border rounded"
+          placeholder="search"
         />
         <button
-          onClick={handleRefresh}
           className="ml-2 px-4 py-2 bg-tw-primary text-white rounded"
+          onClick={handleRefresh}
         >
           <RefreshCcw />
         </button>
@@ -147,8 +147,9 @@ export function KeyBrowser() {
                 <ul className="h-full overflow-y-auto space-y-2 p-2">
                   {keys.map((keyInfo: KeyInfo, index) => (
                     <li
+                      className="h-16 p-2 dark:border-tw-dark-border border hover:text-tw-primary 
+                      cursor-pointer rounded flex items-center gap-2 justify-between"
                       key={index}
-                      className="h-16 p-2 dark:border-tw-dark-border border hover:text-tw-primary cursor-pointer rounded flex items-center gap-2 justify-between"
                       onClick={() => handleKeyClick(keyInfo.name)}
                     >
                       <div className=" items-center gap-2">
@@ -162,10 +163,11 @@ export function KeyBrowser() {
                       <div className="flex items-center gap-1 text-xs">
                         {keyInfo.size && (
                           <CustomTooltip content="Size">
-                            <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
+                            <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 
+                            rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
                               <Database
-                                size={20}
                                 className="text-white bg-tw-primary p-1 rounded-full"
+                                size={20}
                               />{" "}
                               {formatBytes(keyInfo.size)}
                             </span>
@@ -173,10 +175,11 @@ export function KeyBrowser() {
                         )}
                         {/* text-red-400 is a placehodler for now, will change to a custom tw color */}
                         <CustomTooltip content="TTL">
-                          <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
+                          <span className="flex items-center justify-between gap-1 text-xs px-2 py-1 
+                          rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
                             <Hourglass
-                              size={20}
                               className="text-white bg-tw-primary p-1 rounded-full"
+                              size={20}
                             />{" "}
                             {convertTTL(keyInfo.ttl)}
                           </span>
@@ -224,9 +227,9 @@ export function KeyBrowser() {
                       )}
                       <CustomTooltip content="Delete">
                         <Button
+                          className="mr-0.5"
                           onClick={handleDeleteModal}
                           variant={"destructiveGhost"}
-                          className="mr-0.5"
                         >
                           <Trash />
                         </Button>
@@ -236,8 +239,8 @@ export function KeyBrowser() {
                   {isDeleteModalOpen && (
                     <DeleteModal
                       keyName={selectedKeyInfo.name}
-                      onConfirm={() => handleKeyDelete(selectedKeyInfo.name)}
                       onCancel={handleDeleteModal}
+                      onConfirm={() => handleKeyDelete(selectedKeyInfo.name)}
                     />
                   )}
                   {/* TO DO: Refactor KeyBrowser and build smaller components */}
@@ -289,5 +292,5 @@ export function KeyBrowser() {
         </div>
       </TooltipProvider>
     </div>
-  );
+  )
 }

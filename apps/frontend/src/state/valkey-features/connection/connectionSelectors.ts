@@ -1,6 +1,6 @@
 import * as R from "ramda"
-import type { RootState } from "@/store.ts"
 import { VALKEY } from "@common/src/constants.ts"
+import type { RootState } from "@/store.ts"
 
 export const atId = R.curry((id: string, state: RootState) => R.path([VALKEY.CONNECTION.name, "connections", id], state))
 

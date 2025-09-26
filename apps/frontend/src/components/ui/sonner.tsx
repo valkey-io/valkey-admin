@@ -6,7 +6,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
       className="toaster group"
       position="top-center"
       style={
@@ -16,6 +15,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-border": "var(--border)",
         } as React.CSSProperties
       }
+      theme={theme as ToasterProps["theme"]}
       {...props}
     />
   )

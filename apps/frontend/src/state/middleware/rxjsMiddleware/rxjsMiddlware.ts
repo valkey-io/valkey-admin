@@ -1,10 +1,10 @@
-import {type OperatorFunction, Subject} from "rxjs"
-import {type Action, type Middleware, type PayloadAction} from "@reduxjs/toolkit"
-import {filter} from "rxjs/operators"
+import { type OperatorFunction, Subject } from "rxjs"
+import { type Action, type Middleware, type PayloadAction } from "@reduxjs/toolkit"
+import { filter } from "rxjs/operators"
 
 export const action$ = new Subject<PayloadAction>()
 
-export const rxjsMiddleware: Middleware = () => next => (action: unknown) => {
+export const rxjsMiddleware: Middleware = () => (next) => (action: unknown) => {
   const result = next(action)
   action$.next(action as PayloadAction)
   return result
@@ -27,6 +27,6 @@ export function selectMany<
 >(...creators: ACs): OperatorFunction<Action, ReturnType<ACs[number]>> {
   return filter(
     (a: Action): a is ReturnType<ACs[number]> =>
-      creators.some(c => c.match(a))
+      creators.some((c) => c.match(a))
   )
 }

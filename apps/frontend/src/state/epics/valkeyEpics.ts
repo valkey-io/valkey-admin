@@ -1,15 +1,15 @@
-import type { Store } from "@reduxjs/toolkit"
 import { merge } from "rxjs"
-import { ignoreElements, tap} from "rxjs/operators"
+import { ignoreElements, tap } from "rxjs/operators"
 import * as R from "ramda"
+import { LOCAL_STORAGE, NOT_CONNECTED } from "@common/src/constants.ts"
+import { toast } from "sonner"
 import { getSocket } from "./wsEpics"
-import { connectFulfilled, connectPending} from "../valkey-features/connection/connectionSlice"
+import { connectFulfilled, connectPending } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
+import type { Store } from "@reduxjs/toolkit"
 import { atId } from "@/state/valkey-features/connection/connectionSelectors.ts"
-import { LOCAL_STORAGE, NOT_CONNECTED } from "@common/src/constants.ts"
-import { toast } from 'sonner';
 
 export const connectionEpic = (store: Store) =>
   merge(
@@ -20,7 +20,7 @@ export const connectionEpic = (store: Store) =>
         console.log("Sending message to server from connecting epic...")
         socket.next(action)
       }),
-      ignoreElements(),
+      ignoreElements()
     ),
 
     action$.pipe(
@@ -29,7 +29,7 @@ export const connectionEpic = (store: Store) =>
         try {
           const currentConnections = R.pipe(
             (v: string) => localStorage.getItem(v),
-            (s) => (s === null ? {} : JSON.parse(s)),
+            (s) => (s === null ? {} : JSON.parse(s))
           )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
           R.pipe( // merge fulfilled connection with existing connections in localStorage
@@ -39,13 +39,13 @@ export const connectionEpic = (store: Store) =>
             JSON.stringify,
             (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated)
           )(store.getState())
-          toast.success('Connected to server successfully!')
+          toast.success("Connected to server successfully!")
         } catch (e) {
-          toast.error('Connection to server failed!')
+          toast.error("Connection to server failed!")
           console.error(e)
         }
-      }),
-    ),
+      })
+    )
   )
 
 export const sendRequestEpic = () =>
@@ -54,7 +54,7 @@ export const sendRequestEpic = () =>
     tap((action) => {
       const socket = getSocket()
       socket.next(action)
-    }),
+    })
   )
 
 export const setDataEpic = () =>
@@ -63,5 +63,5 @@ export const setDataEpic = () =>
     tap(({ payload: { connectionId } }) => {
       const socket = getSocket()
       socket.next({ type: setData.type, payload: { connectionId } })
-    }),
+    })
   )

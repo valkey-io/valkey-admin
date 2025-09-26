@@ -1,9 +1,9 @@
-import { useSelector } from "react-redux";
-import { selectData } from "@/state/valkey-features/info/infoSelectors.ts";
-import { Card } from "./ui/card";
-import { AppHeader } from "./ui/app-header";
-import { LayoutDashboard } from "lucide-react";
-import { useParams } from "react-router";
+import { useSelector } from "react-redux"
+import { LayoutDashboard } from "lucide-react"
+import { useParams } from "react-router"
+import { Card } from "./ui/card"
+import { AppHeader } from "./ui/app-header"
+import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
   const { id } = useParams()
@@ -13,13 +13,13 @@ export function Dashboard() {
     connected_clients,
     keys_count,
     bytes_per_key,
-  } = useSelector(selectData(id!));
+  } = useSelector(selectData(id!))
 
   return (
     <div className="p-4">
       <AppHeader
-        title="Dashboard"
         icon={<LayoutDashboard size={20} />}
+        title="Dashboard"
       />
       <div className="flex flex-wrap gap-4">
         {[
@@ -29,12 +29,12 @@ export function Dashboard() {
           ["Keys Count", keys_count],
           ["Bytes per Key", bytes_per_key],
         ].map(([label, value]) => (
-          <Card key={label} className="flex flex-col p-4 w-[200px]">
+          <Card className="flex flex-col p-4 w-[200px]" key={label}>
             <div className="text-2xl font-bold">{value}</div>
             <div className="text-lg text-muted-foreground">{label}</div>
           </Card>
         ))}
       </div>
     </div>
-  );
+  )
 }

@@ -1,6 +1,5 @@
-import { Cog } from "lucide-react";
-import ThemeToggle from "./ui/theme-toggle";
-
+import { Cog } from "lucide-react"
+import ThemeToggle from "./ui/theme-toggle"
 
 export default function Settings() {
   return (
@@ -8,7 +7,7 @@ export default function Settings() {
       {/* top header */}
       <div className="flex items-center justify-between h-10">
         <h1 className="text-xl font-bold flex items-center gap-2 text-gray-700 dark:text-white">
-           <Cog /> Settings
+          <Cog /> Settings
         </h1>
       </div>
       <div className="mt-10 pl-1">
@@ -16,5 +15,5 @@ export default function Settings() {
         <ThemeToggle />
       </div>
     </div>
-  );
+  )
 }

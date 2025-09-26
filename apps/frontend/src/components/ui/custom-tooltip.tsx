@@ -1,9 +1,9 @@
-import React from "react";
+import React from "react"
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger,
-} from "@radix-ui/react-tooltip";
+  TooltipTrigger
+} from "@radix-ui/react-tooltip"
 
 interface CustomTooltipProps {
   children: React.ReactNode;
@@ -15,12 +15,12 @@ export function CustomTooltip({ children, content }: CustomTooltipProps) {
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent
-        side="bottom"
         align="center"
         className={"bg-tw-primary text-white px-2 py-1 mt-1 rounded text-xs font-light z-10"}
+        side="bottom"
       >
         <p>{content}</p>
       </TooltipContent>
     </Tooltip>
-  );
+  )
 }

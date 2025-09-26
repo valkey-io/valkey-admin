@@ -1,18 +1,18 @@
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
-import { connectPending } from "@/state/wsconnection/wsConnectionSlice";
-import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
-import { AppSidebar } from "./components/ui/app-sidebar";
-import { Outlet } from "react-router";
-import { Toaster } from "./components/ui/sonner";
-import { DarkModeProvider } from "./contexts/DarkModeContext";
+import { useEffect } from "react"
+import { useDispatch } from "react-redux"
+import { Outlet } from "react-router"
+import { SidebarInset, SidebarProvider } from "./components/ui/sidebar"
+import { AppSidebar } from "./components/ui/app-sidebar"
+import { Toaster } from "./components/ui/sonner"
+import { DarkModeProvider } from "./contexts/DarkModeContext"
+import { connectPending } from "@/state/wsconnection/wsConnectionSlice"
 
 function App() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch()
 
   useEffect(() => {
-    dispatch(connectPending());
-  }, [dispatch]);
+    dispatch(connectPending())
+  }, [dispatch])
 
   return (
     <DarkModeProvider>
@@ -26,7 +26,7 @@ function App() {
         <Toaster />
       </div>
     </DarkModeProvider>
-  );
+  )
 }
 
-export default App;
+export default App

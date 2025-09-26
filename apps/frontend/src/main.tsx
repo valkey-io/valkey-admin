@@ -3,17 +3,18 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, usePa
 import { Provider } from "react-redux"
 import { useEffect } from "react"
 import App from "./App.tsx"
-import { Connection } from "@/components/connection/Connection.tsx"
 import { Dashboard } from "./components/Dashboard.tsx"
 import { store } from "./store.ts"
 import history from "./history.ts"
-import { SendCommand } from "@/components/SendCommand.tsx"
 import RequireConnection from "./components/RequireConnection.tsx"
 import Settings from "./components/Settings.tsx"
 import LearnMore from "./components/LearnMore.tsx"
 import { KeyBrowser } from "./components/KeyBrowser.tsx"
+import { SendCommand } from "@/components/SendCommand.tsx"
+import { Connection } from "@/components/connection/Connection.tsx"
 import "./css/index.css"
 
+// eslint-disable-next-line react-refresh/only-export-components
 const AppWithHistory = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -28,14 +29,14 @@ const AppWithHistory = () => {
   return (
     <Routes>
       <Route element={<App/>}>
-        <Route path="/" element={<Navigate to="/connect" replace/>}/>
-        <Route path="/connect" element={<Connection/>}/>
-        <Route path="/settings" element={<Settings/>}/>
-        <Route path="/learnmore" element={<LearnMore/>}/>
+        <Route element={<Navigate replace to="/connect"/>} path="/"/>
+        <Route element={<Connection/>} path="/connect"/>
+        <Route element={<Settings/>} path="/settings"/>
+        <Route element={<LearnMore/>} path="/learnmore"/>
         <Route element={<RequireConnection/>}>
-          <Route path="/:id/dashboard/" element={<Dashboard/>}/>
-          <Route path="/:id/sendcommand" element={<SendCommand/>}/>
-          <Route path="/:id/browse" element={<KeyBrowser/>}/>
+          <Route element={<Dashboard/>} path="/:id/dashboard/"/>
+          <Route element={<SendCommand/>} path="/:id/sendcommand"/>
+          <Route element={<KeyBrowser/>} path="/:id/browse"/>
         </Route>
       </Route>
     </Routes>
@@ -48,6 +49,6 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AppWithHistory/>
     </BrowserRouter>
-  </Provider>,
+  </Provider>
   // </StrictMode>,
 )

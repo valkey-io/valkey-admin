@@ -2,13 +2,13 @@ import { ChevronRight, LayoutDashboard } from "lucide-react"
 import React, { useRef, useState } from "react"
 import { useSelector } from "react-redux"
 import { formatTimestamp } from "@common/src/time-utils.ts"
-import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
-import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
+import { useParams } from "react-router"
 import { useAppDispatch } from "../hooks/hooks"
 import { Textarea } from "./ui/textarea"
 import { Button } from "./ui/button"
+import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
+import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
 import RouteContainer from "@/components/ui/route-container.tsx"
-import { useParams } from "react-router"
 import { AppHeader } from "@/components/ui/app-header.tsx"
 
 export function SendCommand() {
@@ -43,16 +43,16 @@ export function SendCommand() {
     <RouteContainer title="Send Command">
       <AppHeader
         className="mb-0"
-        title="Send Command"
         icon={<LayoutDashboard size={20} />}
+        title="Send Command"
       />
       <div className="flex-1 overflow-auto w-full flex flex-row gap-4">
         <pre
           className="rounded-md flex-1 bg-muted p-4 whitespace-pre-wrap break-words overflow-x-auto relative">
-            <h3 className="text-muted-foreground sticky top-0 text-right">Response</h3>
-            <code className={`text-sm font-mono ${error ? "text-destructive" : "text-muted-foreground"}`}>
-                {JSON.stringify(error ?? response, null, 4)}
-            </code>
+          <h3 className="text-muted-foreground sticky top-0 text-right">Response</h3>
+          <code className={`text-sm font-mono ${error ? "text-destructive" : "text-muted-foreground"}`}>
+            {JSON.stringify(error ?? response, null, 4)}
+          </code>
         </pre>
         <div
           className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded-md p-4 font-mono gap-2 w-60 relative">
@@ -68,10 +68,10 @@ export function SendCommand() {
                 }}
                 variant={i === commandIndex ? "ghost" : "outline"}
               >
-              {i === commandIndex && <ChevronRight/>}
-              <span className="shrink-0 mr-2">{formatTimestamp(timestamp)}</span>
-              <span className="truncate">{command}</span>
-            </Button>)
+                {i === commandIndex && <ChevronRight/>}
+                <span className="shrink-0 mr-2">{formatTimestamp(timestamp)}</span>
+                <span className="truncate">{command}</span>
+              </Button>)
           }
         </div>
       </div>
@@ -79,17 +79,17 @@ export function SendCommand() {
         <Textarea
           className="resize-none whitespace-pre-wrap break-words"
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKeyDown}
           onFocus={() => {
             textareaRef.current?.select()
           }}
+          onKeyDown={onKeyDown}
           placeholder="Type your Valkey command here"
           ref={textareaRef}
           value={text}
         />
         <Button
-          onClick={onSubmit}
           className="h-full"
+          onClick={onSubmit}
         >
           Send
         </Button>

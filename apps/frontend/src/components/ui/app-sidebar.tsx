@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Send,
   HousePlug,
-  ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   Cog,
@@ -11,7 +10,7 @@ import {
   Compass
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
-import { useState } from "react";
+import { useState } from "react"
 import useIsConnected from "@/hooks/useIsConnected.ts"
 
 export function AppSidebar() {
@@ -23,8 +22,8 @@ export function AppSidebar() {
   const getNavItemClasses = (path: string) => {
     return location.pathname.endsWith(path)
       ? "bg-tw-primary text-white rounded"
-      : "text-gray-600 hover:text-tw-primary";
-  };
+      : "text-gray-600 hover:text-tw-primary"
+  }
 
   return (
     <nav
@@ -35,7 +34,7 @@ export function AppSidebar() {
       <div className="flex flex-col items-start w-full">
         {/* Header */}
         <div className="flex items-center" title="Skyscope">
-          <img src="../../assets/img/logo.png" alt="logo" className="h-8" />
+          <img alt="logo" className="h-8" src="../../assets/img/logo.png" />
           {isExpanded && (
             <span className="ml-3 font-bold text-lg">Skyscope</span>
           )}
@@ -50,27 +49,27 @@ export function AppSidebar() {
               // Rest of the menu items only if connected
               ...(isConnected
                 ? [
-                    {
-                      to: `/${id}/dashboard`,
-                      title: "Dashboard",
-                      icon: LayoutDashboard,
-                    },
-                    {
-                      to: `/${id}/browse`,
-                      title: "Key Browser",
-                      icon: Compass,
-                    },
-                    { to: `/${id}/sendcommand`, title: "Send Command", icon: Send },
-                  ]
+                  {
+                    to: `/${id}/dashboard`,
+                    title: "Dashboard",
+                    icon: LayoutDashboard,
+                  },
+                  {
+                    to: `/${id}/browse`,
+                    title: "Key Browser",
+                    icon: Compass,
+                  },
+                  { to: `/${id}/sendcommand`, title: "Send Command", icon: Send },
+                ]
                 : []),
             ].map(({ to, title, icon: Icon }) => (
               <li key={to}>
                 <Link
-                  to={to}
                   className={`flex p-2 dark:text-white ${getNavItemClasses(
                     to
                   )} h-10`}
                   title={title}
+                  to={to}
                 >
                   <div className="flex items-center">
                     <Icon size={22} />{" "}
@@ -84,8 +83,9 @@ export function AppSidebar() {
       </div>
       {/* expand/collapse sidebar */}
       <button
+        className="p-1 cursor-pointer rounded-full bg-white border-2 text-tw-primary 
+        hover:bg-tw-primary hover:text-white absolute top-1/2 right-[-14px] z-10"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-1 cursor-pointer rounded-full bg-white border-2 text-tw-primary hover:bg-tw-primary hover:text-white absolute top-1/2 right-[-14px] z-10"
         title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
       >
         {isExpanded ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
@@ -105,10 +105,10 @@ export function AppSidebar() {
             <li key={item.to || item.href}>
               {item.isExternal ? (
                 <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="flex p-2 text-nowrap items-center text-gray-600 dark:text-white hover:text-tw-primary h-10"
+                  href={item.href}
+                  rel="noopener noreferrer"
+                  target="_blank"
                   title={item.title}
                 >
                   <div className="flex items-center">
@@ -118,11 +118,11 @@ export function AppSidebar() {
                 </a>
               ) : (
                 <Link
-                  to={item.to || ""}
                   className={`flex p-2 items-center dark:text-white ${getNavItemClasses(
                     item.to || ""
                   )} h-10`}
                   title={item.title}
+                  to={item.to || ""}
                 >
                   <div className="flex items-center">
                     <item.icon size={22} />
@@ -139,5 +139,5 @@ export function AppSidebar() {
         </ul>
       </div>
     </nav>
-  );
+  )
 }

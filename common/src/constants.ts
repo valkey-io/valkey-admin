@@ -1,53 +1,53 @@
 const commonDefs = {
-    setError: "error",
+  setError: "error",
 } as const
 
 type WithError<T extends Record<string, string>> = { setError: "error" } & T
 
 export const makeNamespace = <
-    const Prefix extends string,
-    const Defs extends Record<string, string>
+  const Prefix extends string,
+  const Defs extends Record<string, string>
 >(
-    name: Prefix,
-    defs: Defs
+  name: Prefix,
+  defs: Defs
 ) =>
-    ({
-        name,
-        ...Object.fromEntries(
-            Object.entries({ ...commonDefs, ...defs } as WithError<Defs>)
-                .map(([k, v]) => [k, `${name}/${v}` as const])
-        ),
-    }) as {
-        name: Prefix
-    } & { [K in keyof WithError<Defs>]: `${Prefix}/${WithError<Defs>[K]}` }
+  ({
+    name,
+    ...Object.fromEntries(
+      Object.entries({ ...commonDefs, ...defs } as WithError<Defs>)
+        .map(([k, v]) => [k, `${name}/${v}` as const])
+    ),
+  }) as {
+    name: Prefix
+  } & { [K in keyof WithError<Defs>]: `${Prefix}/${WithError<Defs>[K]}` }
 
 export const VALKEY = {
-    CONNECTION: makeNamespace("valkeyConnection", {
-        connectPending: "connectPending",
-        connectFulfilled: "connectFulfilled",
-        connectRejected: "connectRejected",
-        resetConnection: "resetConnection",
-        closeConnection: "closeConnection"
-    } as const),
-    COMMAND: makeNamespace("valkeyCommand", {
-        sendFailed: "sendFailed",
-        sendFulfilled: "sendFulfilled",
-        sendRequested: "sendRequested",
-    } as const),
-    STATS: makeNamespace("valkeyStats", {
-        setData: "setData",
-    } as const),
-    KEYS: makeNamespace("keyBrowser", {
-        getKeysRequested: "getKeysRequested",
-        getKeysFulfilled: "getKeysFulfilled",
-        getKeysFailed: "getKeysFailed",
-        getKeyTypeRequested: "getKeyTypeRequested",
-        getKeyTypeFulfilled: "getKeyTypeFulfilled",
-        getKeyTypeFailed: "getKeyTypeFailed",
-        deleteKeyRequested: "deleteKeyRequested",
-        deleteKeyFulfilled: "deleteKeyFulfilled",
-        deleteKeyFailed: "deleteKeyFailed",
-    } as const),
+  CONNECTION: makeNamespace("valkeyConnection", {
+    connectPending: "connectPending",
+    connectFulfilled: "connectFulfilled",
+    connectRejected: "connectRejected",
+    resetConnection: "resetConnection",
+    closeConnection: "closeConnection",
+  } as const),
+  COMMAND: makeNamespace("valkeyCommand", {
+    sendFailed: "sendFailed",
+    sendFulfilled: "sendFulfilled",
+    sendRequested: "sendRequested",
+  } as const),
+  STATS: makeNamespace("valkeyStats", {
+    setData: "setData",
+  } as const),
+  KEYS: makeNamespace("keyBrowser", {
+    getKeysRequested: "getKeysRequested",
+    getKeysFulfilled: "getKeysFulfilled",
+    getKeysFailed: "getKeysFailed",
+    getKeyTypeRequested: "getKeyTypeRequested",
+    getKeyTypeFulfilled: "getKeyTypeFulfilled",
+    getKeyTypeFailed: "getKeyTypeFailed",
+    deleteKeyRequested: "deleteKeyRequested",
+    deleteKeyFulfilled: "deleteKeyFulfilled",
+    deleteKeyFailed: "deleteKeyFailed",
+  } as const),
 } as const
 
 export const CONNECTED = "Connected"

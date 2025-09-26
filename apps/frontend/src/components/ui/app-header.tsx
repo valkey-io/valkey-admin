@@ -1,6 +1,6 @@
-import type { ReactNode } from "react"
 import { useParams } from "react-router"
 import { useSelector } from "react-redux"
+import type { ReactNode } from "react"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { cn } from "@/lib/utils.ts"
 
@@ -12,7 +12,7 @@ type AppHeaderProps = {
 
 function AppHeader({ title, icon, className }: AppHeaderProps) {
   const { id } = useParams<{ id: string }>()
-  const { host, port, username } = useSelector(selectConnectionDetails(id!));
+  const { host, port, username } = useSelector(selectConnectionDetails(id!))
 
   return (
     <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between", className)}>
@@ -26,7 +26,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
         </span>
       </div>
     </div>
-  );
+  )
 }
 
-export { AppHeader };
+export { AppHeader }

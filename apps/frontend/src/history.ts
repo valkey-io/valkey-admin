@@ -1,4 +1,4 @@
-import type {NavigateFunction, Params, Location} from "react-router"
+import type { NavigateFunction, Params, Location } from "react-router"
 
 const history = {
   location: null as unknown as Location,
