@@ -9,6 +9,7 @@ interface EnrichedKeyInfo {
   ttl: number;
   size: number;
   collectionSize?: number;
+  elements?: any; // this can be array, object, or string depending on the key type.
 }
 
 export async function getKeyInfo(
@@ -29,26 +30,43 @@ export async function getKeyInfo(
       size: memoryUsage || 0,
     };
 
-    // Get collection size per type
+    // Get collection size and elements for each type
     try {
-      const sizeCommands: Record<string, string> = {
-        list: "LLEN",
-        set: "SCARD",
-        zset: "ZCARD",
-        hash: "HLEN",
-        stream: "XLEN",
+      const elementCommands: Record<
+        string,
+        { sizeCmd: string; elementsCmd: string[] }
+      > = {
+        list: { sizeCmd: "LLEN", elementsCmd: ["LRANGE", key, "0", "-1"] },
+        set: { sizeCmd: "SCARD", elementsCmd: ["SMEMBERS", key] },
+        zset: {
+          sizeCmd: "ZCARD",
+          elementsCmd: ["ZRANGE", key, "0", "-1", "WITHSCORES"],
+        },
+        hash: { sizeCmd: "HLEN", elementsCmd: ["HGETALL", key] },
+        stream: { sizeCmd: "XLEN", elementsCmd: ["XRANGE", key, "-", "+"] },
+        string: { sizeCmd: "", elementsCmd: ["GET", key] },
       };
 
-      const command = sizeCommands[keyType.toLowerCase()];
-      if (command) {
-        keyInfo.collectionSize = (await client.customCommand([
-          command,
-          key,
-        ])) as number;
+      const commands = elementCommands[keyType.toLowerCase()];
+      if (commands) {
+        const promises = [];
+
+        if (commands.sizeCmd) {
+          promises.push(client.customCommand([commands.sizeCmd, key]));
+        }
+        promises.push(client.customCommand(commands.elementsCmd));
+
+        const results = await Promise.all(promises);
+
+        if (commands.sizeCmd) {
+          keyInfo.collectionSize = results[0] as number;
+          keyInfo.elements = results[1];
+        } else {
+          keyInfo.elements = results[0]; // in case of string
+        }
       }
-      // string has no collection size
     } catch (err) {
-      console.log(`Could not get collection size for key ${key}:`, err);
+      console.log(`Could not get elements for key ${key}:`, err);
     }
 
     return keyInfo;
