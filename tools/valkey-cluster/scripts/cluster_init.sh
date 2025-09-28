@@ -38,7 +38,7 @@ while [ "$i" -lt 120 ]; do
   known="$(printf '%s\n' "$info" | awk -F: '/^cluster_known_nodes/ {print $2}')"
   size="$(printf  '%s\n' "$info" | awk -F: '/^cluster_size/  {print $2}')"
   slots="$(printf '%s\n' "$info" | awk -F: '/^cluster_slots_assigned/ {print $2}')"
-  masters="$(valkey-cli -h "$HOST" -p 700 CLUSTER NODES 2>/dev/null | tr -d '\r' | awk '$3 ~ /master/ {c++} END {print (c+0)}' || echo 0)"
+  masters="$(valkey-cli -h "$HOST" -p 7001 CLUSTER NODES 2>/dev/null | tr -d '\r' | awk '$3 ~ /master/ {c++} END {print (c+0)}' || echo 0)"
 
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
     echo ""
