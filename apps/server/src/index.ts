@@ -226,6 +226,7 @@ async function connectToValkey(
         },
       }),
     )
+    return undefined
   }
 }
 
@@ -438,7 +439,9 @@ async function sendValkeyRunCommand(
 
     // todo fixme!!! they are not all strings!
     const response =
-      typeof rawResponse === "string" ? parseInfo(rawResponse) : rawResponse
+      typeof rawResponse === "string"
+        ? parseInfo(rawResponse)
+        : rawResponse
     if (rawResponse.includes("ResponseError")) {
       ws.send(
         JSON.stringify({
@@ -450,7 +453,10 @@ async function sendValkeyRunCommand(
     }
     ws.send(
       JSON.stringify({
-        meta: { connectionId: payload.connectionId, command: payload.command },
+        meta: {
+          connectionId: payload.connectionId,
+          command: payload.command,
+        },
         type: VALKEY.COMMAND.sendFulfilled,
         payload: response,
       }),
@@ -458,7 +464,10 @@ async function sendValkeyRunCommand(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        meta: { connectionId: payload.connectionId, command: payload.command },
+        meta: {
+          connectionId: payload.connectionId,
+          command: payload.command,
+        },
         type: VALKEY.COMMAND.sendFailed,
         payload: err,
       }),
