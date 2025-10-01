@@ -49,5 +49,5 @@ export const keyBrowserEpic = () =>
         console.log("Sending addKey request to server...")
         socket.next(action)
       })
-    ),
+    )
   )

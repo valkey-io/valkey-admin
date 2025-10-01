@@ -1,77 +1,77 @@
-import React, { useState } from "react";
-import { Trash, X } from "lucide-react";
-import { useParams } from "react-router";
-import { useAppDispatch } from "@/hooks/hooks";
-import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice";
-import { Button } from "./button";
+import React, { useState } from "react"
+import { Trash, X } from "lucide-react"
+import { useParams } from "react-router"
+import { Button } from "./button"
+import { useAppDispatch } from "@/hooks/hooks"
+import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 
 interface AddNewKeyProps {
   onClose: () => void;
 }
 
 export default function AddNewKey({ onClose }: AddNewKeyProps) {
-  const { id } = useParams();
-  const dispatch = useAppDispatch();
+  const { id } = useParams()
+  const dispatch = useAppDispatch()
 
-  const [keyType, setKeyType] = useState("Select key type");
-  const [keyName, setKeyName] = useState("");
-  const [ttl, setTtl] = useState("");
-  const [value, setValue] = useState("");
-  const [error, setError] = useState("");
-  const [hashFields, setHashFields] = useState([{ field: "", value: "" }]);
+  const [keyType, setKeyType] = useState("Select key type")
+  const [keyName, setKeyName] = useState("")
+  const [ttl, setTtl] = useState("")
+  const [value, setValue] = useState("")
+  const [error, setError] = useState("")
+  const [hashFields, setHashFields] = useState([{ field: "", value: "" }])
 
-  const addHashField =   () => {
-    setHashFields([...hashFields, { field: "", value: "" }]);
-  };
+  const addHashField = () => {
+    setHashFields([...hashFields, { field: "", value: "" }])
+  }
 
   const removeHashField = (index: number) => {
-    setHashFields(hashFields.filter((_, i) => i !== index));
-  };
+    setHashFields(hashFields.filter((_, i) => i !== index))
+  }
 
   const updateHashField = (
     index: number,
     key: "field" | "value",
     val: string
   ) => {
-    const updated = [...hashFields];
-    updated[index][key] = val;
-    setHashFields(updated);
-  };
+    const updated = [...hashFields]
+    updated[index][key] = val
+    setHashFields(updated)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault()
+    setError("")
 
     if (!keyName) {
-      setError("Key name is required");
-      return;
+      setError("Key name is required")
+      return
     }
 
     if (keyType === "Select key type") {
-      setError("Please select a key type");
-      return;
+      setError("Please select a key type")
+      return
     }
 
     if (keyType === "String" && !value) {
-      setError("Value is required for string type");
-      return;
+      setError("Value is required for string type")
+      return
     }
     // Validate TTL
-    const parsedTtl = ttl ? parseInt(ttl, 10) : undefined;
+    const parsedTtl = ttl ? parseInt(ttl, 10) : undefined
     if (ttl && (isNaN(parsedTtl!) || parsedTtl! < -1)) {
       setError(
         "TTL not a valid number (-1 for no expiration, or positive number)"
-      );
-      return;
+      )
+      return
     } else if (keyType === "Hash") {
       // this ensures at least one field-value pair is entered
       const validFields = hashFields.filter(
         (field) => field.field.trim() && field.value.trim()
-      );
+      )
 
       if (validFields.length === 0) {
-        setError("At least one field-value pair is required for hash type");
-        return;
+        setError("At least one field-value pair is required for hash type")
+        return
       }
     }
 
@@ -82,7 +82,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
         key: keyName.trim(),
         keyType,
         ttl: parsedTtl && parsedTtl > 0 ? parsedTtl : undefined,
-      };
+      }
 
       if (keyType === "String") {
         dispatch(
@@ -90,7 +90,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             ...basePayload,
             value: value.trim(),
           })
-        );
+        )
       } else if (keyType === "Hash") {
         // before dispatching, filtering out the empty fields
         const validFields = hashFields
@@ -98,32 +98,32 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
           .map((field) => ({
             field: field.field.trim(),
             value: field.value.trim(),
-          }));
+          }))
 
         dispatch(
           addKeyRequested({
             ...basePayload,
             fields: validFields,
           })
-        );
+        )
       }
 
-      onClose();
+      onClose()
     }
-  };
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center">
       <div className="w-1/3 h-2/3 p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border flex flex-col">
         <div className="flex justify-between">
           <h2 className="text-lg font-semibold">Add Key</h2>
-          <button onClick={onClose} className="hover:text-tw-primary">
+          <button className="hover:text-tw-primary" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
         <form
-          onSubmit={handleSubmit}
           className="flex-1 flex flex-col justify-between overflow-y-auto"
+          onSubmit={handleSubmit}
         >
           <div>
             <div className="flex w-full justify-between gap-4">
@@ -131,10 +131,10 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 <div className="flex flex-col gap-2">
                   <label>Select the type of key you want to add.</label>
                   <select
-                    id="key-type"
-                    value={keyType}
-                    onChange={(e) => setKeyType(e.target.value)}
                     className="border border-tw-dark-border rounded p-2"
+                    id="key-type"
+                    onChange={(e) => setKeyType(e.target.value)}
+                    value={keyType}
                   >
                     <option disabled>Select key type</option>
                     <option>String</option>
@@ -146,12 +146,12 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 <div className="flex flex-col gap-2">
                   <label>TTL (seconds)</label>
                   <input
+                    className="border border-tw-dark-border rounded p-2"
                     id="ttl"
-                    type="number"
-                    value={ttl}
                     onChange={(e) => setTtl(e.target.value)}
                     placeholder="Enter TTL, Default: -1 (no expiration)"
-                    className="border border-tw-dark-border rounded p-2"
+                    type="number"
+                    value={ttl}
                   />
                 </div>
               </div>
@@ -160,12 +160,12 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
               <div className="flex flex-col gap-2">
                 <label>Key name *</label>
                 <input
+                  className="border border-tw-dark-border rounded p-2"
                   id="key-name"
-                  type="text"
-                  value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
                   placeholder="Enter key name"
-                  className="border border-tw-dark-border rounded p-2"
+                  type="text"
+                  value={keyName}
                 />
               </div>
             </div>
@@ -177,12 +177,12 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 <div className="flex flex-col gap-2">
                   <label htmlFor="value">Value *</label>
                   <textarea
+                    className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary min-h-[100px]"
                     id="value"
-                    value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Enter value"
-                    className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary min-h-[100px]"
                     required
+                    value={value}
                   />
                 </div>
               </div>
@@ -191,32 +191,32 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             ) : (
               <div className="flex flex-col w-full gap-2">
                 {hashFields.map((field, index) => (
-                  <div key={index} className="flex gap-4 items-start mt-4">
+                  <div className="flex gap-4 items-start mt-4" key={index}>
                     <div className="text-sm font-light w-1/2">
                       <input
-                        placeholder="Field"
-                        value={field.field}
+                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
                         onChange={(e) =>
                           updateHashField(index, "field", e.target.value)
                         }
-                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+                        placeholder="Field"
+                        value={field.field}
                       />
                     </div>
                     <div className="text-sm font-light w-1/2">
                       <input
-                        placeholder="Value"
-                        value={field.value}
+                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
                         onChange={(e) =>
                           updateHashField(index, "value", e.target.value)
                         }
-                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+                        placeholder="Value"
+                        value={field.value}
                       />
                     </div>
                     {hashFields.length > 1 && (
                       <Button
-                        variant={"destructiveGhost"}
-                        onClick={() => removeHashField(index)}
                         className="mt-1"
+                        onClick={() => removeHashField(index)}
+                        variant={"destructiveGhost"}
                       >
                         <Trash size={14} />
                       </Button>
@@ -225,9 +225,9 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 ))}
                 <div className="text-end">
                   <button
-                    type="button"
-                    onClick={addHashField}
                     className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+                    onClick={addHashField}
+                    type="button"
                   >
                     + Add Field
                   </button>
@@ -244,15 +244,15 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
 
           <div className="pt-2 text-sm flex gap-4">
             <button
-              type="submit"
-              disabled={keyType === "Select key type" || !keyName}
               className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
+              disabled={keyType === "Select key type" || !keyName}
+              type="submit"
             >
               Submit
             </button>
             <button
-              onClick={onClose}
               className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
+              onClick={onClose}
             >
               Cancel
             </button>
@@ -260,5 +260,5 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
         </form>
       </div>
     </div>
-  );
+  )
 }

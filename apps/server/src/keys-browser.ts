@@ -1,7 +1,7 @@
-import { WebSocket } from "ws";
-import { GlideClient } from "@valkey/valkey-glide";
-import * as R from "ramda";
-import { VALKEY } from "../../../common/src/constants.ts";
+import { WebSocket } from "ws"
+import { GlideClient } from "@valkey/valkey-glide"
+import * as R from "ramda"
+import { VALKEY } from "../../../common/src/constants.ts"
 
 interface EnrichedKeyInfo {
   name: string;
@@ -22,14 +22,14 @@ export async function getKeyInfo(
       client.customCommand(["TYPE", key]) as Promise<string>,
       client.customCommand(["TTL", key]) as Promise<number>,
       client.customCommand(["MEMORY", "USAGE", key]) as Promise<number>,
-    ]);
+    ])
 
     const keyInfo: EnrichedKeyInfo = {
       name: key,
       type: keyType,
       ttl: ttl,
       size: memoryUsage || 0,
-    };
+    }
 
     // Get collection size and elements for each type
     try {
@@ -46,39 +46,39 @@ export async function getKeyInfo(
         hash: { sizeCmd: "HLEN", elementsCmd: ["HGETALL", key] },
         stream: { sizeCmd: "XLEN", elementsCmd: ["XRANGE", key, "-", "+"] },
         string: { sizeCmd: "", elementsCmd: ["GET", key] },
-      };
+      }
 
-      const commands = elementCommands[keyType.toLowerCase()];
+      const commands = elementCommands[keyType.toLowerCase()]
       if (commands) {
-        const promises = [];
+        const promises = []
 
         if (commands.sizeCmd) {
-          promises.push(client.customCommand([commands.sizeCmd, key]));
+          promises.push(client.customCommand([commands.sizeCmd, key]))
         }
-        promises.push(client.customCommand(commands.elementsCmd));
+        promises.push(client.customCommand(commands.elementsCmd))
 
-        const results = await Promise.all(promises);
+        const results = await Promise.all(promises)
 
         if (commands.sizeCmd) {
-          keyInfo.collectionSize = results[0] as number;
-          keyInfo.elements = results[1];
+          keyInfo.collectionSize = results[0] as number
+          keyInfo.elements = results[1]
         } else {
-          keyInfo.elements = results[0]; // in case of string
+          keyInfo.elements = results[0] // in case of string
         }
       }
     } catch (err) {
-      console.log(`Could not get elements for key ${key}:`, err);
+      console.log(`Could not get elements for key ${key}:`, err)
     }
 
-    return keyInfo;
+    return keyInfo
   } catch (err) {
-    console.log("Error getting key", err);
+    console.log("Error getting key", err)
     return {
       name: key,
       type: "unknown",
       ttl: -1,
       size: 0,
-    };
+    }
   }
 }
 
@@ -92,9 +92,9 @@ export async function getKeys(
   }
 ) {
   try {
-    const pattern = payload.pattern || "*";
-    const count = payload.count || 50;
-    const batchSize = 10; // TO DO: configurable batch size
+    const pattern = payload.pattern || "*"
+    const count = payload.count || 50
+    const batchSize = 10 // TO DO: configurable batch size
 
     // Using SCAN command with pattern and count
     const rawResponse = (await client.customCommand([
@@ -104,26 +104,26 @@ export async function getKeys(
       pattern,
       "COUNT",
       count.toString(),
-    ])) as [string, string[]];
+    ])) as [string, string[]]
 
-    console.log("SCAN response:", rawResponse);
+    console.log("SCAN response:", rawResponse)
 
-    const [cursor, keys] = rawResponse;
+    const [cursor, keys] = rawResponse
 
     const enrichedKeys = R.flatten(
       await Promise.all(
         R.splitEvery(batchSize, keys).map(async (batch) => {
           const settled = await Promise.allSettled(
             batch.map((k) => getKeyInfo(client, k))
-          );
+          )
           return settled.map((res, idx) =>
             res.status === "fulfilled"
               ? res.value
               : { name: batch[idx], type: "unknown", ttl: -1, size: 0 }
-          );
+          )
         })
       )
-    );
+    )
 
     ws.send(
       JSON.stringify({
@@ -134,7 +134,7 @@ export async function getKeys(
           cursor: cursor || "0",
         },
       })
-    );
+    )
   } catch (err) {
     ws.send(
       JSON.stringify({
@@ -144,8 +144,8 @@ export async function getKeys(
           error: err instanceof Error ? err.message : String(err),
         },
       })
-    );
-    console.log("Error getting keys from Valkey", err);
+    )
+    console.log("Error getting keys from Valkey", err)
   }
 }
 
@@ -158,7 +158,7 @@ export async function getKeyInfoSingle(
   }
 ) {
   try {
-    const keyInfo = await getKeyInfo(client, payload.key);
+    const keyInfo = await getKeyInfo(client, payload.key)
 
     ws.send(
       JSON.stringify({
@@ -169,7 +169,7 @@ export async function getKeyInfoSingle(
           ...keyInfo,
         },
       })
-    );
+    )
   } catch (err) {
     ws.send(
       JSON.stringify({
@@ -180,8 +180,8 @@ export async function getKeyInfoSingle(
           error: err instanceof Error ? err.message : String(err),
         },
       })
-    );
-    console.log("Error getting key info from Valkey", err);
+    )
+    console.log("Error getting key info from Valkey", err)
   }
 }
 
@@ -195,7 +195,7 @@ export async function deleteKey(
     const result = (await client.customCommand([
       "UNLINK",
       payload.key,
-    ])) as number;
+    ])) as number
 
     ws.send(
       JSON.stringify({
@@ -206,7 +206,7 @@ export async function deleteKey(
           deleted: result === 1,
         },
       })
-    );
+    )
   } catch (err) {
     ws.send(
       JSON.stringify({
@@ -217,8 +217,8 @@ export async function deleteKey(
           error: err instanceof Error ? err.message : String(err),
         },
       })
-    );
-    console.log("Error deleting key from Valkey", err);
+    )
+    console.log("Error deleting key from Valkey", err)
   }
 }
 
@@ -230,9 +230,9 @@ async function addStringKey(
   ttl?: number
 ) {
   if (ttl && ttl > 0) {
-    await client.customCommand(["SETEX", key, ttl.toString(), value]);
+    await client.customCommand(["SETEX", key, ttl.toString(), value])
   } else {
-    await client.customCommand(["SET", key, value]);
+    await client.customCommand(["SET", key, value])
   }
 }
 
@@ -242,14 +242,14 @@ async function addHashKey(
   fields: { field: string; value: string }[],
   ttl?: number
 ) {
-  const hsetCommand = ["HSET", key];
+  const hsetCommand = ["HSET", key]
   fields.forEach(({ field, value }) => {
-    hsetCommand.push(field, value);
-  });
+    hsetCommand.push(field, value)
+  })
 
-  await client.customCommand(hsetCommand);
+  await client.customCommand(hsetCommand)
   if (ttl && ttl > 0) {
-    await client.customCommand(["EXPIRE", key, ttl.toString()]);
+    await client.customCommand(["EXPIRE", key, ttl.toString()])
   }
 }
 
@@ -267,30 +267,30 @@ export async function addKey(
   }
 ) {
   try {
-    const keyType = payload.keyType.toLowerCase();
+    const keyType = payload.keyType.toLowerCase()
 
     switch (keyType) {
       case "string":
         if (!payload.value) {
-          throw new Error("Value is required for string type");
+          throw new Error("Value is required for string type")
         }
-        await addStringKey(client, payload.key, payload.value, payload.ttl);
-        break;
+        await addStringKey(client, payload.key, payload.value, payload.ttl)
+        break
 
       case "hash":
         if (!payload.fields || payload.fields.length === 0) {
-          throw new Error("Fields are required for hash type");
+          throw new Error("Fields are required for hash type")
         }
-        await addHashKey(client, payload.key, payload.fields, payload.ttl);
-        break;
+        await addHashKey(client, payload.key, payload.fields, payload.ttl)
+        break
 
-      // to do: implement other types here
+        // to do: implement other types here
 
       default:
-        throw new Error(`Unsupported key type: ${payload.keyType}`);
+        throw new Error(`Unsupported key type: ${payload.keyType}`)
     }
 
-    const keyInfo = await getKeyInfo(client, payload.key);
+    const keyInfo = await getKeyInfo(client, payload.key)
 
     ws.send(
       JSON.stringify({
@@ -301,7 +301,7 @@ export async function addKey(
           message: "Key added successfully",
         },
       })
-    );
+    )
   } catch (err) {
     ws.send(
       JSON.stringify({
@@ -311,7 +311,7 @@ export async function addKey(
           error: err instanceof Error ? err.message : String(err),
         },
       })
-    );
-    console.log("Error adding key to Valkey", err);
+    )
+    console.log("Error adding key to Valkey", err)
   }
 }

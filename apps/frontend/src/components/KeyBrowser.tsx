@@ -1,35 +1,35 @@
-import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import * as R from "ramda";
-import { useParams } from "react-router";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { convertTTL } from "@common/src/ttl-conversion";
-import { formatBytes } from "@common/src/bytes-conversion";
-import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation";
+import { useEffect, useState } from "react"
+import { useSelector } from "react-redux"
+import * as R from "ramda"
+import { useParams } from "react-router"
+import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { convertTTL } from "@common/src/ttl-conversion"
+import { formatBytes } from "@common/src/bytes-conversion"
+import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import {
   Compass,
   RefreshCcw,
   Key,
   Hourglass,
   Database,
-  Trash,
-} from "lucide-react";
-import { CustomTooltip } from "./ui/custom-tooltip";
-import { AppHeader } from "./ui/app-header";
-import AddNewKey from "./ui/add-key";
-import { Button } from "./ui/button";
-import DeleteModal from "./ui/delete-modal";
-import { useAppDispatch } from "@/hooks/hooks";
+  Trash
+} from "lucide-react"
+import { CustomTooltip } from "./ui/custom-tooltip"
+import { AppHeader } from "./ui/app-header"
+import AddNewKey from "./ui/add-key"
+import { Button } from "./ui/button"
+import DeleteModal from "./ui/delete-modal"
+import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectKeys,
   selectLoading,
-  selectError,
-} from "@/state/valkey-features/keys/keyBrowserSelectors";
+  selectError
+} from "@/state/valkey-features/keys/keyBrowserSelectors"
 import {
   getKeysRequested,
   getKeyTypeRequested,
-  deleteKeyRequested,
-} from "@/state/valkey-features/keys/keyBrowserSlice";
+  deleteKeyRequested
+} from "@/state/valkey-features/keys/keyBrowserSlice"
 
 interface KeyInfo {
   name: string;
@@ -47,55 +47,55 @@ interface ElementInfo {
 }
 
 export function KeyBrowser() {
-  const { id } = useParams();
-  const dispatch = useAppDispatch();
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isAddKeyOpen, setIsAddKeyOpen] = useState(false);
+  const { id } = useParams()
+  const dispatch = useAppDispatch()
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isAddKeyOpen, setIsAddKeyOpen] = useState(false)
 
   const handleDeleteModal = () => {
-    setIsDeleteModalOpen(!isDeleteModalOpen);
-  };
+    setIsDeleteModalOpen(!isDeleteModalOpen)
+  }
 
   const handleAddKeyModal = () => {
-    setIsAddKeyOpen(!isAddKeyOpen);
-  };
+    setIsAddKeyOpen(!isAddKeyOpen)
+  }
 
-  const keys: KeyInfo[] = useSelector(selectKeys(id!));
-  const loading = useSelector(selectLoading(id!));
-  const error = useSelector(selectError(id!));
+  const keys: KeyInfo[] = useSelector(selectKeys(id!))
+  const loading = useSelector(selectLoading(id!))
+  const error = useSelector(selectError(id!))
 
   useEffect(() => {
     if (id) {
-      dispatch(getKeysRequested({ connectionId: id! }));
+      dispatch(getKeysRequested({ connectionId: id! }))
     }
-  }, [id, dispatch]);
+  }, [id, dispatch])
 
   const handleRefresh = () => {
-    dispatch(getKeysRequested({ connectionId: id! }));
-  };
+    dispatch(getKeysRequested({ connectionId: id! }))
+  }
 
   const handleKeyClick = (keyName: string) => {
-    setSelectedKey(keyName);
+    setSelectedKey(keyName)
 
-    const keyInfo = keys.find((k) => k.name === keyName);
+    const keyInfo = keys.find((k) => k.name === keyName)
     if (R.isNotEmpty(keyInfo) && !keyInfo!.type) {
-      dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }));
+      dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }))
     }
-  };
+  }
 
   const handleKeyDelete = (keyName: string) => {
-    dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }));
-    setSelectedKey(null);
-  };
+    dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }))
+    setSelectedKey(null)
+  }
 
   // Get selected key info from the keys data
   const selectedKeyInfo = selectedKey
     ? keys.find((k) => k.name === selectedKey)
-    : null;
+    : null
 
   // Calculate total memory usage
-  const totalMemoryUsage = calculateTotalMemoryUsage(keys);
+  const totalMemoryUsage = calculateTotalMemoryUsage(keys)
 
   return (
     <div className="flex flex-col h-screen p-4">
@@ -277,7 +277,7 @@ export function KeyBrowser() {
                           <th className="w-1/2 py-3 px-4 text-left font-semibold">
                             {selectedKeyInfo.type === "list"
                               ? "Elements" : selectedKeyInfo.type === "string" ? ""
-                              : "Value"}
+                                : "Value"}
                           </th>
                         </tr>
                       </thead>
@@ -320,5 +320,5 @@ export function KeyBrowser() {
         </div>
       </TooltipProvider>
     </div>
-  );
+  )
 }
