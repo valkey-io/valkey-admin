@@ -76,10 +76,7 @@ const connectionSlice = createSlice({
     },
     deleteConnection: (state, action) => {
       const { connectionId } = action.payload
-      if(state.connections[connectionId]) {
-        delete state.connections[connectionId]
-      }
-
+      return R.dissocPath(["connections", connectionId], state)
     },
   },
 })

@@ -51,15 +51,15 @@ export const connectionEpic = (store: Store) =>
 export const deleteConnectionEpic = () => 
   action$.pipe(
     select(deleteConnection),
+    // TODO: extract reused logic into separate method 
     tap(({ payload: { connectionId } }) => {
       try {
         const currentConnections = R.pipe(
           (v: string) => localStorage.getItem(v),
           (s) => (s === null ? {} : JSON.parse(s))
         )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
-
         R.pipe(
-          R.dissoc(connectionId), // <- removes the entry by key
+          R.dissoc(connectionId), 
           JSON.stringify,
           (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated)
         )(currentConnections)
