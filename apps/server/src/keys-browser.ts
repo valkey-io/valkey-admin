@@ -253,6 +253,20 @@ async function addHashKey(
   }
 }
 
+async function addListKey(
+  client: GlideClient,
+  key: string,
+  values: string[],
+  ttl?: number
+) {
+  const rpushArgs = ["RPUSH", key, ...values];
+  await client.customCommand(rpushArgs);
+
+  if (ttl && ttl > 0) {
+    await client.customCommand(["EXPIRE", key, ttl.toString()]);
+  }
+}
+
 export async function addKey(
   client: GlideClient,
   ws: WebSocket,
@@ -284,7 +298,13 @@ export async function addKey(
         await addHashKey(client, payload.key, payload.fields, payload.ttl)
         break
 
-        // to do: implement other types here
+      // to do: implement other types here
+      case "list":
+        if (!payload.values || payload.values.length === 0) {
+          throw new Error("At least one value is required for list type");
+        }
+        await addListKey(client, payload.key, payload.values, payload.ttl);
+        break;
 
       default:
         throw new Error(`Unsupported key type: ${payload.keyType}`)

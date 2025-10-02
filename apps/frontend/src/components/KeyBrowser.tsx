@@ -87,6 +87,7 @@ export function KeyBrowser() {
   const handleKeyDelete = (keyName: string) => {
     dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }))
     setSelectedKey(null)
+    handleDeleteModal()
   }
 
   // Get selected key info from the keys data

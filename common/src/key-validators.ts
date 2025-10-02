@@ -4,6 +4,7 @@ interface ValidationData {
   value?: string
   ttl?: number
   hashFields?: Array<{ field: string; value: string }>
+  listFields?: string[]
 }
 
 interface ValidationRule {
@@ -48,6 +49,17 @@ export const HashSpec: ValidationRule[] = [
   },
 ]
 
+export const ListSpec: ValidationRule[] = [
+  ...BaseSpec,
+  {
+    validatorFn: (key) => key.keyType === "List" &&
+            (!key.listFields || key.listFields.filter((field) =>
+              isNotBlank(field)
+            ).length === 0),
+    error: "At least one value is required for list type",
+  }
+]
+
 export const validate = (spec: ValidationRule[]) => (key: ValidationData): string =>
   spec
     .filter(({ validatorFn }) => validatorFn(key))
@@ -58,6 +70,7 @@ export const validate = (spec: ValidationRule[]) => (key: ValidationData): strin
 export const validators = {
   "String": validate(StringSpec),
   "Hash": validate(HashSpec),
+  "List": validate(ListSpec),
   "undefined": () => "Key type is required",
   "Select key type": () => "Please select a key type",
 }
