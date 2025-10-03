@@ -222,9 +222,9 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
               />
             ) : keyType === "Set" ? (
               <SetFields
-                setFields={setFields}
                 onAdd={addSetField}
                 onRemove={removeSetField}
+                setFields={setFields}
                 setSetFields={setSetFields}
               />
             ) : (
