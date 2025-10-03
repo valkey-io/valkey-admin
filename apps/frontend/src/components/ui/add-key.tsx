@@ -1,9 +1,9 @@
 import React, { useState } from "react"
-import { Trash, X } from "lucide-react"
+import { X } from "lucide-react"
 import { useParams } from "react-router"
 import { validators } from "@common/src/key-validators"
 import * as R from "ramda"
-import { Button } from "./button"
+import { HashFields, ListFields, StringFields, SetFields } from "./key-types"
 import { useAppDispatch } from "@/hooks/hooks"
 import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 
@@ -21,6 +21,8 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
   const [value, setValue] = useState("")
   const [error, setError] = useState("")
   const [hashFields, setHashFields] = useState([{ field: "", value: "" }])
+  const [listFields, setListFields] = useState([""])
+  const [setFields, setSetFields] = useState([""])
 
   const addHashField = () => {
     setHashFields([...hashFields, { field: "", value: "" }])
@@ -40,6 +42,21 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
     setHashFields(updated)
   }
 
+  const addListField = () => {
+    setListFields([...listFields, ""])
+  }
+
+  const removeListField = (index: number) => {
+    setListFields(listFields.filter((_, i) => i !== index))
+  }
+
+  const addSetField = () => {
+    setSetFields([...setFields, ""])
+  }
+  const removeSetField = (index: number) => {
+    setSetFields(setFields.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -52,6 +69,8 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
       value,
       ttl: parsedTtl,
       hashFields: keyType === "Hash" ? hashFields : undefined,
+      listFields: keyType === "List" ? listFields : undefined,
+      setFields: keyType === "Set" ? setFields : undefined,
     }
 
     const validator = validators[keyType as keyof typeof validators] || validators["undefined"]
@@ -94,6 +113,30 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             fields: validFields,
           })
         )
+      } else if (keyType === "List") {
+        // before dispatching, filtering out the empty fields
+        const validFields = listFields
+          .filter((field) => field.trim())
+          .map((field) => field.trim())
+
+        dispatch(
+          addKeyRequested({
+            ...basePayload,
+            values: validFields,
+          })
+        )
+      } else if (keyType === "Set") {
+        // before dispatching, filtering out the empty fields
+        const validFields = setFields
+          .filter((field) => field.trim())
+          .map((field) => field.trim())
+
+        dispatch(
+          addKeyRequested({
+            ...basePayload,
+            values: validFields,
+          })
+        )
       }
 
       onClose()
@@ -127,6 +170,8 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                     <option disabled>Select key type</option>
                     <option>String</option>
                     <option>Hash</option>
+                    <option>List</option>
+                    <option>Set</option>
                   </select>
                 </div>
               </div>
@@ -161,66 +206,29 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
               Key Elements
             </div>
             {keyType === "String" ? (
-              <div className="mt-4 text-sm font-light w-full">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="value">Value *</label>
-                  <textarea
-                    className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary min-h-[100px]"
-                    id="value"
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder="Enter value"
-                    required
-                    value={value}
-                  />
-                </div>
-              </div>
-            ) : keyType === "Select key type" ? (
-              <div className="mt-2 text-sm font-light">Select a key type</div>
+              <StringFields setValue={setValue} value={value} />
+            ) : keyType === "List" ? (
+              <ListFields
+                listFields={listFields}
+                onAdd={addListField}
+                onRemove={removeListField}
+                setListFields={setListFields} />
+            ) : keyType === "Hash" ? (
+              <HashFields
+                hashFields={hashFields}
+                onAdd={addHashField}
+                onRemove={removeHashField}
+                onUpdate={updateHashField}
+              />
+            ) : keyType === "Set" ? (
+              <SetFields
+                onAdd={addSetField}
+                onRemove={removeSetField}
+                setFields={setFields}
+                setSetFields={setSetFields}
+              />
             ) : (
-              <div className="flex flex-col w-full gap-2">
-                {hashFields.map((field, index) => (
-                  <div className="flex gap-4 items-start mt-4" key={index}>
-                    <div className="text-sm font-light w-1/2">
-                      <input
-                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
-                        onChange={(e) =>
-                          updateHashField(index, "field", e.target.value)
-                        }
-                        placeholder="Field"
-                        value={field.field}
-                      />
-                    </div>
-                    <div className="text-sm font-light w-1/2">
-                      <input
-                        className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
-                        onChange={(e) =>
-                          updateHashField(index, "value", e.target.value)
-                        }
-                        placeholder="Value"
-                        value={field.value}
-                      />
-                    </div>
-                    {hashFields.length > 1 && (
-                      <Button
-                        className="mt-1"
-                        onClick={() => removeHashField(index)}
-                        variant={"destructiveGhost"}
-                      >
-                        <Trash size={14} />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <div className="text-end">
-                  <button
-                    className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
-                    onClick={addHashField}
-                    type="button"
-                  >
-                    + Add Field
-                  </button>
-                </div>
-              </div>
+              <div className="mt-2 text-sm font-light">Select a key type</div>
             )}
 
             {error && (

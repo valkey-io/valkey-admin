@@ -87,6 +87,7 @@ export function KeyBrowser() {
   const handleKeyDelete = (keyName: string) => {
     dispatch(deleteKeyRequested({ connectionId: id!, key: keyName }))
     setSelectedKey(null)
+    handleDeleteModal()
   }
 
   // Get selected key info from the keys data
@@ -287,12 +288,12 @@ export function KeyBrowser() {
                             (element: ElementInfo, index: number) => (
                               <tr key={index}>
                                 <td className="py-3 px-4 border-b border-tw-dark-border font-light dark:text-white">
-                                  {selectedKeyInfo.type === "list"
+                                  {selectedKeyInfo.type === "list" || selectedKeyInfo.type === "set"
                                     ? index
                                     : element.key}
                                 </td>
                                 <td className="py-3 px-4 border-b border-tw-dark-border font-light dark:text-white">
-                                  {selectedKeyInfo.type === "list"
+                                  {selectedKeyInfo.type === "list" || selectedKeyInfo.type === "set"
                                     ? String(element)
                                     : element.value}
                                 </td>
