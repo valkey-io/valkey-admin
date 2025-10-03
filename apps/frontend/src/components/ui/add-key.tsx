@@ -3,7 +3,7 @@ import { X } from "lucide-react"
 import { useParams } from "react-router"
 import { validators } from "@common/src/key-validators"
 import * as R from "ramda"
-import { HashFields, ListFields, StringFields } from "./add-key-types"
+import { HashFields, ListFields, StringFields, SetFields } from "./add-key-types"
 import { useAppDispatch } from "@/hooks/hooks"
 import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 
@@ -22,6 +22,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
   const [error, setError] = useState("")
   const [hashFields, setHashFields] = useState([{ field: "", value: "" }])
   const [listFields, setListFields] = useState([""])
+  const [setFields, setSetFields] = useState([""])
 
   const addHashField = () => {
     setHashFields([...hashFields, { field: "", value: "" }])
@@ -49,6 +50,13 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
     setListFields(listFields.filter((_, i) => i !== index))
   }
 
+  const addSetField = () => {
+    setSetFields([...setFields, ""])
+  }
+  const removeSetField = (index: number) => {
+    setSetFields(setFields.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -62,6 +70,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
       ttl: parsedTtl,
       hashFields: keyType === "Hash" ? hashFields : undefined,
       listFields: keyType === "List" ? listFields : undefined,
+      setFields: keyType === "Set" ? setFields : undefined,
     }
 
     const validator = validators[keyType as keyof typeof validators] || validators["undefined"]
@@ -116,6 +125,18 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             values: validFields,
           })
         )
+      } else if (keyType === "Set") {
+        // before dispatching, filtering out the empty fields
+        const validFields = setFields
+          .filter((field) => field.trim())
+          .map((field) => field.trim())
+
+        dispatch(
+          addKeyRequested({
+            ...basePayload,
+            values: validFields,
+          })
+        )
       }
 
       onClose()
@@ -150,6 +171,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                     <option>String</option>
                     <option>Hash</option>
                     <option>List</option>
+                    <option>Set</option>
                   </select>
                 </div>
               </div>
@@ -197,6 +219,13 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 onAdd={addHashField}
                 onRemove={removeHashField}
                 onUpdate={updateHashField}
+              />
+            ) : keyType === "Set" ? (
+              <SetFields
+                setFields={setFields}
+                onAdd={addSetField}
+                onRemove={removeSetField}
+                setSetFields={setSetFields}
               />
             ) : (
               <div className="mt-2 text-sm font-light">Select a key type</div>

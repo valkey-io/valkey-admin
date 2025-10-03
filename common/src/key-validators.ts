@@ -5,6 +5,7 @@ interface ValidationData {
   ttl?: number
   hashFields?: Array<{ field: string; value: string }>
   listFields?: string[]
+  setFields?: string[]
 }
 
 interface ValidationRule {
@@ -42,9 +43,9 @@ export const HashSpec: ValidationRule[] = [
   ...BaseSpec,
   {
     validatorFn: (key) => key.keyType === "Hash" &&
-            (!key.hashFields || key.hashFields.filter((field) =>
-              isNotBlank(field.field) && isNotBlank(field.value)
-            ).length === 0),
+      (!key.hashFields || key.hashFields.filter((field) =>
+        isNotBlank(field.field) && isNotBlank(field.value)
+      ).length === 0),
     error: "At least one field-value pair is required for hash type",
   },
 ]
@@ -53,10 +54,21 @@ export const ListSpec: ValidationRule[] = [
   ...BaseSpec,
   {
     validatorFn: (key) => key.keyType === "List" &&
-            (!key.listFields || key.listFields.filter((field) =>
-              isNotBlank(field)
-            ).length === 0),
+      (!key.listFields || key.listFields.filter((field) =>
+        isNotBlank(field)
+      ).length === 0),
     error: "At least one value is required for list type",
+  }
+]
+
+export const SetSpec: ValidationRule[] = [
+  ...BaseSpec,
+  {
+    validatorFn: (key) => key.keyType === "Set" &&
+      (!key.setFields || key.setFields.filter((field) =>
+        isNotBlank(field)
+      ).length === 0),
+    error: "At least one value is required for set type",
   }
 ]
 
@@ -71,6 +83,7 @@ export const validators = {
   "String": validate(StringSpec),
   "Hash": validate(HashSpec),
   "List": validate(ListSpec),
+  "Set": validate(SetSpec),
   "undefined": () => "Key type is required",
   "Select key type": () => "Please select a key type",
 }
