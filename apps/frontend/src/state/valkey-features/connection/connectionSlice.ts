@@ -15,6 +15,7 @@ export interface ConnectionState {
   status: ConnectionStatus;
   errorMessage: string | null;
   connectionDetails: ConnectionDetails;
+  clusterId?: string;
 }
 
 interface ValkeyConnectionsState {

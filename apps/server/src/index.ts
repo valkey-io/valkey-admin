@@ -1,5 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws"
-import { Decoder, GlideClient } from "@valkey/valkey-glide"
+import { Decoder, GlideClient, InfoOptions } from "@valkey/valkey-glide"
 import { VALKEY } from "../../../common/src/constants.ts"
 import { getKeys, getKeyInfoSingle, deleteKey } from "./keys-browser.ts"
 
@@ -144,6 +144,20 @@ async function connectToValkey(
 
     clients.set(payload.connectionId, client)
 
+    if(await belongsToCluster(client)) {
+      const clusterNodes = await discoverCluster(client)
+      if (!clusterNodes || Object.keys(clusterNodes).length === 0) {
+        throw new Error("No cluster nodes discovered")
+      }
+      const clusterId = Object.keys(clusterNodes)[0]
+      console.dir(clusterNodes, { depth: null })
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CLUSTER.addCluster,
+          payload: { clusterId, clusterNodes },
+        })
+      )
+    }
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.connectFulfilled,
@@ -165,6 +179,55 @@ async function connectToValkey(
         },
       })
     )
+  }
+}
+
+async function belongsToCluster(client: GlideClient): Promise<boolean> {
+  const response = await client.info([InfoOptions.Cluster])
+  const parsed = parseInfo(response)
+  return parsed["cluster_enabled"] === "1" ?  true : false
+}
+
+async function discoverCluster(client: GlideClient) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await client.customCommand(["CLUSTER", "SLOTS"]) as any[][]
+
+    const clusterNodes = response.reduce((acc, slotRange) => {
+      const [, , masterNode, ...replicaNodes] = slotRange
+
+      const [masterHost, masterPort, masterId, _] = masterNode
+
+      if (!acc[masterId]) {
+        acc[masterId] = {
+          host: masterHost,
+          port: masterPort,
+          replicas: [],
+        }
+      }
+
+      const replicas = replicaNodes.map(([replicaHost, replicaPort, replicaId, _]) => ({
+        id: replicaId,
+        host: replicaHost,
+        port: replicaPort,
+      }))
+
+      acc[masterId].replicas.push(...replicas)
+
+      return acc
+    }, {} as Record<string, {
+      host: string;
+      port: number;
+      replicas: Array<{
+        id: string;
+        host: string;
+        port: number;
+      }>;
+    }>)
+
+    return clusterNodes
+  } catch(err) {
+    console.error(err)
   }
 }
 
