@@ -54,7 +54,8 @@ export function SendCommand() {
           </code>
         </pre>
         <div
-          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-2 w-60 relative border dark:border-tw-dark-border">
+          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-2 w-60 relative border 
+          dark:border-tw-dark-border">
           <h3 className="text-muted-foreground sticky top-0">History</h3>
           {
             allCommands?.map(({ command, timestamp }, i) =>
@@ -77,12 +78,12 @@ export function SendCommand() {
       <div className="flex items-center w-full text-sm font-light">
         <textarea
           className="flex-1 h-10 p-2 dark:border-tw-dark-border border rounded"
-          placeholder="Type your Valkey command here"
           onChange={(e) => setText(e.target.value)}
           onFocus={() => {
             textareaRef.current?.select()
           }}
           onKeyDown={onKeyDown}
+          placeholder="Type your Valkey command here"
           ref={textareaRef}
           value={text}
         />
