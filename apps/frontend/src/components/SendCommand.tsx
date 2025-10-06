@@ -4,7 +4,6 @@ import { useSelector } from "react-redux"
 import { formatTimestamp } from "@common/src/time-utils.ts"
 import { useParams } from "react-router"
 import { useAppDispatch } from "../hooks/hooks"
-import { Textarea } from "./ui/textarea"
 import { Button } from "./ui/button"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
 import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
@@ -48,14 +47,15 @@ export function SendCommand() {
       />
       <div className="flex-1 overflow-auto w-full flex flex-row gap-4">
         <pre
-          className="rounded-md flex-1 bg-muted p-4 whitespace-pre-wrap break-words overflow-x-auto relative">
+          className="rounded flex-1 bg-muted p-2 whitespace-pre-wrap break-words overflow-x-auto relative border dark:border-tw-dark-border">
           <h3 className="text-muted-foreground sticky top-0 text-right">Response</h3>
           <code className={`text-sm font-mono ${error ? "text-destructive" : "text-muted-foreground"}`}>
             {JSON.stringify(error ?? response, null, 4)}
           </code>
         </pre>
         <div
-          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded-md p-4 font-mono gap-2 w-60 relative">
+          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-2 w-60 relative border 
+          dark:border-tw-dark-border">
           <h3 className="text-muted-foreground sticky top-0">History</h3>
           {
             allCommands?.map(({ command, timestamp }, i) =>
@@ -68,16 +68,16 @@ export function SendCommand() {
                 }}
                 variant={i === commandIndex ? "ghost" : "outline"}
               >
-                {i === commandIndex && <ChevronRight/>}
+                {i === commandIndex && <ChevronRight />}
                 <span className="shrink-0 mr-2">{formatTimestamp(timestamp)}</span>
                 <span className="truncate">{command}</span>
               </Button>)
           }
         </div>
       </div>
-      <div className="flex flex-row gap-4">
-        <Textarea
-          className="resize-none whitespace-pre-wrap break-words"
+      <div className="flex items-center w-full text-sm font-light">
+        <textarea
+          className="flex-1 h-10 p-2 dark:border-tw-dark-border border rounded"
           onChange={(e) => setText(e.target.value)}
           onFocus={() => {
             textareaRef.current?.select()
@@ -87,12 +87,12 @@ export function SendCommand() {
           ref={textareaRef}
           value={text}
         />
-        <Button
-          className="h-full"
+        <button
+          className="h-10 ml-2 px-4 py-2 bg-tw-primary cursor-pointer text-white rounded hover:bg-tw-primary/70"
           onClick={onSubmit}
         >
           Send
-        </Button>
+        </button>
       </div>
     </RouteContainer>)
 }
