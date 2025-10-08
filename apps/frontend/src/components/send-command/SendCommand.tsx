@@ -1,14 +1,16 @@
 import { ChevronRight, LayoutDashboard } from "lucide-react"
 import React, { useRef, useState } from "react"
 import { useSelector } from "react-redux"
-import { formatTimestamp } from "@common/src/time-utils.ts"
+import { formatTimestamp, timeAgo } from "@common/src/time-utils.ts"
 import { useParams } from "react-router"
-import { useAppDispatch } from "../hooks/hooks"
-import { Button } from "./ui/button"
+import { useAppDispatch } from "@/hooks/hooks.ts"
+import { Button } from "../ui/button.tsx"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
 import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
 import RouteContainer from "@/components/ui/route-container.tsx"
 import { AppHeader } from "@/components/ui/app-header.tsx"
+import { cn } from "@/lib/utils.ts"
+import { Timestamp } from "@/components/ui/timestamp.tsx"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
@@ -17,8 +19,8 @@ export function SendCommand() {
   const [commandIndex, setCommandIndex] = useState<number>(0)
 
   const { id } = useParams()
-  const allCommands = useSelector(selectAllCommands(id!))
-  const { error, response } = useSelector(getNth(commandIndex, id!)) as CommandMetadata
+  const allCommands = useSelector(selectAllCommands(id as string))
+  const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const onSubmit = () => {
     dispatch(sendRequested({ command: text, connectionId: id }))
@@ -36,7 +38,7 @@ export function SendCommand() {
     }
   }
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null as HTMLTextAreaElement)
 
   return (
     <RouteContainer title="Send Command">
@@ -54,24 +56,31 @@ export function SendCommand() {
           </code>
         </pre>
         <div
-          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-2 w-60 relative border 
+          className="flex flex-col whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-2 w-80 relative border
           dark:border-tw-dark-border">
           <h3 className="text-muted-foreground sticky top-0">History</h3>
           {
             allCommands?.map(({ command, timestamp }, i) =>
-              <Button
-                className={`w-full overflow-hidden justify-start ${i === commandIndex ? "pointer-events-none" : ""}`}
-                key={timestamp}
-                onClick={() => {
-                  setText("")
-                  setCommandIndex(i)
-                }}
-                variant={i === commandIndex ? "ghost" : "outline"}
-              >
-                {i === commandIndex && <ChevronRight />}
-                <span className="shrink-0 mr-2">{formatTimestamp(timestamp)}</span>
-                <span className="truncate">{command}</span>
-              </Button>)
+              <div className={cn("flex flex-row text-sm items-center", i === commandIndex && "text-tw-primary")} key={timestamp}>
+                {/*{i === commandIndex && <ChevronRight className="size-4" />}*/}
+                <Timestamp timestamp={timestamp} className="opacity-50" />
+                <div className="truncate">{command}</div>
+                {
+                  i !== commandIndex &&
+                  <>
+                  </>
+                }
+                {/*<Button*/}
+                {/*  className={`w-full overflow-hidden justify-start ${i === commandIndex ? "pointer-events-none" : ""}`}*/}
+                {/*  onClick={() => {*/}
+                {/*    setText("")*/}
+                {/*    setCommandIndex(i)*/}
+                {/*  }}*/}
+                {/*  variant={i === commandIndex ? "ghost" : "outline"}*/}
+                {/*>*/}
+                {/*  {i === commandIndex && <ChevronRight />}*/}
+                {/*</Button>*/}
+              </div>)
           }
         </div>
       </div>

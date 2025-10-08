@@ -10,7 +10,7 @@ import RequireConnection from "./components/RequireConnection.tsx"
 import Settings from "./components/Settings.tsx"
 import LearnMore from "./components/LearnMore.tsx"
 import { KeyBrowser } from "./components/KeyBrowser.tsx"
-import { SendCommand } from "@/components/SendCommand.tsx"
+import { SendCommand } from "@/components/send-command/SendCommand.tsx"
 import { Connection } from "@/components/connection/Connection.tsx"
 import "./css/index.css"
 
