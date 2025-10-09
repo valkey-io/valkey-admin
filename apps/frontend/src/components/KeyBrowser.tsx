@@ -163,7 +163,7 @@ export function KeyBrowser() {
                           <CustomTooltip content="Size">
                             <span
                               className="flex items-center justify-between gap-1 text-xs px-2 py-1 
-                            rounded-full border-2 border-tw-primary text-tw-primary dark:text-white"
+                             text-tw-primary dark:text-white"
                             >
                               <Database
                                 className="text-white bg-tw-primary p-1 rounded-full"
@@ -177,7 +177,7 @@ export function KeyBrowser() {
                         <CustomTooltip content="TTL">
                           <span
                             className="flex items-center justify-between gap-1 text-xs px-2 py-1 
-                          rounded-full border-2 border-tw-primary text-tw-primary dark:text-white"
+                           text-tw-primary dark:text-white"
                           >
                             <Hourglass
                               className="text-white bg-tw-primary p-1 rounded-full"

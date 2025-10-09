@@ -222,6 +222,8 @@ const keyBrowserSlice = createSlice({
         keyType: string;
         value?: string;
         fields?: { field: string; value: string }[];
+        listUpdates?: { index: number; value: string }[];
+        setUpdates?: { oldValue: string; newValue: string }[];
         ttl?: number;
       }>
     ) => {

@@ -36,6 +36,8 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
   const [isEditable, setIsEditable] = useState(false)
   const [editedValue, setEditedValue] = useState("")
   const [editedHashValue, setEditedHashValue] = useState<{ [key: string]: string }>({})
+  const [editedListValues, setEditedListValues] = useState<string[]>([])
+  const [editedSetValues, setEditedSetValues] = useState<string[]>([])
 
   const handleDeleteModal = () => {
     setIsDeleteModalOpen(!isDeleteModalOpen)
@@ -52,6 +54,9 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
       // Cancel edit
       setIsEditable(false)
       setEditedValue("")
+      setEditedHashValue({})
+      setEditedListValues([])
+      setEditedSetValues([])
     } else {
       // Start editing
       if (selectedKeyInfo?.type === "string") {
@@ -62,6 +67,10 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
           initialHashValue[element.key] = element.value
         })
         setEditedHashValue(initialHashValue)
+      } else if (selectedKeyInfo?.type === "list" && Array.isArray(selectedKeyInfo.elements)) {
+        setEditedListValues([...selectedKeyInfo.elements])
+      } else if (selectedKeyInfo?.type === "set" && Array.isArray(selectedKeyInfo.elements)) {
+        setEditedSetValues([...selectedKeyInfo.elements])
       }
       setIsEditable(true)
     }
@@ -86,10 +95,42 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
             value,
           })),
         }))
+      } else if (selectedKeyInfo.type === "list") {
+        // creating listUpdates array with only changed values
+        const listUpdates = editedListValues
+          .map((value, index) => ({
+            index,
+            value,
+          }))
+          .filter((update, index) => update.value !== selectedKeyInfo.elements[index])
+
+        dispatch(updateKeyRequested({
+          connectionId: conectionId,
+          key: selectedKey,
+          keyType: "list",
+          listUpdates,
+        }))
+      } else if (selectedKeyInfo.type === "set") {
+        // creating setUpdates array with oldValue and newValue pairs
+        const setUpdates = editedSetValues
+          .map((newValue, index) => ({
+            oldValue: selectedKeyInfo.elements[index],
+            newValue,
+          }))
+          .filter((update) => update.oldValue !== update.newValue)
+
+        dispatch(updateKeyRequested({
+          connectionId: conectionId,
+          key: selectedKey,
+          keyType: "set",
+          setUpdates,
+        }))
       }
       setIsEditable(false)
       setEditedValue("")
       setEditedHashValue({})
+      setEditedListValues([])
+      setEditedSetValues([])
     }
   }
 
@@ -98,6 +139,22 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
       ...prev,
       [fieldKey]: newValue,
     }))
+  }
+
+  const handleListFieldChange = (index: number, newValue: string) => {
+    setEditedListValues((prev) => {
+      const updatedList = [...prev]
+      updatedList[index] = newValue
+      return updatedList
+    })
+  }
+
+  const handleSetFieldChange = (index: number, newValue: string) => {
+    setEditedSetValues((prev) => {
+      const updatedSet = [...prev]
+      updatedSet[index] = newValue
+      return updatedSet
+    })
   }
 
   return (
@@ -167,7 +224,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
                           : "Value"}
                     </th>
                     <th className="">
-                      {isEditable && (selectedKeyInfo.type === "string" || selectedKeyInfo.type === "hash") ? (
+                      {isEditable ? (
                         <div className="flex gap-1">
                           <CustomTooltip content="Save">
                             <Button
@@ -191,7 +248,6 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
                         <CustomTooltip content="Edit">
                           <Button
                             className="mr-1"
-                            disabled={selectedKeyInfo.type !== "string" && selectedKeyInfo.type !== "hash"}
                             onClick={handleEdit}
                             variant={"ghost"}
                           >
@@ -210,7 +266,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
                           <textarea
                             autoFocus
                             className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none 
-                            focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+            focus:ring-2 focus:ring-blue-500 min-h-[100px]"
                             onChange={(e) => setEditedValue(e.target.value)}
                             value={editedValue}
                           />
@@ -234,10 +290,26 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
                             {isEditable && selectedKeyInfo.type === "hash" ? (
                               <input
                                 className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none 
-                                focus:ring-2 focus:ring-blue-500"
+                focus:ring-2 focus:ring-blue-500"
                                 onChange={(e) => handleHashFieldChange(element.key, e.target.value)}
                                 type="text"
                                 value={editedHashValue[element.key] || ""}
+                              />
+                            ) : isEditable && selectedKeyInfo.type === "list" ? (
+                              <input
+                                className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none 
+                focus:ring-2 focus:ring-blue-500"
+                                onChange={(e) => handleListFieldChange(index, e.target.value)}
+                                type="text"
+                                value={editedListValues[index] || ""}
+                              />
+                            ) : isEditable && selectedKeyInfo.type === "set" ? (
+                              <input
+                                className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none 
+                                focus:ring-2 focus:ring-blue-500"
+                                onChange={(e) => handleSetFieldChange(index, e.target.value)}
+                                type="text"
+                                value={editedSetValues[index] || ""}
                               />
                             ) : (
                               selectedKeyInfo.type === "list" || selectedKeyInfo.type === "set"

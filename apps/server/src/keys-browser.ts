@@ -1,5 +1,5 @@
 import { WebSocket } from "ws"
-import { GlideClient } from "@valkey/valkey-glide"
+import { GlideClient, Batch } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { VALKEY } from "../../../common/src/constants.ts"
 
@@ -391,6 +391,45 @@ async function updateHashKey(
   }
 }
 
+async function updateListKey(
+  client: GlideClient,
+  key: string,
+  updates: { index: number; value: string }[],
+  ttl?: number
+) {
+  const batch = new Batch(true)
+
+  updates.map(({ index, value }) =>
+    batch.customCommand(["LSET", key, index.toString(), value])
+  )
+
+  if (ttl && ttl > 0) {
+    batch.customCommand(["EXPIRE", key, ttl.toString()])
+  }
+
+  await client.exec(batch, true)
+}
+
+async function updateSetKey(
+  client: GlideClient,
+  key: string,
+  updates: { oldValue: string; newValue: string }[],
+  ttl?: number
+) {
+  const batch = new Batch(true)
+
+  for (const { oldValue, newValue } of updates) {
+    batch.customCommand(["SREM", key, oldValue])
+    batch.customCommand(["SADD", key, newValue])
+  }
+
+  if (ttl && ttl > 0) {
+    batch.customCommand(["EXPIRE", key, ttl.toString()])
+  }
+
+  await client.exec(batch, true)
+}
+
 export async function updateKey(
   client: GlideClient,
   ws: WebSocket,
@@ -400,6 +439,8 @@ export async function updateKey(
     keyType: string;
     value?: string; // for string type
     fields?: { field: string; value: string }[]; // for hash type
+    listUpdates?: { index: number; value: string }[]; // for list type
+    setUpdates?: { oldValue: string; newValue: string }[]; // for set type
     ttl?: number;
   }
 ) {
@@ -421,6 +462,18 @@ export async function updateKey(
         } else {
           throw new Error("Fields are required for hash type")
         }
+      case "list":
+        if (!payload.listUpdates || payload.listUpdates.length === 0) {
+          throw new Error("List updates are required for list type")
+        }
+        await updateListKey(client, payload.key, payload.listUpdates, payload.ttl)
+        break
+      case "set":
+        if (!payload.setUpdates || payload.setUpdates.length === 0) {
+          throw new Error("Set updates are required for set type")
+        }
+        await updateSetKey(client, payload.key, payload.setUpdates, payload.ttl)
+        break
 
       default:
         throw new Error(`Unsupported key type for update: ${payload.keyType}`)
