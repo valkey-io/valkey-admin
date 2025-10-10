@@ -38,7 +38,7 @@ const mapPaths = (pair: readonly [JSONObject, JSONObject]): string[][][] => [
   toKeyPaths(pair[1]),
 ]
 
-// takes two objects and returns a diff of them, i.e.
+// takes two objects and returns a diff of them as DiffEntry[]
 export const diff = (a:JSONObject, b:JSONObject): DiffEntry[] =>
   R.pipe(
     mapPaths, // [jsonA, jsonB] -> [[keysInA], [keysInB]]
