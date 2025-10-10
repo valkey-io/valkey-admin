@@ -143,7 +143,7 @@ wss.on("connection", (ws: WebSocket) => {
               key: action.payload?.key,
               error: "Invalid connection Id",
             },
-          })
+          }),
         )
       }
     }

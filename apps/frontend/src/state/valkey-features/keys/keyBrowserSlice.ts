@@ -225,7 +225,7 @@ const keyBrowserSlice = createSlice({
         listUpdates?: { index: number; value: string }[];
         setUpdates?: { oldValue: string; newValue: string }[];
         ttl?: number;
-      }>
+      }>,
     ) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
@@ -240,13 +240,13 @@ const keyBrowserSlice = createSlice({
         connectionId: string;
         key: KeyInfo;
         message: string;
-      }>
+      }>,
     ) => {
       const { connectionId, key } = action.payload
       if (state[connectionId]) {
         state[connectionId].loading = false
         const index = state[connectionId].keys.findIndex(
-          (k) => k.name === key.name
+          (k) => k.name === key.name,
         )
         if (index !== -1) {
           state[connectionId].keys[index] = key
@@ -258,7 +258,7 @@ const keyBrowserSlice = createSlice({
       action: PayloadAction<{
         connectionId: string;
         error: string;
-      }>
+      }>,
     ) => {
       const { connectionId, error } = action.payload
       if (state[connectionId]) {

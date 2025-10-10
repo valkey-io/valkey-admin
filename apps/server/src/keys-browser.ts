@@ -364,7 +364,7 @@ async function updateStringKey(
   client: GlideClient,
   key: string,
   value: string,
-  ttl?: number
+  ttl?: number,
 ) {
   if (ttl && ttl > 0) {
     await client.customCommand(["SETEX", key, ttl.toString(), value])
@@ -377,7 +377,7 @@ async function updateHashKey(
   client: GlideClient,
   key: string,
   fields: { field: string; value: string }[],
-  ttl?: number
+  ttl?: number,
 ) {
   const hsetCommand = ["HSET", key]
   fields.forEach(({ field, value }) => {
@@ -395,12 +395,12 @@ async function updateListKey(
   client: GlideClient,
   key: string,
   updates: { index: number; value: string }[],
-  ttl?: number
+  ttl?: number,
 ) {
   const batch = new Batch(true)
 
   updates.map(({ index, value }) =>
-    batch.customCommand(["LSET", key, index.toString(), value])
+    batch.customCommand(["LSET", key, index.toString(), value]),
   )
 
   if (ttl && ttl > 0) {
@@ -414,7 +414,7 @@ async function updateSetKey(
   client: GlideClient,
   key: string,
   updates: { oldValue: string; newValue: string }[],
-  ttl?: number
+  ttl?: number,
 ) {
   const batch = new Batch(true)
 
@@ -442,7 +442,7 @@ export async function updateKey(
     listUpdates?: { index: number; value: string }[]; // for list type
     setUpdates?: { oldValue: string; newValue: string }[]; // for set type
     ttl?: number;
-  }
+  },
 ) {
 
   try {
@@ -489,7 +489,7 @@ export async function updateKey(
           key: keyInfo,
           message: "Key updated successfully",
         },
-      })
+      }),
     )
   } catch (err) {
     ws.send(
@@ -499,7 +499,7 @@ export async function updateKey(
           connectionId: payload.connectionId,
           error: err instanceof Error ? err.message : String(err),
         },
-      })
+      }),
     )
     console.log("Error updating key in Valkey", err)
   }

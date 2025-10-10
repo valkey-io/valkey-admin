@@ -319,7 +319,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, conectionId, 
                           </td>
                           <td className="py-3 px-4 border-b border-tw-dark-border font-light dark:text-white"></td>
                         </tr>
-                      )
+                      ),
                     )
                   )}
                 </tbody>
