@@ -1,4 +1,8 @@
+import { VALKEY } from "@common/src/constants"
 import { createSlice } from "@reduxjs/toolkit"
+import type { RootState } from "@/store"
+export const selectClusters = (state: RootState) => state[VALKEY.CLUSTER.name].clusters
+
 interface ReplicaNode {
   id: string;
   host: string;
@@ -21,20 +25,22 @@ const initialClusterState: ClusterState = {}
 
 const clusterSlice = createSlice({
   name: "valkeyCluster",
-  initialState: initialClusterState,
+  initialState: {
+    clusters: initialClusterState as ClusterState,
+  },
   reducers: {
     addCluster: (state, action) => {
       const { clusterId, nodes } = action.payload
-      state[clusterId] = { nodes }
+      state.clusters[clusterId] = { nodes }
     },
     updateClusterInfo: (state, action) => {
       const { clusterId, nodes } = action.payload
-      if (state[clusterId]) {
-        state[clusterId].nodes = nodes
+      if (state.clusters[clusterId]) {
+        state.clusters[clusterId].nodes = nodes
       }
     },
     removeCluster: (state, action) => {
-      delete state[action.payload.clusterId]
+      delete state.clusters[action.payload.clusterId]
     },
   },
 })

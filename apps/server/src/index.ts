@@ -1,5 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws"
-import { Decoder, GlideClient, InfoOptions } from "@valkey/valkey-glide"
+import {  Decoder, GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
 import { VALKEY } from "../../../common/src/constants.ts"
 import { getKeys, getKeyInfoSingle, deleteKey } from "./keys-browser.ts"
 
@@ -9,7 +9,7 @@ console.log("Websocket server running on localhost:8080")
 
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected.")
-  const clients: Map<string, GlideClient> = new Map()
+  const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
 
   ws.on("message", async (message) => {
     console.log("Received message:", message.toString())
@@ -23,6 +23,10 @@ wss.on("connection", (ws: WebSocket) => {
     }
 
     if (action.type === VALKEY.CONNECTION.connectPending) {
+      const { clusterId } = action.payload
+      if(clusterId) {
+        //TODO
+      }
       await connectToValkey(ws, action.payload, clients)
     }
     if (action.type === VALKEY.COMMAND.sendRequested) {
@@ -42,8 +46,11 @@ wss.on("connection", (ws: WebSocket) => {
     }
     if (action.type === VALKEY.STATS.setData) {
       const client = clients.get(connectionId)
-      if (client) {
+      if (client instanceof GlideClient) {
         await setDashboardData(connectionId, client, ws)
+      }
+      else if (client instanceof GlideClusterClient){
+        await setClusterDashboardData(connectionId, client, ws)
       }
     }
     if (action.type === VALKEY.CONNECTION.resetConnection) {
@@ -127,37 +134,9 @@ async function connectToValkey(
     port: number;
     connectionId: string;
   },
-  clients: Map<string, GlideClient>
+  clients: Map<string, GlideClient | GlideClusterClient>
 ) {
-  const addresses = [
-    {
-      host: payload.host,
-      port: payload.port,
-    },
-  ]
-  try {
-    const client = await GlideClient.createClient({
-      addresses,
-      requestTimeout: 5000,
-      clientName: "test_client",
-    })
-
-    clients.set(payload.connectionId, client)
-
-    if(await belongsToCluster(client)) {
-      const clusterNodes = await discoverCluster(client)
-      if (!clusterNodes || Object.keys(clusterNodes).length === 0) {
-        throw new Error("No cluster nodes discovered")
-      }
-      const clusterId = Object.keys(clusterNodes)[0]
-      console.dir(clusterNodes, { depth: null })
-      ws.send(
-        JSON.stringify({
-          type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes },
-        })
-      )
-    }
+  if(clients.has(payload.connectionId)) {
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.connectFulfilled,
@@ -166,8 +145,36 @@ async function connectToValkey(
         },
       })
     )
+    return clients.get(payload.connectionId)
+  }
+  const addresses = [
+    {
+      host: payload.host,
+      port: payload.port,
+    },
+  ]
+  try {
+    const standaloneClient = await GlideClient.createClient({
+      addresses,
+      requestTimeout: 5000,
+      clientName: "test_client",
+    })
 
-    return client
+    if(await belongsToCluster(standaloneClient)) {
+      return connectToCluster(standaloneClient, ws, clients, payload, addresses)
+    }
+    
+    clients.set(payload.connectionId, standaloneClient)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.CONNECTION.connectFulfilled,
+        payload: {
+          connectionId: payload.connectionId,
+        },
+      })
+    )
+    return standaloneClient
+
   } catch (err) {
     console.log("Error connecting to Valkey", err)
     ws.send(
@@ -185,7 +192,7 @@ async function connectToValkey(
 async function belongsToCluster(client: GlideClient): Promise<boolean> {
   const response = await client.info([InfoOptions.Cluster])
   const parsed = parseInfo(response)
-  return parsed["cluster_enabled"] === "1" ?  true : false
+  return parsed["cluster_enabled"] === "1"
 }
 
 async function discoverCluster(client: GlideClient) {
@@ -194,46 +201,109 @@ async function discoverCluster(client: GlideClient) {
     const response = await client.customCommand(["CLUSTER", "SLOTS"]) as any[][]
 
     const clusterNodes = response.reduce((acc, slotRange) => {
-      const [, , masterNode, ...replicaNodes] = slotRange
+      const [, , ...nodes] = slotRange
 
-      const [masterHost, masterPort, masterId] = masterNode
+      nodes.forEach((node, index) => {
+        const [host, port] = node
+        const connectionId = `${host}-${port}`
 
-      if (!acc[masterId]) {
-        acc[masterId] = {
-          host: masterHost,
-          port: masterPort,
-          replicas: [],
+        if (!acc[connectionId]) {
+          acc[connectionId] = {
+            host,
+            port,
+            role: index === 0 ? "primary" : "replica",
+          }
         }
-      }
-
-      const replicas = replicaNodes.map(([replicaHost, replicaPort, replicaId]) => ({
-        id: replicaId,
-        host: replicaHost,
-        port: replicaPort,
-      }))
-
-      acc[masterId].replicas.push(...replicas)
+      })
 
       return acc
     }, {} as Record<string, {
       host: string;
       port: number;
-      replicas: Array<{
-        id: string;
-        host: string;
-        port: number;
-      }>;
+      role: "primary" | "replica";
     }>)
 
     return clusterNodes
-  } catch(err) {
-    console.error(err)
+  } catch (err) {
+    console.error("Error discovering cluster:", err)
   }
+}
+
+async function connectToCluster(
+  standaloneClient: GlideClient, 
+  ws: WebSocket, 
+  clients: Map<string, GlideClient | GlideClusterClient>, 
+  payload: { host: string; port: number; connectionId: string;},
+  addresses: { host: string, port: number | undefined }[]
+) {
+  const clusterNodes = await discoverCluster(standaloneClient)
+  if (Object.keys(clusterNodes!).length === 0) {
+    throw new Error("No cluster nodes discovered")
+  }
+  const clusterId = Object.keys(clusterNodes!)[0]
+  // May remove this if we agree to remove clusterSlice
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.CLUSTER.addCluster,
+      payload: { clusterId, clusterNodes },
+    })
+  )
+  const clusterClient = await GlideClusterClient.createClient({
+    addresses,
+    requestTimeout: 5000,
+    clientName: "cluster_client",
+  })
+
+  clients.set(payload.connectionId, clusterClient)
+
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.CONNECTION.connectFulfilled,
+      payload: {
+        connectionId: payload.connectionId,
+        clusterNodes,
+      },
+    })
+  )
+  return clusterClient
 }
 
 async function setDashboardData(
   connectionId: string,
   client: GlideClient,
+  ws: WebSocket
+) {
+  const rawInfo = await client.info()
+  const info = parseInfo(rawInfo)
+  const rawMemoryStats = (await client.customCommand(["MEMORY", "STATS"], {
+    decoder: Decoder.String,
+  })) as Array<{
+    key: string;
+    value: string;
+  }>
+
+  const memoryStats = rawMemoryStats.reduce((acc, { key, value }) => {
+    acc[key] = value
+    return acc
+  }, {} as Record<string, string>)
+
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.STATS.setData,
+      payload: {
+        connectionId,
+        info: info,
+        memory: memoryStats,
+      },
+    })
+  )
+}
+
+//TODO FIX THIS 
+
+async function setClusterDashboardData(
+  connectionId: string,
+  client: GlideClusterClient,
   ws: WebSocket
 ) {
   const rawInfo = await client.info()
@@ -271,7 +341,7 @@ const parseInfo = (infoStr: string): Record<string, string> =>
   }, {} as Record<string, string>)
 
 async function sendValkeyRunCommand(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: { command: string; connectionId: string }
 ) {

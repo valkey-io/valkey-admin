@@ -3,19 +3,21 @@ import { CONNECTED, CONNECTING, ERROR, LOCAL_STORAGE, NOT_CONNECTED, VALKEY } fr
 import * as R from "ramda"
 
 type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR
+type Role = "primary" | "replica";
 
 interface ConnectionDetails {
   host: string;
   port: string;
   username: string;
   password: string;
+  role?: Role;
 }
 
 export interface ConnectionState {
   status: ConnectionStatus;
   errorMessage: string | null;
   connectionDetails: ConnectionDetails;
-  clusterId?: string;
+  clusterNodes?: Record<string, ConnectionDetails>;
 }
 
 interface ValkeyConnectionsState {
@@ -51,10 +53,12 @@ const connectionSlice = createSlice({
       }
     },
     connectFulfilled: (state, action) => {
-      const { connectionId } = action.payload
-      if (state.connections[connectionId]) {
-        state.connections[connectionId].status = CONNECTED
-        state.connections[connectionId].errorMessage = null
+      const { connectionId, clusterNodes } = action.payload
+      const connectionState = state.connections[connectionId]
+      if (connectionState) {
+        connectionState.status = CONNECTED
+        connectionState.errorMessage = null
+        connectionState.clusterNodes = clusterNodes
       }
     },
     connectRejected: (state, action) => {

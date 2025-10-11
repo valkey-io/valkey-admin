@@ -1,5 +1,5 @@
 import { WebSocket } from "ws"
-import { GlideClient } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { VALKEY } from "../../../common/src/constants.ts"
 
@@ -14,7 +14,7 @@ interface EnrichedKeyInfo {
 }
 
 export async function getKeyInfo(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string
 ): Promise<EnrichedKeyInfo> {
   try {
@@ -83,7 +83,7 @@ export async function getKeyInfo(
 }
 
 export async function getKeys(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;
@@ -150,7 +150,7 @@ export async function getKeys(
 }
 
 export async function getKeyInfoSingle(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;
@@ -186,7 +186,7 @@ export async function getKeyInfoSingle(
 }
 
 export async function deleteKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: { connectionId: string; key: string }
 ) {

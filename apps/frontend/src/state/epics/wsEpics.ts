@@ -58,7 +58,7 @@ const emitActions = (store: Store) =>
       return socket$.pipe(
         tap((message) => {
           console.log("[WebSocket] Incoming message:", message)
-          store.dispatch(message) // raw dispatch
+          store.dispatch(message)
         }),
         catchError((err) => {
           console.error("WebSocket error in message stream:", err)

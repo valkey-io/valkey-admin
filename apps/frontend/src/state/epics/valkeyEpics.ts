@@ -10,7 +10,6 @@ import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import type { Store } from "@reduxjs/toolkit"
 import { atId } from "@/state/valkey-features/connection/connectionSelectors.ts"
-
 export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
