@@ -8,10 +8,10 @@ import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import {
   Compass,
-  RefreshCcw,
   Key,
   Hourglass,
-  Database
+  Database,
+  RefreshCw
 } from "lucide-react"
 import { CustomTooltip } from "./ui/custom-tooltip"
 import { AppHeader } from "./ui/app-header"
@@ -63,6 +63,7 @@ export function KeyBrowser() {
   }
 
   const handleKeyClick = (keyName: string) => {
+    if (loading) return
     setSelectedKey(keyName)
 
     const keyInfo = keys.find((k) => k.name === keyName)
@@ -83,7 +84,6 @@ export function KeyBrowser() {
     <div className="flex flex-col h-screen p-4">
       <AppHeader icon={<Compass size={20} />} title="Key Browser" />
 
-      {loading && <div className="ml-2">Loading keys...</div>}
       {error && <div className="ml-2">Error loading keys: {error}</div>}
 
       {/* Total Keys and Key Stats */}
@@ -112,19 +112,22 @@ export function KeyBrowser() {
       <div className="flex items-center w-full mb-4 text-sm font-light">
         <input
           className="flex-1 h-10 p-2 dark:border-tw-dark-border border rounded"
+          disabled={loading}
           placeholder="search"
         />
         <button
           className="h-10 ml-2 px-4 py-2 bg-tw-primary text-white rounded "
+          disabled={loading}
           onClick={handleAddKeyModal}
         >
           + Add Key
         </button>
         <button
           className="h-10 ml-2 px-4 py-2 bg-tw-primary text-white rounded"
+          disabled={loading}
           onClick={handleRefresh}
         >
-          <RefreshCcw />
+          <RefreshCw className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
@@ -136,12 +139,12 @@ export function KeyBrowser() {
         <div className="flex flex-1 min-h-0">
           {/* Keys List */}
           <div className="w-1/2 pr-2">
-            {keys.length === 0 ? (
+            {keys.length === 0 && !loading ? (
               <div className="h-full p-2 dark:border-tw-dark-border border rounded flex items-center justify-center">
                 No keys found
               </div>
             ) : (
-              <div className="h-full dark:border-tw-dark-border border rounded overflow-hidden">
+              <div className={`h-full dark:border-tw-dark-border border rounded overflow-hidden ${loading ? "opacity-50 pointer-events-none" : ""}`}>
                 <ul className="h-full overflow-y-auto space-y-2 p-2">
                   {keys.map((keyInfo: KeyInfo, index) => (
                     <li
