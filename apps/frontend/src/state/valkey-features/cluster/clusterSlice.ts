@@ -1,8 +1,5 @@
-import { VALKEY } from "@common/src/constants"
 import { createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
-import type { RootState } from "@/store"
-export const selectClusters = (state: RootState) => state[VALKEY.CLUSTER.name].clusters
 
 interface ReplicaNode {
   id: string;
