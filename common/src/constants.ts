@@ -54,6 +54,12 @@ export const VALKEY = {
     updateKeyFulfilled: "updateKeyFulfilled",
     updateKeyFailed: "updateKeyFailed",
   } as const),
+  CLUSTER: makeNamespace( "valkeyCluster", {
+    addCluster: "addCluster",
+    updateClusterInfo: "updateClusterInfo",
+    deleteCluster: "deleteCluster",
+    setClusterData: "setClusterData",
+  } as const),
 } as const
 
 export const CONNECTED = "Connected"

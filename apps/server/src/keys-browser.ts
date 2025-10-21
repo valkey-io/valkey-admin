@@ -1,5 +1,5 @@
 import { WebSocket } from "ws"
-import { GlideClient, Batch } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, Batch, ClusterBatch } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { VALKEY } from "../../../common/src/constants.ts"
 
@@ -14,7 +14,7 @@ interface EnrichedKeyInfo {
 }
 
 export async function getKeyInfo(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
 ): Promise<EnrichedKeyInfo> {
   try {
@@ -83,7 +83,7 @@ export async function getKeyInfo(
 }
 
 export async function getKeys(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;
@@ -150,7 +150,7 @@ export async function getKeys(
 }
 
 export async function getKeyInfoSingle(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;
@@ -186,7 +186,7 @@ export async function getKeyInfoSingle(
 }
 
 export async function deleteKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: { connectionId: string; key: string },
 ) {
@@ -224,7 +224,7 @@ export async function deleteKey(
 
 // functions for adding different key types
 async function addStringKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   value: string,
   ttl?: number,
@@ -237,7 +237,7 @@ async function addStringKey(
 }
 
 async function addHashKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   fields: { field: string; value: string }[],
   ttl?: number,
@@ -254,7 +254,7 @@ async function addHashKey(
 }
 
 async function addListKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   values: string[],
   ttl?: number,
@@ -268,7 +268,7 @@ async function addListKey(
 }
 
 async function addSetKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   values: string[],
   ttl?: number,
@@ -284,7 +284,7 @@ async function addSetKey(
 }
 
 export async function addKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;
@@ -361,7 +361,7 @@ export async function addKey(
 // functions for updatin/editing different key types
 // Note : the update and add functions are quite similar MAYBE can be refactored later
 async function updateStringKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   value: string,
   ttl?: number,
@@ -374,7 +374,7 @@ async function updateStringKey(
 }
 
 async function updateHashKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   fields: { field: string; value: string }[],
   ttl?: number,
@@ -392,46 +392,81 @@ async function updateHashKey(
 }
 
 async function updateListKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   updates: { index: number; value: string }[],
   ttl?: number,
 ) {
-  const batch = new Batch(true)
 
-  updates.map(({ index, value }) =>
-    batch.customCommand(["LSET", key, index.toString(), value]),
-  )
+  if (client instanceof GlideClient) {
+    const batch = new Batch(true)
 
-  if (ttl && ttl > 0) {
-    batch.customCommand(["EXPIRE", key, ttl.toString()])
+    updates.forEach(({ index, value }) =>
+      batch.customCommand(["LSET", key, index.toString(), value]),
+    )
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    await client.exec(batch, true)
+  } else if (client instanceof GlideClusterClient) {
+    const batch = new ClusterBatch(true)
+
+    updates.forEach(({ index, value }) =>
+      batch.customCommand(["LSET", key, index.toString(), value]),
+    )
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    await client.exec(batch, true)
+  } else {
+    throw new Error("Unsupported client type")
   }
-
-  await client.exec(batch, true)
 }
 
 async function updateSetKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   key: string,
   updates: { oldValue: string; newValue: string }[],
   ttl?: number,
 ) {
-  const batch = new Batch(true)
+  if (client instanceof GlideClient) {
+    const batch = new Batch(true)
 
-  for (const { oldValue, newValue } of updates) {
-    batch.customCommand(["SREM", key, oldValue])
-    batch.customCommand(["SADD", key, newValue])
+    for (const { oldValue, newValue } of updates) {
+      batch.customCommand(["SREM", key, oldValue])
+      batch.customCommand(["SADD", key, newValue])
+    }
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    await client.exec(batch, true)
   }
+  else if (client instanceof GlideClusterClient) {
+    const batch = new ClusterBatch(true)
 
-  if (ttl && ttl > 0) {
-    batch.customCommand(["EXPIRE", key, ttl.toString()])
+    for (const { oldValue, newValue } of updates) {
+      batch.customCommand(["SREM", key, oldValue])
+      batch.customCommand(["SADD", key, newValue])
+    }
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    await client.exec(batch, true)
+  } else {
+    throw new Error("Unsupported client type")
   }
-
-  await client.exec(batch, true)
 }
 
 export async function updateKey(
-  client: GlideClient,
+  client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: {
     connectionId: string;

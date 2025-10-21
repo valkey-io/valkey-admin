@@ -29,6 +29,7 @@ export default tseslint.config([
     },
     rules: {
       quotes: ["error", "double"],
+      "keyword-spacing": ["error", { "before": true, "after": true }],
       "import/order": [
         "error",
         {
