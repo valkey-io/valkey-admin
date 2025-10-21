@@ -102,11 +102,12 @@ export function Dashboard() {
       <div className="flex flex-1 min-h-0 gap-3">
         {/* Accordion Area */}
         <div className="w-1/2 overflow-y-auto border dark:border-tw-dark-border rounded p-2">
-          {/* Search Input */}
+          {/* Search or Filtering Input */}
           <div className="mb-4 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
-              className="w-full pl-10 pr-4 py-2 border dark:border-tw-dark-border rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-tw-primary"
+              className="w-full pl-10 pr-4 py-2 border dark:border-tw-dark-border rounded bg-white dark:bg-gray-800
+               focus:outline-none focus:ring-2 focus:ring-tw-primary"
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search metrics..."
               type="text"
@@ -150,7 +151,8 @@ export function Dashboard() {
             valueType="number" />
         </div>
         {/* Chart Area */}
-        <div className="w-1/2 overflow-y-auto border dark:border-tw-dark-border rounded p-2 text-tw-primary flex items-center justify-center"><ChartPie size={280} /></div>
+        <div className="w-1/2 overflow-y-auto border dark:border-tw-dark-border rounded p-2 text-tw-primary flex 
+        items-center justify-center"><ChartPie size={280} /></div>
       </div>
     </div>
   )

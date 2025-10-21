@@ -4,7 +4,7 @@ import { formatMetricValue, type ValueType } from "@common/src/format-metric-val
 
 interface AccordionProps {
   accordionName?: string;
-  accordionItems?: Record<string, any>;
+  accordionItems?: Record<string, number | null>;
   valueType?: ValueType;
   searchQuery?: string;
 }
@@ -32,7 +32,7 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
         acc[key] = value
       }
       return acc
-    }, {} as Record<string, any>)
+    }, {} as Record<string, number | null>)
   }, [accordionItems, searchQuery])
 
   const itemCount = accordionItems ? Object.keys(accordionItems).length : 0

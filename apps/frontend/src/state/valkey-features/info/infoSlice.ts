@@ -41,7 +41,6 @@ interface ConnectionData {
   total_error_replies : number | null
   total_watched_keys : number | null
   unexpected_error_replies : number | null
-
   evicted_keys : number | null
   expired_keys : number | null
   expired_stale_perc : number | null
@@ -49,7 +48,6 @@ interface ConnectionData {
   keyspace_misses : number | null
   number_of_cached_scripts : number | null
   number_of_functions : number | null
-
   pubsubshard_channels : number | null
   pubsub_channels : number | null
   pubsub_clients : number | null
