@@ -199,10 +199,6 @@ async function connectToValkey(
       clientName: "test_client",
     })
 
-    if (await belongsToCluster(standaloneClient)) {
-      return connectToCluster(standaloneClient, ws, clients, payload, addresses)
-    }
-    
     clients.set(payload.connectionId, standaloneClient)
     ws.send(
       JSON.stringify({
@@ -212,6 +208,11 @@ async function connectToValkey(
         },
       }),
     )
+
+    if (await belongsToCluster(standaloneClient)) {
+      return connectToCluster(standaloneClient, ws, clients, payload, addresses)
+    }
+
     return standaloneClient
 
   } catch (err) {
@@ -291,6 +292,8 @@ async function connectToCluster(
     requestTimeout: 5000,
     clientName: "cluster_client",
   })
+
+  standaloneClient.close()
 
   clients.set(payload.connectionId, clusterClient)
 
