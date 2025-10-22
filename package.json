@@ -1,5 +1,6 @@
 {
   "name": "valkey-skyscope",
+  "productName": "Skyscope",
   "private": true,
   "version": "0.0.0",
   "workspaces": [
@@ -32,6 +33,7 @@
   },
   "build": {
     "appId": "com.valkey.skyscope",
+    "icon": "apps/frontend/assets/img/logo-big.png",
     "directories": {
       "output": "release"
     },
