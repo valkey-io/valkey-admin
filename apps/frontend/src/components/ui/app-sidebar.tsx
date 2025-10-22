@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
+import logo from "../../../assets/img/logo.png"
 import useIsConnected from "@/hooks/useIsConnected.ts"
 
 export function AppSidebar() {
@@ -28,14 +29,13 @@ export function AppSidebar() {
 
   return (
     <nav
-      className={`bg-white dark:bg-tw-dark-primary ${
-        isExpanded ? "w-52" : "w-18"
+      className={`bg-white dark:bg-tw-dark-primary ${isExpanded ? "w-52" : "w-18"
       } h-screen p-4 shadow-lg border-r-2 dark:border-tw-dark-border dark:border-r-1 flex flex-col justify-between transition-all duration-300 items-start relative`}
     >
       <div className="flex flex-col items-start w-full">
         {/* Header */}
         <div className="flex items-center" title="Skyscope">
-          <img alt="logo" className="h-8" src="../../assets/img/logo.png" />
+          <img alt="logo" className="h-8" src={logo} /> {/* Use the imported logo */}
           {isExpanded && (
             <span className="ml-3 font-bold text-lg">Skyscope</span>
           )}

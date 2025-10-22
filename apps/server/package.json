@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "npx tsx --enable-source-maps src/index.ts",
-    "build": "tsc -b",
-    "lint": "eslint ."
+    "build:ts": "tsc -b",
+    "lint": "eslint .",
+    "build": "vite build --config vite.config.ts"
   },
   "dependencies": {
     "@valkey/valkey-glide": "^2.0.1",
@@ -16,6 +17,7 @@
     "@types/node": "^24.2.1",
     "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "vite": "^7.1.7"
   }
 }

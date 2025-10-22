@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client"
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router"
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router"
 import { Provider } from "react-redux"
 import { useEffect } from "react"
 import App from "./App.tsx"
@@ -30,7 +30,7 @@ const AppWithHistory = () => {
   return (
     <Routes>
       <Route element={<App />}>
-        <Route element={<Navigate replace to="/connect"/>} path="/"/>
+        <Route element={<Navigate replace to="/connect" />} path="/" />
         <Route element={<Connection />} path="/connect" />
         <Route element={<Settings />} path="/settings" />
         <Route element={<LearnMore />} path="/learnmore" />
@@ -40,7 +40,7 @@ const AppWithHistory = () => {
           <Route element={<Dashboard />} path="/:clusterId/:id/dashboard" />
           <Route element={<SendCommand />} path="/:clusterId/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:clusterId/:id/browse" />
-          <Route element={<Cluster />} path="/:clusterId/:id/cluster-topology"/>
+          <Route element={<Cluster />} path="/:clusterId/:id/cluster-topology" />
         </Route>
 
         {/* Routes without clusterId */}
@@ -57,9 +57,9 @@ const AppWithHistory = () => {
 createRoot(document.getElementById("root")!).render(
   // <StrictMode>
   <Provider store={store}>
-    <BrowserRouter>
-      <AppWithHistory/>
-    </BrowserRouter>
+    <HashRouter>
+      <AppWithHistory />
+    </HashRouter>
   </Provider>,
   // </StrictMode>,
 )

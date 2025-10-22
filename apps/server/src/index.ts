@@ -12,7 +12,12 @@ import {
 
 const wss = new WebSocketServer({ port: 8080 })
 
-console.log("Websocket server running on localhost:8080")
+wss.on("listening", () => { // Add a listener for when the server starts listening
+  console.log("Websocket server running on localhost:8080")
+  if (process.send) { // Check if process.send is available (i.e., if forked)
+    process.send("ready") // Send a ready message to the parent process
+  }
+})
 
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected.")
@@ -226,6 +231,7 @@ async function connectToValkey(
         },
       }),
     )
+    return undefined
   }
 }
 
@@ -438,7 +444,9 @@ async function sendValkeyRunCommand(
 
     // todo fixme!!! they are not all strings!
     const response =
-      typeof rawResponse === "string" ? parseInfo(rawResponse) : rawResponse
+      typeof rawResponse === "string"
+        ? parseInfo(rawResponse)
+        : rawResponse
     if (rawResponse.includes("ResponseError")) {
       ws.send(
         JSON.stringify({
@@ -450,7 +458,10 @@ async function sendValkeyRunCommand(
     }
     ws.send(
       JSON.stringify({
-        meta: { connectionId: payload.connectionId, command: payload.command },
+        meta: {
+          connectionId: payload.connectionId,
+          command: payload.command,
+        },
         type: VALKEY.COMMAND.sendFulfilled,
         payload: response,
       }),
@@ -458,7 +469,10 @@ async function sendValkeyRunCommand(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        meta: { connectionId: payload.connectionId, command: payload.command },
+        meta: {
+          connectionId: payload.connectionId,
+          command: payload.command,
+        },
         type: VALKEY.COMMAND.sendFailed,
         payload: err,
       }),
