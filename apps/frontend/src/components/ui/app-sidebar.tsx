@@ -7,7 +7,8 @@ import {
   Cog,
   CircleQuestionMark,
   Github,
-  Compass
+  Compass,
+  Server
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
@@ -16,7 +17,7 @@ import useIsConnected from "@/hooks/useIsConnected.ts"
 export function AppSidebar() {
   const isConnected = useIsConnected()
   const location = useLocation()
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const [isExpanded, setIsExpanded] = useState(false)
 
   const getNavItemClasses = (path: string) => {
@@ -50,16 +51,29 @@ export function AppSidebar() {
               ...(isConnected
                 ? [
                   {
-                    to: `/${id}/dashboard`,
+                    to: (clusterId ? `/${clusterId}/${id}/dashboard` : `${id}/dashboard`),
                     title: "Dashboard",
                     icon: LayoutDashboard,
                   },
                   {
-                    to: `/${id}/browse`,
+                    to: (clusterId ? `/${clusterId}/${id}/browse` : `/${id}/browse`),
                     title: "Key Browser",
                     icon: Compass,
                   },
-                  { to: `/${id}/sendcommand`, title: "Send Command", icon: Send },
+                  { to: (clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`), 
+                    title: "Send Command", 
+                    icon: Send, 
+                  },
+                  ...(clusterId
+                    ? [
+                      {
+                        to: `/${clusterId}/${id}/cluster-topology`,
+                        title: "Cluster Topology",
+                        icon: Server,
+                      },
+                    ]
+                    : []),
+
                 ]
                 : []),
             ].map(({ to, title, icon: Icon }) => (

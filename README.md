@@ -5,13 +5,14 @@
 ### Start Valkey Cluster
 
 1. Change your working directory to the docker directory: `cd tools/valkey-cluster`
-2. Start your cluster with 3 nodes and replicas on `127.0.0.1:7001`:
+2. Create a `.env` file based on `.env.example`
+3. Start your cluster with 3 nodes and replicas on `127.0.0.1:7001`:
 
     To start up and populate fake data: `docker compose --profile populate up --build`.
 
     To start up without running the populate service:`docker compose up --build`.
 
-3. Add key value pairs using Redis Insight (Optional)
+4. Add key value pairs using Redis Insight (Optional)
 
 ### Running the apps
 

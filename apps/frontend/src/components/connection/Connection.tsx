@@ -53,6 +53,7 @@ export function Connection() {
             {
               Object.entries(connections).map(([connectionId, connection]) =>
                 <ConnectionEntry
+                  clusterId={connection.connectionDetails.clusterId}
                   connection={connection}
                   connectionId={connectionId}
                   key={connectionId}

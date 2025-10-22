@@ -7,6 +7,8 @@ import { Database } from "lucide-react"
 import { AppHeader } from "./ui/app-header"
 import Accordion from "./ui/accordion"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
+import { selectClusterData } from "@/state/valkey-features/cluster/clusterSelectors"
+import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function Dashboard() {
   const { id } = useParams()
@@ -156,4 +158,5 @@ export function Dashboard() {
       </div>
     </div>
   )
+
 }

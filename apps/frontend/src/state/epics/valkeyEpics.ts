@@ -8,9 +8,9 @@ import { connectFulfilled, connectPending, deleteConnection } from "../valkey-fe
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
+import { setClusterData } from "../valkey-features/cluster/clusterSlice"
 import type { Store } from "@reduxjs/toolkit"
 import { atId } from "@/state/valkey-features/connection/connectionSelectors.ts"
-
 export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
@@ -84,8 +84,10 @@ export const sendRequestEpic = () =>
 export const setDataEpic = () =>
   action$.pipe(
     select(connectFulfilled),
-    tap(({ payload: { connectionId } }) => {
+    tap((action) => {
       const socket = getSocket()
-      socket.next({ type: setData.type, payload: { connectionId } })
+      const { clusterId, connectionId } = action.payload
+      if (clusterId) socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+      else socket.next({ type: setData.type, payload: { connectionId } })
     }),
   )

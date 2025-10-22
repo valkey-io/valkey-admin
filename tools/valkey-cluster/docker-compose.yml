@@ -8,12 +8,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7001
             --cluster-announce-bus-port 17001
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7001", "PING"],
@@ -36,12 +39,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7002
             --cluster-announce-bus-port 17002
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7002", "PING"],
@@ -64,12 +70,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7003
             --cluster-announce-bus-port 17003
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7003", "PING"],
@@ -92,12 +101,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7004
             --cluster-announce-bus-port 17004
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7004", "PING"],
@@ -120,12 +132,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7005
             --cluster-announce-bus-port 17005
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7005", "PING"],
@@ -148,12 +163,15 @@ services:
             --cluster-enabled yes
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
-            --cluster-announce-ip host.docker.internal
             --cluster-announce-port 7006
             --cluster-announce-bus-port 17006
+            --cluster-announce-hostname ${ANNOUNCE_HOST}
+            --cluster-preferred-endpoint-type hostname
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+        environment:
+            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
             {
                 test: ["CMD", "valkey-cli", "-p", "7006", "PING"],

@@ -24,6 +24,7 @@ import { useAppDispatch } from "@/hooks/hooks.ts"
 type ConnectionEntryProps = {
   connectionId: string,
   connection: ConnectionState,
+  clusterId?: string,
 }
 
 const ConnectionEntryGrid = ({ children, className } : { children: ReactNode, className?: string}) =>
@@ -38,7 +39,7 @@ export const ConnectionEntryHeader = () =>
     <div className="text-right pr-4">Actions</div>
   </ConnectionEntryGrid>
 
-export const ConnectionEntry = ({ connectionId, connection }: ConnectionEntryProps) => {
+export const ConnectionEntry = ({ connectionId, connection, clusterId }: ConnectionEntryProps) => {
   const dispatch = useAppDispatch()
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
 
@@ -60,14 +61,14 @@ export const ConnectionEntry = ({ connectionId, connection }: ConnectionEntryPro
       </div>
       {
         <Button asChild className={cn(!isConnected && "pointer-events-none", "justify-self-start")} variant="link">
-          <Link title={label} to={`/${connectionId}/dashboard`}>{label}</Link>
+          <Link title={label} to={(clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`)}>{label}</Link>
         </Button>
       }
       <div className="flex flex-row justify-end">
         {
           isConnected &&
           <>
-            <Button onClick={() => history.navigate(`/${connectionId}/dashboard`)} variant="ghost">
+            <Button onClick={() => history.navigate(clusterId ? `/${clusterId}/${connectionId}/cluster-topology` : `/${connectionId}/dashboard`)} variant="ghost">
               <CircleChevronRight />
               Open
             </Button>

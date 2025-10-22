@@ -4,6 +4,7 @@ import { rxjsMiddleware } from "./state/middleware/rxjsMiddleware/rxjsMiddlware"
 import { registerEpics } from "./state/epics/rootEpic"
 import wsConnectionReducer from "@/state/wsconnection/wsConnectionSlice"
 import valkeyConnectionReducer from "@/state/valkey-features/connection/connectionSlice.ts"
+import clusterReducer from "@/state/valkey-features/cluster/clusterSlice"
 import valkeyCommandReducer from "@/state/valkey-features/command/commandSlice.ts"
 import valkeyInfoReducer from "@/state/valkey-features/info/infoSlice.ts"
 import keyBrowserReducer from "@/state/valkey-features/keys/keyBrowserSlice.ts"
@@ -15,6 +16,7 @@ export const store = configureStore({
     [VALKEY.COMMAND.name]: valkeyCommandReducer,
     [VALKEY.STATS.name]: valkeyInfoReducer,
     [VALKEY.KEYS.name]: keyBrowserReducer,
+    [VALKEY.CLUSTER.name]: clusterReducer,
   },
   middleware: (getDefaultMiddleware) => {
     return getDefaultMiddleware({
