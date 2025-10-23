@@ -4,10 +4,15 @@
 
 ### Start Valkey Cluster
 
-1. From the root directory, run `tools/valkey-cluster/scripts/build_run_cluster.sh`.
-    1. This will build and run the cluster.
-    2. Master hostname will be `localhost`.
-    3. Master nodes ports will be `7001` - `7003`.
+1. Change your working directory to the docker directory: `cd tools/valkey-cluster`
+2. Create a `.env` file based on `.env.example`
+3. Start your cluster with 3 nodes and replicas on `127.0.0.1:7001`:
+
+    To start up and populate fake data: `docker compose --profile populate up --build`.
+
+    To start up without running the populate service:`docker compose up --build`.
+
+4. Add key value pairs using Redis Insight (Optional)
 
 ### Running the apps
 

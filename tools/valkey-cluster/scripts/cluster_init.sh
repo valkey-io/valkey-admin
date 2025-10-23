@@ -79,7 +79,6 @@ while [ "$i" -lt 120 ]; do
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
     echo ""
     echo "🫡 SUCCESS: Valkey cluster is ready."
-
     exit 0
   fi
   i=$((i+1))
