@@ -39,11 +39,11 @@ export function Connection() {
       }
       {
         R.isEmpty(connections) ?
-          <div className=" bg-white flex-1 flex items-center justify-center flex-col gap-2">
-            <span className="text-sm font-light text-gray-500">
+          <div className=" bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border flex-1 flex items-center justify-center flex-col gap-2">
+            <span className="text-sm font-light text-gray-500 dark:text-white">
               You Have No Connections!
             </span>
-            <p className="text-sm font-light text-gray-500">
+            <p className="text-sm font-light text-gray-500 dark:text-white">
               Click "+ Add Connection" button to connect to a Valkey instance.
             </p>
             { connectButton() }
