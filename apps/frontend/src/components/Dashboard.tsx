@@ -1,11 +1,12 @@
 import { useState } from "react"
 import { useSelector } from "react-redux"
-import { LayoutDashboard, ChartPie, Search } from "lucide-react"
+import { LayoutDashboard, Search } from "lucide-react"
 import { useParams } from "react-router"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { Database } from "lucide-react"
 import { AppHeader } from "./ui/app-header"
 import Accordion from "./ui/accordion"
+import DonutChart from "./ui/donut-chart"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
@@ -152,7 +153,7 @@ export function Dashboard() {
         </div>
         {/* Chart Area */}
         <div className="w-1/2 overflow-y-auto border dark:border-tw-dark-border rounded p-2 text-tw-primary flex 
-        items-center justify-center"><ChartPie size={280} /></div>
+        items-center justify-center"><DonutChart /></div>
       </div>
     </div>
   )
