@@ -211,8 +211,8 @@ export function KeyBrowser() {
                 <ul className="h-full overflow-y-auto space-y-2 p-2">
                   {filteredKeys.map((keyInfo: KeyInfo, index) => (
                     <li
-                      className="h-16 p-2 dark:border-tw-dark-border border hover:text-tw-primary 
-                      cursor-pointer rounded flex items-center gap-2 justify-between"
+                      className={`h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30
+                      cursor-pointer rounded flex items-center gap-2 justify-between ${selectedKey === keyInfo.name ? "bg-tw-primary/80 hover:bg-tw-primary/80" : ""}`}
                       key={index}
                       onClick={() => handleKeyClick(keyInfo.name)}
                     >
@@ -220,7 +220,7 @@ export function KeyBrowser() {
                         <span className="flex items-center gap-2">
                           <Key size={16} /> {keyInfo.name}
                         </span>
-                        <div className="ml-6 text-xs font-light text-tw-primary">
+                        <div className={`ml-6 text-xs font-light text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""}`}>
                           {R.toUpper(keyInfo.type)}
                         </div>
                       </div>
@@ -228,8 +228,8 @@ export function KeyBrowser() {
                         {keyInfo.size && (
                           <CustomTooltip content="Size">
                             <span
-                              className="flex items-center justify-between gap-1 text-xs px-2 py-1 
-                             text-tw-primary dark:text-white"
+                              className={`flex items-center justify-between gap-1 text-xs px-2 py-1 
+                             text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""} dark:text-white`}
                             >
                               <Database
                                 className="text-white bg-tw-primary p-1 rounded-full"
@@ -242,8 +242,8 @@ export function KeyBrowser() {
                         {/* text-red-400 is a placehodler for now, will change to a custom tw color */}
                         <CustomTooltip content="TTL">
                           <span
-                            className="flex items-center justify-between gap-1 text-xs px-2 py-1 
-                           text-tw-primary dark:text-white"
+                            className={`flex items-center justify-between gap-1 text-xs px-2 py-1 
+                              text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""} dark:text-white`}
                           >
                             <Hourglass
                               className="text-white bg-tw-primary p-1 rounded-full"
