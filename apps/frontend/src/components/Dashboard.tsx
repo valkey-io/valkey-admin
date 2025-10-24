@@ -85,11 +85,10 @@ export function Dashboard() {
         title="Dashboard"
       />
       {/* Memory Area */}
-      <div className="flex dark:border-tw-dark-border border rounded mb-4">
+      <div className="flex justify-evenly dark:border-tw-dark-border border rounded mb-4">
         {[
           ["Total Memory", memoryUsageMetrics.total_system_memory],
-          ["Used Memory", memoryUsageMetrics.used_memory],
-          ["Free Memory", "TBD"]].map(([label, value]) => (
+          ["Used Memory", memoryUsageMetrics.used_memory]].map(([label, value]) => (
           <div className="h-20 w-1/3 p-4 flex items-center justify-center gap-4" key={label}>
             <Database className="mb-2 text-tw-primary" size={40} />
             <div className="flex flex-col items-center">
