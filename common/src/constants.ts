@@ -66,6 +66,7 @@ export const CONNECTED = "Connected"
 export const CONNECTING = "Connecting"
 export const ERROR = "Error"
 export const NOT_CONNECTED = "Not Connected"
+export const DISCONNECTED = "Disconnected"
 
 export const LOCAL_STORAGE = {
   VALKEY_CONNECTIONS: "VALKEY_CONNECTIONS",

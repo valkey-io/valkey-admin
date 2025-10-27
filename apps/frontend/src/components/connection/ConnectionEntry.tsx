@@ -1,4 +1,4 @@
-import { CONNECTED, ERROR } from "@common/src/constants.ts"
+import { CONNECTED, ERROR, DISCONNECTED } from "@common/src/constants.ts"
 import {
   AlertCircleIcon,
   CircleChevronRight,
@@ -42,28 +42,33 @@ export const ConnectionEntryHeader = () =>
 export const ConnectionEntry = ({ connectionId, connection, clusterId }: ConnectionEntryProps) => {
   const dispatch = useAppDispatch()
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
-
   const handleConnect = () => dispatch(connectPending({ ...connection.connectionDetails, connectionId }))
   const handleDelete = () => dispatch(deleteConnection({ connectionId }))
 
   const isConnected = connection.status === CONNECTED
   const isError = connection.status === ERROR
+  const isDisconnected = connection.status === DISCONNECTED
   const label = `${connection.connectionDetails.username}@${connection.connectionDetails.host}:${connection.connectionDetails.port}`
 
   return (
     <ConnectionEntryGrid>
-      <div className={cn(isConnected ? "text-teal-500" : "text-gray-500", "flex flex-row pl-2 text-sm font-semibold items-center")}>
+      <div className={cn(
+        isConnected ? "text-teal-500" : 
+          isDisconnected ? "text-orange-500" : 
+            "text-gray-500", 
+        "flex flex-row pl-2 text-sm font-semibold items-center",
+      )}>
         {
           isConnected ? <CircleDotIcon className="mr-2"/> :
-            isError ? <AlertCircleIcon className="mr-2"/> : <CircleSmallIcon className="mr-2"/>
+            isDisconnected ? <AlertCircleIcon className="mr-2 text-orange-500"/> :
+              isError ? <AlertCircleIcon className="mr-2"/> : 
+                <CircleSmallIcon className="mr-2"/>
         }
         {connection.status}
       </div>
-      {
-        <Button asChild className={cn(!isConnected && "pointer-events-none", "justify-self-start")} variant="link">
-          <Link title={label} to={(clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`)}>{label}</Link>
-        </Button>
-      }
+      <Button asChild className={cn(!isConnected && "pointer-events-none", "justify-self-start")} variant="link">
+        <Link title={label} to={(clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`)}>{label}</Link>
+      </Button>
       <div className="flex flex-row justify-end">
         {
           isConnected &&
@@ -83,7 +88,7 @@ export const ConnectionEntry = ({ connectionId, connection, clusterId }: Connect
           </>
         }
         {
-          !isConnected &&
+          (isDisconnected || !isConnected) &&
           <Button onClick={handleConnect} variant="ghost">
             <PowerIcon />
             Connect
