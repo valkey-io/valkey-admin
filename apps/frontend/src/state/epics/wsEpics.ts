@@ -8,8 +8,11 @@ import {
   filter,
   switchMap
 } from "rxjs/operators"
+import { CONNECTED, VALKEY } from "@common/src/constants.ts"
+import { toast } from "sonner"
 import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
+import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
 import {
   connectFulfilled,
   connectPending,
@@ -33,6 +36,24 @@ const connect = (store: Store) =>
           next: () => {
             console.log("Socket Connection opened")
             store.dispatch(connectFulfilled())
+          },
+        },
+        closeObserver: {
+          next: () => {
+            console.log("Socket Connection closed")
+            const state = store.getState()
+            const connections = state[VALKEY.CONNECTION.name]?.connections || {}
+
+            toast.error("WebSocket connection lost! Try reconnecting.", { duration: 5000 })
+
+            Object.keys(connections).forEach((connectionId) => {
+              console.log(`Checking connection ${connectionId}, status: ${connections[connectionId].status}`)
+              if (connections[connectionId].status === CONNECTED) {
+                console.log(`Dispatching connectionBroken for ${connectionId}`)
+                store.dispatch(connectionBroken({ connectionId }))
+              }
+            })
+            socket$ = null
           },
         },
       })
@@ -62,6 +83,15 @@ const emitActions = (store: Store) =>
         }),
         catchError((err) => {
           console.error("WebSocket error in message stream:", err)
+          const state = store.getState()
+          const connections = state[VALKEY.CONNECTION.name]?.connections || {}
+          toast.error("WebSocket connection Lost!", { duration: 5000 })
+
+          Object.keys(connections).forEach((connectionId) => {
+            if (connections[connectionId].status === CONNECTED) {
+              store.dispatch(connectionBroken({ connectionId }))
+            }
+          })
           return EMPTY
         }),
         ignoreElements(),
