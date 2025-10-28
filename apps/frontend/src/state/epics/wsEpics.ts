@@ -1,14 +1,15 @@
 import { webSocket, WebSocketSubject } from "rxjs/webSocket"
-import { of, EMPTY, merge } from "rxjs"
+import { of, EMPTY, merge, timer } from "rxjs"
 import {
   catchError,
   mergeMap,
   tap,
   ignoreElements,
   filter,
-  switchMap
+  switchMap,
+  retry
 } from "rxjs/operators"
-import { CONNECTED, VALKEY } from "@common/src/constants.ts"
+import { CONNECTED, VALKEY, WS_RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
@@ -16,7 +17,9 @@ import { connectionBroken } from "@/state/valkey-features/connection/connectionS
 import {
   connectFulfilled,
   connectPending,
-  connectRejected
+  connectRejected,
+  reconnectAttempt,
+  reconnectExhausted
 } from "@/state/wsconnection/wsConnectionSlice"
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
@@ -28,40 +31,73 @@ const connect = (store: Store) =>
       if (socket$) {
         return EMPTY
       }
-      socket$ = webSocket({
-        url: "ws://localhost:8080",
-        deserializer: (message) => JSON.parse(message.data),
-        serializer: (message) => JSON.stringify(message),
-        openObserver: {
-          next: () => {
-            console.log("Socket Connection opened")
-            store.dispatch(connectFulfilled())
-          },
-        },
-        closeObserver: {
-          next: () => {
-            console.log("Socket Connection closed")
-            const state = store.getState()
-            const connections = state[VALKEY.CONNECTION.name]?.connections || {}
 
-            toast.error("WebSocket connection lost! Try reconnecting.", { duration: 5000 })
-
-            Object.keys(connections).forEach((connectionId) => {
-              console.log(`Checking connection ${connectionId}, status: ${connections[connectionId].status}`)
-              if (connections[connectionId].status === CONNECTED) {
-                console.log(`Dispatching connectionBroken for ${connectionId}`)
-                store.dispatch(connectionBroken({ connectionId }))
-              }
-            })
-            socket$ = null
+      const createSocket = () => {
+        socket$ = webSocket({
+          url: "ws://localhost:8080",
+          deserializer: (message) => JSON.parse(message.data),
+          serializer: (message) => JSON.stringify(message),
+          openObserver: {
+            next: () => {
+              console.log("Socket Connection opened")
+              store.dispatch(connectFulfilled())
+            },
           },
-        },
-      })
-      return socket$.pipe(
-        ignoreElements(),
+          closeObserver: {
+            next: (event) => {
+              console.log("Socket Connection closed", event)
+              const state = store.getState()
+              const connections = state[VALKEY.CONNECTION.name]?.connections || {}
+
+              // Mark all connected Valkey connections as broken
+              Object.keys(connections).forEach((connectionId) => {
+                if (connections[connectionId].status === CONNECTED) {
+                  console.log(`Dispatching connectionBroken for ${connectionId}`)
+                  store.dispatch(connectionBroken({ connectionId }))
+                }
+              })
+              socket$ = null
+            },
+          },
+        })
+        return socket$
+      }
+
+      return of(null).pipe(
+        mergeMap(() => {
+          const socket = createSocket()
+          return socket.pipe(ignoreElements())
+        }),
+        retry({
+          count: WS_RETRY_CONFIG.MAX_RETRIES,
+          delay: (error, retryCount) => {
+            console.error(`WebSocket error (attempt ${retryCount}):`, error)
+
+            const delay = retryDelay(retryCount - 1)
+
+            toast.info(
+              `Connection lost. Retrying in ${delay / 1000}s... (Attempt ${retryCount}/${WS_RETRY_CONFIG.MAX_RETRIES})`,
+              { duration: delay },
+            )
+
+            store.dispatch(reconnectAttempt({
+              attempt: retryCount,
+              maxRetries: WS_RETRY_CONFIG.MAX_RETRIES,
+              nextRetryDelay: delay,
+            }))
+
+            return timer(delay)
+          },
+          resetOnSuccess: true,
+        }),
         catchError((err) => {
-          console.error("WebSocket connection error:", err)
-          return of(connectRejected(err))
+          console.error("WebSocket connection failed permanently:", err)
+          toast.error("Failed to connect after multiple attempts. Please reconnect manually.", {
+            duration: 7000,
+          })
+          store.dispatch(reconnectExhausted())
+          store.dispatch(connectRejected(err))
+          return EMPTY
         }),
       )
     }),
@@ -85,13 +121,15 @@ const emitActions = (store: Store) =>
           console.error("WebSocket error in message stream:", err)
           const state = store.getState()
           const connections = state[VALKEY.CONNECTION.name]?.connections || {}
-          toast.error("WebSocket connection Lost!", { duration: 5000 })
 
           Object.keys(connections).forEach((connectionId) => {
             if (connections[connectionId].status === CONNECTED) {
               store.dispatch(connectionBroken({ connectionId }))
             }
           })
+
+          // trigger reconnection
+          store.dispatch(connectPending())
           return EMPTY
         }),
         ignoreElements(),
