@@ -1,5 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws"
-import {  Decoder, GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import {  GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { VALKEY } from "../../../common/src/constants.ts"
 import {
   getKeys,
@@ -9,7 +9,8 @@ import {
   updateKey
 } from "./keys-browser.ts"
 import { connectToValkey } from "./connection.ts"
-import { parseInfo, parseClusterInfo } from "./utils.ts"
+import { setDashboardData, setClusterDashboardData } from "./setDashboardData.ts"
+import { sendValkeyRunCommand } from "./sendCommand.ts"
 
 const wss = new WebSocketServer({ port: 8080 })
 
@@ -181,101 +182,3 @@ wss.on("connection", (ws: WebSocket) => {
     console.log("Client disconnected. Reason:", code, reason.toString())
   })
 })
-
-async function setDashboardData(
-  connectionId: string,
-  client: GlideClient,
-  ws: WebSocket,
-) {
-  const rawInfo = await client.info()
-  const info = parseInfo(rawInfo)
-  const rawMemoryStats = (await client.customCommand(["MEMORY", "STATS"], {
-    decoder: Decoder.String,
-  })) as Array<{
-    key: string;
-    value: string;
-  }>
-
-  const memoryStats = rawMemoryStats.reduce((acc, { key, value }) => {
-    acc[key] = value
-    return acc
-  }, {} as Record<string, string>)
-
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.STATS.setData,
-      payload: {
-        connectionId,
-        info: info,
-        memory: memoryStats,
-      },
-    }),
-  )
-}
-
-async function setClusterDashboardData(
-  clusterId: string,
-  client: GlideClusterClient,
-  ws: WebSocket,
-) {
-  const rawInfo = await client.info({ route:"allNodes" })
-  const info = parseClusterInfo(rawInfo)
-  
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CLUSTER.setClusterData,
-      payload: {
-        clusterId,
-        info: info,
-      },
-    }),
-  )
-}
-
-async function sendValkeyRunCommand(
-  client: GlideClient | GlideClusterClient,
-  ws: WebSocket,
-  payload: { command: string; connectionId: string },
-) {
-  try {
-    let response = (await client.customCommand(
-      payload.command.split(" "),
-    ))
-
-    if (typeof response === "string") {
-      if (response.includes("ResponseError")) {
-        ws.send(
-          JSON.stringify({
-            meta: { command: payload.command },
-            type: VALKEY.COMMAND.sendFailed,
-            payload: response,
-          }),
-        )
-      }
-      response = parseInfo(response)
-    }
-
-    ws.send(
-      JSON.stringify({
-        meta: {
-          connectionId: payload.connectionId,
-          command: payload.command,
-        },
-        type: VALKEY.COMMAND.sendFulfilled,
-        payload: response,
-      }),
-    )
-  } catch (err) {
-    ws.send(
-      JSON.stringify({
-        meta: {
-          connectionId: payload.connectionId,
-          command: payload.command,
-        },
-        type: VALKEY.COMMAND.sendFailed,
-        payload: err,
-      }),
-    )
-    console.log("Error sending command to Valkey", err)
-  }
-}
