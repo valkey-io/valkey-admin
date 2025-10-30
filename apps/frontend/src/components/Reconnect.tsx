@@ -1,16 +1,16 @@
 import { useEffect } from "react"
-import { useSelector } from "react-redux"
+import { useDispatch, useSelector } from "react-redux"
 import { useNavigate } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
-import { Loader2, WifiOff, AlertCircle } from "lucide-react"
+import { Loader2, WifiOff, AlertCircle, ServerOff } from "lucide-react"
 import type { RootState } from "@/store"
+import { connectPending } from "@/state/wsconnection/wsConnectionSlice"
 
 export function Reconnect() {
+  const dispatch = useDispatch()
   const navigate = useNavigate()
   const wsConnection = useSelector((state: RootState) => state.websocket)
-  const { status, reconnect } = wsConnection
-
-  const previousLocation = sessionStorage.getItem("previousLocation") || "/connect"
+  const { status, reconnect, errorMessage } = wsConnection
 
   useEffect(() => {
     // redirect to previous location on successful connection
@@ -21,16 +21,9 @@ export function Reconnect() {
     }
   }, [status, navigate])
 
-  useEffect(() => {
-    // if could not connect redirect to /connect after 3 seconds
-    if (status === ERROR && !reconnect.isRetrying) {
-      const timer = setTimeout(() => {
-        sessionStorage.removeItem("previousLocation")
-        navigate("/connect", { replace: true })
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [status, reconnect.isRetrying, navigate])
+  const handleManualReconnect = () => {
+    dispatch(connectPending())
+  }
 
   const getProgressPercentage = () => {
     if (reconnect.maxRetries === 0) return 0
@@ -42,6 +35,8 @@ export function Reconnect() {
     return Math.ceil(reconnect.nextRetryDelay / 1000)
   }
 
+  const isExhausted = status === ERROR && !reconnect.isRetrying
+
   return (
     <div className="flex items-center justify-center min-h-screen dark:from-gray-900 dark:to-gray-800">
       <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
@@ -50,8 +45,8 @@ export function Reconnect() {
             <div className="relative">
               <Loader2 className="w-16 h-16 text-tw-primary animate-spin" />
             </div>
-          ) : status === ERROR ? (
-            <AlertCircle className="w-12 h-12 text-red-500" />
+          ) : isExhausted ? (
+            <ServerOff className="w-12 h-12 text-red-500" />
           ) : (
             <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
               <WifiOff className="w-12 h-12 text-gray-500" />
@@ -61,15 +56,25 @@ export function Reconnect() {
 
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {status === ERROR && !reconnect.isRetrying
-              ? "Connection Failed"
-              : "Reconnecting..."}
+            {isExhausted
+              ? "WebSocket Server Disconnected"
+              : "Reconnecting to Server..."}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {status === ERROR && !reconnect.isRetrying
-              ? "Unable to establish connection to the server"
-              : "Attempting to restore your connection"}
+            {isExhausted
+              ? "Unable to connect to the WebSocket server"
+              : "Attempting to restore connection to the WebSocket server"}
           </p>
+          {errorMessage && (
+            <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-700 dark:text-red-400 text-left">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Retry Progress */}
@@ -96,19 +101,16 @@ export function Reconnect() {
           </div>
         )}
 
-        <div className="space-y-2 pt-4">
-          {previousLocation !== "/connect" && (
+        {isExhausted && (
+          <div className="space-y-2 pt-4">
             <button
-              className="w-full border p-2 rounded bg-tw-primary text-white hover:bg-tw-primary/60 cursor-pointer"
-              onClick={() => {
-                sessionStorage.removeItem("previousLocation")
-                navigate("/connect", { replace: true })
-              }}
+              className="w-full border p-2 rounded bg-tw-primary text-white hover:bg-tw-primary/80 cursor-pointer transition-colors"
+              onClick={handleManualReconnect}
             >
-              Cancel and Return to Connections
+              Try Reconnecting
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
