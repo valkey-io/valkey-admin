@@ -5,10 +5,13 @@ import { SidebarInset, SidebarProvider } from "./components/ui/sidebar"
 import { AppSidebar } from "./components/ui/app-sidebar"
 import { Toaster } from "./components/ui/sonner"
 import { DarkModeProvider } from "./contexts/DarkModeContext"
+import { useWebSocketNavigation } from "./hooks/useWebSocketNavigation"
 import { connectPending } from "@/state/wsconnection/wsConnectionSlice"
 
 function App() {
   const dispatch = useDispatch()
+
+  useWebSocketNavigation()
 
   useEffect(() => {
     dispatch(connectPending())

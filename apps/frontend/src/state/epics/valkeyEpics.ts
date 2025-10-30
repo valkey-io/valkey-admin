@@ -1,16 +1,18 @@
 import { merge } from "rxjs"
-import { ignoreElements, tap } from "rxjs/operators"
+import { ignoreElements, tap, delay } from "rxjs/operators"
 import * as R from "ramda"
-import { LOCAL_STORAGE, NOT_CONNECTED } from "@common/src/constants.ts"
+import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { getSocket } from "./wsEpics"
-import { connectFulfilled, connectPending, deleteConnection , connectRejected } from "../valkey-features/connection/connectionSlice"
+import { connectFulfilled, connectPending, deleteConnection, connectRejected } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice"
+import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import type { Store } from "@reduxjs/toolkit"
 import { atId } from "@/state/valkey-features/connection/connectionSelectors.ts"
+
 export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
@@ -46,6 +48,7 @@ export const connectionEpic = (store: Store) =>
         }
       }),
     ),
+
     action$.pipe(
       select(connectRejected),
       tap(({ payload: { err, connectionId } }) => {
@@ -55,7 +58,42 @@ export const connectionEpic = (store: Store) =>
     ),
   )
 
-export const deleteConnectionEpic = () => 
+// reconnect epic
+export const autoReconnectEpic = (store: Store) =>
+  action$.pipe(
+    select(wsConnectFulfilled),
+    delay(500), // Small delay to ensure WebSocket is fully connected
+    tap(() => {
+      const state = store.getState()
+      const connections = state.valkeyConnection?.connections || {}
+
+      // disconnected Valkey connections
+      const disconnectedConnections = Object.entries(connections)
+        .filter(([, connection]) => connection.status === DISCONNECTED)
+
+      if (disconnectedConnections.length > 0) {
+        console.log(`Auto-reconnecting ${disconnectedConnections.length} connection(s)`)
+        toast.info(`Reconnecting ${disconnectedConnections.length} connection(s)...`)
+
+        // reconnect each disconnected connection
+        disconnectedConnections.forEach(([connectionId, connection]) => {
+          const { host, port, username, password } = connection.connectionDetails
+
+          console.log(`Attempting to reconnect ${connectionId}`)
+          store.dispatch(connectPending({
+            connectionId,
+            host,
+            port,
+            username,
+            password,
+          }))
+        })
+      }
+    }),
+    ignoreElements(),
+  )
+
+export const deleteConnectionEpic = () =>
   action$.pipe(
     select(deleteConnection),
     // TODO: extract reused logic into separate method 
@@ -66,7 +104,7 @@ export const deleteConnectionEpic = () =>
           (s) => (s === null ? {} : JSON.parse(s)),
         )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
         R.pipe(
-          R.dissoc(connectionId), 
+          R.dissoc(connectionId),
           JSON.stringify,
           (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
         )(currentConnections)
