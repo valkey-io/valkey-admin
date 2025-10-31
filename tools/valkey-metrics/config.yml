@@ -31,7 +31,9 @@ epics:
     poll_ms: 60000
     file_prefix: "slowlog_len"
   
-  - name: "hotkeys"
-    type: "hotkeys"
-    poll_ms: 60000
-    file_prefix: "hotkeys"
+  - name: "monitor"
+    type: "monitor"
+    monitoringDuration: 60000
+    monitoringInterval: 60000
+    maxCommandsPerRun: 1000000
+    monitor: "monitor"
