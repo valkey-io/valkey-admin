@@ -1,7 +1,7 @@
 import { merge, timer, EMPTY } from "rxjs"
 import { ignoreElements, tap, delay, switchMap, catchError } from "rxjs/operators"
 import * as R from "ramda"
-import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, VALKEY_RETRY_CONFIG, valkeyRetryDelay } from "@common/src/constants.ts"
+import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, VALKEY_RETRY_CONFIG, valkeyRetryDelay, WS_RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { getSocket } from "./wsEpics"
 import { connectFulfilled, connectPending, deleteConnection, connectRejected, startRetry, stopRetry }
@@ -75,23 +75,23 @@ export const valkeyRetryEpic = (store: Store) =>
       const currentAttempt = (connection.reconnect?.currentAttempt || 0) + 1
 
       // to see if we should retry
-      if (currentAttempt > VALKEY_RETRY_CONFIG.MAX_RETRIES) {
+      if (currentAttempt > WS_RETRY_CONFIG.MAX_RETRIES) {
         console.log(`Max retries reached for ${connectionId}`)
         store.dispatch(stopRetry({ connectionId }))
         toast.error("Unable to reconnect to Valkey instance")
         return EMPTY
       }
 
-      const nextDelay = valkeyRetryDelay(currentAttempt - 1)
+      const nextDelay = retryDelay(currentAttempt - 1)
 
       store.dispatch(startRetry({
         connectionId,
         attempt: currentAttempt,
-        maxRetries: VALKEY_RETRY_CONFIG.MAX_RETRIES,
+        maxRetries: WS_RETRY_CONFIG.MAX_RETRIES,
         nextRetryDelay: nextDelay,
       }))
 
-      console.log(`Retrying connection ${connectionId} (attempt ${currentAttempt}/${VALKEY_RETRY_CONFIG.MAX_RETRIES}) in ${nextDelay}ms`)
+      console.log(`Retrying connection ${connectionId} (attempt ${currentAttempt}/${WS_RETRY_CONFIG.MAX_RETRIES}) in ${nextDelay}ms`)
 
       return timer(nextDelay).pipe(
         tap(() => {
