@@ -63,14 +63,14 @@ export function ValkeyReconnect() {
       <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
         <div className="flex justify-center">
           {status === CONNECTING && reconnect?.isRetrying ? (
-            <div className="relative">
+            <div className="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
               <Loader2 className="w-16 h-16 text-tw-primary animate-spin" />
             </div>
           ) : isExhausted ? (
-            <Database className="w-12 h-12 text-red-500" />
+            <Database className="w-16 h-16 text-red-500" />
           ) : (
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <Database className="w-12 h-12 text-gray-500" />
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+              <Database className="w-16 h-16 text-gray-500" />
             </div>
           )}
         </div>
