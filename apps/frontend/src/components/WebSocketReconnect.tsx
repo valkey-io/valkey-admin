@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useNavigate } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
@@ -11,6 +11,7 @@ export function WebSocketReconnect() {
   const navigate = useNavigate()
   const wsConnection = useSelector((state: RootState) => state.websocket)
   const { status, reconnect, errorMessage } = wsConnection
+  const [shouldAnimate, setShouldAnimate] = useState(false)
 
   useEffect(() => {
     // redirect to previous location on successful connection
@@ -21,13 +22,19 @@ export function WebSocketReconnect() {
     }
   }, [status, navigate])
 
+  useEffect(() => {
+    if (reconnect?.isRetrying && reconnect?.nextRetryDelay) {
+      setShouldAnimate(false)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setShouldAnimate(true)
+        })
+      })
+    }
+  }, [reconnect?.currentAttempt, reconnect?.isRetrying, reconnect?.nextRetryDelay])
+
   const handleManualReconnect = () => {
     dispatch(connectPending())
-  }
-
-  const getProgressPercentage = () => {
-    if (reconnect.maxRetries === 0) return 0
-    return ((reconnect.currentAttempt) / reconnect.maxRetries) * 100
   }
 
   const getNextRetrySeconds = () => {
@@ -82,8 +89,14 @@ export function WebSocketReconnect() {
           <div className="space-y-3">
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-tw-primary h-full transition-all duration-300 ease-out"
-                style={{ width: `${getProgressPercentage()}%` }}
+                className="bg-tw-primary h-full ease-linear"
+                // using dynamic style here as tailwindcss has predefined (w-full, w-1/2)
+                style={{
+                  width: shouldAnimate && reconnect?.nextRetryDelay ? "100%" : "0%",
+                  transition: shouldAnimate && reconnect?.nextRetryDelay
+                    ? `width ${reconnect.nextRetryDelay}ms linear`
+                    : "none",
+                }}
               />
             </div>
 

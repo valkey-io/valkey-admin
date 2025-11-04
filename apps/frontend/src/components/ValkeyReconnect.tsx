@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useNavigate, useParams } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
@@ -10,6 +10,7 @@ export function ValkeyReconnect() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { id } = useParams()
+  const [shouldAnimate, setShouldAnimate] = useState(false)
 
   const connection = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[id!],
@@ -26,12 +27,16 @@ export function ValkeyReconnect() {
     }
   }, [status, navigate, id])
 
-  // Redirect to connection page if connection doesn't exist
   useEffect(() => {
-    if (!connection) {
-      navigate("/connect", { replace: true })
+    if (reconnect?.isRetrying && reconnect?.nextRetryDelay) {
+      setShouldAnimate(false)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setShouldAnimate(true)
+        })
+      })
     }
-  }, [connection, navigate])
+  }, [reconnect?.currentAttempt, reconnect?.isRetrying, reconnect?.nextRetryDelay])
 
   const handleManualReconnect = () => {
     if (!connection) return
@@ -44,11 +49,6 @@ export function ValkeyReconnect() {
       username,
       password,
     }))
-  }
-
-  const getProgressPercentage = () => {
-    if (!reconnect || reconnect.maxRetries === 0) return 0
-    return ((reconnect.currentAttempt) / reconnect.maxRetries) * 100
   }
 
   const getNextRetrySeconds = () => {
@@ -106,10 +106,13 @@ export function ValkeyReconnect() {
           <div className="space-y-3">
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-tw-primary h-full ease-linear"
+                className="bg-tw-primary h-full"
+                // using dynamic style here as tailwindcss has predefined (w-full, w-1/2)
                 style={{
-                  width: `${getProgressPercentage()}%`,
-                  transition: `width ${reconnect.nextRetryDelay}ms linear`,
+                  width: shouldAnimate && reconnect?.nextRetryDelay ? "100%" : "0%",
+                  transition: shouldAnimate && reconnect?.nextRetryDelay
+                    ? `width ${reconnect.nextRetryDelay}ms linear`
+                    : "none",
                 }}
               />
             </div>
