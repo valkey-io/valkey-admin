@@ -1,6 +1,6 @@
 import { GlideClient, GlideClusterClient, Decoder } from "@valkey/valkey-glide"
-import { VALKEY } from "common/src/constants"
 import WebSocket from "ws"
+import { VALKEY } from "../../../common/src/constants"
 import { parseClusterInfo, parseInfo } from "./utils"
 
 export async function setDashboardData(

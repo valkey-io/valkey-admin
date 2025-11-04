@@ -1,7 +1,7 @@
 import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
-import { VALKEY } from "common/src/constants"
 import * as R from "ramda"
 import WebSocket from "ws"
+import { VALKEY } from "../../../common/src/constants"
 import { parseInfo } from "./utils"
 
 export async function connectToValkey(
