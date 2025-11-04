@@ -9,6 +9,11 @@ type ParsedClusterInfo = {
   }
 }
 
+export const parseResponse = (response: string) => {
+  if (response.includes(":")) return parseInfo(response)
+  else return response
+}
+
 export const parseInfo = (infoStr: string): Record<string, string> =>
   infoStr.split("\n").reduce((acc, line) => {
     if (!line || line.startsWith("#") || !line.includes(":")) return acc

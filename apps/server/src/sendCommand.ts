@@ -1,7 +1,7 @@
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY } from "../../../common/src/constants"
-import { parseInfo } from "./utils"
+import { parseResponse } from "./utils"
 
 export async function sendValkeyRunCommand(
   client: GlideClient | GlideClusterClient,
@@ -23,7 +23,7 @@ export async function sendValkeyRunCommand(
           }),
         )
       }
-      response = parseInfo(response)
+      response = parseResponse(response)
     }
 
     ws.send(
