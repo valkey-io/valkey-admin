@@ -1,8 +1,9 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { fork } = require('child_process');
 
 let serverProcess;
+let metricsProcess;
 
 function startServer() {
     if (app.isPackaged) {
@@ -19,6 +20,21 @@ function startServer() {
     }
 }
 
+function startMetrics() {
+    if (app.isPackaged) {
+        const serverPath = path.join(process.resourcesPath, 'server-metrics.js');
+        console.log(`Starting metrics server from: ${serverPath}`);
+        metricsProcess = fork(serverPath);
+
+        metricsProcess.on('close', (code) => {
+            console.log(`Metrics server exited with code ${code}`);
+        });
+        metricsProcess.on('error', (err) => {
+            console.error(`Metrics server error: ${err}`);
+        });
+    }
+}
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
@@ -31,7 +47,6 @@ function createWindow() {
 
     if (app.isPackaged) {
         win.loadFile(path.join(__dirname, 'dist', 'index.html'));
-        //win.webContents.openDevTools(); // open DevTools for debugging
     } else {
         win.loadURL('http://localhost:5173');
         win.webContents.openDevTools();
@@ -40,6 +55,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
     startServer();
+    startMetrics();
     if (serverProcess) {
         serverProcess.on('message', (message) => {
             if (message === 'ready') {
@@ -60,6 +76,9 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     if (serverProcess) {
         serverProcess.kill();
+    }
+    if (metricsProcess) {
+        metricsProcess.kill();
     }
 });
 

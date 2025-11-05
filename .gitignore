@@ -39,4 +39,4 @@ out/
 app/
 packages/
 
-app/metrics/data/
+apps/metrics/data/
