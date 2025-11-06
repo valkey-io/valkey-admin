@@ -7,7 +7,7 @@ const ymd = d => {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
-  return `${y}${m}${day}` // e.g. "20251106"
+  return `${y}${m}${day}` // "20251106"
 }
 
 // Return all files matching prefix_YYYYMMDD*.ndjson
