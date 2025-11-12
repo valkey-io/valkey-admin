@@ -14,7 +14,7 @@ export function Connection() {
   const [showEditForm, setShowEditForm] = useState(false)
   const connections = useSelector(selectConnections)
 
-  // group connections
+  // grouping connections
   const { clusterGroups, standaloneConnections } = Object.entries(connections).reduce<{
     clusterGroups: Record<string, Array<{ connectionId: string; connection: ConnectionState }>>
     standaloneConnections: Array<{ connectionId: string; connection: ConnectionState }>
