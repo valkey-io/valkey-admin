@@ -1,6 +1,6 @@
 import {
   LayoutDashboard,
-  Send,
+  SquareTerminal,
   HousePlug,
   ChevronLeft,
   ChevronRight,
@@ -8,7 +8,7 @@ import {
   CircleQuestionMark,
   Github,
   Compass,
-  Server
+  Network
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
@@ -62,14 +62,14 @@ export function AppSidebar() {
                   },
                   { to: (clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`), 
                     title: "Send Command", 
-                    icon: Send, 
+                    icon: SquareTerminal, 
                   },
                   ...(clusterId
                     ? [
                       {
                         to: `/${clusterId}/${id}/cluster-topology`,
                         title: "Cluster Topology",
-                        icon: Server,
+                        icon: Network,
                       },
                     ]
                     : []),

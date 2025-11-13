@@ -4,13 +4,34 @@ import { HousePlug } from "lucide-react"
 import * as R from "ramda"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
+import type { ConnectionState } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
-import { ConnectionEntry, ConnectionEntryHeader } from "@/components/connection/ConnectionEntry.tsx"
+import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
+import { ClusterConnectionGroup } from "@/components/connection/ClusterConnectionGroup.tsx"
 
 export function Connection() {
   const [showConnectionForm, setShowConnectionForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const connections = useSelector(selectConnections)
+
+  // grouping connections
+  const { clusterGroups, standaloneConnections } = Object.entries(connections).reduce<{
+    clusterGroups: Record<string, Array<{ connectionId: string; connection: ConnectionState }>>
+    standaloneConnections: Array<{ connectionId: string; connection: ConnectionState }>
+  }>(
+    (acc, [connectionId, connection]) => {
+      const clusterId = connection.connectionDetails.clusterId
+      if (clusterId)
+        (acc.clusterGroups[clusterId] ??= []).push({ connectionId, connection })
+      else
+        acc.standaloneConnections.push({ connectionId, connection })
+      return acc
+    },
+    { clusterGroups: {}, standaloneConnections: [] },
+  )
+
+  const hasClusterGroups = Object.keys(clusterGroups).length > 0
+  const hasStandaloneConnections = standaloneConnections.length > 0
 
   const connectButton = () =>
     <button
@@ -27,40 +48,63 @@ export function Connection() {
         <h1 className="text-xl font-bold flex items-center gap-2 text-gray-700 dark:text-white">
           <HousePlug /> Connections
         </h1>
-        { R.isNotEmpty(connections) && connectButton() }
+        {R.isNotEmpty(connections) && connectButton()}
       </div>
-      {
-        showConnectionForm &&
-        <ConnectionForm onClose={() => setShowConnectionForm(false)} />
-      }
-      {
-        showEditForm && // todo make this a separate URL /:id/edit; it's also unclear what edit means beside saving it in localStorage
-        <EditForm onClose={() => setShowEditForm(false)} />
-      }
-      {
-        R.isEmpty(connections) ?
-          <div className=" bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border flex-1 flex items-center justify-center flex-col gap-2">
-            <span className="text-sm font-light text-gray-500 dark:text-white">
+
+      {showConnectionForm && <ConnectionForm onClose={() => setShowConnectionForm(false)} />}
+      {showEditForm && <EditForm onClose={() => setShowEditForm(false)} />}
+
+      {R.isEmpty(connections) ? (
+        <div className="flex-1 flex items-center justify-center flex-col gap-4">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-white mb-2">
               You Have No Connections!
-            </span>
-            <p className="text-sm font-light text-gray-500 dark:text-white">
-              Click "+ Add Connection" button to connect to a Valkey instance.
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Click "+ Add Connection" button to connect to a Valkey instance or cluster.
             </p>
-            { connectButton() }
-          </div> :
-          <div className="border-t-1 mt-8 flex flex-col flex-1">
-            <ConnectionEntryHeader />
-            {
-              Object.entries(connections).map(([connectionId, connection]) =>
-                <ConnectionEntry
-                  clusterId={connection.connectionDetails.clusterId}
-                  connection={connection}
-                  connectionId={connectionId}
-                  key={connectionId}
-                />)
-            }
+            {connectButton()}
           </div>
-      }
+        </div>
+      ) : (
+        <div className="flex-1 mt-8">
+          {/* for clusters */}
+          {hasClusterGroups && (
+            <div className="mb-8">
+              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                Clusters
+              </h2>
+              <div>
+                {Object.entries(clusterGroups).map(([clusterId, clusterConnections]) => (
+                  <ClusterConnectionGroup
+                    clusterId={clusterId}
+                    connections={clusterConnections}
+                    key={clusterId}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* for standalone instances */}
+          {hasStandaloneConnections && (
+            <div>
+              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                Instances
+              </h2>
+              <div>
+                {standaloneConnections.map(({ connectionId, connection }) => (
+                  <ConnectionEntry
+                    connection={connection}
+                    connectionId={connectionId}
+                    key={connectionId}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
