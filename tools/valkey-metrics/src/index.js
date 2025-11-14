@@ -3,7 +3,7 @@ import express from "express"
 import { createClient } from "@valkey/client"
 import { loadConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
-import { setupCollectors } from "./init-collectors.js"
+import { setupCollectors, startMonitor, stopMonitor } from "./init-collectors.js"
 import { calculateHotKeys } from "./analyzers/calculateHotKeys.js"
 
 const cfg = loadConfig()
@@ -68,14 +68,38 @@ app.get('/slowlog_len', async (_req, res) => {
   }
 })
 
-app.get('/monitor', async (_req, res) => {
+let monitorRunning = false
+app.get('/monitor', async (req, res) => {
+  const action = req.query.action
   try {
-    const rows = await Streamer.monitor();
-    res.json({ rows });
+    switch (action) {
+      case 'start':
+        if (monitorRunning) {
+          return res.json({ status: 'Monitor already running.' })
+        }
+        await startMonitor()
+        monitorRunning = true
+        return res.json({ status: 'Monitor started' })
+
+      case 'stop':
+        if (!monitorRunning) {
+          return res.json({ status: 'Monitor is already stopped.' })
+        }
+        await stopMonitor()
+        monitorRunning = false
+        return res.json({ status: 'Monitor stopped.' })
+
+      case 'status':
+        return res.json({ running: monitorRunning })
+
+      default:
+        return res.status(400).json({ error: 'Invalid action. Use ?action=start|stop|status' })
+    }
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(`[monitor] ${action} error:`, e)
+    return res.status(500).json({ error: e.message })
   }
-});
+})
 
 app.get('/hot-keys', async (_req, res) => {
   try {
