@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY } from "../../../common/src/constants"
 import { parseResponse } from "./utils"
@@ -37,7 +37,7 @@ export async function sendValkeyRunCommand(
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
+    console.error(`Valkey command error for ${payload.connectionId}:`, err)
 
     // Send command failure
     ws.send(
@@ -51,15 +51,20 @@ export async function sendValkeyRunCommand(
       }),
     )
 
-    // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Failed to execute command - Valkey instance could be down",
-        },
-      }),
-    )
+    // valkey connection issue. Only triggered when actual connection related error
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId: payload.connectionId,
+            errorMessage: "Connection to Valkey instance lost",
+          },
+        }),
+      )
+    }
+
   }
 }
