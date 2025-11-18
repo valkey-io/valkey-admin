@@ -11,6 +11,7 @@ import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
+import history from "../../history.ts"
 import type { Store } from "@reduxjs/toolkit"
 import { atId } from "@/state/valkey-features/connection/connectionSelectors.ts"
 
@@ -190,7 +191,14 @@ export const setDataEpic = () =>
     tap((action) => {
       const socket = getSocket()
       const { clusterId, connectionId } = action.payload
-      if (clusterId) socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+      if (clusterId) {
+        socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+      }
       socket.next({ type: setData.type, payload: { connectionId } })
+      const dashboardPath = clusterId
+        ? `/${clusterId}/${connectionId}/dashboard`
+        : `/${connectionId}/dashboard`
+
+      history.navigate(dashboardPath)
     }),
   )

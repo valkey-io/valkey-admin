@@ -40,6 +40,7 @@ const AppWithHistory = () => {
 
         {/* Routes with clusterId */}
         <Route element={<RequireConnection />}>
+          <Route element={<Connection />} path="/:clusterId/:id/connect" />
           <Route element={<Dashboard />} path="/:clusterId/:id/dashboard" />
           <Route element={<SendCommand />} path="/:clusterId/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:clusterId/:id/browse" />
@@ -49,6 +50,7 @@ const AppWithHistory = () => {
         {/* Routes without clusterId */}
         <Route element={<RequireConnection />}>
           <Route element={<ValkeyReconnect />} path="/:id/valkey-reconnect" />
+          <Route element={<Connection />} path="/:id/connect" />
           <Route element={<Dashboard />} path="/:id/dashboard" />
           <Route element={<SendCommand />} path="/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:id/browse" />

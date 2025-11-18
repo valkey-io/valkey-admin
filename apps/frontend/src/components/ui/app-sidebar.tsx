@@ -45,11 +45,11 @@ export function AppSidebar() {
         <div className="mt-10 flex flex-col items-stretch w-full">
           <ul className="space-y-2">
             {[
-              // Always show connect
-              { to: "/connect", title: "Connections", icon: HousePlug },
-              // Rest of the menu items only if connected
               ...(isConnected
                 ? [
+                  { to: (clusterId ? `/${clusterId}/${id}/connect` : `${id}/connect`), 
+                    title: "Connections", 
+                    icon: HousePlug },
                   {
                     to: (clusterId ? `/${clusterId}/${id}/dashboard` : `${id}/dashboard`),
                     title: "Dashboard",
@@ -75,7 +75,7 @@ export function AppSidebar() {
                     : []),
 
                 ]
-                : []),
+                : [{ to: "/connect", title: "Connections", icon: HousePlug }]),
             ].map(({ to, title, icon: Icon }) => (
               <li key={to}>
                 <Link
