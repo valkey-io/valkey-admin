@@ -79,7 +79,7 @@ async function main() {
     try {
       switch (action) {
         case ACTION.START:
-          if(monitorRunning) {
+          if (monitorRunning) {
             return { status: 'Monitor already running.', }
           }
           await startMonitor()
@@ -88,7 +88,7 @@ async function main() {
           return { status: 'Monitor started.', checkAt: Date.now() + monitorDuration }
 
         case ACTION.STOP:
-          if(!monitorRunning) {
+          if (!monitorRunning) {
             return { status: 'Monitor is already stopped.', checkAt: null }
           }
           await stopMonitor()
@@ -122,7 +122,7 @@ async function main() {
       }
       if (Date.now() > checkAt) {
         const hotkeys = await calculateHotKeys()
-        if(req.query.mode !== MODE.CONTINUOUS) {
+        if (req.query.mode !== MODE.CONTINUOUS) {
           result = await monitorHandler(ACTION.STOP) 
         }
         return res.json({ nodeId: url, hotkeys, ...result })
