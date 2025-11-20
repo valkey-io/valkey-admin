@@ -31,7 +31,7 @@ async function main() {
   const app = express()
 
   // public API goes here:
-  app.get("/health", (req, res) => res.json({ ok: true }))
+  app.get("/health", (_req, res) => res.json({ ok: true }))
 
   app.get('/memory', async (_req, res) => {
     try {
@@ -79,16 +79,16 @@ async function main() {
     try {
       switch (action) {
         case ACTION.START:
-          if (monitorRunning) {
+          if(monitorRunning) {
             return { status: 'Monitor already running.', }
           }
           await startMonitor()
           monitorRunning = true
           console.log(monitorDuration)
-          return { status: 'Monitor started.', checkAt: Date.now() + monitorDuration}
+          return { status: 'Monitor started.', checkAt: Date.now() + monitorDuration }
 
         case ACTION.STOP:
-          if (!monitorRunning) {
+          if(!monitorRunning) {
             return { status: 'Monitor is already stopped.', checkAt: null }
           }
           await stopMonitor()
@@ -115,7 +115,7 @@ async function main() {
   app.get('/hot-keys', async (req, res) => {
     let result = {}
     try {
-      if(!monitorRunning) {
+      if (!monitorRunning) {
         result = await monitorHandler(ACTION.START)
         checkAt = result.checkAt
         return res.json(result)
@@ -126,18 +126,20 @@ async function main() {
         if(req.query.mode !== MODE.CONTINUOUS) {
           result = await monitorHandler(ACTION.STOP) 
         }
-        return res.json({nodeId: url, hotkeys, ...result})
+        return res.json({ nodeId: url, hotkeys, ...result })
 
       }
-      return res.json({checkAt})
+      return res.json({ checkAt })
     } catch (e) {
-      res.status(500).json({error: e.message})
+      res.status(500).json({ error: e.message })
     }
   })
 
-  const port = Number(cfg.server.port || 3000)
+  const port = Number(cfg.server.port || 0)
   const server = app.listen(port, () => {
-    console.log(`listening on http://0.0.0.0:${port}`)
+    const assignedPort = server.address().port
+    console.log(`listening on http://0.0.0.0:${assignedPort}`)
+    process.send?.({ type: 'metrics-started', payload: { valkeyUrl: url, metricsHost: 'http://0.0.0.0', metricsPort: assignedPort } });
   })
 
   const shutdown = async () => {
