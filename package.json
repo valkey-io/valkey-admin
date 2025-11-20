@@ -6,6 +6,7 @@
   "workspaces": [
     "apps/frontend",
     "apps/server",
+    "apps/metrics",
     "common/*"
   ],
   "main": "apps/frontend/electron.main.js",
@@ -27,7 +28,8 @@
     "dev": "concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
     "build:server": "npm --workspace apps/server run build",
     "build:frontend": "npm --workspace apps/frontend run build",
-    "build:all": "npm run build:server && npm run build:frontend",
+    "build:metrics": "npm --workspace apps/metrics run build",
+    "build:all": "npm run build:server && npm run build:frontend && npm run build:metrics",
     "package:mac": "npm run build:all && electron-builder --mac --arm64",
     "lint": "eslint ."
   },
@@ -52,6 +54,14 @@
       {
         "from": "apps/server/dist/server-bundle.cjs",
         "to": "server-backend.js"
+      },
+      {
+        "from": "apps/metrics/dist/index.cjs",
+        "to": "server-metrics.js"
+      },
+      {
+        "from": "apps/metrics/config.yml",
+        "to": "config.yml"
       },
       {
         "from": "node_modules/@valkey/valkey-glide",

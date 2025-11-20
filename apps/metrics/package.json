@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "build": "vite build --config vite.config.ts"
   },
   "dependencies": {
     "@valkey/client": "^1.0.0",
@@ -12,5 +13,8 @@
     "ramda": "^0.31.3",
     "rxjs": "^7.8.2",
     "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "vite": "^7.2.0"
   }
 }

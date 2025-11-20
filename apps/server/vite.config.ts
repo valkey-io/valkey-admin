@@ -4,7 +4,7 @@ import { resolve } from "path"
 export default defineConfig({
   build: {
     outDir: "dist",
-    target: "node18",
+    target: "node22",
 
     lib: {
       entry: resolve(__dirname, "src/index.ts"),

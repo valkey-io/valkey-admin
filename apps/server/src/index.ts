@@ -17,7 +17,7 @@ const wss = new WebSocketServer({ port: 8080 })
 wss.on("listening", () => { // Add a listener for when the server starts listening
   console.log("Websocket server running on localhost:8080")
   if (process.send) { // Check if process.send is available (i.e., if forked)
-    process.send("ready") // Send a ready message to the parent process
+    process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }
 })
 

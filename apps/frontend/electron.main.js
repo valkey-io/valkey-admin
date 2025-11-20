@@ -1,8 +1,9 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { fork } = require('child_process');
 
 let serverProcess;
+let metricsProcesses = new Map();
 
 function startServer() {
     if (app.isPackaged) {
@@ -19,6 +20,61 @@ function startServer() {
     }
 }
 
+function startMetrics(serverConnectionId, serverConnectionDetails) {
+    const dataDir = path.join(app.getPath('userData'), 'metrics-data', serverConnectionId);
+
+    let metricsServerPath;
+    let configPath;
+
+    if (app.isPackaged) {
+        metricsServerPath = path.join(process.resourcesPath, 'server-metrics.js');
+        configPath = path.join(process.resourcesPath, 'config.yml'); // Path for production
+    } else {
+        metricsServerPath = path.join(__dirname, '../../metrics/src/index.js');
+        configPath = path.join(__dirname, '../../metrics/config.yml'); // Path for development
+    }
+
+    console.log(`Starting metrics server for connection ${serverConnectionId}...`);
+
+    const metricsProcess = fork(metricsServerPath, [], {
+        env: {
+            ...process.env,
+            PORT: 0,
+            DATA_DIR: dataDir,
+            VALKEY_URL: `valkey://${serverConnectionDetails.host}:${serverConnectionDetails.port}`,
+            CONFIG_PATH: configPath // Explicitly provide the config path
+        }
+    });
+
+    metricsProcesses.set(serverConnectionId, metricsProcess);
+
+    metricsProcess.on('message', (message) => {
+        if (message && message.type === 'metrics-started') {
+            console.log(`Metrics server for ${serverConnectionId} started successfully on host: ${message.payload.metricsHost} port ${message.payload.metricsPort}`);
+        }
+    });
+
+    metricsProcess.on('close', (code) => {
+        console.log(`Metrics server for connection ${serverConnectionId} exited with code ${code}`);
+        metricsProcesses.delete(serverConnectionId);
+    });
+
+    metricsProcess.on('error', (err) => {
+        console.error(`Metrics server for connection ${serverConnectionId} error: ${err}`);
+    });
+}
+
+// Disconnect functionality in the server has not been implemented. Once that is implemented, this can be used.
+function stopMetricServer(serverConnectionId) {
+    metricsProcesses.get(serverConnectionId).kill();
+}
+
+function stopMetricServers() {
+    metricsProcesses.forEach((_serverConnectionId, metricProcess) => {
+        metricProcess.kill();
+    })
+}
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
@@ -31,7 +87,6 @@ function createWindow() {
 
     if (app.isPackaged) {
         win.loadFile(path.join(__dirname, 'dist', 'index.html'));
-        //win.webContents.openDevTools(); // open DevTools for debugging
     } else {
         win.loadURL('http://localhost:5173');
         win.webContents.openDevTools();
@@ -42,8 +97,20 @@ app.whenReady().then(() => {
     startServer();
     if (serverProcess) {
         serverProcess.on('message', (message) => {
-            if (message === 'ready') {
-                createWindow();
+            switch (message.type) {
+                case 'websocket-ready':
+                    createWindow();
+                    break;
+                case 'valkeyConnection/standaloneConnectFulfilled':
+                    startMetrics(message.payload.connectionId, message.payload.connectionDetails);
+                    break;
+                default:
+                    try {
+                        console.log(`Received unknown server message: ${JSON.stringify(message)}`);
+                    } catch (_) {
+                        console.log(`Received unknown server message: ${message}`);
+                    }
+
             }
         });
     } else {
@@ -60,6 +127,9 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     if (serverProcess) {
         serverProcess.kill();
+    }
+    if (metricsProcesses.length > 0) {
+        stopMetricServers();
     }
 });
 

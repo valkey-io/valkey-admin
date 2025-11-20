@@ -68,7 +68,28 @@ const connectionSlice = createSlice({
         }),
       }
     },
-    connectFulfilled: (state, action) => {
+    standaloneConnectFulfilled: (
+      state, 
+      action: PayloadAction<{
+        connectionId: string;
+        connectionDetails: { host: string; port: number};
+      }>,
+    ) => {
+      const { connectionId } = action.payload
+      const connectionState = state.connections[connectionId]
+      if (connectionState) {
+        connectionState.status = CONNECTED
+        connectionState.errorMessage = null
+      }
+    },
+    clusterConnectFulfilled: (
+      state, 
+      action: PayloadAction<{
+        connectionId: string;
+        clusterNodes: Record<string, ConnectionDetails>;
+        clusterId: string;
+      }>,
+    ) => {
       const { connectionId, clusterNodes, clusterId } = action.payload
       const connectionState = state.connections[connectionId]
       if (connectionState) {
@@ -140,10 +161,11 @@ const connectionSlice = createSlice({
 })
 
 export default connectionSlice.reducer
-export const {
-  connectPending,
-  connectFulfilled,
-  connectRejected,
+export const { 
+  connectPending, 
+  standaloneConnectFulfilled, 
+  clusterConnectFulfilled,
+  connectRejected, 
   connectionBroken,
   closeConnection,
   updateConnectionDetails,

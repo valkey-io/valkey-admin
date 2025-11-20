@@ -3,7 +3,7 @@ valkey:
 # url: "valkey://:password@my-cluster.example.com:6379"
 
 server:
-  port: 3000
+  port: 0
   data_dir: "/app/data"
 
 collector:

@@ -1,11 +1,15 @@
 import fs from "node:fs";
 import readline from "node:readline";
 import path from "node:path";
-import { ymd } from "../utils/helpers.js";
+import { loadConfig } from "../config.js";
 
-const DATA_DIR = process.env.METRICS_DIR || path.resolve(process.cwd(), "data");
+const dayStr = (date) => date.toISOString().slice(0, 10).replace(/-/g, "");
 
-const fileFor = (prefix, date) => path.join(DATA_DIR, `${prefix}_${ymd(date)}.ndjson`);
+const fileFor = (prefix, date) => {
+  const cfg = loadConfig();
+  const dataDir = cfg.server.data_dir;
+  return path.join(dataDir, `${prefix}_${dayStr(date)}.ndjson`);
+};
 
 export async function streamNdjson(prefix, filterFn = () => true) {
   const today = new Date();

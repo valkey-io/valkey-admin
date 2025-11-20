@@ -1,6 +1,13 @@
-import { Dot, LayoutDashboard, Terminal } from "lucide-react"
+import { Dot, LayoutDashboard, Terminal, PowerIcon } from "lucide-react"
 import { useNavigate } from "react-router"
+import { useSelector } from "react-redux"
+import { CONNECTED } from "@common/src/constants.ts"
+import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Card } from "./card"
+import { CustomTooltip } from "./custom-tooltip"
+import type { RootState } from "@/store.ts"
+import { connectPending } from "@/state/valkey-features/connection/connectionSlice.ts"
+import { useAppDispatch } from "@/hooks/hooks"
 
 interface ReplicaNode {
   id: string
@@ -36,6 +43,14 @@ interface ClusterNodeProps {
 
 export default function ClusterNode({ primaryKey, primary, primaryData, allNodeData, clusterId }: ClusterNodeProps) {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+
+  // to check if cluster node is connected
+  const connectionId = `localhost-${primary.port}`
+  const connectionStatus = useSelector((state: RootState) =>
+    state.valkeyConnection?.connections?.[connectionId]?.status,
+  )
+  const isConnected = connectionStatus === CONNECTED
 
   const formatRole = (role: string | null) => {
     if (!role) return "UNKNOWN"
@@ -45,12 +60,31 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
     return role.toUpperCase()
   }
 
+  const handleNodeConnect = () => {
+    if (!isConnected) {
+      dispatch(connectPending({
+        connectionId,
+        host: primary.host,
+        port: primary.port.toString(),
+      }))
+    }
+  }
+
   return (
     <Card className="dark:bg-gray-800">
       {/* for primary */}
-      <div className="flex items-center">
-        <span className="font-bold">{formatRole(primaryData?.role)}</span> <Dot className="text-green-500" size={34} />
-      </div>
+      <TooltipProvider>
+        <div className="flex items-center justify-between">
+          <span className="font-bold">{formatRole(primaryData?.role)}</span>
+          <CustomTooltip content={`${isConnected ? "Connected" : "Not Connected"}`}>
+            <PowerIcon
+              className={`${isConnected ? "text-green-500 bg-green-100" : "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"} rounded-full p-0.5`}
+              onClick={handleNodeConnect}
+              size={18}
+            />
+          </CustomTooltip>
+        </div>
+      </TooltipProvider>
       <div className="flex flex-col text-xs text-tw-dark-border"><span>{primaryData?.server_name}</span><span>{primaryKey}</span></div>
       <div className="text-xs space-y-1.5">
         <div className="flex justify-between">
@@ -87,16 +121,6 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
                 </div>
                 <Dot className="text-tw-primary" size={30} />
               </div>
-              {/* replica buttons */}
-              <div className="mt-2 flex gap-2">
-                <button className="flex items-center gap-1.5 border dark:border-tw-dark-border px-2 py-0.5 
-                    rounded cursor-pointer hover:bg-tw-primary hover:text-white"
-                onClick={() => { navigate(`/${clusterId}/localhost-${replica.port}/dashboard`) }}><LayoutDashboard size={12} />
-                  Dashboard</button>
-                <button className="flex items-center gap-1.5 border dark:border-tw-dark-border px-2 py-0.5
-                 rounded cursor-pointer hover:bg-tw-primary hover:text-white"
-                onClick={() => { navigate(`/${clusterId}/localhost-${replica.port}/sendcommand`) }}><Terminal size={12} /> Command</button>
-              </div>
             </div>
           ))}
         </div>
@@ -104,11 +128,13 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
 
       {/* primary buttons */}
       <div className="mt-2 flex gap-2 text-xs items-center justify-center">
-        <button className="w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded cursor-pointer
-         hover:bg-tw-primary hover:text-white"
+        <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
+         ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
+        disabled={!isConnected}
         onClick={() => { navigate(`/${clusterId}/localhost-${primary.port}/dashboard`) }}><LayoutDashboard size={12} /> Dashboard</button>
-        <button className="w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded cursor-pointer
-         hover:bg-tw-primary hover:text-white"
+        <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
+         ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
+        disabled={!isConnected}
         onClick={() => { navigate(`/${clusterId}/localhost-${primary.port}/sendcommand`) }}><Terminal size={12} /> Command</button>
       </div>
     </Card>
