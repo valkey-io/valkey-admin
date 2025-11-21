@@ -67,7 +67,7 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
         serverProcess.send({
             type: 'metrics-closed',
             payload: {
-                serverConnectionId: serverConnectionId
+                serverConnectionId,
             }
         })
     });
