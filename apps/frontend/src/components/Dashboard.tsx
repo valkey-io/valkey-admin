@@ -13,7 +13,7 @@ import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
   const { id } = useParams()
-  const infoData = useSelector(selectData(id!))
+  const infoData = useSelector(selectData(id!)) || {}
   const [searchQuery, setSearchQuery] = useState("")
 
   const memoryUsageMetrics = {

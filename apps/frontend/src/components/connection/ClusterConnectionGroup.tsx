@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, ChevronRight, Network, CircleChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight, Network, CircleChevronRight, PencilIcon, CheckIcon, XIcon } from "lucide-react"
 import { CONNECTED } from "@common/src/constants.ts"
 import { ConnectionEntry } from "./ConnectionEntry.tsx"
-import type { ConnectionState } from "@/state/valkey-features/connection/connectionSlice"
+import { updateConnectionDetails, type ConnectionState } from "@/state/valkey-features/connection/connectionSlice"
+import { useAppDispatch } from "@/hooks/hooks.ts"
+import { Button } from "@/components/ui/button.tsx"
 import history from "@/history.ts"
 
 interface ClusterConnectionGroupProps {
@@ -11,7 +13,10 @@ interface ClusterConnectionGroupProps {
 }
 
 export const ClusterConnectionGroup = ({ clusterId, connections }: ClusterConnectionGroupProps) => {
+  const dispatch = useAppDispatch()
   const [isOpen, setIsOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedAlias, setEditedAlias] = useState("")
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,10 +37,34 @@ export const ClusterConnectionGroup = ({ clusterId, connections }: ClusterConnec
   const hasConnectedInstance = connectedCount > 0
   const firstConnectedConnection = connected[0]
 
+  // capture cluster alias from the first node's alias
+  const firstNode = connections[0]
+  const firstNodeAlias = firstNode?.connection.connectionDetails.alias
+
   const handleOpenCluster = () => {
     if (firstConnectedConnection) {
       history.navigate(`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`)
     }
+  }
+
+  const handleEdit = () => {
+    setEditedAlias(firstNodeAlias || "")
+    setIsEditing(true)
+  }
+
+  const handleSave = () => {
+    if (firstNode) {
+      dispatch(updateConnectionDetails({
+        connectionId: firstNode.connectionId,
+        alias: editedAlias.trim() || undefined,
+      }))
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditedAlias(firstNodeAlias || "")
+    setIsEditing(false)
   }
 
   return (
@@ -54,20 +83,43 @@ export const ClusterConnectionGroup = ({ clusterId, connections }: ClusterConnec
               {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <div className="p-2 bg-tw-primary/10 dark:bg-tw-primary/20 rounded">
                 <Network className="text-tw-primary" size={18} />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm text-gray-900 dark:text-white">{clusterId}</h3>
-                  {hasConnectedInstance && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-700
-                     dark:text-teal-400 rounded-full">
-                      {connectedCount} connected
-                    </span>
-                  )}
-                </div>
+              <div className="flex-1">
+                {isEditing ? (
+                  <div className="flex items-center gap-2 mb-1">
+                    <input
+                      autoFocus
+                      className="px-2 py-1 text-sm border dark:border-tw-dark-border rounded
+                        bg-white dark:bg-tw-primary/20 focus:outline-none focus:ring-2 focus:ring-tw-primary"
+                      onChange={(e) => setEditedAlias(e.target.value)}
+                      placeholder={clusterId}
+                      type="text"
+                      value={editedAlias}
+                    />
+                    <Button onClick={handleSave} size="sm" title="Save" variant="ghost">
+                      <CheckIcon className="text-green-600 dark:text-green-400" size={16} />
+                    </Button>
+                    <Button onClick={handleCancel} size="sm" title="Cancel" variant="ghost">
+                      <XIcon className="text-red-600 dark:text-red-400" size={16} />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm text-gray-900 dark:text-white">{firstNodeAlias ? firstNodeAlias : clusterId}</h3>
+                    <Button className="h-6 w-6 p-0" onClick={handleEdit} size="sm" variant="ghost">
+                      <PencilIcon size={14} />
+                    </Button>
+                    {hasConnectedInstance && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-700
+                       dark:text-teal-400 rounded-full">
+                        {connectedCount} connected
+                      </span>
+                    )}
+                  </div>
+                )}
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {connections.length} instance{connections.length !== 1 ? "s" : ""}
                 </p>

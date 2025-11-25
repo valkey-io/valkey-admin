@@ -15,12 +15,13 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   const [port, setPort] = useState("6379")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [alias, setAlias] = useState("")
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     const connectionId = sanitizeUrl(`${host}-${port}`)
     dispatch(
-      connectPending({ host, port, username, password, connectionId }),
+      connectPending({ host, port, username, password, alias, connectionId }),
     )
     onClose()
   }
@@ -58,6 +59,16 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
               required
               type="number"
               value={port}
+            />
+          </div>
+          <div>
+            <label className="block mb-1 text-sm">Alias</label>
+            <input
+              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
+              onChange={(e) => setAlias(e.target.value)}
+              placeholder="Alias of the first cluster node will be the alias of the cluster"
+              type="text"
+              value={alias}
             />
           </div>
           <div>

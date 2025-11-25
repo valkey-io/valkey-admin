@@ -8,14 +8,18 @@ import {
   PowerIcon,
   PowerOffIcon,
   Trash2Icon,
-  Server
+  Server,
+  CheckIcon,
+  XIcon
 } from "lucide-react"
 import { Link } from "react-router"
+import { useState } from "react"
 import {
   type ConnectionState,
   connectPending,
   closeConnection,
-  deleteConnection
+  deleteConnection,
+  updateConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice"
 import { Button } from "@/components/ui/button.tsx"
 import { cn } from "@/lib/utils.ts"
@@ -38,15 +42,39 @@ export const ConnectionEntry = ({
   isNested = false,
 }: ConnectionEntryProps) => {
   const dispatch = useAppDispatch()
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedAlias, setEditedAlias] = useState(connection.connectionDetails.alias || "")
+
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
   const handleConnect = () => dispatch(connectPending({ ...connection.connectionDetails, connectionId }))
   const handleDelete = () => dispatch(deleteConnection({ connectionId }))
+
+  const handleEdit = () => {
+    setEditedAlias(connection.connectionDetails.alias || "")
+    setIsEditing(true)
+  }
+
+  const handleSave = () => {
+    dispatch(updateConnectionDetails({
+      connectionId,
+      alias: editedAlias.trim() || undefined,
+    }))
+    setIsEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditedAlias(connection.connectionDetails.alias || "")
+    setIsEditing(false)
+  }
 
   const isConnected = connection.status === CONNECTED
   const isConnecting = connection.status === CONNECTING
   const isError = connection.status === ERROR
   const isDisconnected = connection.status === DISCONNECTED
-  const label = `${connection.connectionDetails.username}@${connection.connectionDetails.host}:${connection.connectionDetails.port}`
+  const label = connection.connectionDetails.username
+    ? `${connection.connectionDetails.username}@${connection.connectionDetails.host}:${connection.connectionDetails.port}`
+    : `${connection.connectionDetails.host}:${connection.connectionDetails.port}`
+  const aliasLabel = connection.connectionDetails.alias || label
 
   const StatusBadge = () => {
     if (isConnected) {
@@ -107,9 +135,6 @@ export const ConnectionEntry = ({
           <div className="flex items-center gap-1">
             {isConnected && (
               <>
-                <Button onClick={() => alert("todo")} size="sm" variant="ghost">
-                  <PencilIcon size={16} />
-                </Button>
                 <Button onClick={handleDisconnect} size="sm" variant="ghost">
                   <PowerOffIcon size={16} />
                 </Button>
@@ -129,7 +154,7 @@ export const ConnectionEntry = ({
     )
   }
 
-  // for standalone instnces 
+  // for standalone instnces
   return (
     <div className="mb-3 p-2 border dark:border-tw-dark-border rounded bg-white dark:bg-tw-dark-primary">
       <div className="flex items-center justify-between gap-4">
@@ -139,15 +164,39 @@ export const ConnectionEntry = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <Button
-              asChild
-              className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm mb-1 truncate")}
-              variant="link"
-            >
-              <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
-                {label}
-              </Link>
-            </Button>
+            {isEditing ? (
+              <div className="flex items-center gap-2 mb-1">
+                <input
+                  autoFocus
+                  className="px-2 py-1 text-sm font-mono border dark:border-tw-dark-border rounded
+                    bg-white dark:bg-tw-primary/20 focus:outline-none focus:ring-2 focus:ring-tw-primary"
+                  onChange={(e) => setEditedAlias(e.target.value)}
+                  placeholder={label}
+                  type="text"
+                  value={editedAlias}
+                />
+                <Button onClick={handleSave} size="sm" title="Save" variant="ghost">
+                  <CheckIcon className="text-green-600 dark:text-green-400" size={16} />
+                </Button>
+                <Button onClick={handleCancel} size="sm" title="Cancel" variant="ghost">
+                  <XIcon className="text-red-600 dark:text-red-400" size={16} />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                asChild
+                className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm mb-1 truncate")}
+                variant="link"
+              >
+                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                  {aliasLabel}
+                </Link>
+              </Button>
+            )}
+            {!isEditing && connection.connectionDetails.alias && (
+              <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50">
+                ({label})
+              </span>)}
             <div>
               <StatusBadge />
             </div>
@@ -168,10 +217,10 @@ export const ConnectionEntry = ({
                   Open
                 </button>
               )}
-              <Button onClick={() => alert("todo")} size="sm" variant="ghost">
+              <Button disabled={isEditing} onClick={handleEdit} size="sm" variant="ghost">
                 <PencilIcon size={16} />
               </Button>
-              <Button onClick={handleDisconnect} size="sm" variant="ghost">
+              <Button disabled={isEditing} onClick={handleDisconnect} size="sm" variant="ghost">
                 <PowerOffIcon size={16} />
               </Button>
             </>
@@ -181,7 +230,7 @@ export const ConnectionEntry = ({
               <PowerIcon size={16} />
             </Button>
           )}
-          <Button onClick={handleDelete} size="sm" variant="destructiveGhost">
+          <Button disabled={isEditing} onClick={handleDelete} size="sm" variant="destructiveGhost">
             <Trash2Icon size={16} />
           </Button>
         </div>

@@ -4,14 +4,15 @@ import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { getSocket } from "./wsEpics"
-import { 
-  standaloneConnectFulfilled, 
-  clusterConnectFulfilled, 
-  connectPending, 
-  deleteConnection, 
-  connectRejected, 
-  startRetry, 
-  stopRetry
+import {
+  standaloneConnectFulfilled,
+  clusterConnectFulfilled,
+  connectPending,
+  deleteConnection,
+  connectRejected,
+  startRetry,
+  stopRetry,
+  updateConnectionDetails
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
@@ -21,7 +22,7 @@ import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnec
 import history from "../../history.ts"
 import type { Store } from "@reduxjs/toolkit"
 
-export const connectionEpic = () =>
+export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
@@ -42,16 +43,20 @@ export const connectionEpic = () =>
             (s) => (s === null ? {} : JSON.parse(s)),
           )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
+          // for getting the full connection state from redux (which includes alias)
+          const state = store.getState()
+          const connection = state.valkeyConnection?.connections?.[payload.connectionId]
+
           R.pipe(
             (p) => ({
-              connectionDetails: p.connectionDetails,
+              connectionDetails: connection?.connectionDetails || p.connectionDetails,
               status: NOT_CONNECTED,
             }),
             (connectionToSave) => ({ ...currentConnections, [payload.connectionId]: connectionToSave }),
             JSON.stringify,
             (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
           )(payload)
-          
+
           toast.success("Connected to server successfully!")
         } catch (e) {
           toast.error("Connection to server failed!")
@@ -105,7 +110,7 @@ export const valkeyRetryEpic = (store: Store) =>
 
       return timer(nextDelay).pipe(
         tap(() => {
-          const { host, port, username, password } = connection.connectionDetails
+          const { host, port, username, password, alias } = connection.connectionDetails
           console.log(`Attempting retry ${currentAttempt} for ${connectionId}`)
 
           store.dispatch(connectPending({
@@ -114,6 +119,7 @@ export const valkeyRetryEpic = (store: Store) =>
             port,
             username,
             password,
+            alias,
             isRetry: true,
           }))
         }),
@@ -145,7 +151,7 @@ export const autoReconnectEpic = (store: Store) =>
 
         // reconnect each disconnected connection
         disconnectedConnections.forEach(([connectionId, connection]) => {
-          const { host, port, username, password } = connection.connectionDetails
+          const { host, port, username, password, alias } = connection.connectionDetails
 
           console.log(`Attempting to reconnect ${connectionId}`)
           store.dispatch(connectPending({
@@ -154,6 +160,7 @@ export const autoReconnectEpic = (store: Store) =>
             port,
             username,
             password,
+            alias,
           }))
         })
       }
@@ -164,7 +171,7 @@ export const autoReconnectEpic = (store: Store) =>
 export const deleteConnectionEpic = () =>
   action$.pipe(
     select(deleteConnection),
-    // TODO: extract reused logic into separate method 
+    // TODO: extract reused logic into separate method
     tap(({ payload: { connectionId } }) => {
       try {
         const currentConnections = R.pipe(
@@ -182,6 +189,31 @@ export const deleteConnectionEpic = () =>
         console.error(e)
       }
     }),
+  )
+
+// for updating connection details: this will presist the edits
+export const updateConnectionDetailsEpic = (store: Store) =>
+  action$.pipe(
+    select(updateConnectionDetails),
+    tap(({ payload: { connectionId } }) => {
+      try {
+        const currentConnections = R.pipe(
+          (v: string) => localStorage.getItem(v),
+          (s) => (s === null ? {} : JSON.parse(s)),
+        )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+
+        const state = store.getState()
+        const connection = state.valkeyConnection?.connections?.[connectionId]
+
+        if (connection && currentConnections[connectionId]) {
+          currentConnections[connectionId].connectionDetails = connection.connectionDetails
+          localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }),
+    ignoreElements(),
   )
 
 export const sendRequestEpic = () =>

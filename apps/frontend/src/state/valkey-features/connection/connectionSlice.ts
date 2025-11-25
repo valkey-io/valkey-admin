@@ -10,6 +10,7 @@ interface ConnectionDetails {
   port: string;
   username: string;
   password: string;
+  alias?: string;
   role?: Role;
   clusterId?: string;
 }
@@ -52,16 +53,17 @@ const connectionSlice = createSlice({
         port: string;
         username?: string;
         password?: string;
+        alias?: string;
         isRetry?: boolean;
       }>,
     ) => {
-      const { connectionId, host, port, username = "", password = "", isRetry = false } = action.payload
+      const { connectionId, host, port, username = "", password = "", alias = "", isRetry = false } = action.payload
       const existingConnection = state.connections[connectionId]
 
       state.connections[connectionId] = {
         status: CONNECTING,
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
-        connectionDetails: { host, port, username, password },
+        connectionDetails: { host, port, username, password, ...(alias && { alias }) },
         ...(existingConnection?.clusterNodes && { clusterNodes: existingConnection.clusterNodes }),
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,

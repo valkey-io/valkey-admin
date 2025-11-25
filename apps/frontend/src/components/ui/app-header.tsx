@@ -19,7 +19,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
-  const { host, port, username } = useSelector(selectConnectionDetails(id!))
+  const { host, port, username, alias } = useSelector(selectConnectionDetails(id!))
   const clusterData = useSelector(selectCluster(clusterId!))
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
 
@@ -63,7 +63,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
 
           <div className="">
             <span className="text-sm font-light border border-tw-primary text-tw-primary px-3 py-1 rounded">
-              {username}@{host}:{port}
+              {alias ? alias : `${username}@${host}:${port}`}
             </span>
           </div>
         </div>
