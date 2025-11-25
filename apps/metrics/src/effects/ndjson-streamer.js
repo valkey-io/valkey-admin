@@ -2,15 +2,9 @@ import fs from "node:fs";
 import readline from "node:readline";
 import path from "node:path";
 
-const DATA_DIR = process.env.METRICS_DIR || path.resolve(process.cwd(), "data")
+const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data")
 
 const dayStr = (date) => date.toISOString().slice(0, 10).replace(/-/g, "");
-
-let cfg
-
-export async function setConfig(config) {
-  cfg = config
-}
 
 
 const fileFor = (prefix, date) => {
@@ -18,21 +12,17 @@ const fileFor = (prefix, date) => {
   return path.join(dataDir, `${prefix}_${dayStr(date)}.ndjson`);
 };
 
-export async function getConfig() {
-  return cfg
-}
-
 export async function streamNdjson(prefix, filterFn = () => true) {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
   const files = [fileFor(prefix, yesterday), fileFor(prefix, today)];
+
   const results = [];
 
   for (const file of files) {
     if (!fs.existsSync(file)) continue;
-
     const fileStream = fs.createReadStream(file, { encoding: "utf8" });
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
 

@@ -6,12 +6,11 @@ import { startCollector } from "./epics/collector-rx.js"
 const MONITOR = "monitor"
 const stoppers = {}
 const conn = String(process.env.VALKEY_URL || cfg.valkey.url || "").trim()
-const url = new URL(conn);
 
 const startMonitor = (cfg) => {
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
-    filePrefix: `${MONITOR}_${url.host}`
+    filePrefix: MONITOR
   })
   const monitorEpic = cfg.epics.find(e => e.name === MONITOR)
   const sink = {
@@ -47,7 +46,7 @@ const setupCollectors = async (client, cfg) => {
       const fn = fetcher[f.type]
       const nd = makeNdjsonWriter({
         dataDir: cfg.server.data_dir,
-        filePrefix: `${f.file_prefix || f.name}_${url.host}`
+        filePrefix: f.file_prefix || f.name
       })
       const sink = {
         appendRows: async rows => nd.appendRows(rows),

@@ -9,11 +9,6 @@ import { MODE, ACTION, MONITOR } from "./utils/constants.js"
 
 async function main() {
   const cfg = loadConfig()
-  console.log("Electron DATA_DIR env:", process.env.DATA_DIR);
-  console.log("Loaded cfg.server.data_dir:", cfg.server.data_dir);
-
-  Streamer.setConfig(cfg);
-
   const ensureDir = dir => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
 
@@ -39,7 +34,6 @@ async function main() {
 
   app.get('/memory', async (_req, res) => {
     try {
-      console.log(`[Collector] memory will write to:`, cfg.server.data_dir);
       const rows = await Streamer.memory_stats()
       res.json({ rows })
     } catch (e) {
@@ -49,7 +43,6 @@ async function main() {
 
   app.get('/cpu', async (_req, res) => {
     try {
-      console.log(`[Collector] cpu will write to:`, cfg.server.data_dir);
       const rows = await Streamer.info_cpu()
       res.json({ rows })
     } catch (e) {
@@ -89,7 +82,6 @@ async function main() {
             return { monitorRunning }
           }
           await startMonitor(cfg)
-          console.log(`[Collector] monitor will write to:`, cfg.server.data_dir);
           monitorRunning = true
           checkAt = Date.now() + monitorDuration
           return { monitorRunning, checkAt}
