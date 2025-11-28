@@ -252,12 +252,26 @@ export const setDataEpic = () =>
     }),
   )
 
-export const getHotKeysEpic = () =>
+export const getHotKeysEpic = (store: Store) => 
   action$.pipe(
     select(hotKeysRequested),
     tap((action) => {
+      const { clusterId, connectionId } = action.payload
       const socket = getSocket()
-      socket.next(action)
+
+      const state = store.getState()
+      const clusters = state.valkeyCluster.clusters
+
+      const connectionIds =
+        clusterId !== undefined
+          ? Object.keys(clusters[clusterId].clusterNodes)
+          : [connectionId]
+
+      socket.next({
+        type: action.type,
+        payload: { connectionIds },
+      })
+      
     }),
   )
 

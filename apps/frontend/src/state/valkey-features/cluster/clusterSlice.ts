@@ -82,7 +82,6 @@ const clusterSlice = createSlice({
       for (const [nodeAddress, nodeInfo] of Object.entries(info)) {
         result[nodeAddress] = parseNodeInfo(nodeInfo) as ParsedNodeInfo
       }
-      console.log("The result in the slice is ", result)
       state.clusters[clusterId].data = result
     },
   },

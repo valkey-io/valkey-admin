@@ -26,8 +26,10 @@ export async function connectToValkey(
       requestTimeout: 5000,
       clientName: "test_client",
     })
+
     console.log("Connected to standalone")
     clients.set(payload.connectionId, standaloneClient)
+
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
       payload: {
@@ -42,13 +44,11 @@ export async function connectToValkey(
       JSON.stringify(connectionInfo),
     )
 
-    // if child process of React app, send the message. Else do nothing.
-    process.send?.(connectionInfo)
-
     if (await belongsToCluster(standaloneClient)) {
       return connectToCluster(standaloneClient, ws, clients, payload, addresses)
     }
-
+    // Send standalone details if node isn't part of a cluster
+    process.send?.(connectionInfo)
     return standaloneClient
 
   } catch (err) {
@@ -88,7 +88,7 @@ async function discoverCluster(client: GlideClient) {
 
       // transform CLUSTER from flat response into a nested structure (primaryNode → replicas[])
       const [primaryHost, primaryPort] = nodes[0]
-      const primaryKey = `${primaryHost}:${primaryPort}`
+      const primaryKey = `${primaryHost}-${primaryPort}`
 
       if (!acc[primaryKey]) {
         acc[primaryKey] = {
@@ -149,15 +149,19 @@ async function connectToCluster(
 
   clients.set(payload.connectionId, clusterClient)
 
+  const clusterConnectionInfo = {
+    type: VALKEY.CONNECTION.clusterConnectFulfilled,
+    payload: {
+      connectionId: payload.connectionId,
+      clusterNodes,
+      clusterId,
+    },
+  }
+
+  process.send?.(clusterConnectionInfo)
+
   ws.send(
-    JSON.stringify({
-      type: VALKEY.CONNECTION.clusterConnectFulfilled,
-      payload: {
-        connectionId: payload.connectionId,
-        clusterNodes,
-        clusterId: clusterId,
-      },
-    }),
+    JSON.stringify(clusterConnectionInfo),
   )
   return clusterClient
 }

@@ -46,7 +46,7 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
   const dispatch = useAppDispatch()
 
   // to check if cluster node is connected
-  const connectionId = `localhost-${primary.port}`
+  const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
@@ -85,7 +85,7 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
           </CustomTooltip>
         </div>
       </TooltipProvider>
-      <div className="flex flex-col text-xs text-tw-dark-border"><span>{primaryData?.server_name}</span><span>{primaryKey}</span></div>
+      <div className="flex flex-col text-xs text-tw-dark-border"><span>{primaryData?.server_name}</span><span>{`${primary.host}:${primary.port}`}</span></div>
       <div className="text-xs space-y-1.5">
         <div className="flex justify-between">
           <span className="text-tw-dark-border">Memory:</span>
@@ -131,11 +131,11 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
         <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
          ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
         disabled={!isConnected}
-        onClick={() => { navigate(`/${clusterId}/localhost-${primary.port}/dashboard`) }}><LayoutDashboard size={12} /> Dashboard</button>
+        onClick={() => { navigate(`/${clusterId}/${connectionId}/dashboard`) }}><LayoutDashboard size={12} /> Dashboard</button>
         <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
          ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
         disabled={!isConnected}
-        onClick={() => { navigate(`/${clusterId}/localhost-${primary.port}/sendcommand`) }}><Terminal size={12} /> Command</button>
+        onClick={() => { navigate(`/${clusterId}/${connectionId}/sendcommand`) }}><Terminal size={12} /> Command</button>
       </div>
     </Card>
   )

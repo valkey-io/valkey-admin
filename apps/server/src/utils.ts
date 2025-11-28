@@ -29,7 +29,7 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
     R.toPairs,
     R.map(([host, infoString]) =>
       [
-        host,
+        R.replace(":", "-", String(host)),
         R.pipe(
           R.split("\r\n"),
           R.reduce(

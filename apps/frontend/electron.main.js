@@ -20,6 +20,20 @@ function startServer() {
     }
 }
 
+function startMetricsForClusterNodes(clusterNodes) {
+    Object.values(clusterNodes).forEach(node => {
+        const connectionDetails = {
+            host: node.host,
+            port: node.port,
+        }
+        
+        const connectionId = `${node.host}-${node.port}`
+        if(!metricsProcesses.has(connectionId)) {
+            startMetrics(connectionId, connectionDetails)
+        }
+    })
+}
+
 function startMetrics(serverConnectionId, serverConnectionDetails) {
     const dataDir = path.join(app.getPath('userData'), 'metrics-data', serverConnectionId);
 
@@ -77,6 +91,7 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
     });
 }
 
+
 // Disconnect functionality in the server has not been implemented. Once that is implemented, this can be used.
 function stopMetricServer(serverConnectionId) {
     metricsProcesses.get(serverConnectionId).kill();
@@ -117,6 +132,8 @@ app.whenReady().then(() => {
                 case 'valkeyConnection/standaloneConnectFulfilled':
                     startMetrics(message.payload.connectionId, message.payload.connectionDetails);
                     break;
+                case 'valkeyConnection/clusterConnectFulfilled':
+                    startMetricsForClusterNodes(message.payload.clusterNodes )
                 default:
                     try {
                         console.log(`Received unknown server message: ${JSON.stringify(message)}`);

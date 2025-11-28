@@ -43,30 +43,35 @@ const sendHotKeysError = (
 }
 
 export const hotKeysRequested = withDeps<Deps, void>(
-  async ({ ws, connectionId, metricsServerURIs }) => {
-    const metricsServerURI = metricsServerURIs.get(connectionId)
-    try {
-      const initialResponse = await fetch(`${metricsServerURI}/hot-keys`)
-      const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
-      // Initial request starts monitoring and returns when to fetch results (`checkAt`).
-      if (initialParsedResponse.checkAt) {
-        const delay = Math.max(initialParsedResponse.checkAt - Date.now(), 0)
-        // Schedule the follow-up request for when the monitor cycle finishes
-        setTimeout(async () => {
-          try {
-            const dataResponse = await fetch(`${metricsServerURI}/hot-keys`)
-            const dataParsedResponse = await dataResponse.json() as HotKeysResponse
-            sendHotKeysFulfilled(ws, connectionId, dataParsedResponse)
-          } catch (error) {
-            sendHotKeysError(ws, connectionId, error)
-          }
-        }, delay)
+  async ({ ws, metricsServerURIs, action }) => {
+    const { connectionIds } = action.payload
+    const promises = connectionIds.map(async (connectionId: string) => {
+      const metricsServerURI = metricsServerURIs.get(connectionId)
+      try {
+        const initialResponse = await fetch(`${metricsServerURI}/hot-keys`)
+        const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
+        // Initial request starts monitoring and returns when to fetch results (`checkAt`).
+        if (initialParsedResponse.checkAt) {
+          const delay = Math.max(initialParsedResponse.checkAt - Date.now(), 0)
+          // Schedule the follow-up request for when the monitor cycle finishes
+          setTimeout(async () => {
+            try {
+              const dataResponse = await fetch(`${metricsServerURI}/hot-keys`)
+              const dataParsedResponse = await dataResponse.json() as HotKeysResponse
+              sendHotKeysFulfilled(ws, connectionId, dataParsedResponse)
+            } catch (error) {
+              sendHotKeysError(ws, connectionId, error)
+            }
+          }, delay)
+        }
+        else {
+          sendHotKeysFulfilled(ws, connectionId, initialParsedResponse)
+        }
+      } catch (error) {
+        sendHotKeysError(ws, connectionId, error)
       }
-      else {
-        sendHotKeysFulfilled(ws, connectionId, initialParsedResponse)
-      }
-    } catch (error) {
-      sendHotKeysError(ws, connectionId, error)
-    }
+    })
+    await Promise.all(promises)
+
   },
 )
