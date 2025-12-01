@@ -146,7 +146,7 @@ async function scanCluster(
 
   console.log("SCAN Cluster response:", scanClusterResult)
 
-  scanClusterResult.map(async ({ key: nodeAddress, value })=>{
+  await Promise.all(scanClusterResult.map(async ({ key: nodeAddress, value })=>{
     value[1].forEach((nodeKey) => {
       allKeys.add(nodeKey)
     })
@@ -177,7 +177,7 @@ async function scanCluster(
       cursor = scanResult[0]
       scanResult[1].forEach((key) => {allKeys.add(key)})
     }
-  })
+  }))
 
   return allKeys
 }
