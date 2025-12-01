@@ -49,7 +49,7 @@ interface keyDetailsProps {
   connectionId: string;
 }
 
-export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId: connectionId, setSelectedKey }: keyDetailsProps) {
+export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId, setSelectedKey }: keyDetailsProps) {
   const dispatch = useAppDispatch()
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
