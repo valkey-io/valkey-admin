@@ -55,7 +55,7 @@ async function main() {
   app.get("/slowlog", async (req, res) => {
     try {
       const {lastUpdatedAt, nextCycleAt} = getCollectorMeta(SLOWLOG)
-      if(lastUpdatedAt !== null) {
+      if (lastUpdatedAt !== null) {
         const count = Number(req.query.count) || 50
         const rows = await Streamer.slowlog_get(count)
         return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })

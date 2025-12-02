@@ -17,7 +17,7 @@ export const makeMonitorStream = (onLogs = async () => {}, config) => {
     
     const processEvent = (time, args) => {
       rows.push({ts: time, command: args.join(" ")})
-      if(rows.length >= maxLogs) overflow$.next()
+      if (rows.length >= maxLogs) overflow$.next()
     }
 
     monitor.on("monitor", processEvent)
@@ -41,7 +41,7 @@ export const makeMonitorStream = (onLogs = async () => {}, config) => {
       console.info(`Monitor run complete (${monitorCompletionReason}).`)
     }
 
-    if(rows.length > 0) await onLogs(rows)
+    if (rows.length > 0) await onLogs(rows)
     return rows
   }
   const monitorStream$ = timer(0, monitoringInterval).pipe(

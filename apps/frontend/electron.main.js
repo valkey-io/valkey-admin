@@ -31,7 +31,7 @@ function startMetricsForClusterNodes(clusterNodes) {
         }
         
         const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
-        if(!metricsProcesses.has(connectionId)) {
+        if (!metricsProcesses.has(connectionId)) {
             startMetrics(connectionId, connectionDetails)
         }
     })
