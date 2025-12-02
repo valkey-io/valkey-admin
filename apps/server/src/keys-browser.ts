@@ -1,7 +1,8 @@
 import { WebSocket } from "ws"
 import { GlideClient, GlideClusterClient, Batch, ClusterBatch, RouteOption, SingleNodeRoute } from "@valkey/valkey-glide"
 import * as R from "ramda"
-import { VALKEY, VALKEY_CLIENT } from "../../../common/src/constants.ts"
+import { VALKEY } from "../../../common/src/constants.ts"
+import { buildScanCommandArgs } from "./valkeyClientCommands.ts"
 
 interface EnrichedKeyInfo {
   name: string;
@@ -90,27 +91,20 @@ async function scanStandalone(
     count?: number;
   }, 
 ): Promise<Set<string>> {
-  const pattern = payload.pattern || VALKEY_CLIENT.SCAN.defaultPayloadPattern
-  // count is JUST A HINT. may return larger than count https://valkey.io/commands/scan/
-  const count = payload.count || VALKEY_CLIENT.SCAN.defaultCount
   const allKeys = new Set<string>()
     
   let cursor = "0"
   do {
-    const scanResult = (await client.customCommand([
-      "SCAN",
-      cursor,
-      "MATCH",
-      pattern,
-      "COUNT",
-      count.toString(),
-    ],
+    const scanResult = (await client.customCommand(
+      buildScanCommandArgs({ cursor, pattern: payload.pattern, count: payload.count }),
     )) as [string, string[]]
 
     console.log("SCAN standalone response:", scanResult)
 
-    cursor = scanResult[0]
-    scanResult[1].forEach((key) => {allKeys.add(key)})
+    const [newCursor, keys] = scanResult
+
+    cursor = newCursor
+    keys.forEach((key) => {allKeys.add(key)})
   } while (cursor !== "0")
 
   return allKeys
@@ -129,49 +123,35 @@ async function scanCluster(
     count?: number;
   }, 
 ): Promise<Set<string>> {
-  const pattern = payload.pattern || VALKEY_CLIENT.SCAN.defaultPayloadPattern
-  // count is JUST A HINT. may return larger than count https://valkey.io/commands/scan/
-  const count = payload.count || VALKEY_CLIENT.SCAN.defaultCount
   const routeOption: RouteOption = { route: "allPrimaries" } // Sends command to all primary nodes
   const allKeys = new Set<string>()
     
-  const scanClusterResult = (await client.customCommand([
-    "SCAN",
-    "0",
-    "MATCH",
-    pattern,
-    "COUNT",
-    count.toString(),
-  ],
-  routeOption,
+  const scanClusterResult = (await client.customCommand(
+    buildScanCommandArgs({ cursor: "0", pattern: payload.pattern, count: payload.count }),
+    routeOption,
   )) as ClusterScanResult[]
 
   console.log("SCAN Cluster response:", scanClusterResult)
 
-  await Promise.all(scanClusterResult.map(async ({ key: nodeAddress, value })=>{
-    value[1].forEach((nodeKey) => {
+  await Promise.all(scanClusterResult.map(async ({ key: nodeAddress, value: [cursor, keys] })=>{
+    keys.forEach((nodeKey) => {
       allKeys.add(nodeKey)
     })
 
-    const routeByAddress: SingleNodeRoute = {
-      type: "routeByAddress",
-      host: nodeAddress.split(":")[0],
-      port: Number(nodeAddress.split(":")[1]),
-    }
+    const routeByAddress: SingleNodeRoute = R.pipe(
+      R.split(":"),
+      ([host, port]) => ({
+        type: "routeByAddress" as const,
+        host,
+        port: Number(port),
+      }),
+    )(nodeAddress)
     const nodeRouteOption: RouteOption = { route: routeByAddress }
-
-    let cursor = value[0]
     
     while (cursor !== "0"){
-      const scanResult = (await client.customCommand([
-        "SCAN",
-        cursor,
-        "MATCH",
-        pattern,
-        "COUNT",
-        count.toString(),
-      ],
-      nodeRouteOption,
+      const scanResult = (await client.customCommand(
+        buildScanCommandArgs({ cursor, pattern: payload.pattern, count: payload.count }),
+        nodeRouteOption,
       )) as [string, string[]]
 
       console.log("SCAN node response:", scanResult)
