@@ -53,35 +53,38 @@ const sendSlowLogsError = (
 }
 
 export const slowLogsRequested = withDeps<Deps, void>(
-  async ({ ws, connectionId, metricsServerURIs }) => {
-    const metricsServerURI = metricsServerURIs.get(connectionId)
+  async ({ ws, metricsServerURIs, action }) => {
+    const { connectionIds } = action.payload
+    const promises = connectionIds.map(async (connectionId: string) => {
+      const metricsServerURI = metricsServerURIs.get(connectionId)
+      try {
+        const count = 50 
+        const url = `${metricsServerURI}/slowlog?count=${count}`
+        console.log("[slowLogsRequested] Fetching from:", url)
 
-    try {
-      const count = 50 
-      const url = `${metricsServerURI}/slowlog?count=${count}`
-      console.log("[slowLogsRequested] Fetching from:", url)
+        const initialResponse = await fetch(url)
+        const initialParsedResponse: SlowLogsResponse = await initialResponse.json() as SlowLogsResponse
+        if (initialParsedResponse.checkAt) {
+          const delay = Math.max(initialParsedResponse.checkAt - Date.now(), 0)
+          // Schedule the follow-up request for when the monitor cycle finishes
+          setTimeout(async () => {
+            try {
+              const dataResponse = await fetch(`${metricsServerURI}/slowlog?count=${count}`)
+              const dataParsedResponse = await dataResponse.json() as SlowLogsResponse
+              sendSlowLogsFulfilled(ws, connectionId, dataParsedResponse)
+            } catch (error) {
+              sendSlowLogsError(ws, connectionId, error)
+            }
+          }, delay)
+        }
+        else {
+          sendSlowLogsFulfilled(ws, connectionId, initialParsedResponse)
+        }
 
-      const initialResponse = await fetch(url)
-      const initialParsedResponse: SlowLogsResponse = await initialResponse.json() as SlowLogsResponse
-      if (initialParsedResponse.checkAt) {
-        const delay = Math.max(initialParsedResponse.checkAt - Date.now(), 0)
-        // Schedule the follow-up request for when the monitor cycle finishes
-        setTimeout(async () => {
-          try {
-            const dataResponse = await fetch(`${metricsServerURI}/slowlog?count=${count}`)
-            const dataParsedResponse = await dataResponse.json() as SlowLogsResponse
-            sendSlowLogsFulfilled(ws, connectionId, dataParsedResponse)
-          } catch (error) {
-            sendSlowLogsError(ws, connectionId, error)
-          }
-        }, delay)
+      } catch (error) {
+        sendSlowLogsError(ws, connectionId, error)
       }
-      else {
-        sendSlowLogsFulfilled(ws, connectionId, initialParsedResponse)
-      }
-
-    } catch (error) {
-      sendSlowLogsError(ws, connectionId, error)
-    }
-  },
-)
+      
+    })
+    await Promise.all(promises)
+  })

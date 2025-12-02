@@ -2,6 +2,9 @@ const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { fork } = require('child_process');
 
+// TODO: import from common
+const sanitizeUrl = (input) => input.replace(/[^a-zA-Z0-9_-]/g, "-")
+
 let serverProcess;
 let metricsProcesses = new Map();
 
@@ -27,7 +30,7 @@ function startMetricsForClusterNodes(clusterNodes) {
             port: node.port,
         }
         
-        const connectionId = `${node.host}-${node.port}`
+        const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
         if(!metricsProcesses.has(connectionId)) {
             startMetrics(connectionId, connectionDetails)
         }
@@ -155,12 +158,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-    if (serverProcess) {
-        serverProcess.kill();
-    }
-    if (metricsProcesses.length > 0) {
-        stopMetricServers();
-    }
+    cleanupAndExit()
 });
 
 app.on('activate', () => {
@@ -168,3 +166,14 @@ app.on('activate', () => {
         createWindow();
     }
 });
+
+process.on('SIGINT', cleanupAndExit);
+process.on('SIGTERM', cleanupAndExit);
+process.on('exit', cleanupAndExit);
+
+function cleanupAndExit() {
+    console.log("Cleaning up ...")
+    if (serverProcess) serverProcess.kill();
+    if (metricsProcesses.length > 0) stopMetricServers();
+    process.exit(0);
+}

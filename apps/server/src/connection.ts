@@ -3,6 +3,7 @@ import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "../../../common/src/constants"
 import { parseInfo } from "./utils"
+import { sanitizeUrl } from "../../../common/src/url-utils.ts"
 
 export async function connectToValkey(
   ws: WebSocket,
@@ -88,7 +89,7 @@ async function discoverCluster(client: GlideClient) {
 
       // transform CLUSTER from flat response into a nested structure (primaryNode → replicas[])
       const [primaryHost, primaryPort] = nodes[0]
-      const primaryKey = `${primaryHost}-${primaryPort}`
+      const primaryKey = sanitizeUrl(`${primaryHost}-${primaryPort}`)
 
       if (!acc[primaryKey]) {
         acc[primaryKey] = {

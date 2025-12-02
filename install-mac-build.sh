@@ -32,7 +32,6 @@ cp -R "$APP_PATH" /Applications/
 
 hdiutil detach "$MOUNT_POINT"
 
-echo "Launching $APP_NAME…"
 /Applications/Skyscope.app/Contents/MacOS/Skyscope &
 
 echo "Installed and launched!"

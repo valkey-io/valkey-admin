@@ -54,13 +54,13 @@ async function main() {
 
   app.get("/slowlog", async (req, res) => {
     try {
-      const {lastUpdated, nextCycle} = getCollectorMeta(SLOWLOG)
-      if(Date.now() > nextCycle) {
+      const {lastUpdatedAt, nextCycleAt} = getCollectorMeta(SLOWLOG)
+      if(lastUpdatedAt !== null) {
         const count = Number(req.query.count) || 50
         const rows = await Streamer.slowlog_get(count)
-        return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdated })
+        return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })
       }
-      else return res.json({checkAt: nextCycle, lastUpdated})
+      else return res.json({checkAt: nextCycleAt, lastUpdatedAt})
     } catch (e) {
       res.status(500).json({ error: e.message })
     }
