@@ -1,5 +1,6 @@
 import { ClusterResponse } from "@valkey/valkey-glide"
 import * as R from "ramda"
+import { sanitizeUrl } from "../../../common/src/url-utils"
 
 type ParsedClusterInfo = {
   [host: string]: {
@@ -29,7 +30,7 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
     R.toPairs,
     R.map(([host, infoString]) =>
       [
-        R.replace(":", "-", String(host)),
+        sanitizeUrl(String(host)),
         R.pipe(
           R.split("\r\n"),
           R.reduce(
