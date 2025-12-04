@@ -101,7 +101,7 @@ export function HotKeys({ data, status, onKeyClick, selectedKey }: HotKeysProps)
                         onClick={(e) => handleCopyKey(keyName, e)}
                         title="Copy key name"
                       >
-                        <Copy size={1} />
+                        <Copy size={16} />
                       </button>
                     </div>
                     <span className={`text-sm w-32 font-mono text-center
