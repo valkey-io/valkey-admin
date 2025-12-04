@@ -8,7 +8,7 @@ export const makeNdjsonWriter = ({ dataDir, filePrefix }) => {
   const fileFor = ts => path.join(dataDir, `${filePrefix}_${dayStr(ts, filePrefix)}.ndjson`)
 
   const appendRows = async (rows = []) => {
-    if (R.isEmpty(rows.length)) return
+    if (R.isEmpty(rows)) return
 
     const ts = Number.isFinite(rows[0]?.ts) ? rows[0].ts : Date.now()
     const file = fileFor(ts)

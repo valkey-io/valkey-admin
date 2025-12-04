@@ -22,7 +22,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
-    "typescript-eslint": "^8.38.0"
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^4.0.15"
   },
   "scripts": {
     "dev": "concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
