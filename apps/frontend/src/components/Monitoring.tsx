@@ -14,7 +14,7 @@ import { hotKeysRequested, selectHotKeys, selectHotKeysStatus } from "@/state/va
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
-type TabType = "hot-keys" | "large-keys" | "slow-logs"
+type TabType = "hot-keys" | "slow-logs"
 
 interface KeyInfo {
   name: string;
@@ -65,7 +65,6 @@ export const Monitoring = () => {
 
   const tabs = [
     { id: "hot-keys" as TabType, label: "Hot Keys" },
-    { id: "large-keys" as TabType, label: "Large Keys" },
     { id: "slow-logs" as TabType, label: "Slow Logs" },
   ]
 
@@ -132,14 +131,6 @@ export const Monitoring = () => {
               setSelectedKey={setSelectedKey}
             />
           )}
-        </div>
-      ) : activeTab === "large-keys" ? (
-        <div className="flex-1 border dark:border-tw-dark-border rounded overflow-y-auto">
-          <div className="h-full flex items-center justify-center">
-            <span className="text-lg text-gray-500 dark:text-white mb-2">
-              No Large Keys Found
-            </span>
-          </div>
         </div>
       ) : (
         <div className="flex-1 border dark:border-tw-dark-border rounded overflow-y-auto">
