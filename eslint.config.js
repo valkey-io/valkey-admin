@@ -1,17 +1,17 @@
-import importPlugin from "eslint-plugin-import";
-import stylistic from "@stylistic/eslint-plugin";
-import react from "eslint-plugin-react";
-import js from "@eslint/js";
-import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
-import { globalIgnores } from "eslint/config";
+import importPlugin from "eslint-plugin-import"
+import stylistic from "@stylistic/eslint-plugin"
+import react from "eslint-plugin-react"
+import js from "@eslint/js"
+import globals from "globals"
+import reactHooks from "eslint-plugin-react-hooks"
+import reactRefresh from "eslint-plugin-react-refresh"
+import tseslint from "typescript-eslint"
+import { globalIgnores } from "eslint/config"
 
 export default tseslint.config([
   globalIgnores(["dist"]),
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["**/*.{ts,tsx,js,jsx}"],
     plugins: {
       react,
       "@stylistic": stylistic,
@@ -95,4 +95,4 @@ export default tseslint.config([
       ],
     },
   },
-]);
+])

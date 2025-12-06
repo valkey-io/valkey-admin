@@ -9,6 +9,7 @@ Standalone service to poll info, memory and other data from Valkey cluster and s
 `docker compose up --build`
 
 To examine the metrics with curl:
-`curl -s http://localhost:3000/slowlog | jq`
+`curl -s "http://localhost:3000/commandlog?type=<slow|large_request|large_reply>" | jq`
 `curl -s http://localhost:3000/cpu | jq`
 `curl -s http://localhost:3000/memory | jq`
+`curl -s http://localhost:3000/hotkeys | jq`

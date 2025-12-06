@@ -2,7 +2,7 @@ import { makeFetcher } from "./effects/fetchers.js"
 import { makeMonitorStream } from "./effects/monitor-stream.js"
 import { makeNdjsonWriter } from "./effects/ndjson-writer.js"
 import { startCollector } from "./epics/collector-rx.js"
-
+import { MONITOR } from "./utils/constants.js"
 /*
   State per collector with shape:
   {
@@ -22,49 +22,51 @@ const updateCollectorMeta = (name, patch) => {
 
 // Use it in endpoints to return metadata to server then to UI to show when the data was collected and will be refreshed
 export const getCollectorMeta = (name) => collectorsState[name]
-
-const MONITOR = "monitor"
 const stoppers = {}
 
+updateCollectorMeta(MONITOR, {
+  isRunning: false,
+}) 
 const startMonitor = (cfg) => {
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
-    filePrefix: MONITOR
+    filePrefix: MONITOR,
   })
 
-  const monitorEpic = cfg.epics.find(e => e.name === MONITOR)
+  const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
 
   const sink = {
-    appendRows: async rows => {
+    appendRows: async (rows) => {
       await nd.appendRows(rows)
       console.info(`[${monitorEpic.name}] wrote ${rows.length} logs to ${cfg.server.data_dir}/`)
     },
-    close: nd.close
+    close: nd.close,
   }
-
-  const now = Date.now()
+  const monitorDuration = monitorEpic.monitoringDuration
 
   updateCollectorMeta(monitorEpic.name, {
     isRunning: true,
     startedAt: Date.now(),
+    willCompleteAt: Date.now() + monitorDuration,
   })
 
-  const stream$ = makeMonitorStream(async logs => {
+  const stream$ = makeMonitorStream(async (logs) => {
     await sink.appendRows(logs)
   }, monitorEpic)
 
   const subscription = stream$.subscribe({
-    next: logs => {
+    next: (logs) => {
       updateCollectorMeta(monitorEpic.name, {
         lastUpdatedAt: Date.now(),
       })
       console.info(`[${monitorEpic.name}] monitor cycle complete (${logs.length} logs)`)
     },
-    error: err => {
+    error: (err) => {
       updateCollectorMeta(monitorEpic.name, {
         isRunning: false,
         lastErrorAt: Date.now(),
         lastError: String(err),
+        willCompleteAt: null,
       })
       console.error(`[${monitorEpic.name}] monitor error:`, err)
     },
@@ -82,6 +84,7 @@ const startMonitor = (cfg) => {
     updateCollectorMeta(monitorEpic.name, {
       stoppedAt: Date.now(),
       isRunning: false,
+      willCompleteAt: null,
     })
     subscription.unsubscribe()
     await sink.close()
@@ -94,12 +97,12 @@ const setupCollectors = async (client, cfg) => {
   const fetcher = makeFetcher(client)
   const stoppers = {}
   await Promise.all(cfg.epics
-    .filter(f => f.name !== MONITOR && fetcher[f.type])
-    .map(async f => {
+    .filter((f) => f.name !== MONITOR && fetcher[f.type])
+    .map(async (f) => {
       const fn = fetcher[f.type]
       const nd = makeNdjsonWriter({
         dataDir: cfg.server.data_dir,
-        filePrefix: f.file_prefix || f.name
+        filePrefix: f.file_prefix || f.name,
       })
 
       updateCollectorMeta(f.name, {
@@ -110,7 +113,7 @@ const setupCollectors = async (client, cfg) => {
       })
 
       const sink = {
-        appendRows: async rows => {
+        appendRows: async (rows) => {
           nd.appendRows(rows)
           updateCollectorMeta(f.name, {
             nextCycleAt: Date.now() + f.poll_ms,
@@ -123,8 +126,8 @@ const setupCollectors = async (client, cfg) => {
             nextCycleAt: null,
             stoppedAt: Date.now(),
           })
-          nd.close
-        }
+          nd.close()
+        },
       }
 
       const rows = await fn()
@@ -136,9 +139,9 @@ const setupCollectors = async (client, cfg) => {
         fetch: fn,
         writer: sink,
         batchMs: cfg.collector.batch_ms,
-        batchMax: cfg.collector.batch_max
+        batchMax: cfg.collector.batch_max,
       })
-    })
+    }),
   )
   return stoppers
 }

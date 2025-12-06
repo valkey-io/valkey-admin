@@ -2,42 +2,43 @@ import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { Activity, RefreshCcw } from "lucide-react"
 import { useParams } from "react-router"
+import { COMMANDLOG_TYPE } from "@common/src/constants"
 import { AppHeader } from "./ui/app-header"
 import { HotKeys } from "./ui/hot-keys"
 import { SlowLogs } from "./ui/slow-logs"
 import type { RootState } from "@/store"
-import { slowLogsRequested, selectSlowLogs } from "@/state/valkey-features/slowlogs/slowLogsSlice"
+import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import { hotKeysRequested, selectHotKeys, selectHotKeysStatus } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 
-type TabType = "hot-keys" | "large-keys" | "slow-logs"
+type TabType = "hot-keys" | "large-keys" | "command-logs"
 
 export const Monitoring = () => {
   const dispatch = useAppDispatch()
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
 
-  const slowLogsData = useSelector((state: RootState) => selectSlowLogs(id!)(state))
+  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.SLOW)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
 
   useEffect(() => {
     if (id) {
-      dispatch(slowLogsRequested({ connectionId: id }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
       dispatch(hotKeysRequested({ connectionId: id }))
     }
   }, [id, dispatch])
   
-  const getSlowLogs = () => {
+  const getCommandLogsSlow = () => {
     if (id) {
-      dispatch(slowLogsRequested({ connectionId: id }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
     }
   }
 
   const tabs = [
     { id: "hot-keys" as TabType, label: "Hot Keys" },
     { id: "large-keys" as TabType, label: "Large Keys" },
-    { id: "slow-logs" as TabType, label: "Slow Logs" },
+    { id: "command-logs" as TabType, label: "Command Logs" },
   ]
 
   return (
@@ -69,10 +70,10 @@ export const Monitoring = () => {
             })}
           </nav>
         </div>
-        {activeTab === "slow-logs" && (
+        {activeTab === "command-logs" && (
           <button
             className="flex items-center gap-2 font-light"
-            onClick={getSlowLogs}
+            onClick={getCommandLogsSlow}
           >
             Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
           </button>
@@ -92,8 +93,8 @@ export const Monitoring = () => {
           </div>
         )}
 
-        {activeTab === "slow-logs" && (
-          <SlowLogs data={slowLogsData}/>
+        {activeTab === "command-logs" && (
+          <SlowLogs data={commandLogsSlowData}/>
         )}
       </div>
     </div>

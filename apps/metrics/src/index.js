@@ -3,13 +3,15 @@ import express from "express"
 import { createClient } from "@valkey/client"
 import { loadConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
-import { getCollectorMeta, setupCollectors, startMonitor, stopMonitor } from "./init-collectors.js"
+import { getCollectorMeta, setupCollectors } from "./init-collectors.js"
 import { calculateHotKeys } from "./analyzers/calculateHotKeys.js"
-import { MODE, ACTION, MONITOR, COMMANDLOG_SLOW } from "./utils/constants.js"
+import { MODE, ACTION, MONITOR } from "./utils/constants.js"
+import { getCommandLogs } from "./handlers/commandlog-handler.js"
+import { monitorHandler } from "./handlers/monitor-handler.js"
 
 async function main() {
   const cfg = loadConfig()
-  const ensureDir = dir => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
+  const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
 
   // Valkey single URL
@@ -23,7 +25,7 @@ async function main() {
   //  run command `cluster nodes` and create clients for each node and run setupCollectors for each of them;
   //  and correspondingly, do something about it in the endpoints (group by probably?)
   const client = createClient({ url })
-  client.on("error", err => console.error("valkey error", err))
+  client.on("error", (err) => console.error("valkey error", err))
   await client.connect()
   const stoppers = await setupCollectors(client, cfg)
 
@@ -52,20 +54,7 @@ async function main() {
     }
   })
 
-  app.get("/commandlog", async (req, res) => {
-    try {
-      const {lastUpdatedAt, nextCycleAt} = getCollectorMeta(COMMANDLOG_SLOW)
-      if (lastUpdatedAt !== null) {
-      const count = Number(req.query.count) || 50
-      const rows = await Streamer.commandlog_get_slow(count)
-        // Add minimum (1) and maximum (500) boundaries for rows requested
-        return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })
-      }
-      else return res.json({checkAt: nextCycleAt, lastUpdatedAt})
-    } catch (e) {
-      res.status(500).json({ error: e.message })
-    }
-  })
+  app.get("/commandlog", getCommandLogs)
 
   app.get("/slowlog_len", async (_req, res) => {
     try {
@@ -76,63 +65,26 @@ async function main() {
     }
   })
 
-  const monitorConfig = cfg.epics.find(e => e.name === MONITOR)
-  const monitorDuration = monitorConfig.monitoringDuration
-  let monitorRunning = false
-  let checkAt
-
-  const monitorHandler = async action => {
-    try {
-      switch (action) {
-        case ACTION.START:
-          if (monitorRunning) {
-            return { monitorRunning }
-          }
-          await startMonitor(cfg)
-          monitorRunning = true
-          checkAt = Date.now() + monitorDuration
-          return { monitorRunning, checkAt}
-
-        case ACTION.STOP:
-          if (!monitorRunning) {
-            checkAt = null
-            return { monitorRunning, checkAt }
-          }
-          await stopMonitor()
-          monitorRunning = false
-          checkAt = null
-          return { monitorRunning, checkAt }
-
-        case ACTION.STATUS:
-          return { monitorRunning }
-
-        default:
-          return { error: "Invalid action. Use ?action=start|stop|status" }
-      }
-    } catch (e) {
-      console.error(`[monitor] ${action} error:`, e)
-      return { error: e.message }
-    }
-  }
   app.get("/monitor", async (req, res) => {
     const result = await monitorHandler(req.query.action)
-    checkAt = result.checkAt
     return res.json(result)
   })
 
   app.get("/hot-keys", async (req, res) => {
     let monitorResponse = {}
+    const { isRunning, willCompleteAt } = getCollectorMeta(MONITOR) 
+    const checkAt = willCompleteAt
     try {
-      if (!monitorRunning) {
-        monitorResponse = await monitorHandler(ACTION.START)
+      if (!isRunning) {
+        monitorResponse = await monitorHandler(ACTION.START, cfg)
         return res.json(monitorResponse)
       }
       if (Date.now() > checkAt) {
         const hotKeys = await calculateHotKeys()
         if (req.query.mode !== MODE.CONTINUOUS) {
-          await monitorHandler(ACTION.STOP) 
+          await monitorHandler(ACTION.STOP, cfg) 
         }
-        monitorResponse = await monitorHandler(ACTION.STATUS)
+        monitorResponse = await monitorHandler(ACTION.STATUS, cfg)
         return res.json({ hotKeys, ...monitorResponse })
 
       }
@@ -153,7 +105,7 @@ async function main() {
   const shutdown = async () => {
     console.log("shutting down")
     try {
-      Object.values(stoppers).forEach(s => s && s())
+      Object.values(stoppers).forEach((s) => s && s())
       server.close(() => process.exit(0))
     } catch (e) {
       console.error("shutdown error", e)
