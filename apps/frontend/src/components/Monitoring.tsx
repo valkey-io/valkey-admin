@@ -17,6 +17,16 @@ import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
 type TabType = "hot-keys" | "command-logs"
 
+interface KeyInfo {
+  name: string;
+  type: string;
+  ttl: number;
+  size: number;
+  collectionSize?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements?: any;
+}
+
 export const Monitoring = () => {
   const dispatch = useAppDispatch()
   const { id } = useParams()
