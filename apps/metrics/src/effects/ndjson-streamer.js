@@ -12,7 +12,7 @@ const fileFor = (prefix, date) => {
   return path.join(dataDir, `${prefix}_${dayStr(date)}.ndjson`)
 }
 
-export async function streamNdjson(prefix, filterFn = () => true) {
+export async function streamNdjson(prefix, filterFn = () => true, limit = Infinity) {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
@@ -20,6 +20,7 @@ export async function streamNdjson(prefix, filterFn = () => true) {
   const files = [fileFor(prefix, yesterday), fileFor(prefix, today)]
 
   const results = []
+  let count = 0
 
   for (const file of files) {
     if (!fs.existsSync(file)) continue
@@ -27,10 +28,18 @@ export async function streamNdjson(prefix, filterFn = () => true) {
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity })
 
     for await (const line of rl) {
+      if (count >= limit) {
+        rl.close()
+        fileStream.destroy()
+        break
+      }
       if (!line.trim()) continue
       try {
         const obj = JSON.parse(line)
-        if (filterFn(obj))  results.push(obj)
+        if (filterFn(obj)){
+          results.push(obj)
+          count++
+        }  
        
       } catch {
         // ignore bad lines

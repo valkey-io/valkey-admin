@@ -1,5 +1,5 @@
 import * as R from "ramda"
-import { COMMANDLOG_TYPE } from "../utils/constants"
+import { COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, COMMANDLOG_TYPE, COMMANDLOG_LARGE_REPLY } from "../utils/constants"
 import { parseCommandLogs } from "../utils/helpers"
 
 // todo a proper schema; all this parsing logic with `kv` and `kvPairsToRows` feels extremely fragile
@@ -51,19 +51,19 @@ export const makeFetcher = (client) => ({
   commandlog_slow: async (count = 50) => {
     const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.SLOW])
     const values = parseCommandLogs(entries)
-    return [{ ts: Date.now(), metric: "commandlog_slow", values }]
+    return [{ ts: Date.now(), metric: COMMANDLOG_SLOW, values }]
   },
 
   commandlog_large_reply: async (count = 50) => {
     const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REPLY])
     const values = parseCommandLogs(entries)
-    return [{ ts: Date.now(), metric: "commandlog_large_reply", values }]
+    return [{ ts: Date.now(), metric: COMMANDLOG_LARGE_REPLY, values }]
   },
 
   commandlog_large_request: async (count = 50) => {
     const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REQUEST])
     const values = parseCommandLogs(entries)
-    return [{ ts: Date.now(), metric: "commandlog_large_reply", values }]
+    return [{ ts: Date.now(), metric: COMMANDLOG_LARGE_REQUEST, values }]
   },
   // just a numeric count for the dashboard tile which displays a single number of slowlog
   slowlog_len: async () => {

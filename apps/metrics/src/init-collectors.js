@@ -42,12 +42,11 @@ const startMonitor = (cfg) => {
     },
     close: nd.close,
   }
-  const monitorDuration = monitorEpic.monitoringDuration
 
   updateCollectorMeta(monitorEpic.name, {
     isRunning: true,
     startedAt: Date.now(),
-    willCompleteAt: Date.now() + monitorDuration,
+    willCompleteAt: Date.now() + monitorEpic.monitoringDuration,
   })
 
   const stream$ = makeMonitorStream(async (logs) => {

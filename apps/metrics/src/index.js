@@ -73,8 +73,7 @@ async function main() {
 
   app.get("/hot-keys", async (req, res) => {
     let monitorResponse = {}
-    const { isRunning, willCompleteAt } = getCollectorMeta(MONITOR) 
-    const checkAt = willCompleteAt
+    const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
     try {
       if (!isRunning) {
         monitorResponse = await monitorHandler(ACTION.START, cfg)
