@@ -25,5 +25,23 @@ The repository includes settings for the ESLint extension. Please install it.
 This requires ESLint v9.0.0 and above.
 
 ## Create DMG
+
+You are able to build notarized or non-notarized Applications.
+
+### Unnotarized Application
+
+#### Overview
+    - Much faster build process.
+    - While you won't encounter any issues running this on the system that built it, distributing the DMG will lead to a `"Skyscope" is damaged and can't be opened` error when running the application. To bypass this, run `xattr -c <path/to/app>` in terminal to disable the quarantine flag.
+  
+#### Process
+In the root directory, create a DMG by running `npm run package:mac:nosign`.
+
+### Notarized Application
+
+#### Overview
+    - Much slower build process (could be hours the first time, and up to 10 minutes consequently).
+    - Has additional requirements listed in `mac_build`.
+
+#### Process
 In the root directory, create a DMG by running `npm run package:mac`.
-**Note:** The DMG is not signed. Distributing it will lead to a `"Skyscope" is damaged and can't be opened` error when running the application. To bypass this, run `xattr -c <path/to/app>` in terminal to disable the quarantine flag.

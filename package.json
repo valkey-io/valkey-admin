@@ -14,8 +14,10 @@
     "@eslint/js": "^9.32.0",
     "@stylistic/eslint-plugin": "^5.3.1",
     "concurrently": "^9.2.0",
+    "dotenv": "^17.2.3",
     "electron": "^38.4.0",
     "electron-builder": "^26.0.12",
+    "electron-notarize": "^1.2.2",
     "eslint": "^9.32.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
@@ -32,6 +34,7 @@
     "build:metrics": "npm --workspace apps/metrics run build",
     "build:all": "npm run build:server && npm run build:frontend && npm run build:metrics",
     "package:mac": "npm run build:all && electron-builder --mac --arm64",
+    "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
     "lint": "eslint ."
   },
   "build": {
@@ -90,7 +93,13 @@
       }
     ],
     "mac": {
-      "target": "dmg"
-    }
+      "target": "dmg",
+      "notarize": false,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "mac_build/entitlements.plist",
+      "entitlementsInherit": "mac_build/entitlements.plist"
+    },
+    "afterSign": "mac_build/notarize.js"
   }
 }

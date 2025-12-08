@@ -6,7 +6,7 @@ osascript -e 'tell application "Skyscope" to quit' || true
 set -e
 
 echo "Packaging mac build…"
-npm run package:mac
+npm run package:mac:nosign
 
 DMG_PATH=$(ls release/*.dmg | head -n 1)
 
