@@ -20,7 +20,7 @@ import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
-import { slowLogsRequested } from "../valkey-features/slowlogs/slowLogsSlice.ts"
+import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
 import type { Store } from "@reduxjs/toolkit"
 
@@ -275,12 +275,12 @@ export const getHotKeysEpic = (store: Store) =>
     }),
   )
 
-export const getSlowLogsEpic = (store: Store) =>
+export const getCommandLogsEpic = (store: Store) =>
   action$.pipe(
-    select(slowLogsRequested),
+    select(commandLogsRequested),
     tap((action) => {
       try {
-        const { clusterId, connectionId } = action.payload
+        const { clusterId, connectionId, commandLogType } = action.payload
         const socket = getSocket()
 
         const state = store.getState()
@@ -293,10 +293,10 @@ export const getSlowLogsEpic = (store: Store) =>
 
         socket.next({
           type: action.type,
-          payload: { connectionIds },
+          payload: { connectionIds, commandLogType },
         })
       } catch (error) {
-        console.error("[getSlowLogsEpic] Error sending action:", error)
+        console.error("[getCommandLogsEpic] Error sending action:", error)
       }
     }),
     ignoreElements(),

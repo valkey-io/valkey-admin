@@ -66,10 +66,10 @@ export const VALKEY = {
     hotKeysFulfilled: "hotKeysFulfilled",
     hotKeysError: "hotKeysError",
   }),
-  SLOWLOGS: makeNamespace( "slowLogs",{
-    slowLogsRequested: "slowLogsRequested",
-    slowLogsFulfilled: "slowLogsFulfilled",
-    slowLogsError: "slowLogsError",
+  COMMANDLOGS: makeNamespace( "commandLogs",{
+    commandLogsRequested: "commandLogsRequested",
+    commandLogsFulfilled: "commandLogsFulfilled",
+    commandLogsError: "commandLogsError",
   }),
 } as const
 
@@ -110,4 +110,8 @@ export const VALKEY_CLIENT = {
     defaultCount: 50,
   } ,
 }
-
+export const COMMANDLOG_TYPE = {
+  SLOW: "slow",
+  LARGE_REQUEST: "large-request",
+  LARGE_REPLY: "large-reply",
+} as const

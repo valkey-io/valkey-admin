@@ -13,7 +13,7 @@ import {
   updateKeyRequested
 } from "./actions/keys.ts"
 import { hotKeysRequested } from "./actions/hotkeys.ts"
-import { slowLogsRequested } from "./actions/slowLogs.ts"
+import { commandLogsRequested } from "./actions/commandLogs.ts"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils.ts"
 
 interface MetricsServerMessage {
@@ -77,7 +77,7 @@ wss.on("connection", (ws: WebSocket) => {
       [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
       [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
       [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
-      [VALKEY.SLOWLOGS.slowLogsRequested]: slowLogsRequested,
+      [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
     }
 
     const handler = handlers[action!.type] ?? unknownHandler

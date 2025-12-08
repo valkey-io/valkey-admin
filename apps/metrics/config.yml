@@ -21,10 +21,20 @@ epics:
     poll_ms: 5000
     file_prefix: "cpu"
 
-  - name: "slowlog"
-    type: "slowlog_get"
-    poll_ms: 60000
-    file_prefix: "slowlog"
+  - name: "commandlog_large_reply"
+    type: "commandlog_large_reply"
+    poll_ms: 10000
+    file_prefix: "commandlog_large_reply"
+
+  - name: "commandlog_large_request"
+    type: "commandlog_large_request"
+    poll_ms: 10000
+    file_prefix: "commandlog_large_request"
+
+  - name: "commandlog_slow"
+    type: "commandlog_slow"
+    poll_ms: 10000
+    file_prefix: "commandlog_slow"
 
   - name: "slowlog_len"
     type: "slowlog_len"
@@ -33,7 +43,7 @@ epics:
   
   - name: "monitor"
     type: "monitor"
-    monitoringDuration: 6000
-    monitoringInterval: 6000
+    monitoringDuration: 10000
+    monitoringInterval: 10000
     maxCommandsPerRun: 1000000
     file_prefix: "monitor"

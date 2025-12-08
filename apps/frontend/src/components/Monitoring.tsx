@@ -2,19 +2,20 @@ import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { Activity, RefreshCcw } from "lucide-react"
 import { useParams } from "react-router"
+import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
 import { AppHeader } from "./ui/app-header"
 import { HotKeys } from "./ui/hot-keys"
 import { SlowLogs } from "./ui/slow-logs"
 import KeyDetails from "./ui/key-details"
 import type { RootState } from "@/store"
-import { slowLogsRequested, selectSlowLogs } from "@/state/valkey-features/slowlogs/slowLogsSlice"
+import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import { hotKeysRequested, selectHotKeys, selectHotKeysStatus } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
-type TabType = "hot-keys" | "slow-logs"
+type TabType = "hot-keys" | "command-logs"
 
 interface KeyInfo {
   name: string;
@@ -32,21 +33,21 @@ export const Monitoring = () => {
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
-  const slowLogsData = useSelector((state: RootState) => selectSlowLogs(id!)(state))
+  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.SLOW)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {
     if (id) {
-      dispatch(slowLogsRequested({ connectionId: id }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
       dispatch(hotKeysRequested({ connectionId: id }))
     }
   }, [id, dispatch])
-
-  const getSlowLogs = () => {
+  
+  const getCommandLogsSlow = () => {
     if (id) {
-      dispatch(slowLogsRequested({ connectionId: id }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
     }
   }
 
@@ -65,7 +66,7 @@ export const Monitoring = () => {
 
   const tabs = [
     { id: "hot-keys" as TabType, label: "Hot Keys" },
-    { id: "slow-logs" as TabType, label: "Slow Logs" },
+    { id: "command-logs" as TabType, label: "Command Logs" },
   ]
 
   return (
@@ -97,10 +98,10 @@ export const Monitoring = () => {
             })}
           </nav>
         </div>
-        {activeTab === "slow-logs" && (
+        {activeTab === "command-logs" && (
           <button
             className="flex items-center gap-2 font-light"
-            onClick={getSlowLogs}
+            onClick={getCommandLogsSlow}
           >
             Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
           </button>
@@ -134,7 +135,7 @@ export const Monitoring = () => {
         </div>
       ) : (
         <div className="flex-1 border dark:border-tw-dark-border rounded overflow-y-auto">
-          <SlowLogs data={slowLogsData} />
+          <SlowLogs data={commandLogsSlowData} />
         </div>
       )}
     </div>
