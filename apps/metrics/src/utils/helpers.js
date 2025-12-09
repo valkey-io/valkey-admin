@@ -17,9 +17,9 @@ export const parseCommandLogs = (entries, commandLogType) =>
     id: String(id),
     ts: Number(tsSec) * 1000,
     ...(commandLogType === "slow"
-        ? { duration_us: Number(metricValue) }
-        : { size: Number(metricValue) }),
+      ? { duration_us: Number(metricValue) }
+      : { size: Number(metricValue) }),
     argv: Array.isArray(argv) ? argv.map(String) : [],
     addr: String(addr),
     client: String(name),
-  }));
+  }))
