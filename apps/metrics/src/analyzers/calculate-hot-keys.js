@@ -1,6 +1,6 @@
 import * as R from "ramda"
 
-export const calculateHotKeys = (rows) => {
+export const calculateHotKeysFromMonitor = (rows) => {
   const ACCESS_COMMANDS = ["get", "set", "mget", "hget", "hgetall", "hmget", "json.get", "json.mget"]
   const CUT_OFF_FREQUENCY = 1
 
@@ -20,3 +20,6 @@ export const calculateHotKeys = (rows) => {
   )(rows)
 }
 
+export const calculateHotKeysFromHotSlots = () => {
+  //
+} 

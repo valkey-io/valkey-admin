@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { calculateHotKeys } from "./calculate-hot-keys.js"
+import { calculateHotKeysFromMonitor } from "./calculate-hot-keys.js"
 
-describe("calculateHotKeys", () => {
+describe("calculateHotKeysFromMonitor", () => {
   it("aggregates access commands into key frequencies and filters by cutoff", () => {
     const rows = [
       { ts: 1, command: "GET foo" },
@@ -12,7 +12,7 @@ describe("calculateHotKeys", () => {
       { ts: 6, command: "  GET   foo   " }, // extra spaces handled
     ]
 
-    const result = calculateHotKeys(rows)
+    const result = calculateHotKeysFromMonitor(rows)
 
     // CUT_OFF_FREQUENCY = 1, so "bar", "field" are filtered out (1 hit each) while foo gets 4 GETs (no pun intended)
     expect(result).toEqual([
@@ -28,7 +28,7 @@ describe("calculateHotKeys", () => {
       { ts: 4, command: "PING" }, // ignored
     ]
 
-    const result = calculateHotKeys(rows)
+    const result = calculateHotKeysFromMonitor(rows)
 
     // foo: 2 hits, bar/baz/user:1/user:2: 1 hit each, so only foo survives cutoff > 1
     expect(result).toEqual([
@@ -43,7 +43,7 @@ describe("calculateHotKeys", () => {
       { ts: 3, command: "DEL foo" },
     ]
 
-    const result = calculateHotKeys(rows)
+    const result = calculateHotKeysFromMonitor(rows)
 
     expect(result).toEqual([])
   })
