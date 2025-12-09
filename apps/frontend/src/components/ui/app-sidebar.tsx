@@ -35,10 +35,10 @@ export function AppSidebar() {
     >
       <div className="flex flex-col items-start w-full">
         {/* Header */}
-        <div className="flex items-center" title="Skyscope">
+        <div className="flex items-center" title="Valkey Admin">
           <img alt="logo" className="h-8" src={logo} /> {/* Use the imported logo */}
           {isExpanded && (
-            <span className="ml-3 font-bold text-lg">Skyscope</span>
+            <span className="ml-3 font-bold text-lg">Valkey Admin</span>
           )}
         </div>
 

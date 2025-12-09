@@ -1,6 +1,6 @@
 {
-  "name": "valkey-skyscope",
-  "productName": "Skyscope",
+  "name": "valkey-admin",
+  "productName": "Valkey Admin",
   "private": true,
   "version": "0.0.0",
   "workspaces": [
@@ -38,7 +38,7 @@
     "lint": "eslint ."
   },
   "build": {
-    "appId": "com.valkey.skyscope",
+    "appId": "com.valkey.admin",
     "icon": "apps/frontend/assets/img/logo-big.png",
     "directories": {
       "output": "release"

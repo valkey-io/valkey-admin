@@ -10,7 +10,7 @@ export default function LearnMore() {
         </h1>
       </div>
       <div className="flex flex-col flex-1 items-center justify-center gap-2 font-light text-sm">
-        <span className="text-tw-primary underline">Skyscope Version 0.0.1</span>
+        <span className="text-tw-primary underline">Valkey Admin Version 0.0.1</span>
         <p className="text-gray-600 dark:text-white">A dedicated UI for Valkey</p>
       </div>
     </div>

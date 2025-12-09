@@ -1,4 +1,4 @@
-# Valkey Skyscope
+# Valkey Admin
 
 ## Getting Started (Development)
 
@@ -34,7 +34,7 @@ You are able to build notarized or non-notarized Applications.
 
 #### Overview
     - Much faster build process.
-    - While you won't encounter any issues running this on the system that built it, distributing the DMG will lead to a `"Skyscope" is damaged and can't be opened` error when running the application. To bypass this, run `xattr -c <path/to/app>` in terminal to disable the quarantine flag.
+    - While you won't encounter any issues running this on the system that built it, distributing the DMG will lead to a `"Valkey Admin" is damaged and can't be opened` error when running the application. To bypass this, run `xattr -c <path/to/app>` in terminal to disable the quarantine flag.
   
 #### Process
 In the root directory, create a DMG by running `npm run package:mac:nosign`.
