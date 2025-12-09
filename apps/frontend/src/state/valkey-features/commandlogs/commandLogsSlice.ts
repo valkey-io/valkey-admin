@@ -76,7 +76,7 @@ const commandLogsSlice = createSlice({
     },
     commandLogsFulfilled: (state, action) => {
       const { connectionId, parsedResponse } = action.payload
-      const commandLogType : CommandLogType = action.payload.commandLogtype
+      const commandLogType : CommandLogType = action.payload.commandLogType
       const { rows, count } = parsedResponse
 
       state[connectionId].logs[commandLogType] = rows

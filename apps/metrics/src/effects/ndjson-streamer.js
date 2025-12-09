@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import readline from "node:readline"
 import path from "node:path"
-import { COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, MONITOR } from "../utils/constants"
+import { COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, MONITOR } from "../utils/constants.js"
 
 const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data")
 

@@ -6,7 +6,7 @@ import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
 import { AppHeader } from "./ui/app-header"
 import { HotKeys } from "./ui/hot-keys"
-import { SlowLogs } from "./ui/slow-logs"
+import { CommandLogTable } from "./ui/command-log-table"
 import KeyDetails from "./ui/key-details"
 import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
@@ -16,6 +16,7 @@ import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlic
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
 type TabType = "hot-keys" | "command-logs"
+type CommandLogSubTab = "slow" | "large-request" | "large-reply"
 
 interface KeyInfo {
   name: string;
@@ -31,9 +32,12 @@ export const Monitoring = () => {
   const dispatch = useAppDispatch()
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
+  const [commandLogSubTab, setCommandLogSubTab] = useState<CommandLogSubTab>("slow")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.SLOW)(state))
+  const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
+  const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REPLY)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
@@ -41,13 +45,30 @@ export const Monitoring = () => {
   useEffect(() => {
     if (id) {
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REQUEST }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REPLY }))
       dispatch(hotKeysRequested({ connectionId: id }))
     }
   }, [id, dispatch])
-  
-  const getCommandLogsSlow = () => {
+
+  const refreshCommandLogs = () => {
     if (id) {
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REQUEST }))
+      dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REPLY }))
+    }
+  }
+
+  const getCurrentCommandLogData = () => {
+    switch (commandLogSubTab) {
+      case "slow":
+        return commandLogsSlowData
+      case "large-request":
+        return commandLogsLargeRequestData
+      case "large-reply":
+        return commandLogsLargeReplyData
+      default:
+        return commandLogsSlowData
     }
   }
 
@@ -69,6 +90,12 @@ export const Monitoring = () => {
     { id: "command-logs" as TabType, label: "Command Logs" },
   ]
 
+  const commandLogSubTabs = [
+    { id: "slow" as CommandLogSubTab, label: "Slow Logs" },
+    { id: "large-request" as CommandLogSubTab, label: "Large Requests" },
+    { id: "large-reply" as CommandLogSubTab, label: "Large Replies" },
+  ]
+
   return (
     <div className="flex flex-col h-screen p-4">
       <AppHeader icon={<Activity size={20} />} title="Monitoring" />
@@ -76,12 +103,11 @@ export const Monitoring = () => {
       <div className="flex justify-between mr-2">
         {/* Tab Navigation */}
         <div className="">
-          <nav className="flex gap-x-1" role="tablist">
+          <nav className="flex gap-x-1">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id
               return (
                 <button
-                  aria-selected={isActive}
                   className={`py-3 px-2 inline-flex items-center gap-x-2 border-b-2 text-sm whitespace-nowrap transition-colors
                             ${isActive
                   ? "border-tw-primary text-tw-primary"
@@ -90,7 +116,6 @@ export const Monitoring = () => {
                         `}
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  role="tab"
                 >
                   {tab.label}
                 </button>
@@ -98,13 +123,40 @@ export const Monitoring = () => {
             })}
           </nav>
         </div>
+
+        {/* Command Log Sub-tabs and Refresh */}
         {activeTab === "command-logs" && (
-          <button
-            className="flex items-center gap-2 font-light"
-            onClick={getCommandLogsSlow}
-          >
-            Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Sub-tabs */}
+            <nav className="flex gap-x-1">
+              {commandLogSubTabs.map((subTab) => {
+                const isActive = commandLogSubTab === subTab.id
+                return (
+                  <button
+                    className={`py-1.5 px-3 text-xs whitespace-nowrap transition-colors rounded-full
+                              ${isActive
+                    ? "bg-tw-primary text-white"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-tw-primary/40"
+                  }
+                          `}
+                    key={subTab.id}
+                    onClick={() => setCommandLogSubTab(subTab.id)}
+                    role="tab"
+                  >
+                    {subTab.label}
+                  </button>
+                )
+              })}
+            </nav>
+
+            {/* Refresh Button */}
+            <button
+              className="flex items-center gap-2 font-light text-sm"
+              onClick={refreshCommandLogs}
+            >
+              Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -135,7 +187,7 @@ export const Monitoring = () => {
         </div>
       ) : (
         <div className="flex-1 border dark:border-tw-dark-border rounded overflow-y-auto">
-          <SlowLogs data={commandLogsSlowData} />
+          <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} />
         </div>
       )}
     </div>

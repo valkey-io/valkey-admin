@@ -1,6 +1,6 @@
-import { getCollectorMeta } from "../init-collectors"
-import { ACTION, MONITOR } from "../utils/constants"
-import { startMonitor, stopMonitor } from "../init-collectors"
+import { getCollectorMeta } from "../init-collectors.js"
+import { ACTION, MONITOR } from "../utils/constants.js"
+import { startMonitor, stopMonitor } from "../init-collectors.js"
 const readMonitorMetadata = () => getCollectorMeta(MONITOR)
 const toResponse = ({ isRunning, willCompleteAt }) => ({
   monitorRunning: isRunning,

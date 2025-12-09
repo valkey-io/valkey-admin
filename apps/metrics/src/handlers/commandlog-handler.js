@@ -1,5 +1,5 @@
-import { COMMANDLOG_TYPE } from "../utils/constants"
-import { getCollectorMeta } from "../init-collectors"
+import { COMMANDLOG_TYPE } from "../utils/constants.js"
+import { getCollectorMeta } from "../init-collectors.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
 const getCommandLogRows = async (commandlogType, count) => {
   try {
@@ -27,7 +27,7 @@ export const getCommandLogs = async (req, res) => {
     if (lastUpdatedAt !== null) {
       const count = Number(req.query.count) || 50
       const rows = await getCommandLogRows(commandlogType, count)
-      console.log(`Rows from ${commandlogType} file: `, rows)
+      console.log("Rows from file:", rows)
       // Add minimum (1) and maximum (500) boundaries for rows requested
       return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })
     }

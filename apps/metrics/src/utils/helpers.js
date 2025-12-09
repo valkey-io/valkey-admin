@@ -5,18 +5,20 @@ export const ymd = (d) => {
   return `${y}${m}${day}` // "20250924"
 }
 
-export const parseCommandLogs = (entries) => 
+export const parseCommandLogs = (entries, commandLogType) =>
   entries.map(([
-    id, 
-    tsSec, 
-    durationUs, 
-    argv = [], 
-    addr = "unknown", 
+    id,
+    tsSec,
+    metricValue,     // duration or size
+    argv = [],
+    addr = "unknown",
     name = "unknown",
   ] = []) => ({
     id: String(id),
     ts: Number(tsSec) * 1000,
-    duration_us: Number(durationUs),
+    ...(commandLogType === "slow"
+      ? { duration_us: Number(metricValue) }
+      : { size: Number(metricValue) }),
     argv: Array.isArray(argv) ? argv.map(String) : [],
     addr: String(addr),
     client: String(name),
