@@ -115,3 +115,8 @@ export const COMMANDLOG_TYPE = {
   LARGE_REQUEST: "large-request",
   LARGE_REPLY: "large-reply",
 } as const
+
+export const SORT_ORDER = {
+  ASC: "asc",
+  DESC: "desc",
+} as const

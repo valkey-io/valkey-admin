@@ -1,8 +1,10 @@
 import React, { useState } from "react"
 import { ArrowUp, ArrowDown, Clock } from "lucide-react"
 import * as R from "ramda"
+import { SORT_ORDER } from "@common/src/constants"
 
-type SortOrder = "asc" | "desc"
+type SortOrder = typeof SORT_ORDER.ASC | typeof SORT_ORDER.DESC
+type SortField = "timestamp" | "metric"
 
 interface SlowLogEntry {
   id: string
@@ -63,11 +65,17 @@ const logTypeConfig = {
 }
 
 export function CommandLogTable({ data, logType }: CommandLogTableProps) {
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
+  const [sortField, setSortField] = useState<SortField>("timestamp")
+  const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
   const config = logTypeConfig[logType]
 
-  const toggleSortOrder = () => {
-    setSortOrder((prev) => prev === "asc" ? "desc" : "asc")
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => prev === SORT_ORDER.ASC ? SORT_ORDER.DESC : SORT_ORDER.ASC)
+    } else {
+      setSortField(field)
+      setSortOrder(SORT_ORDER.DESC)
+    }
   }
 
   const sortedLogs = R.defaultTo([], data)
@@ -77,7 +85,11 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
         groupTs: logGroup.ts,
       })),
     )
-    .sort((sortOrder === "asc" ? R.ascend : R.descend)(R.prop("ts")))
+    .sort((sortOrder === SORT_ORDER.ASC ? R.ascend : R.descend)(
+      sortField === "timestamp"
+        ? R.prop("ts")
+        : R.prop(config.metricKey as keyof typeof R.prop),
+    ))
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -87,20 +99,32 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
           <div className="sticky top-0 z-10 border-b-2 dark:border-tw-dark-border">
             <div className="flex items-center px-4 py-3">
               <button
-                className="text-xs font-bold w-1/4 flex items-center gap-2 hover:text-tw-primary transition-colors"
-                onClick={toggleSortOrder}
+                className={`text-xs font-bold w-1/4 flex items-center gap-2 hover:text-tw-primary transition-colors ${
+                  sortField === "timestamp" ? "text-tw-primary" : ""
+                }`}
+                onClick={() => toggleSort("timestamp")}
               >
                 <Clock className="text-tw-primary" size={16} />
                 Timestamp
-                {sortOrder === "asc" ? (
+                {sortField === "timestamp" && sortOrder === SORT_ORDER.ASC ? (
                   <ArrowUp size={14} />
                 ) : (
                   <ArrowDown size={14} />
                 )}
               </button>
-              <div className="text-xs font-bold w-1/6 text-center">
+              <button
+                className={`text-xs font-bold w-1/6 text-center flex items-center justify-center gap-2 hover:text-tw-primary transition-colors ${
+                  sortField === "metric" ? "text-tw-primary" : ""
+                }`}
+                onClick={() => toggleSort("metric")}
+              >
                 {config.metricLabel}
-              </div>
+                {sortField === "metric" && sortOrder === SORT_ORDER.ASC ? (
+                  <ArrowUp size={14} />
+                ) : (
+                  <ArrowDown size={14} />
+                )}
+              </button>
               <div className="text-xs font-bold flex-1">
                 Command
               </div>
