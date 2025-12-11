@@ -6,7 +6,10 @@
     "dev": "npx tsx --enable-source-maps src/index.ts",
     "build:ts": "tsc -b",
     "lint": "eslint .",
-    "build": "vite build --config vite.config.ts"
+    "build": "vite build --config vite.config.ts",
+    "test": "npx tsx --test src/**/*.test.ts",
+    "test:watch": "npx tsx --test --watch src/**/*.test.ts",
+    "test:coverage": "npx tsx --test --experimental-test-coverage src/**/*.test.ts"
   },
   "dependencies": {
     "@valkey/valkey-glide": "^2.0.1",
