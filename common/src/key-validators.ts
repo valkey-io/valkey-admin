@@ -86,7 +86,7 @@ export const ZSetSpec: ValidationRule[] = [
   {
     validatorFn: (key) => key.keyType === "ZSet" && key.zsetFields ?
       key.zsetFields.some((field) =>
-        isNotBlank(field.key) && isNotBlank(field.value) && isNaN(parseFloat(field.value))
+        isNotBlank(field.key) && isNotBlank(field.value) && isNaN(parseFloat(field.value)),
       ) : false,
     error: "All score values must be valid numbers for zset type",
   },
