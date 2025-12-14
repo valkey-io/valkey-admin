@@ -21,7 +21,21 @@ describe("connectToValkey", () => {
   it("should connect to standalone Valkey instance", async () => {
     const mockStandaloneClient = {
       info: mock.fn(async () => "cluster_enabled:0"),
-      customCommand: mock.fn(),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (
+          Array.isArray(args) &&
+          args[0] === "CONFIG" &&
+          args[1] === "GET" &&
+          args[2] === "maxmemory-policy"
+        ) {
+          return [
+            { key: "maxmemory-policy", value: "allkeys-lfu" },
+          ]
+        }
+
+        // default response for other custom commands
+        return []
+      }),
       close: mock.fn(),
     }
 
@@ -47,6 +61,7 @@ describe("connectToValkey", () => {
       assert.deepStrictEqual(sentMessage.payload.connectionDetails, {
         host: "127.0.0.1",
         port: 6379,
+        lfuEnabled: true,
       })
     } finally {
       GlideClient.createClient = originalCreateClient
@@ -56,14 +71,25 @@ describe("connectToValkey", () => {
   it("should connect to cluster when node is part of cluster", async () => {
     const mockStandaloneClient = {
       info: mock.fn(async () => "cluster_enabled:1"),
-      customCommand: mock.fn(async () => [
-        [
-          0,
-          5460,
-          ["192.168.1.1", 6379, "node-1"],
-          ["192.168.1.2", 6379, "replica-1"],
-        ],
-      ]),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (
+          Array.isArray(args) &&
+          args[0] === "CONFIG" &&
+          args[1] === "GET" &&
+          args[2] === "maxmemory-policy"
+        ) {
+          return [
+            { key: "maxmemory-policy", value: "allkeys-lfu" },
+          ]
+        }
+        return [
+          [
+            0,
+            5460,
+            ["192.168.1.1", 6379, "node-1"],
+            ["192.168.1.2", 6379, "replica-1"],
+          ],
+        ]}),
       close: mock.fn(),
     }
 

@@ -28,9 +28,12 @@ export async function connectToValkey(
       clientName: "test_client",
     })
     clients.set(payload.connectionId, standaloneClient)
+    
+    const evictionPolicyResponse = await standaloneClient.customCommand(["CONFIG", "GET", "maxmemory-policy"]) as [{key: string, value: string}]
+    const lfuEnabled = evictionPolicyResponse[0].value.toLowerCase().includes("lfu") ?? false
 
     if (await belongsToCluster(standaloneClient)) {
-      return connectToCluster(standaloneClient, ws, clients, payload, addresses)
+      return connectToCluster(standaloneClient, ws, clients, payload, addresses, lfuEnabled)
     }
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
@@ -39,6 +42,7 @@ export async function connectToValkey(
         connectionDetails: {
           host: payload.host,
           port: payload.port,
+          lfuEnabled,
         },
       },
     }
@@ -127,6 +131,7 @@ async function connectToCluster(
   clients: Map<string, GlideClient | GlideClusterClient>, 
   payload: { host: string; port: number; connectionId: string;},
   addresses: { host: string, port: number | undefined }[],
+  lfuEnabled: boolean,
 ) {
   const { clusterNodes, clusterId } = await discoverCluster(standaloneClient)
   if (R.isEmpty(clusterNodes)) {
@@ -156,6 +161,7 @@ async function connectToCluster(
       clusterNodes,
       clusterId,
       address: addresses[0],
+      lfuEnabled,
     },
   }
 

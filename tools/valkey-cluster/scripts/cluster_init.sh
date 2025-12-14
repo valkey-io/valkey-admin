@@ -79,6 +79,16 @@ while [ "$i" -lt 120 ]; do
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
     echo ""
     echo "🫡 SUCCESS: Valkey cluster is ready."
+    echo "Configuring LFU eviction on all nodes..."
+    for hp in $NODES; do
+      host="${hp%%:*}"
+      port="${hp##*:}"
+      echo "Setting LFU and enablign cluster slot stats on $host:$port"
+      valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory 100mb
+      valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory-policy allkeys-lfu
+      valkey-cli -h "$host" -p "$port" CONFIG SET cluster-slot-stats-enabled yes
+    done
+    echo "✅ LFU eviction configured."
     exit 0
   fi
   i=$((i+1))

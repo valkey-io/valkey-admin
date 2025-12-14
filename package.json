@@ -103,5 +103,8 @@
       "entitlementsInherit": "mac_build/entitlements.plist"
     },
     "afterSign": "mac_build/notarize.js"
+  },
+  "dependencies": {
+    "heap-js": "^2.7.1"
   }
 }

@@ -3,11 +3,10 @@ import express from "express"
 import { createClient } from "@valkey/client"
 import { loadConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
-import { getCollectorMeta, setupCollectors } from "./init-collectors.js"
-import { calculateHotKeys } from "./analyzers/calculate-hot-keys.js"
-import { MODE, ACTION, MONITOR } from "./utils/constants.js"
+import { setupCollectors } from "./init-collectors.js"
 import { getCommandLogs } from "./handlers/commandlog-handler.js"
-import { monitorHandler } from "./handlers/monitor-handler.js"
+import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
+import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 
 async function main() {
@@ -72,25 +71,11 @@ async function main() {
   })
 
   app.get("/hot-keys", async (req, res) => {
-    let monitorResponse = {}
-    const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
-    try {
-      if (!isRunning) {
-        monitorResponse = await monitorHandler(ACTION.START, cfg)
-        return res.json(monitorResponse)
-      }
-      if (Date.now() > checkAt) {
-        const hotKeys = await Streamer.monitor().then(calculateHotKeys).then(enrichHotKeys(client))
-        if (req.query.mode !== MODE.CONTINUOUS) {
-          await monitorHandler(ACTION.STOP, cfg) 
-        }
-        monitorResponse = await monitorHandler(ACTION.STATUS, cfg)
-        return res.json({ hotKeys, ...monitorResponse })
-      }
-      return res.json({ checkAt })
-    } catch (e) {
-      res.status(500).json({ error: e.message })
-    }
+    if (req.query.useHotSlots === "true"){
+      const hotKeys = await calculateHotKeysFromHotSlots(client, req.query.count).then(enrichHotKeys(client))
+      return res.json({ hotKeys })
+    } 
+    else useMonitor(req, res, cfg, client)
   })
 
   // Setting port to 0 means Express will dynamically find a port

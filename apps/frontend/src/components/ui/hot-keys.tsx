@@ -32,7 +32,6 @@ export function HotKeys({ data, status, onKeyClick, selectedKey }: HotKeysProps)
     (sortOrder === "asc" ? R.ascend : R.descend)(R.nth(1) as (tuple: [string, number, number | null, number]) => number),
     R.defaultTo([], data),
   )
-
   // loader while the hotkeys are getting fetched
   if (status === "Pending") {
     return (

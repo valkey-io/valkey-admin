@@ -44,11 +44,13 @@ const sendHotKeysError = (
 
 export const hotKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerURIs, action }) => {
-    const { connectionIds } = action.payload
+    const { connectionIds, lfuEnabled, clusterId } = action.payload
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerURIs.get(connectionId)
+      const url = new URL("/hot-keys", metricsServerURI)
+      if (clusterId && lfuEnabled) url.searchParams.set("useHotSlots", "true")
       try {
-        const initialResponse = await fetch(`${metricsServerURI}/hot-keys`)
+        const initialResponse = await fetch(url)
         const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
         // Initial request starts monitoring and returns when to fetch results (`checkAt`).
         if (initialParsedResponse.checkAt) {

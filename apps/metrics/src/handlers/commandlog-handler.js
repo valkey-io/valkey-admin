@@ -27,7 +27,6 @@ export const getCommandLogs = async (req, res) => {
     if (lastUpdatedAt !== null) {
       const count = Number(req.query.count) || 50
       const rows = await getCommandLogRows(commandlogType, count)
-      console.log("Rows from file:", rows)
       // Add minimum (1) and maximum (500) boundaries for rows requested
       return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })
     }

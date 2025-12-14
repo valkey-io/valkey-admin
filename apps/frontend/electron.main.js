@@ -102,8 +102,12 @@ function stopMetricServer(serverConnectionId) {
 }
 
 function stopMetricServers() {
-  metricsProcesses.forEach((_serverConnectionId, metricProcess) => {
-    metricProcess.kill()
+  metricsProcesses.forEach((metricProcess, serverConnectionId) => {
+    try {
+      metricProcess.kill()
+    } catch (e) {
+      console.warn(`Failed to kill metrics server ${serverConnectionId}:`, e)
+    }
   })
 }
 
@@ -175,6 +179,6 @@ process.on("SIGTERM", cleanupAndExit)
 function cleanupAndExit() {
   console.log("Cleaning up ...")
   if (serverProcess) serverProcess.kill()
-  if (metricsProcesses.length > 0) stopMetricServers()
-  process.exit(0)
+  if (metricsProcesses.size > 0) stopMetricServers()
+  setTimeout(() => process.exit(0), 100)
 }

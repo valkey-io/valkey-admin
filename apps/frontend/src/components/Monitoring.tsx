@@ -30,7 +30,7 @@ interface KeyInfo {
 
 export const Monitoring = () => {
   const dispatch = useAppDispatch()
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
   const [commandLogSubTab, setCommandLogSubTab] = useState<CommandLogSubTab>("slow")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -39,6 +39,7 @@ export const Monitoring = () => {
   const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
   const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REPLY)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
+  console.log("Hot keys data: ", hotKeysData)
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
@@ -47,9 +48,9 @@ export const Monitoring = () => {
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REQUEST }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REPLY }))
-      dispatch(hotKeysRequested({ connectionId: id }))
+      dispatch(hotKeysRequested({ connectionId: id, clusterId }))
     }
-  }, [id, dispatch])
+  }, [id, clusterId, dispatch])
 
   const refreshCommandLogs = () => {
     if (id) {

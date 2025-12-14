@@ -261,6 +261,8 @@ export const getHotKeysEpic = (store: Store) =>
 
       const state = store.getState()
       const clusters = state.valkeyCluster.clusters
+      const connection = state.valkeyConnection.connections[connectionId]
+      const lfuEnabled = connection.connectionDetails.lfuEnabled
 
       const connectionIds =
         clusterId !== undefined
@@ -269,7 +271,7 @@ export const getHotKeysEpic = (store: Store) =>
 
       socket.next({
         type: action.type,
-        payload: { connectionIds },
+        payload: { connectionIds, clusterId, lfuEnabled },
       })
       
     }),
