@@ -103,6 +103,28 @@ export const StreamSpec: ValidationRule[] = [
   },
 ]
 
+export const JsonSpec: ValidationRule[] = [
+  ...BaseSpec,
+  {
+    validatorFn: (key) => key.keyType === "JSON" && isBlank(key.value),
+    error: "JSON value is required",
+  },
+  {
+    validatorFn: (key) => {
+      if (key.keyType === "JSON" && isNotBlank(key.value)) {
+        try {
+          JSON.parse(key.value!)
+          return false
+        } catch {
+          return true
+        }
+      }
+      return false
+    },
+    error: "Invalid JSON format. Please enter valid JSON data",
+  },
+]
+
 export const validate = (spec: ValidationRule[]) => (key: ValidationData): string =>
   spec
     .filter(({ validatorFn }) => validatorFn(key))
@@ -117,6 +139,7 @@ export const validators = {
   "Set": validate(SetSpec),
   "ZSet": validate(ZSetSpec),
   "Stream": validate(StreamSpec),
+  "JSON": validate(JsonSpec),
   "undefined": () => "Key type is required",
   "Select key type": () => "Please select a key type",
 }

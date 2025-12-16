@@ -3,7 +3,7 @@ import { X } from "lucide-react"
 import { useParams } from "react-router"
 import { validators } from "@common/src/key-validators"
 import * as R from "ramda"
-import { HashFields, ListFields, StringFields, SetFields, ZSetFields, StreamFields } from "./key-types"
+import { HashFields, ListFields, StringFields, SetFields, ZSetFields, StreamFields, JsonFields } from "./key-types"
 import { useAppDispatch } from "@/hooks/hooks"
 import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 
@@ -209,6 +209,13 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             streamEntryId: streamEntryId.trim() || undefined,
           }),
         )
+      } else if (keyType === "JSON") {
+        dispatch(
+          addKeyRequested({
+            ...basePayload,
+            value: value.trim(),
+          }),
+        )
       }
 
       onClose()
@@ -246,6 +253,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                     <option>Set</option>
                     <option>ZSet</option>
                     <option>Stream</option>
+                    <option>JSON</option>
                   </select>
                 </div>
               </div>
@@ -317,6 +325,8 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                 streamEntryId={streamEntryId}
                 streamFields={streamFields}
               />
+            ) : keyType === "JSON" ? (
+              <JsonFields setValue={setValue} value={value} />
             ) : (
               <div className="mt-2 text-sm font-light">Select a key type</div>
             )}

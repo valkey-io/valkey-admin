@@ -432,6 +432,19 @@ async function addStreamKey(
   }
 }
 
+async function addJsonKey(
+  client: GlideClient | GlideClusterClient,
+  key: string,
+  value: string,
+  ttl?: number,
+) {
+  await client.customCommand(["JSON.SET", key, "$", value])
+
+  if (ttl && ttl > 0) {
+    await client.customCommand(["EXPIRE", key, ttl.toString()])
+  }
+}
+
 export async function addKey(
   client: GlideClient | GlideClusterClient,
   ws: WebSocket,
@@ -490,6 +503,13 @@ export async function addKey(
         await addStreamKey(client, payload.key, payload.fields, payload.streamEntryId, payload.ttl)
         break
 
+      case "json":
+        if (!payload.value) {
+          throw new Error("Value is required for JSON type")
+        }
+        await addJsonKey(client, payload.key, payload.value, payload.ttl)
+        break
+
       default:
         throw new Error(`Unsupported key type: ${payload.keyType}`)
     }
@@ -544,6 +564,19 @@ async function updateStringKey(
     await client.customCommand(["SETEX", key, ttl.toString(), value])
   } else {
     await client.customCommand(["SET", key, value])
+  }
+}
+
+async function updateJsonKey(
+  client: GlideClient | GlideClusterClient,
+  key: string,
+  value: string,
+  ttl?: number,
+) {
+  await client.customCommand(["JSON.SET", key, "$", value])
+
+  if (ttl && ttl > 0) {
+    await client.customCommand(["EXPIRE", key, ttl.toString()])
   }
 }
 
@@ -724,6 +757,13 @@ export async function updateKey(
           throw new Error("Zset updates are required for zset type")
         }
         await updateZSetKey(client, payload.key, payload.zsetUpdates, payload.ttl)
+        break
+
+      case "json":
+        if (!payload.value) {
+          throw new Error("Value is required for JSON type")
+        }
+        await updateJsonKey(client, payload.key, payload.value, payload.ttl)
         break
 
       default:
