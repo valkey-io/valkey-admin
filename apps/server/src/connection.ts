@@ -200,22 +200,17 @@ async function connectToCluster(
 
 async function resolveHostname(hostname: string) {
   const isIP = /^[0-9:.]+$/.test(hostname)
-  if (isIP) {
-    try {
-      const hostnames =  await reverse(hostname)
-      return { input: hostname, type: "ip", addresses: hostnames }
-    }
-    catch {
-      return  { input: hostname, type: "ip", addresses: [hostname] }
-    }
-  }
-  else {
-    try {
-      const { address } =  await lookup(hostname, { family: 4 })
-      return { input: hostname, type: "hostname", addresses: [address] }
-    } catch (err) {
-      console.log("Error is: ", err )
-      return { input: hostname, type: "hostname", addresses: [] }
-    }
+
+  const hostnameType = isIP ? "ip" : "hostname"
+
+  try {
+    const addresses = isIP
+      ? await reverse(hostname)
+      : [(await lookup(hostname, { family: 4 })).address]
+
+    return { input: hostname, hostnameType, addresses }
+  } catch (err) {
+    console.log("Error is:", err)
+    return { input: hostname, hostnameType, addresses: isIP ? [hostname] : [] }
   }
 }
