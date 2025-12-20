@@ -8,14 +8,12 @@ import { DarkModeProvider } from "./contexts/DarkModeContext"
 import { useWebSocketNavigation } from "./hooks/useWebSocketNavigation"
 import { useValkeyConnectionNavigation } from "./hooks/useValkeyConnectionNavigation"
 import { connectPending } from "@/state/wsconnection/wsConnectionSlice"
-import { useAutoConnection } from "./hooks/useAutoConnection";
 
 function App() {
   const dispatch = useDispatch()
 
   useWebSocketNavigation()
   useValkeyConnectionNavigation()
-  useAutoConnection()
 
   useEffect(() => {
     dispatch(connectPending())

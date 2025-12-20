@@ -1,5 +1,5 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, catchError, filter, map, take } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
@@ -22,6 +22,7 @@ import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
+import { sanitizeUrl } from "@common/src/url-utils"
 import type { Store } from "@reduxjs/toolkit"
 
 export const connectionEpic = (store: Store) =>
@@ -75,6 +76,46 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+      }),
+      ignoreElements(),
+    ),
+
+    // Auto-connection epic - handles auto-connecting to Valkey when WebSocket connects
+    action$.pipe(
+      select(wsConnectFulfilled),
+      take(1), // Handle edge cases by only processing the first WebSocket connection
+      map(() => {
+        const host = import.meta.env.VITE_LOCAL_VALKEY_HOST
+        const port = import.meta.env.VITE_LOCAL_VALKEY_PORT
+        const alias = import.meta.env.VITE_LOCAL_VALKEY_NAME
+
+        console.log("Auto-connection environment variables:", { host, port, alias })
+
+        if (host && port) {
+          const connectionId = sanitizeUrl(`${host}-${port}`)
+
+          console.log(`Auto-connecting to local Valkey cluster: ${host}:${port}`)
+          console.log("Connection details:", { host, port, username: "", password: "", alias: alias || "Local Valkey Cluster", connectionId })
+
+          return connectPending({
+            host,
+            port: String(port),
+            username: "",
+            password: "",
+            alias: alias || "Local Valkey Cluster",
+            connectionId,
+          })
+        }
+        
+        console.log("Auto-connection skipped - missing environment variables")
+        return null
+      }),
+      filter((action) => action !== null),
+      delay(1000), // Small delay to ensure WebSocket is fully ready
+      tap((action) => {
+        if (action) {
+          store.dispatch(action)
+        }
       }),
       ignoreElements(),
     ),
