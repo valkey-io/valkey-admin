@@ -80,22 +80,16 @@ export const connectionEpic = (store: Store) =>
       ignoreElements(),
     ),
 
-    // Auto-connection epic - handles auto-connecting to Valkey when WebSocket connects
     action$.pipe(
       select(wsConnectFulfilled),
-      take(1), // Handle edge cases by only processing the first WebSocket connection
+      take(1),
       map(() => {
         const host = import.meta.env.VITE_LOCAL_VALKEY_HOST
         const port = import.meta.env.VITE_LOCAL_VALKEY_PORT
         const alias = import.meta.env.VITE_LOCAL_VALKEY_NAME
 
-        console.log("Auto-connection environment variables:", { host, port, alias })
-
         if (host && port) {
           const connectionId = sanitizeUrl(`${host}-${port}`)
-
-          console.log(`Auto-connecting to local Valkey cluster: ${host}:${port}`)
-          console.log("Connection details:", { host, port, username: "", password: "", alias: alias || "Local Valkey Cluster", connectionId })
 
           return connectPending({
             host,
@@ -106,12 +100,11 @@ export const connectionEpic = (store: Store) =>
             connectionId,
           })
         }
-        
-        console.log("Auto-connection skipped - missing environment variables")
+
         return null
       }),
       filter((action) => action !== null),
-      delay(1000), // Small delay to ensure WebSocket is fully ready
+      delay(1000),
       tap((action) => {
         if (action) {
           store.dispatch(action)
@@ -283,11 +276,11 @@ export const setDataEpic = () =>
       const socket = getSocket()
 
       const { clusterId, connectionId } = action.payload
-    
+
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
       }
-      
+
       socket.next({ type: setData.type, payload: action.payload })
       const dashboardPath = clusterId
         ? `/${clusterId}/${connectionId}/dashboard`
@@ -297,7 +290,7 @@ export const setDataEpic = () =>
     }),
   )
 
-export const getHotKeysEpic = (store: Store) => 
+export const getHotKeysEpic = (store: Store) =>
   action$.pipe(
     select(hotKeysRequested),
     tap((action) => {
@@ -318,7 +311,7 @@ export const getHotKeysEpic = (store: Store) =>
         type: action.type,
         payload: { connectionIds, clusterId, lfuEnabled },
       })
-      
+
     }),
   )
 
