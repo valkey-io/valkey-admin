@@ -16,6 +16,7 @@ import { ValkeyReconnect } from "./components/ValkeyReconnect.tsx"
 import { SendCommand } from "@/components/send-command/SendCommand.tsx"
 import { Monitoring } from "@/components/Monitoring.tsx"
 import { Connection } from "@/components/connection/Connection.tsx"
+import MonitoringSlots from "./components/heat-map/MonitoringSlots.tsx"
 import "./css/index.css"
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -47,6 +48,7 @@ const AppWithHistory = () => {
           <Route element={<KeyBrowser />} path="/:clusterId/:id/browse" />
           <Route element={<Cluster />} path="/:clusterId/:id/cluster-topology" />
           <Route element={<Monitoring />} path="/:clusterId/:id/monitoring" />
+          <Route element={<MonitoringSlots />} path="/:clusterId/:id/monitoring-slots" />
         </Route>
 
         {/* Routes without clusterId */}

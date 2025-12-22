@@ -135,3 +135,5 @@ export const KEY_TYPES = {
   STREAM: "Stream",
   JSON: "JSON",
 }
+
+export const HEAT_COLORS = ["#d1d3ec", "#dfd8f4", "#efdefa", "#ffe3ff", "#f8abdc", "#f36ca8", "#e70067"]

@@ -4,10 +4,13 @@ import { useParams } from "react-router"
 import { AppHeader } from "./ui/app-header"
 import ClusterNode from "./ui/cluster-node"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
+import { useNavigate } from "react-router"
+import { Button } from "./ui/button"
 
 export function Cluster() {
-  const { clusterId } = useParams()
+  const { clusterId, id } = useParams()
   const clusterData = useSelector(selectCluster(clusterId!))
+  const navigate = useNavigate()
 
   if (!clusterData.clusterNodes || !clusterData.data) {
     return (
@@ -40,6 +43,10 @@ export function Cluster() {
           />
         ))}
       </div>
+      <Button 
+      onClick={() => navigate(`/${clusterId}/${id}/monitoring-slots`)}
+      className="mt-4 font-light"
+      >View cluster HeatMap</Button>
     </div>
   )
 }
