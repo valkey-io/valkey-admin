@@ -122,7 +122,7 @@ const connectionSlice = createSlice({
         if (isRetrying && existingConnection.errorMessage) {
           state.connections[connectionId].errorMessage = existingConnection.errorMessage
         } else {
-          state.connections[connectionId].errorMessage = errorMessage || "Valkey error"
+          state.connections[connectionId].errorMessage = errorMessage || "Valkey error: Unable to connect."
         }
       }
     },

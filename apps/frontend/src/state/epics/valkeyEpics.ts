@@ -93,6 +93,19 @@ export const valkeyRetryEpic = (store: Store) =>
         return EMPTY
       }
 
+      // Check if this was a previously successful connection (exists in localStorage)
+      const savedConnections = R.pipe(
+        (v: string) => localStorage.getItem(v),
+        (s) => (s === null ? {} : JSON.parse(s)),
+      )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+
+      const wasPreviouslyConnected = savedConnections[connectionId] !== undefined
+
+      if (!wasPreviouslyConnected) {
+        console.log(`First-time connection failed for ${connectionId}, not retrying`)
+        return EMPTY
+      }
+
       const currentAttempt = (connection.reconnect?.currentAttempt || 0) + 1
 
       // to see if we should retry
