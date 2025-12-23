@@ -31,6 +31,7 @@ export interface ConnectionState {
   errorMessage: string | null;
   connectionDetails: ConnectionDetails;
   reconnect?: ReconnectState;
+  wasEdit?: boolean;
 }
 
 interface ValkeyConnectionsState {
@@ -58,15 +59,17 @@ const connectionSlice = createSlice({
         password?: string;
         alias?: string;
         isRetry?: boolean;
+        isEdit?: boolean;
       }>,
     ) => {
-      const { connectionId, host, port, username = "", password = "", alias = "", isRetry = false } = action.payload
+      const { connectionId, host, port, username = "", password = "", alias = "", isRetry = false, isEdit = false } = action.payload
       const existingConnection = state.connections[connectionId]
 
       state.connections[connectionId] = {
         status: CONNECTING,
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
         connectionDetails: { host, port, username, password, ...(alias && { alias }), lfuEnabled: false, jsonModuleAvailable: false },
+        wasEdit: isEdit,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
         }),
@@ -87,6 +90,8 @@ const connectionSlice = createSlice({
         connectionState.connectionDetails.lfuEnabled = connectionDetails.lfuEnabled ?? connectionState.connectionDetails.lfuEnabled
         // eslint-disable-next-line max-len
         connectionState.connectionDetails.jsonModuleAvailable = connectionDetails.jsonModuleAvailable ?? connectionState.connectionDetails.lfuEnabled
+        // Clear the wasEdit flag after successful connection
+        delete connectionState.wasEdit
       }
     },
     clusterConnectFulfilled: (
@@ -109,6 +114,8 @@ const connectionSlice = createSlice({
         connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
         // Clear retry state on successful connection
         delete connectionState.reconnect
+        // Clear the wasEdit flag after successful connection
+        delete connectionState.wasEdit
       }
     },
     connectRejected: (state, action) => {
@@ -163,7 +170,7 @@ const connectionSlice = createSlice({
         ...action.payload,
       }
     },
-    deleteConnection: (state, action) => {
+    deleteConnection: (state, action: PayloadAction<{ connectionId: string; silent?: boolean }>) => {
       const { connectionId } = action.payload
       return R.dissocPath(["connections", connectionId], state)
     },
@@ -171,11 +178,11 @@ const connectionSlice = createSlice({
 })
 
 export default connectionSlice.reducer
-export const { 
-  connectPending, 
-  standaloneConnectFulfilled, 
+export const {
+  connectPending,
+  standaloneConnectFulfilled,
   clusterConnectFulfilled,
-  connectRejected, 
+  connectRejected,
   connectionBroken,
   closeConnection,
   updateConnectionDetails,

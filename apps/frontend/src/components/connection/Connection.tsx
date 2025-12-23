@@ -12,7 +12,18 @@ import { ClusterConnectionGroup } from "@/components/connection/ClusterConnectio
 export function Connection() {
   const [showConnectionForm, setShowConnectionForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [editingConnectionId, setEditingConnectionId] = useState<string | undefined>(undefined)
   const connections = useSelector(selectConnections)
+
+  const handleEditConnection = (connectionId: string) => {
+    setEditingConnectionId(connectionId)
+    setShowEditForm(true)
+  }
+
+  const handleCloseEditForm = () => {
+    setShowEditForm(false)
+    setEditingConnectionId(undefined)
+  }
 
   // grouping connections
   const { clusterGroups, standaloneConnections } = Object.entries(connections).reduce<{
@@ -52,7 +63,7 @@ export function Connection() {
       </div>
 
       {showConnectionForm && <ConnectionForm onClose={() => setShowConnectionForm(false)} />}
-      {showEditForm && <EditForm onClose={() => setShowEditForm(false)} />}
+      {showEditForm && <EditForm onClose={handleCloseEditForm} connectionId={editingConnectionId} />}
 
       {R.isEmpty(connections) ? (
         <div className="flex-1 flex items-center justify-center flex-col gap-4">
@@ -80,6 +91,7 @@ export function Connection() {
                     clusterId={clusterId}
                     connections={clusterConnections}
                     key={clusterId}
+                    onEdit={handleEditConnection}
                   />
                 ))}
               </div>
@@ -98,6 +110,7 @@ export function Connection() {
                     connection={connection}
                     connectionId={connectionId}
                     key={connectionId}
+                    onEdit={handleEditConnection}
                   />
                 ))}
               </div>

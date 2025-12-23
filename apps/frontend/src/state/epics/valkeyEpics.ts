@@ -25,6 +25,11 @@ import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogs
 import history from "../../history.ts"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 
+const getCurrentConnections = () => R.pipe(
+  (v: string) => localStorage.getItem(v),
+  (s) => (s === null ? {} : JSON.parse(s)),
+)(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+
 export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
@@ -45,10 +50,7 @@ export const connectionEpic = (store: Store) =>
       ),
       tap(({ payload }) => {
         try {
-          const currentConnections = R.pipe(
-            (v: string) => localStorage.getItem(v),
-            (s) => (s === null ? {} : JSON.parse(s)),
-          )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+          const currentConnections = getCurrentConnections()
 
           // for getting the full connection state from redux (which includes alias)
           const state = store.getState()
@@ -202,21 +204,23 @@ export const autoReconnectEpic = (store: Store) =>
 export const deleteConnectionEpic = () =>
   action$.pipe(
     select(deleteConnection),
-    // TODO: extract reused logic into separate method
-    tap(({ payload: { connectionId } }) => {
+    tap(({ payload: { connectionId, silent = false } }) => {
       try {
-        const currentConnections = R.pipe(
-          (v: string) => localStorage.getItem(v),
-          (s) => (s === null ? {} : JSON.parse(s)),
-        )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+        const currentConnections = getCurrentConnections()
         R.pipe(
           R.dissoc(connectionId),
           JSON.stringify,
           (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
-          () => toast.success("Connection removed successfully!"),
+          () => {
+            if (!silent) {
+              toast.success("Connection removed successfully!")
+            }
+          },
         )(currentConnections)
       } catch (e) {
-        toast.error("Failed to remove connection!")
+        if (!silent) {
+          toast.error("Failed to remove connection!")
+        }
         console.error(e)
       }
     }),
@@ -228,10 +232,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
     select(updateConnectionDetails),
     tap(({ payload: { connectionId } }) => {
       try {
-        const currentConnections = R.pipe(
-          (v: string) => localStorage.getItem(v),
-          (s) => (s === null ? {} : JSON.parse(s)),
-        )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+        const currentConnections = getCurrentConnections()
 
         const state = store.getState()
         const connection = state.valkeyConnection?.connections?.[connectionId]

@@ -10,9 +10,10 @@ import history from "@/history.ts"
 interface ClusterConnectionGroupProps {
   clusterId: string
   connections: Array<{ connectionId: string; connection: ConnectionState }>
+  onEdit?: (connectionId: string) => void
 }
 
-export const ClusterConnectionGroup = ({ clusterId, connections }: ClusterConnectionGroupProps) => {
+export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: ClusterConnectionGroupProps) => {
   const dispatch = useAppDispatch()
   const [isOpen, setIsOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -153,6 +154,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections }: ClusterConnec
                 hideOpenButton={true}
                 isNested={true}
                 key={connectionId}
+                onEdit={onEdit}
               />
             ))}
           </div>
