@@ -8,18 +8,14 @@ import {
   PowerIcon,
   PowerOffIcon,
   Trash2Icon,
-  Server,
-  CheckIcon,
-  XIcon
+  Server
 } from "lucide-react"
 import { Link } from "react-router"
-import { useState } from "react"
 import {
   type ConnectionState,
   connectPending,
   closeConnection,
-  deleteConnection,
-  updateConnectionDetails
+  deleteConnection
 } from "@/state/valkey-features/connection/connectionSlice"
 import { Button } from "@/components/ui/button.tsx"
 import { cn } from "@/lib/utils.ts"
@@ -32,6 +28,7 @@ interface ConnectionEntryProps {
   clusterId?: string
   hideOpenButton?: boolean
   isNested?: boolean
+  onEdit?: (connectionId: string) => void
 }
 
 export const ConnectionEntry = ({
@@ -40,31 +37,16 @@ export const ConnectionEntry = ({
   clusterId,
   hideOpenButton = false,
   isNested = false,
+  onEdit,
 }: ConnectionEntryProps) => {
   const dispatch = useAppDispatch()
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedAlias, setEditedAlias] = useState(connection.connectionDetails.alias || "")
 
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
   const handleConnect = () => dispatch(connectPending({ ...connection.connectionDetails, connectionId }))
   const handleDelete = () => dispatch(deleteConnection({ connectionId }))
 
   const handleEdit = () => {
-    setEditedAlias(connection.connectionDetails.alias || "")
-    setIsEditing(true)
-  }
-
-  const handleSave = () => {
-    dispatch(updateConnectionDetails({
-      connectionId,
-      alias: editedAlias.trim() || undefined,
-    }))
-    setIsEditing(false)
-  }
-
-  const handleCancel = () => {
-    setEditedAlias(connection.connectionDetails.alias || "")
-    setIsEditing(false)
+    onEdit?.(connectionId)
   }
 
   const isConnected = connection.status === CONNECTED
@@ -152,6 +134,9 @@ export const ConnectionEntry = ({
                 <PowerIcon size={16} />
               </Button>
             )}
+            <Button onClick={handleEdit} size="sm" variant="ghost">
+              <PencilIcon size={16} />
+            </Button>
             <Button onClick={handleDelete} size="sm" variant="destructiveGhost">
               <Trash2Icon size={16} />
             </Button>
@@ -171,36 +156,16 @@ export const ConnectionEntry = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            {isEditing ? (
-              <div className="flex items-center gap-2 mb-1">
-                <input
-                  autoFocus
-                  className="px-2 py-1 text-sm font-mono border dark:border-tw-dark-border rounded
-                    bg-white dark:bg-tw-primary/20 focus:outline-none focus:ring-2 focus:ring-tw-primary"
-                  onChange={(e) => setEditedAlias(e.target.value)}
-                  placeholder={label}
-                  type="text"
-                  value={editedAlias}
-                />
-                <Button onClick={handleSave} size="sm" title="Save" variant="secondary">
-                  <CheckIcon className="text-tw-primary" size={16} />
-                </Button>
-                <Button onClick={handleCancel} size="sm" title="Cancel" variant="destructiveGhost">
-                  <XIcon className="" size={16} />
-                </Button>
-              </div>
-            ) : (
-              <Button
-                asChild
-                className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm mb-1 truncate")}
-                variant="link"
-              >
-                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
-                  {aliasLabel}
-                </Link>
-              </Button>
-            )}
-            {!isEditing && connection.connectionDetails.alias && (
+            <Button
+              asChild
+              className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm mb-1 truncate")}
+              variant="link"
+            >
+              <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                {aliasLabel}
+              </Link>
+            </Button>
+            {connection.connectionDetails.alias && (
               <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50">
                 ({label})
               </span>)}
@@ -229,10 +194,7 @@ export const ConnectionEntry = ({
                   Open
                 </button>
               )}
-              <Button disabled={isEditing} onClick={handleEdit} size="sm" variant="ghost">
-                <PencilIcon size={16} />
-              </Button>
-              <Button disabled={isEditing} onClick={handleDisconnect} size="sm" variant="ghost">
+              <Button disabled={false} onClick={handleDisconnect} size="sm" variant="ghost">
                 <PowerOffIcon size={16} />
               </Button>
             </>
@@ -242,7 +204,10 @@ export const ConnectionEntry = ({
               <PowerIcon size={16} />
             </Button>
           )}
-          <Button disabled={isEditing} onClick={handleDelete} size="sm" variant="destructiveGhost">
+          <Button disabled={false} onClick={handleEdit} size="sm" variant="ghost">
+            <PencilIcon size={16} />
+          </Button>
+          <Button disabled={false} onClick={handleDelete} size="sm" variant="destructiveGhost">
             <Trash2Icon size={16} />
           </Button>
         </div>

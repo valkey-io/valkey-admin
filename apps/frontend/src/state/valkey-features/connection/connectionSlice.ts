@@ -47,6 +47,7 @@ export interface ConnectionState {
   connectionDetails: ConnectionDetails;
   reconnect?: ReconnectState;
   connectionHistory?: ConnectionHistoryEntry[];
+  wasEdit?: boolean;
 }
 
 interface ValkeyConnectionsState {
@@ -74,9 +75,10 @@ const connectionSlice = createSlice({
         password?: string;
         alias?: string;
         isRetry?: boolean;
+        isEdit?: boolean;
       }>,
     ) => {
-      const { connectionId, host, port, username = "", password = "", alias = "", isRetry = false } = action.payload
+      const { connectionId, host, port, username = "", password = "", alias = "", isRetry = false, isEdit = false } = action.payload
       const existingConnection = state.connections[connectionId]
 
       state.connections[connectionId] = {
@@ -92,6 +94,7 @@ const connectionSlice = createSlice({
           jsonModuleAvailable: false,
         },
 
+        wasEdit: isEdit,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
         }),
@@ -123,6 +126,8 @@ const connectionSlice = createSlice({
           timestamp: Date.now(),
           event: CONNECTED,
         })
+        // Clear the wasEdit flag after successful connection
+        delete connectionState.wasEdit
       }
     },
     clusterConnectFulfilled: (
@@ -145,7 +150,7 @@ const connectionSlice = createSlice({
         connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
         connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
         connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
-        
+
         // Clear retry state on successful connection
         delete connectionState.reconnect
 
@@ -155,6 +160,8 @@ const connectionSlice = createSlice({
           timestamp: Date.now(),
           event: CONNECTED,
         })
+        // Clear the wasEdit flag after successful connection
+        delete connectionState.wasEdit
       }
     },
     connectRejected: (state, action) => {
@@ -209,7 +216,7 @@ const connectionSlice = createSlice({
         ...action.payload,
       }
     },
-    deleteConnection: (state, action) => {
+    deleteConnection: (state, action: PayloadAction<{ connectionId: string; silent?: boolean }>) => {
       const { connectionId } = action.payload
       return R.dissocPath(["connections", connectionId], state)
     },
