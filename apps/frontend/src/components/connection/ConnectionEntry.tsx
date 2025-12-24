@@ -76,6 +76,8 @@ export const ConnectionEntry = ({
     : `${connection.connectionDetails.host}:${connection.connectionDetails.port}`
   const aliasLabel = connection.connectionDetails.alias || label
 
+  const lastConnectionTime = connection.connectionHistory?.at(-1) ?? null
+
   const StatusBadge = () => {
     if (isConnected) {
       return (
@@ -118,18 +120,23 @@ export const ConnectionEntry = ({
     return (
       <div className="p-3 bg-white dark:bg-tw-dark-primary rounded border dark:border-tw-dark-border">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <StatusBadge />
-            <Button
-              asChild
-              className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm truncate")}
-              variant="link"
-            >
-              <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
-                {label}
-              </Link>
-            </Button>
-          </div>
+          <div>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <StatusBadge />
+              <Button
+                asChild
+                className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm truncate")}
+                variant="link"
+              >
+                <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                  {label}
+                </Link>
+              </Button>
+            </div>{lastConnectionTime && lastConnectionTime.event === CONNECTED && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
+              </span>
+            )}</div>
 
           {/* action buttons */}
           <div className="flex items-center gap-1">
@@ -197,8 +204,13 @@ export const ConnectionEntry = ({
               <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50">
                 ({label})
               </span>)}
-            <div>
+            <div className="flex items-center gap-3">
               <StatusBadge />
+              {lastConnectionTime && lastConnectionTime.event === CONNECTED && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
+                </span>
+              )}
             </div>
           </div>
         </div>

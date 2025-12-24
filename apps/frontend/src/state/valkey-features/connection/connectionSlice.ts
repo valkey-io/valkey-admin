@@ -26,11 +26,17 @@ interface ReconnectState {
   nextRetryDelay?: number;
 }
 
+interface ConnectionHistoryEntry {
+  timestamp: number;
+  event: "Connected";
+}
+
 export interface ConnectionState {
   status: ConnectionStatus;
   errorMessage: string | null;
   connectionDetails: ConnectionDetails;
   reconnect?: ReconnectState;
+  connectionHistory?: ConnectionHistoryEntry[];
 }
 
 interface ValkeyConnectionsState {
@@ -70,6 +76,10 @@ const connectionSlice = createSlice({
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
         }),
+        // for preserving connection history
+        ...(existingConnection?.connectionHistory && {
+          connectionHistory: existingConnection.connectionHistory,
+        }),
       }
     },
     standaloneConnectFulfilled: (
@@ -87,6 +97,13 @@ const connectionSlice = createSlice({
         connectionState.connectionDetails.lfuEnabled = connectionDetails.lfuEnabled ?? connectionState.connectionDetails.lfuEnabled
         // eslint-disable-next-line max-len
         connectionState.connectionDetails.jsonModuleAvailable = connectionDetails.jsonModuleAvailable ?? connectionState.connectionDetails.lfuEnabled
+
+        // keep track of connection history
+        connectionState.connectionHistory ??= []
+        connectionState.connectionHistory.push({
+          timestamp: Date.now(),
+          event: CONNECTED,
+        })
       }
     },
     clusterConnectFulfilled: (
@@ -109,6 +126,13 @@ const connectionSlice = createSlice({
         connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
         // Clear retry state on successful connection
         delete connectionState.reconnect
+
+        // keep track of connection history
+        connectionState.connectionHistory ??= []
+        connectionState.connectionHistory.push({
+          timestamp: Date.now(),
+          event: CONNECTED,
+        })
       }
     },
     connectRejected: (state, action) => {
@@ -171,11 +195,11 @@ const connectionSlice = createSlice({
 })
 
 export default connectionSlice.reducer
-export const { 
-  connectPending, 
-  standaloneConnectFulfilled, 
+export const {
+  connectPending,
+  standaloneConnectFulfilled,
   clusterConnectFulfilled,
-  connectRejected, 
+  connectRejected,
   connectionBroken,
   closeConnection,
   updateConnectionDetails,
