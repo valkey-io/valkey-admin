@@ -28,7 +28,7 @@ interface ReconnectState {
 
 interface ConnectionHistoryEntry {
   timestamp: number;
-  event: 'connected';
+  event: "connected";
 }
 
 export interface ConnectionState {
@@ -104,7 +104,7 @@ const connectionSlice = createSlice({
         }
         connectionState.connectionHistory.push({
           timestamp: Date.now(),
-          event: 'connected',
+          event: "connected",
         })
       }
     },
@@ -135,7 +135,7 @@ const connectionSlice = createSlice({
         }
         connectionState.connectionHistory.push({
           timestamp: Date.now(),
-          event: 'connected',
+          event: "connected",
         })
       }
     },
