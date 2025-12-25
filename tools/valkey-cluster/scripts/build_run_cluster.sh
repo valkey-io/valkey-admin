@@ -16,13 +16,26 @@ if [ ! -f "$ENV_FILE" ]; then
   cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
 fi
 
-ANNOUNCE_IP=$(ipconfig getifaddr en0)
+# Detect OS and get IP address accordingly
+if [ "$(uname)" = "Darwin" ]; then
+  # macOS
+  ANNOUNCE_IP=$(ipconfig getifaddr en0)
+else
+  # Linux - get the primary IP address using ip command
+  ANNOUNCE_IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
+fi
+
 if [ -z "$ANNOUNCE_IP" ]; then
-  echo "Error: Could not get IP address for en0. Please ensure 'en0' is a valid network interface." >&2
+  echo "Error: Could not get IP address. Please check your network configuration." >&2
   exit 1
 fi
 
-sed -i '' "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+# Detect OS for sed syntax
+if [ "$(uname)" = "Darwin" ]; then
+  sed -i '' "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+else
+  sed -i "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+fi
 echo "Set ANNOUNCE_HOST to $ANNOUNCE_IP in $ENV_FILE"
 
 cd "$TOOLS_DIR"
