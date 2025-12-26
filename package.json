@@ -1,8 +1,13 @@
 {
   "name": "valkey-admin",
   "productName": "Valkey Admin",
+  "description": "A modern admin interface for Valkey databases",
   "private": true,
   "version": "0.0.0",
+  "author": {
+    "name": "Valkey Admin Team",
+    "email": "admin@valkey.io"
+  },
   "workspaces": [
     "apps/frontend",
     "apps/server",
@@ -35,8 +40,10 @@
     "build:frontend": "npm --workspace apps/frontend run build",
     "build:metrics": "npm --workspace apps/metrics run build",
     "build:all": "npm run build:server && npm run build:frontend && npm run build:metrics",
-    "package:mac": "npm run build:all && electron-builder --mac --arm64",
+    "package:mac": "npm run build:all && npx electron-builder --mac --arm64",
     "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
+    "package:linux": "npm run build:all && npx electron-builder --linux --x64",
+    "package:linux:nosign": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
     "lint": "eslint ."
   },
   "build": {
@@ -78,6 +85,10 @@
         "to": "node_modules/@valkey/valkey-glide-darwin-arm64"
       },
       {
+        "from": "node_modules/@valkey/valkey-glide-linux-x64",
+        "to": "node_modules/@valkey/valkey-glide-linux-x64"
+      },
+      {
         "from": "node_modules/long",
         "to": "node_modules/long"
       },
@@ -101,6 +112,13 @@
       "gatekeeperAssess": false,
       "entitlements": "mac_build/entitlements.plist",
       "entitlementsInherit": "mac_build/entitlements.plist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
     },
     "afterSign": "mac_build/notarize.js"
   },

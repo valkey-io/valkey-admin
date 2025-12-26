@@ -13,7 +13,7 @@ export default defineConfig({
     },
 
     rollupOptions: {
-      external: ["@valkey/valkey-glide", "ws", "node:dns/promises", "node:dns", "dns"], // Externalize native modules and ws
+      external: ["@valkey/valkey-glide", "ws", "node:dns/promises", "node:dns", "dns", "p-limit"],
     },
 
     emptyOutDir: false,

@@ -1,8 +1,9 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, catchError, filter, take } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
+import { sanitizeUrl } from "@common/src/url-utils"
 import { getSocket } from "./wsEpics"
 import {
   standaloneConnectFulfilled,
@@ -76,6 +77,30 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+      }),
+      ignoreElements(),
+    ),
+
+    action$.pipe(
+      select(wsConnectFulfilled),
+      take(1),
+      tap(() => {
+        const host = import.meta.env.VITE_LOCAL_VALKEY_HOST
+        const port = import.meta.env.VITE_LOCAL_VALKEY_PORT
+        const alias = import.meta.env.VITE_LOCAL_VALKEY_NAME
+
+        if (host && port) {
+          const connectionId = sanitizeUrl(`${host}-${port}`)
+
+          store.dispatch(connectPending({
+            host,
+            port: String(port),
+            username: "",
+            password: "",
+            alias: alias || "Local Valkey Cluster",
+            connectionId,
+          }))
+        }
       }),
       ignoreElements(),
     ),
@@ -257,11 +282,11 @@ export const setDataEpic = () =>
       const socket = getSocket()
 
       const { clusterId, connectionId } = action.payload
-    
+
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
       }
-      
+
       socket.next({ type: setData.type, payload: action.payload })
       const dashboardPath = clusterId
         ? `/${clusterId}/${connectionId}/dashboard`
@@ -271,7 +296,7 @@ export const setDataEpic = () =>
     }),
   )
 
-export const getHotKeysEpic = (store: Store) => 
+export const getHotKeysEpic = (store: Store) =>
   action$.pipe(
     select(hotKeysRequested),
     tap((action) => {
@@ -292,7 +317,7 @@ export const getHotKeysEpic = (store: Store) =>
         type: action.type,
         payload: { connectionIds, clusterId, lfuEnabled },
       })
-      
+
     }),
   )
 

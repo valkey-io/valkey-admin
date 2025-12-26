@@ -1,6 +1,7 @@
 services:
     valkey-7001:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7001
@@ -15,6 +16,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -32,6 +34,7 @@ services:
 
     valkey-7002:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7002
@@ -46,6 +49,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -63,6 +67,7 @@ services:
 
     valkey-7003:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7003
@@ -77,6 +82,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -94,6 +100,7 @@ services:
 
     valkey-7004:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7004
@@ -108,6 +115,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -125,6 +133,7 @@ services:
 
     valkey-7005:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7005
@@ -139,6 +148,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -156,6 +166,7 @@ services:
 
     valkey-7006:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         command: >
             valkey-server
             --port 7006
@@ -170,6 +181,7 @@ services:
             --appendonly no
             --protected-mode no
             --loadmodule /opt/modules/rejson.so
+            --ignore-warnings ARM64-COW-BUG
         environment:
             - ANNOUNCE_HOST=${ANNOUNCE_HOST}
         healthcheck:
@@ -187,6 +199,7 @@ services:
 
     cluster-init:
         image: valkey/valkey:latest
+        platform: ${DOCKER_PLATFORM:-linux/amd64}
         depends_on:
             valkey-7001: { condition: service_healthy }
             valkey-7002: { condition: service_healthy }

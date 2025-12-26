@@ -16,14 +16,40 @@ if [ ! -f "$ENV_FILE" ]; then
   cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
 fi
 
-ANNOUNCE_IP=$(ipconfig getifaddr en0)
-if [ -z "$ANNOUNCE_IP" ]; then
-  echo "Error: Could not get IP address for en0. Please ensure 'en0' is a valid network interface." >&2
-  exit 1
+# Get IP address - works on both macOS and Linux/WSL
+if command -v ipconfig >/dev/null 2>&1; then
+  # macOS
+  ANNOUNCE_IP=$(ipconfig getifaddr en0)
+else
+  # Linux/WSL - get the default route interface IP
+  ANNOUNCE_IP=$(ip route get 1.1.1.1 | grep -oP 'src \K\S+' 2>/dev/null || echo "127.0.0.1")
 fi
 
-sed -i '' "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+if [ -z "$ANNOUNCE_IP" ]; then
+  echo "Error: Could not get IP address. Using localhost as fallback." >&2
+  ANNOUNCE_IP="127.0.0.1"
+fi
+
+# Detect architecture and set platform
+ARCH=$(uname -m)
+# Force ARM64 platform since rejson.so is ARM64 and works with emulation
+DOCKER_PLATFORM="linux/arm64"
+
+echo "Detected architecture: $ARCH, using Docker platform: $DOCKER_PLATFORM (forced for rejson.so compatibility)"
+
+# Use sed without the '' flag for Linux compatibility
+if [ "$(uname)" = "Darwin" ]; then
+  sed -i '' "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+  sed -i '' "s|^DOCKER_PLATFORM = .*|DOCKER_PLATFORM = $DOCKER_PLATFORM|" "$ENV_FILE"
+else
+  sed -i "s/^ANNOUNCE_HOST = .*/ANNOUNCE_HOST = $ANNOUNCE_IP/" "$ENV_FILE"
+  sed -i "s|^DOCKER_PLATFORM = .*|DOCKER_PLATFORM = $DOCKER_PLATFORM|" "$ENV_FILE"
+fi
 echo "Set ANNOUNCE_HOST to $ANNOUNCE_IP in $ENV_FILE"
+echo "Set DOCKER_PLATFORM to $DOCKER_PLATFORM in $ENV_FILE"
 
 cd "$TOOLS_DIR"
-docker compose --profile populate up --build
+echo "Starting Valkey cluster..."
+echo "Keep this terminal open to monitor cluster logs"
+echo ""
+DOCKER_PLATFORM="$DOCKER_PLATFORM" docker compose --profile populate up --build

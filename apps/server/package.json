@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@valkey/valkey-glide": "^2.0.1",
+    "p-limit": "^6.1.0",
     "server": "file:",
     "ws": "^8.18.3"
   },

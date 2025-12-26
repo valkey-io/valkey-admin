@@ -25,7 +25,7 @@ export function ValkeyReconnect() {
       sessionStorage.removeItem(`valkey-previous-${id}`)
       navigate(redirectTo, { replace: true })
     }
-  }, [status, navigate, id])
+  }, [status, navigate, id, clusterId])
 
   const handleManualReconnect = () => {
     if (!connection) return

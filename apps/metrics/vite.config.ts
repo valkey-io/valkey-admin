@@ -19,8 +19,8 @@ export default defineConfig({
     },
 
     rollupOptions: {
-      // No longer externalizing the client, it will be bundled.
-      external: [],
+      // No longer externalizing the client, it will be bundled
+      external: ["express"],
     },
 
     emptyOutDir: false,
