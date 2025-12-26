@@ -38,6 +38,7 @@ const getConnectionIds = (store: Store, action) => {
     : [connectionId]
 
 }
+
 const getCurrentConnections = () => R.pipe(
   (v: string) => localStorage.getItem(v),
   (s) => (s === null ? {} : JSON.parse(s)),

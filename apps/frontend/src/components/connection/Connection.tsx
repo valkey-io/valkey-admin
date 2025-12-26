@@ -70,7 +70,7 @@ export function Connection() {
       </div>
 
       {showConnectionForm && <ConnectionForm onClose={() => setShowConnectionForm(false)} />}
-      {showEditForm && <EditForm onClose={handleCloseEditForm} connectionId={editingConnectionId} />}
+      {showEditForm && <EditForm connectionId={editingConnectionId} onClose={handleCloseEditForm} />}
 
       {!hasConnectionsWithHistory ? (
         <div className="flex-1 flex items-center justify-center flex-col gap-4">

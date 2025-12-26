@@ -1,6 +1,7 @@
 import { X } from "lucide-react"
 import { type FormEvent, useState, useEffect } from "react"
 import { useSelector } from "react-redux"
+import { sanitizeUrl } from "@common/src/url-utils.ts"
 import {
   updateConnectionDetails,
   connectPending,
@@ -9,7 +10,6 @@ import {
 } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
-import { sanitizeUrl } from "@common/src/url-utils.ts"
 
 type EditFormProps = {
   onClose: () => void;
@@ -95,13 +95,13 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
           <div>
             <label className="block mb-1 text-sm">Host</label>
             <input
+              autoFocus
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
               onChange={(e) => setHost(e.target.value)}
               placeholder="localhost"
               required
               type="text"
               value={host}
-              autoFocus
             />
           </div>
           <div>
