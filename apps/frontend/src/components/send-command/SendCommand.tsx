@@ -104,7 +104,7 @@ export function SendCommand() {
           />
           <div
             className="flex-1 shrink whitespace-pre-wrap break-words bg-muted rounded p-2 font-mono gap-1 relative border
-            dark:border-tw-dark-border">
+            dark:border-tw-dark-border overflow-y-auto">
             {
               allCommands
                 .map((c, i) => ({ ...c, i })) // moving index inside objects because filter will ruin the sequence
