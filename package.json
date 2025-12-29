@@ -121,8 +121,5 @@
       "category": "Development"
     },
     "afterSign": "mac_build/notarize.js"
-  },
-  "dependencies": {
-    "heap-js": "^2.7.1"
   }
 }
