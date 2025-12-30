@@ -74,6 +74,8 @@ export const VALKEY = {
   CONFIG: makeNamespace("config", {
     setConfig: "setConfig",
     updateConfig: "updateConfig",
+    updateConfigFulfilled: "updateConfigFulfilled",
+    updateConfigFailed: "updateConfigFailed",
   }),
 } as const
 

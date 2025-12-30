@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import express from "express"
 import { createClient } from "@valkey/client"
-import { loadConfig } from "./config.js"
+import { getConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors } from "./init-collectors.js"
 import { getCommandLogs } from "./handlers/commandlog-handler.js"
@@ -10,7 +10,7 @@ import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 
 async function main() {
-  const cfg = loadConfig()
+  const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
 
@@ -76,6 +76,19 @@ async function main() {
       return res.json({ hotKeys })
     } 
     else useMonitor(req, res, cfg, client)
+  })
+
+  app.post("/update-config", async(req, res) => {
+    try {
+      const result = updateConfig(req.body)
+      return res.json(result)
+    }
+    catch (error) {
+      return res.json( {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+        data: error }) 
+    }
   })
 
   // Setting port to 0 means Express will dynamically find a port

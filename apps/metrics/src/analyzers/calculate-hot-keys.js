@@ -22,6 +22,7 @@ export const calculateHotKeysFromMonitor = (rows) => {
   )(rows)
 }
 
+// Must have maxmemory-policy set to lfu*
 export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
   const hotSlots = await getHotSlots(client)
 

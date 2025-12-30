@@ -22,8 +22,8 @@ import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
-import { setConfig } from "../valkey-features/config/configSlice.ts"
-import type { Action, PayloadAction, Store } from "@reduxjs/toolkit"
+import { setConfig, updateConfig } from "../valkey-features/config/configSlice.ts"
+import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
 export const connectionEpic = (store: Store) =>
   merge(
@@ -304,4 +304,21 @@ export const getCommandLogsEpic = (store: Store) =>
       }
     }),
     ignoreElements(),
+  )
+
+export const updateConfigEpic = (store: Store) => 
+  action$.pipe(
+    select(updateConfig),
+    tap((action) => {
+      const { clusterId, connectionId, config } = action.payload
+      const socket = getSocket()
+      const state = store.getState()
+      const clusters = state.valkeyCluster.clusters
+      
+      const connectionIds =
+        clusterId !== undefined
+          ? Object.keys(clusters[clusterId].clusterNodes)
+          : [connectionId]
+      socket.next({ type: action.type, payload: { connectionIds, config } })
+    }),
   )

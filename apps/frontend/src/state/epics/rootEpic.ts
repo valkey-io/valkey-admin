@@ -9,7 +9,8 @@ import {
   autoReconnectEpic,
   valkeyRetryEpic,
   getHotKeysEpic,
-  getCommandLogsEpic
+  getCommandLogsEpic,
+  updateConfigEpic
 } from "./valkeyEpics"
 import { keyBrowserEpic } from "./keyBrowserEpic"
 import type { Store } from "@reduxjs/toolkit"
@@ -26,6 +27,7 @@ export const registerEpics = (store: Store) => {
     setDataEpic(store),
     getHotKeysEpic(store),
     getCommandLogsEpic(store),
+    updateConfigEpic(),
     keyBrowserEpic(),
   ).subscribe({
     error: (err) => console.error("Epic error:", err),

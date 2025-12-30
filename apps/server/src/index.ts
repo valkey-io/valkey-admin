@@ -78,6 +78,7 @@ wss.on("connection", (ws: WebSocket) => {
       [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
       [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
       [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
+      [VALKEY.CONFIG.updateConfig]: updateConfig, 
     }
 
     const handler = handlers[action!.type] ?? unknownHandler
