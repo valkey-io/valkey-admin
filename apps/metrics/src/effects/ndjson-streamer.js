@@ -12,18 +12,38 @@ const fileFor = (prefix, date) => {
   return path.join(dataDir, `${prefix}_${dayStr(date)}.ndjson`)
 }
 
-export async function streamNdjson(prefix,{ filterFn = () => true, limit = Infinity } = {}) {
+// streamNdjson is a transducer-inspired streaming fold, which means you can apply filter, map, reduce to the stream
+// without creating intermediate arrays, so it's faster and more memory-efficient than chaining these functions.
+// I.e. if you need to apply transformations to the stream you're reading — supply corresponding functions as arguments
+// instead of chaining calls like (await streamNdjson).filter.map.reduce
+// If you don't supply filter, map, reduce — the default behavior is to return an array of objects (see default args).
+//
+// If you pass { reducer, seed }, it will fold matching objects into an accumulator.
+// The `finalize` function runs after reduction to flush the last timestamp bucket.
+// Without it, the final delta cannot be computed as it requires comparing the last bucket against the one before last.
+export async function streamNdjson(
+  prefix,
+  {
+    filterFn = () => true,
+    finalize = (acc) => acc,
+    limit = Infinity,
+    mapFn,
+    reducer = (acc, curr) => { acc.push(curr); return acc },
+    seed = [],
+  } = {},
+) {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
 
   const files = [fileFor(prefix, yesterday), fileFor(prefix, today)]
 
-  const results = []
+  let acc = seed
   let count = 0
 
   for (const file of files) {
     if (!fs.existsSync(file)) continue
+
     const fileStream = fs.createReadStream(file, { encoding: "utf8" })
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity })
 
@@ -33,23 +53,24 @@ export async function streamNdjson(prefix,{ filterFn = () => true, limit = Infin
         fileStream.destroy()
         break
       }
+
       if (!line.trim()) continue
+
       try {
         const obj = JSON.parse(line)
-        if (filterFn(obj)){
-          results.push(obj)
-          count++
-        }  
-       
+        if (!filterFn(obj)) continue
+
+        acc = reducer(acc, mapFn ? mapFn(obj) : obj)
+        count++
       } catch {
         // ignore bad lines
       }
     }
   }
 
-  return results // JSON array of all objects
+  return finalize(acc)
 }
 
 export const [memory_stats, info_cpu, slowlog_len, commandlog_slow, commandlog_large_reply, commandlog_large_request, monitor] =
-  // eslint-disable-next-line max-len
-  ["memory", "cpu", "slowlog_len", COMMANDLOG_SLOW, COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, MONITOR].map((filePrefix) => (options = {}) => streamNdjson(filePrefix, options))
+  ["memory", "cpu", "slowlog_len", COMMANDLOG_SLOW, COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, MONITOR]
+    .map((filePrefix) => (options = {}) => streamNdjson(filePrefix, options))

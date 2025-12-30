@@ -8,6 +8,7 @@ import { getCommandLogs } from "./handlers/commandlog-handler.js"
 import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
+import { cpuFilter, cpuFinalize, cpuReducer, cpuSeed } from "./analyzers/calculate-cpu-usage.js"
 
 async function main() {
   const cfg = loadConfig()
@@ -42,10 +43,13 @@ async function main() {
 
   app.get("/cpu", async (_req, res) => {
     try {
-      const rows = await Streamer.info_cpu({
-        filterFn: ({ metric }) => metric === "used_cpu_sys" || metric === "used_cpu_user",
+      const series = await Streamer.info_cpu({
+        filterFn: cpuFilter,
+        reducer: cpuReducer,
+        seed: cpuSeed,
+        finalize: cpuFinalize,
       })
-      res.json({ rows })
+      res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })
     }
