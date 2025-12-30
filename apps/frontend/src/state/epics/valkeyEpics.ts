@@ -313,7 +313,7 @@ export const getHotKeysEpic = (store: Store) =>
   action$.pipe(
     select(hotKeysRequested),
     tap((action) => {
-      const { clusterId, connectionId } = action.payload
+      const { connectionId } = action.payload
       const socket = getSocket()
       const connectionIds = getConnectionIds(store, action)
 

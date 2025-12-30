@@ -82,7 +82,16 @@ const connectionSlice = createSlice({
       state.connections[connectionId] = {
         status: CONNECTING,
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
-        connectionDetails: { host, port, username, password, ...(alias && { alias }), clusterSlotStatsEnabled: false, jsonModuleAvailable: false },
+        connectionDetails: {
+          host,
+          port,
+          username,
+          password,
+          ...(alias && { alias }),
+          clusterSlotStatsEnabled: false,
+          jsonModuleAvailable: false,
+        },
+
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
         }),
