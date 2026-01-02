@@ -1,10 +1,9 @@
 {
   "name": "valkey-admin",
   "productName": "Valkey Admin",
-  "description": "A modern admin interface for Valkey databases",
+  "description": "A modern admin interface for Valkey",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "author": {
     "name": "Valkey Admin Team",
     "email": "admin@valkey.io"
