@@ -24,11 +24,13 @@ function startServer() {
   }
 }
 
-function startMetricsForClusterNodes(clusterNodes) {
+function startMetricsForClusterNodes(clusterNodes, credentials) {
   Object.values(clusterNodes).forEach((node) => {
     const connectionDetails = {
       host: node.host,
       port: node.port,
+      username: credentials?.username,
+      password: credentials?.password,
     }
         
     const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
@@ -44,6 +46,9 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
   let metricsServerPath
   let configPath
 
+  const { host, port, username, password } = serverConnectionDetails
+  const credentials = password ? `${username}:${password}@` : ""
+
   if (app.isPackaged) {
     metricsServerPath = path.join(process.resourcesPath, "server-metrics.js")
     configPath = path.join(process.resourcesPath, "config.yml") // Path for production
@@ -52,14 +57,12 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
     configPath = path.join(__dirname, "../../metrics/config.yml") // Path for development
   }
 
-  console.log(`Starting metrics server for connection ${serverConnectionId}...`)
-
   const metricsProcess = fork(metricsServerPath, [], {
     env: {
       ...process.env,
       PORT: 0,
       DATA_DIR: dataDir,
-      VALKEY_URL: `valkey://${serverConnectionDetails.host}:${serverConnectionDetails.port}`,
+      VALKEY_URL: `valkey://${credentials}${host}:${port}`,
       CONFIG_PATH: configPath, // Explicitly provide the config path
     },
   })
@@ -143,7 +146,7 @@ app.whenReady().then(() => {
           startMetrics(message.payload.connectionId, message.payload.connectionDetails)
           break
         case "valkeyConnection/clusterConnectFulfilled":
-          startMetricsForClusterNodes(message.payload.clusterNodes )
+          startMetricsForClusterNodes(message.payload.clusterNodes, message.payload.credentials )
           break
         default:
           try {

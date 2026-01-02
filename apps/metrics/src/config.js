@@ -6,7 +6,7 @@ import YAML from "yaml"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const config = null
+let config = null
 const loadConfig = () => {
   const cfgPath = process.env.CONFIG_PATH || path.join(__dirname, "..", "config.yml")
   const text = fs.readFileSync(cfgPath, "utf8")
@@ -44,6 +44,16 @@ const loadConfig = () => {
 }
 const getConfig = () => config ? config : loadConfig() 
 
+const setConfig = (newConfig) => {
+  const cfgPath = getConfigPath()
+  const tmpPath = `${cfgPath}.tmp`
+
+  fs.writeFileSync(tmpPath, YAML.stringify(newConfig), "utf8")
+  fs.renameSync(tmpPath, cfgPath)
+
+  config = loadConfig()
+}
+
 const updateConfig = (partialConfig) => {
   const validationError = validatePartialConfig(partialConfig)
 
@@ -56,7 +66,8 @@ const updateConfig = (partialConfig) => {
     }
   }
 
-  mergeDeepLeft(partialConfig, getConfig())
+  const newConfig = mergeDeepLeft(partialConfig, getConfig())
+  setConfig(newConfig)
 
   return {
     success: true,

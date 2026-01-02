@@ -9,6 +9,7 @@ release/
 # Logs
 *.log
 npm-debug.log*
+*.rdb
 
 # Runtime data
 pids

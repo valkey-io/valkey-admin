@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "../../../common/src/constants"
@@ -12,6 +12,8 @@ export async function connectToValkey(
   payload: {
     host: string;
     port: number;
+    username: string,
+    password: string,
     connectionId: string;
   },
   clients: Map<string, GlideClient | GlideClusterClient>,
@@ -23,11 +25,18 @@ export async function connectToValkey(
       port: payload.port,
     },
   ]
+  const credentials: ServerCredentials | undefined = 
+    payload.password ? {
+      username: payload.username,
+      password: payload.password,
+    } : undefined
+
   try {
     // If we've connected to the same host using IP addr or vice versa, return
     returnIfDuplicateConnection(payload, clients, ws)
     const standaloneClient = await GlideClient.createClient({
       addresses,
+      credentials,
       requestTimeout: 5000,
       clientName: "test_client",
     })
@@ -38,7 +47,7 @@ export async function connectToValkey(
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (await belongsToCluster(standaloneClient)) {
-      return connectToCluster(standaloneClient, ws, clients, payload, addresses, keyEvictionPolicy, jsonModuleAvailable)
+      return connectToCluster(standaloneClient, ws, clients, payload, addresses, credentials, keyEvictionPolicy, jsonModuleAvailable)
     }
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
@@ -47,6 +56,8 @@ export async function connectToValkey(
         connectionDetails: {
           host: payload.host,
           port: payload.port,
+          username: payload.username,
+          password: payload.password,
           keyEvictionPolicy,
           jsonModuleAvailable,
         },
@@ -137,6 +148,7 @@ async function connectToCluster(
   clients: Map<string, GlideClient | GlideClusterClient>,
   payload: { host: string; port: number; connectionId: string;},
   addresses: { host: string, port: number | undefined }[],
+  credentials: ServerCredentials | undefined,
   keyEvictionPolicy: KeyEvictionPolicy,
   jsonModuleAvailable: boolean,
 ) {
@@ -154,6 +166,7 @@ async function connectToCluster(
   )
   const clusterClient = await GlideClusterClient.createClient({
     addresses,
+    credentials,
     requestTimeout: 5000,
     clientName: "cluster_client",
   })
@@ -173,6 +186,7 @@ async function connectToCluster(
       clusterNodes,
       clusterId,
       address: addresses[0],
+      credentials,
       keyEvictionPolicy,
       clusterSlotStatsEnabled,
       jsonModuleAvailable,

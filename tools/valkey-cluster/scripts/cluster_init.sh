@@ -4,6 +4,8 @@ set -eu
 # Talk to nodes via Docker DNS names on the internal network.
 FIRST_HOST=valkey-7001
 FIRST_PORT=7001
+VALKEY_USER=${VALKEY_USER:-appuser}
+VALKEY_PASS=${VALKEY_PASS:-admin}
 
 NODES="
 valkey-7001:7001
@@ -87,6 +89,8 @@ while [ "$i" -lt 120 ]; do
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory 100mb
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory-policy allkeys-lfu
       valkey-cli -h "$host" -p "$port" CONFIG SET cluster-slot-stats-enabled yes
+      valkey-cli -h "$host" -p "$port" ACL SETUSER $VALKEY_USER on \>$VALKEY_PASS ~* +@all
+      
     done
     echo "✅ LFU eviction configured."
     exit 0

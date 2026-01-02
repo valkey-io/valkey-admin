@@ -110,7 +110,7 @@ export const connectionEpic = (store: Store) =>
             port: String(port),
             username: "",
             password: "",
-            alias: alias || "Local Valkey Cluster",
+            alias: alias || "Valkey Cluster",
             connectionId,
           }))
         }

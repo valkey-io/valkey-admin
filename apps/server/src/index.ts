@@ -55,7 +55,6 @@ wss.on("connection", (ws: WebSocket) => {
   const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
 
   ws.on("message", async (message) => {
-    console.log("Received message:", message.toString())
     let action: WsActionMessage | undefined
     let connectionId: string | undefined
 
