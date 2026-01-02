@@ -72,7 +72,7 @@ describe("connectToValkey", () => {
       host: "127.0.0.1",
       port: 6379,
       connectionId: "conn-123",
-      ...payloadOverrides, // 🔑 variation point
+      ...payloadOverrides, 
     }
 
     try {
@@ -153,7 +153,7 @@ describe("connectToValkey", () => {
 
       if (payload.username) expectedDetails.username = payload.username
       if (payload.password) expectedDetails.password = payload.password
-      
+
       assert.deepStrictEqual(
         sentMessage.payload.connectionDetails,
         expectedDetails,
@@ -167,7 +167,6 @@ describe("connectToValkey", () => {
     await runStandaloneConnectionTest()
   })
 
-  // 👇 example test with username/password
   it("should connect to standalone using username and password", async () => {
     await runStandaloneConnectionTest({
       username: "default",
