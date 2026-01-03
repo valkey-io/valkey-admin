@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest"
 
 import { cpuSeed, cpuFilter, cpuReducer, cpuFinalize } from "./calculate-cpu-usage.js"
 
-const runCpu = (rows) => {
+const runCpu = (rows, { tolerance = 0 } = {}) => {
   const acc = rows
     .filter(cpuFilter)
-    .reduce(cpuReducer, { ...cpuSeed, out: [] }) // fresh accumulator per test run
+    .reduce(cpuReducer({ tolerance }), { ...cpuSeed, out: [] }) // fresh accumulator per test run
 
-  return cpuFinalize(acc)
+  return cpuFinalize({ tolerance })(acc)
 }
 
 describe("cpu", () => {
@@ -71,5 +71,39 @@ describe("cpu", () => {
 
     // First delta skipped; next delta: (4-2)/1s = 2 cores
     expect(runCpu(rows)).toEqual([{ timestamp: 3000, value: 2 }])
+  })
+
+  it("skips points within tolerance, but does not skip transitions to/from zero (skips only 0->0)", () => {
+    // We craft deltas directly via totals:
+    // ts1 total=1, ts2 total=2 => cores=1
+    // ts3 total=3 => cores=1 (within tolerance vs prev=1) => should be skipped
+    // ts4 total=3 => cores=0 (1->0) => must NOT be skipped
+    // ts5 total=3 => cores=0 (0->0) => should be skipped
+    // ts6 total=4 => cores=1 (0->1) => must NOT be skipped
+    const rows = [
+      { ts: 0, metric: "used_cpu_sys", value: 1 },
+      { ts: 0, metric: "used_cpu_user", value: 0 }, // total 1
+
+      { ts: 1000, metric: "used_cpu_sys", value: 2 },
+      { ts: 1000, metric: "used_cpu_user", value: 0 }, // total 2 => cores 1
+
+      { ts: 2000, metric: "used_cpu_sys", value: 3 },
+      { ts: 2000, metric: "used_cpu_user", value: 0 }, // total 3 => cores 1 (skip vs prev)
+
+      { ts: 3000, metric: "used_cpu_sys", value: 3 },
+      { ts: 3000, metric: "used_cpu_user", value: 0 }, // total 3 => cores 0 (do not skip)
+
+      { ts: 4000, metric: "used_cpu_sys", value: 3 },
+      { ts: 4000, metric: "used_cpu_user", value: 0 }, // total 3 => cores 0 (skip 0->0)
+
+      { ts: 5000, metric: "used_cpu_sys", value: 4 },
+      { ts: 5000, metric: "used_cpu_user", value: 0 }, // total 4 => cores 1 (do not skip)
+    ]
+
+    expect(runCpu(rows, { tolerance: 0.2 })).toEqual([
+      { timestamp: 1000, value: 1 },
+      { timestamp: 3000, value: 0 },
+      { timestamp: 5000, value: 1 },
+    ])
   })
 })
