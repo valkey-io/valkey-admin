@@ -98,10 +98,24 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
           {/* Header */}
           <div className="sticky top-0 z-10 border-b-2 dark:border-tw-dark-border">
             <div className="flex items-center px-4 py-3">
+              <div className="text-xs font-bold flex-1">
+                Command
+              </div>
               <button
-                className={`text-xs font-bold w-1/4 flex items-center gap-2 hover:text-tw-primary transition-colors ${
-                  sortField === SORT_FIELD.TIMESTAMP ? "text-tw-primary" : ""
-                }`}
+                className={`text-xs font-bold w-1/6 text-center flex items-center justify-center gap-2 hover:text-tw-primary transition-colors ${sortField === SORT_FIELD.METRIC ? "text-tw-primary" : ""
+                  }`}
+                onClick={() => toggleSort(SORT_FIELD.METRIC)}
+              >
+                {config.metricLabel}
+                {sortField === SORT_FIELD.METRIC && sortOrder === SORT_ORDER.ASC ? (
+                  <ArrowUp size={14} />
+                ) : (
+                  <ArrowDown size={14} />
+                )}
+              </button>
+              <button
+                className={`text-xs font-bold w-1/4 flex items-center justify-center gap-2 hover:text-tw-primary transition-colors ${sortField === SORT_FIELD.TIMESTAMP ? "text-tw-primary" : ""
+                  }`}
                 onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
               >
                 <Clock className="text-tw-primary" size={16} />
@@ -112,22 +126,6 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
                   <ArrowDown size={14} />
                 )}
               </button>
-              <button
-                className={`text-xs font-bold w-1/6 text-center flex items-center justify-center gap-2 hover:text-tw-primary transition-colors ${
-                  sortField === SORT_FIELD.METRIC ? "text-tw-primary" : ""
-                }`}
-                onClick={() => toggleSort(SORT_FIELD.METRIC)}
-              >
-                {config.metricLabel}
-                {sortField === SORT_FIELD.METRIC && sortOrder === SORT_ORDER.ASC ? (
-                  <ArrowUp size={14} />
-                ) : (
-                  <ArrowDown size={14} />
-                )}
-              </button>
-              <div className="text-xs font-bold flex-1">
-                Command
-              </div>
               <div className="text-xs font-bold w-1/5 text-center">
                 Client Address
               </div>
@@ -148,11 +146,11 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
                       className="group border-b dark:border-tw-dark-border hover:bg-tw-primary/10"
                       key={`${entry.groupTs}-${entry.id}-${index}`}
                     >
-                      {/* timestamp */}
-                      <td className="px-4 py-2 w-1/4">
-                        <span className="text-sm">
-                          {new Date(entry.ts).toLocaleString()}
-                        </span>
+                      {/* command */}
+                      <td className="px-4 py-2 flex-1">
+                        <code className="text-sm font-mono text-tw-primary bg-tw-primary/20 px-3 py-1 rounded-full">
+                          {entry.argv.join(" ")}
+                        </code>
                       </td>
 
                       {/* metric (duration or size) */}
@@ -162,11 +160,11 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
                         </span>
                       </td>
 
-                      {/* command */}
-                      <td className="px-4 py-2 flex-1">
-                        <code className="text-sm font-mono text-tw-primary bg-tw-primary/20 px-3 py-1 rounded-full">
-                          {entry.argv.join(" ")}
-                        </code>
+                      {/* timestamp */}
+                      <td className="px-4 py-2 w-1/4 text-center">
+                        <span className="text-sm">
+                          {new Date(entry.ts).toLocaleString()}
+                        </span>
                       </td>
 
                       {/* client address */}
