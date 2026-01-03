@@ -11,12 +11,23 @@ import { ClusterConnectionGroup } from "@/components/connection/ClusterConnectio
 export function Connection() {
   const [showConnectionForm, setShowConnectionForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [editingConnectionId, setEditingConnectionId] = useState<string | undefined>(undefined)
   const connections = useSelector(selectConnections)
+
+  const handleEditConnection = (connectionId: string) => {
+    setEditingConnectionId(connectionId)
+    setShowEditForm(true)
+  }
+
+  const handleCloseEditForm = () => {
+    setShowEditForm(false)
+    setEditingConnectionId(undefined)
+  }
 
   // filter based on connections that connected at least once (have history) then sort by history length
   const connectionsWithHistory = Object.entries(connections)
     .filter(([, connection]) => (connection.connectionHistory ?? []).length > 0)
-    .sort(([, a], [, b]) => 
+    .sort(([, a], [, b]) =>
       (b.connectionHistory?.length ?? 0) - (a.connectionHistory?.length ?? 0),
     )
 
@@ -59,7 +70,7 @@ export function Connection() {
       </div>
 
       {showConnectionForm && <ConnectionForm onClose={() => setShowConnectionForm(false)} />}
-      {showEditForm && <EditForm onClose={() => setShowEditForm(false)} />}
+      {showEditForm && <EditForm connectionId={editingConnectionId} onClose={handleCloseEditForm} />}
 
       {!hasConnectionsWithHistory ? (
         <div className="flex-1 flex items-center justify-center flex-col gap-4">
@@ -87,6 +98,7 @@ export function Connection() {
                     clusterId={clusterId}
                     connections={clusterConnections}
                     key={clusterId}
+                    onEdit={handleEditConnection}
                   />
                 ))}
               </div>
@@ -105,6 +117,7 @@ export function Connection() {
                     connection={connection}
                     connectionId={connectionId}
                     key={connectionId}
+                    onEdit={handleEditConnection}
                   />
                 ))}
               </div>

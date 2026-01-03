@@ -32,12 +32,17 @@ const getConnectionIds = (store: Store, action) => {
   const { clusterId, connectionId } = action.payload
   const state = store.getState()
   const clusters = state.valkeyCluster.clusters
-      
+
   return clusterId !== undefined
     ? Object.keys(clusters[clusterId].clusterNodes)
     : [connectionId]
-
 }
+
+const getCurrentConnections = () => R.pipe(
+  (v: string) => localStorage.getItem(v),
+  (s) => (s === null ? {} : JSON.parse(s)),
+)(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+
 export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
@@ -58,10 +63,7 @@ export const connectionEpic = (store: Store) =>
       ),
       tap(({ payload }) => {
         try {
-          const currentConnections = R.pipe(
-            (v: string) => localStorage.getItem(v),
-            (s) => (s === null ? {} : JSON.parse(s)),
-          )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+          const currentConnections = getCurrentConnections()
 
           // for getting the full connection state from redux (which includes alias)
           const state = store.getState()
@@ -229,21 +231,23 @@ export const autoReconnectEpic = (store: Store) =>
 export const deleteConnectionEpic = () =>
   action$.pipe(
     select(deleteConnection),
-    // TODO: extract reused logic into separate method
-    tap(({ payload: { connectionId } }) => {
+    tap(({ payload: { connectionId, silent = false } }) => {
       try {
-        const currentConnections = R.pipe(
-          (v: string) => localStorage.getItem(v),
-          (s) => (s === null ? {} : JSON.parse(s)),
-        )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+        const currentConnections = getCurrentConnections()
         R.pipe(
           R.dissoc(connectionId),
           JSON.stringify,
           (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
-          () => toast.success("Connection removed successfully!"),
+          () => {
+            if (!silent) {
+              toast.success("Connection removed successfully!")
+            }
+          },
         )(currentConnections)
       } catch (e) {
-        toast.error("Failed to remove connection!")
+        if (!silent) {
+          toast.error("Failed to remove connection!")
+        }
         console.error(e)
       }
     }),
@@ -255,10 +259,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
     select(updateConnectionDetails),
     tap(({ payload: { connectionId } }) => {
       try {
-        const currentConnections = R.pipe(
-          (v: string) => localStorage.getItem(v),
-          (s) => (s === null ? {} : JSON.parse(s)),
-        )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
+        const currentConnections = getCurrentConnections()
 
         const state = store.getState()
         const connection = state.valkeyConnection?.connections?.[connectionId]
@@ -294,7 +295,7 @@ export const setDataEpic = (store: Store) =>
     tap((action: PayloadAction) => {
       const socket = getSocket()
 
-      const { clusterId, connectionId } = action.payload 
+      const { clusterId, connectionId } = action.payload
       store.dispatch(setConfig( action.payload))
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
@@ -351,7 +352,7 @@ export const getCommandLogsEpic = (store: Store) =>
     ignoreElements(),
   )
 
-export const updateConfigEpic = (store: Store) => 
+export const updateConfigEpic = (store: Store) =>
   action$.pipe(
     select(updateConfig),
     tap((action) => {
@@ -372,4 +373,4 @@ export const enableClusterSlotStatsEpic = (store: Store) =>
       socket.next({ type: "config/enableClusterSlotStats", payload: { connectionIds } })
     }),
   )
-  
+

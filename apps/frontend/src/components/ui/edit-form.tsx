@@ -1,64 +1,86 @@
 import { X } from "lucide-react"
+import { type FormEvent, useState, useEffect } from "react"
+import { useSelector } from "react-redux"
+import { sanitizeUrl } from "@common/src/url-utils.ts"
+import {
+  updateConnectionDetails,
+  connectPending,
+  deleteConnection,
+  stopRetry
+} from "@/state/valkey-features/connection/connectionSlice.ts"
+import { selectConnectionDetails, selectConnections } from "@/state/valkey-features/connection/connectionSelectors"
+import { useAppDispatch } from "@/hooks/hooks"
 
 type EditFormProps = {
   onClose: () => void;
+  connectionId?: string;
 };
 
-import { useState, useEffect } from "react"
-import { useSelector } from "react-redux"
-import {
-  updateConnectionDetails,
-  connectPending
-} from "@/state/valkey-features/connection/connectionSlice.ts"
-// import { resetConnection } from "@/state/valkey-features/connection/connectionSlice.ts";
-import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
-import { useAppDispatch } from "@/hooks/hooks"
-
-function EditForm({ onClose }: EditFormProps) {
+function EditForm({ onClose, connectionId }: EditFormProps) {
   const dispatch = useAppDispatch()
-  const currentConnection = useSelector(selectConnectionDetails)
+  const currentConnection = useSelector(selectConnectionDetails(connectionId || ""))
+  const allConnections = useSelector(selectConnections)
+  const fullConnection = connectionId ? allConnections[connectionId] : null
+
   const [host, setHost] = useState("localhost")
   const [port, setPort] = useState("6379")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [alias, setAlias] = useState("")
 
-  // Load existing connection data when component mounts
   useEffect(() => {
     if (currentConnection) {
       setHost(currentConnection.host)
       setPort(currentConnection.port)
       setUsername(currentConnection.username || "")
-      setPassword(currentConnection.password || "")
+      setPassword("")
+      setAlias(currentConnection.alias || "")
     }
   }, [currentConnection])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const hasCoreChanges = () => {
+    if (!currentConnection) return false
+    return (
+      host !== currentConnection.host ||
+      port !== currentConnection.port ||
+      username !== (currentConnection.username || "") ||
+      password !== ""
+    )
+  }
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
 
-    // Update stored connection
-    dispatch(
-      updateConnectionDetails({
+    if (!connectionId || !currentConnection) return
+
+    if (hasCoreChanges()) {
+      const newConnectionId = sanitizeUrl(`${host}-${port}`)
+
+      // Stop any ongoing retries for the current connection
+      dispatch(stopRetry({ connectionId }))
+
+      // Preserve connection history before deleting
+      const connectionHistory = fullConnection?.connectionHistory || []
+
+      // Always delete the old connection when making core changes
+      dispatch(deleteConnection({ connectionId, silent: true }))
+
+      dispatch(connectPending({
+        connectionId: newConnectionId,
         host,
         port,
         username,
         password,
-      }),
-    )
-
-    // Disconnect First
-    // dispatch(resetConnection());
-
-    // Then Reconnect
-    setTimeout(() => {
-      dispatch(
-        connectPending({
-          host,
-          port,
-          username,
-          password,
-        }),
-      )
-    }, 100)
+        alias,
+        isEdit: true,
+        preservedHistory: connectionHistory,
+      }))
+    } else {
+      dispatch(updateConnectionDetails({
+        connectionId,
+        alias: alias || undefined,
+      }))
+    }
 
     onClose()
   }
@@ -72,10 +94,14 @@ function EditForm({ onClose }: EditFormProps) {
             <X size={20} />
           </button>
         </div>
+        <span className="text-sm font-light">
+          Modify your server's connection details.
+        </span>
         <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
           <div>
             <label className="block mb-1 text-sm">Host</label>
             <input
+              autoFocus
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
               onChange={(e) => setHost(e.target.value)}
               placeholder="localhost"
@@ -96,6 +122,16 @@ function EditForm({ onClose }: EditFormProps) {
             />
           </div>
           <div>
+            <label className="block mb-1 text-sm">Alias</label>
+            <input
+              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
+              onChange={(e) => setAlias(e.target.value)}
+              placeholder="Alias of the first cluster node will be the alias of the cluster"
+              type="text"
+              value={alias}
+            />
+          </div>
+          <div>
             <label className="block mb-1 text-sm">Username</label>
             <input
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
@@ -104,7 +140,6 @@ function EditForm({ onClose }: EditFormProps) {
               value={username}
             />
           </div>
-
           <div>
             <label className="block mb-1 text-sm">Password</label>
             <input
