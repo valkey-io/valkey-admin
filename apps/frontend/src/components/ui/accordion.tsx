@@ -83,7 +83,7 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
         <div className="px-2 py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border rounded-b">
           <ul className="space-y-2">
             {Object.entries(filteredItems).map(([key, value]) => (
-              <li className="flex justify-between items-center hover:bg-tw-primary/20" key={key}>
+              <li className="flex justify-between items-center border-b last:border-b-0" key={key}>
                 <div className="flex items-center gap-1">
                   <span className="font-normal flex items-center"><Dot className="text-tw-primary" size={30} />{formatKey(key)}</span>
                   {singleMetricDescriptions[key] && (
