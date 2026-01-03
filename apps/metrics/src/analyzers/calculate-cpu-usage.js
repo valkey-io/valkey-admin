@@ -98,7 +98,7 @@ export const cpuFinalize =
 
 const cpuFold = ({ tolerance = 0 } = {}) => ({
   filterFn: cpuFilter,
-  seed: () => ({ ...cpuSeed, out: [] }),
+  seed: { ...cpuSeed, out: [] },
   reducer: cpuReducer({ tolerance }),
   finalize: cpuFinalize({ tolerance }),
 })
