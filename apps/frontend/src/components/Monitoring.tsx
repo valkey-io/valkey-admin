@@ -117,10 +117,9 @@ export const Monitoring = () => {
                 <button
                   className={`py-3 px-2 inline-flex items-center gap-x-2 border-b-2 text-sm whitespace-nowrap transition-colors
                             ${isActive
-                      ? "border-tw-primary text-tw-primary"
-                      : "border-transparent hover:text-tw-primary text-gray-400"
-                    }
-                        `}
+                  ? "border-tw-primary text-tw-primary"
+                  : "border-transparent hover:text-tw-primary text-gray-400"
+                }`}
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                 >
@@ -152,9 +151,9 @@ export const Monitoring = () => {
                   <button
                     className={`py-1.5 px-3 text-xs whitespace-nowrap transition-colors rounded-full
                               ${isActive
-                        ? "bg-tw-primary text-white"
-                        : "bg-gray-200 dark:bg-gray-700 hover:bg-tw-primary/40"
-                      }
+                    ? "bg-tw-primary text-white"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-tw-primary/40"
+                  }
                           `}
                     key={subTab.id}
                     onClick={() => setCommandLogSubTab(subTab.id)}
