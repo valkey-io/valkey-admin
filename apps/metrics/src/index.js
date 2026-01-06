@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import express from "express"
+import * as R from "ramda"
 import { createClient } from "@valkey/client"
 import { getConfig, updateConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
@@ -8,7 +9,7 @@ import { getCommandLogs } from "./handlers/commandlog-handler.js"
 import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
-import { cpuFilter, cpuFinalize, cpuReducer, cpuSeed } from "./analyzers/calculate-cpu-usage.js"
+import cpuFold from "./analyzers/calculate-cpu-usage.js"
 
 async function main() {
   const cfg = getConfig()
@@ -43,12 +44,17 @@ async function main() {
 
   app.get("/cpu", async (_req, res) => {
     try {
-      const series = await Streamer.info_cpu({
-        filterFn: cpuFilter,
-        reducer: cpuReducer,
-        seed: cpuSeed,
-        finalize: cpuFinalize,
-      })
+      const tolerance = R.pipe(
+        R.pathOr("0.025", ["query", "tolerance"]),
+        Number,
+        Math.abs, // no negative numbers
+        R.when( // when not a number or more than 20% — default to 2.5% tolerance interval
+          R.either(Number.isNaN, R.lte(0.2)),
+          R.always(0.025),
+        ),
+      )(_req)
+
+      const series = await Streamer.info_cpu(cpuFold({ tolerance }))
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })

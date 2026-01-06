@@ -17,64 +17,90 @@ export const cpuSeed = {
 
 export const cpuFilter = ({ metric }) => metric === "used_cpu_sys" || metric === "used_cpu_user"
 
+const shouldEmitPoint = ({ prevValue, currValue, tolerance = 0 }) =>
+  prevValue == null || // first point
+  (prevValue === 0 && currValue !== 0) || // went from zero to something
+  (prevValue !== 0 && currValue === 0) || // went from something to zero
+  (Math.abs((currValue - prevValue) / prevValue) > tolerance) // "noticeably" changed
+
 /**
- * Adds CPU values for the current timestamp and emits when the timestamp changes.
+ * Adds CPU values for the current timestamp and emits when the timestamp changes (but see `tolerance` use as well).
  * Basically, we do all this logic because a line in the file can be either "used_cpu_sys" or "used_cpu_user".
  * To calculate one CPU usage value for a single timestamp, we need to read at least two lines to encounter both.
  * And to calculate a delta, we need two timestamps.
+ * Emission can be suppressed using `tolerance`, which skips values close to
+ * the previously emitted value (with special handling for zero).
  *
- * @param {{
+ * @param {{ tolerance?: number }} [options]
+ * @param {number} [options.tolerance=0] Relative tolerance (0..1) for skipping values
+ * @returns {(acc: {
  *   out: Array<{ timestamp: number, value: number }>,
  *   prevTs: number | null,
  *   prevTotal: number,
  *   curTs: number | null,
  *   curTotal: number | null
- * }} acc
- * @param {{ ts: number, value: number }} row
+ * }, row: { ts: number, value: number }) => any}
  */
-export const cpuReducer = (acc/*: cpuSeed */, { ts, value }) => {
-  acc.curTs ??= ts
-  acc.curTotal ??= 0
+export const cpuReducer =
+  ({ tolerance = 0 } = {}) =>
+    (acc /*: cpuSeed */, { ts, value }) => {
+      acc.curTs ??= ts
+      acc.curTotal ??= 0
 
-  if (ts !== acc.curTs) {
-    if (acc.prevTs != null) { // Close the previous bucket
-      const wallSecondsElapsed = (acc.curTs - acc.prevTs) / 1000
-      const cpuSecondsElapsed = acc.curTotal - acc.prevTotal
+      if (ts !== acc.curTs) {
+        if (acc.prevTs != null) {
+          const wallSecondsElapsed = (acc.curTs - acc.prevTs) / 1000
+          const cpuSecondsElapsed = acc.curTotal - acc.prevTotal
 
-      if (wallSecondsElapsed > 0 && cpuSecondsElapsed >= 0) {
-        acc.out.push({
-          timestamp: acc.curTs,
-          value: cpuSecondsElapsed / wallSecondsElapsed,
-        })
+          if (wallSecondsElapsed > 0 && cpuSecondsElapsed >= 0) {
+            const coresUsed = cpuSecondsElapsed / wallSecondsElapsed
+            const prevValue = acc.out.at(-1)?.value
+
+            if (shouldEmitPoint({ prevValue, currValue: coresUsed, tolerance })) {
+              acc.out.push({ timestamp: acc.curTs, value: coresUsed })
+            }
+          }
+        }
+
+        // Move to the next bucket
+        acc.prevTs = acc.curTs
+        acc.prevTotal = acc.curTotal
+        acc.curTs = ts
+        acc.curTotal = 0
       }
+
+      // Always add the current value to the active bucket
+      acc.curTotal += value
+      return acc
     }
-
-    // Move to the next bucket
-    acc.prevTs = acc.curTs
-    acc.prevTotal = acc.curTotal
-    acc.curTs = ts
-    acc.curTotal = 0
-  }
-
-  // Always add the current value to the active bucket
-  acc.curTotal += value
-  return acc
-}
 
 // Emit the last value manually.
 // Computing a delta needs two timestamps, and the reducer only emits on timestamp changes.
-export const cpuFinalize = (acc) => {
-  if (acc.prevTs == null || acc.curTs == null) return acc.out
+export const cpuFinalize =
+  ({ tolerance = 0 } = {}) =>
+    (acc) => {
+      if (acc.prevTs == null || acc.curTs == null) return acc.out
 
-  const wallSecondsElapsed = (acc.curTs - acc.prevTs) / 1000
-  const cpuSecondsElapsed = acc.curTotal - acc.prevTotal
+      const wallSecondsElapsed = (acc.curTs - acc.prevTs) / 1000
+      const cpuSecondsElapsed = acc.curTotal - acc.prevTotal
 
-  if (wallSecondsElapsed <= 0 || cpuSecondsElapsed < 0) return acc.out
+      if (wallSecondsElapsed <= 0 || cpuSecondsElapsed < 0) return acc.out
 
-  acc.out.push({
-    timestamp: acc.curTs,
-    value: cpuSecondsElapsed / wallSecondsElapsed,
-  })
+      const coresUsed = cpuSecondsElapsed / wallSecondsElapsed
+      const prevValue = acc.out.at(-1)?.value
 
-  return acc.out
-}
+      if (shouldEmitPoint({ prevValue, currValue: coresUsed, tolerance })) {
+        acc.out.push({ timestamp: acc.curTs, value: coresUsed })
+      }
+
+      return acc.out
+    }
+
+const cpuFold = ({ tolerance = 0 } = {}) => ({
+  filterFn: cpuFilter,
+  seed: { ...cpuSeed, out: [] },
+  reducer: cpuReducer({ tolerance }),
+  finalize: cpuFinalize({ tolerance }),
+})
+
+export default cpuFold
