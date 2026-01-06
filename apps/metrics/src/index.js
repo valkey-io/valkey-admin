@@ -47,11 +47,11 @@ async function main() {
       const tolerance = R.pipe(
         R.pathOr("0.025", ["query", "tolerance"]),
         Number,
+        Math.abs, // no negative numbers
         R.when( // when not a number or more than 20% — default to 2.5% tolerance interval
           R.either(Number.isNaN, R.lte(0.2)),
           R.always(0.025),
         ),
-        Math.abs, // no negative numbers
       )(_req)
 
       const series = await Streamer.info_cpu(cpuFold({ tolerance }))
