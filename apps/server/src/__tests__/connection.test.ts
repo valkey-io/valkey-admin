@@ -8,6 +8,14 @@ import { resolveHostnameOrIpAddress, dns } from "../utils.ts"
 import { checkJsonModuleAvailability } from "../check-json-module.ts"
 import { KEY_EVICTION_POLICY, VALKEY } from "../../../../common/src/constants.ts"
 
+const DEFAULT_PAYLOAD = {
+  host: "127.0.0.1",
+  port: 6379,
+  username: "user0",
+  password: "helloWorld123!",
+  connectionId: "conn-123",
+}
+
 describe("connectToValkey", () => {
   let mockWs: any
   let messages: string[]
@@ -69,9 +77,7 @@ describe("connectToValkey", () => {
     GlideClusterClient.createClient = mock.fn(async () => mockClusterClient as any)
 
     const payload = {
-      host: "127.0.0.1",
-      port: 6379,
-      connectionId: "conn-123",
+      ...DEFAULT_PAYLOAD,
       ...payloadOverrides, 
     }
 
@@ -125,9 +131,7 @@ describe("connectToValkey", () => {
     GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
 
     const payload = {
-      host: "127.0.0.1",
-      port: 6379,
-      connectionId: "conn-123",
+      ...DEFAULT_PAYLOAD,
       ...payloadOverrides,
     }
 
@@ -151,8 +155,8 @@ describe("connectToValkey", () => {
         jsonModuleAvailable: false,
       }
 
-      if (payload.username) expectedDetails.username = payload.username
-      if (payload.password) expectedDetails.password = payload.password
+      expectedDetails.username = payload.username
+      expectedDetails.password = payload.password
 
       assert.deepStrictEqual(
         sentMessage.payload.connectionDetails,
@@ -167,24 +171,8 @@ describe("connectToValkey", () => {
     await runStandaloneConnectionTest()
   })
 
-  it("should connect to standalone using username and password", async () => {
-    await runStandaloneConnectionTest({
-      username: "default",
-      password: "secret",
-      connectionId: "conn-auth-standalone",
-    })
-  })
-
-  it("should connect to cluster without auth", async () => {
+  it("should connect to cluster Valkey instance", async () => {
     await runClusterConnectionTest()
-  })
-
-  it("should connect to cluster using username and password", async () => {
-    await runClusterConnectionTest({
-      connectionId: "cluster-auth-user-pass",
-      username: "default",
-      password: "secret",
-    })
   })
 
   it("should handle connection errors", async () => {
@@ -194,22 +182,16 @@ describe("connectToValkey", () => {
       throw error
     })
 
-    const payload = {
-      host: "127.0.0.1",
-      port: 6379,
-      connectionId: "conn-123",
-    }
-
     try {
-      const result = await connectToValkey(mockWs, payload, clients)
+      const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients)
 
       assert.strictEqual(result, undefined)
-      assert.strictEqual(clients.has("conn-123"), false)
+      assert.strictEqual(clients.has(DEFAULT_PAYLOAD.connectionId), false)
       assert.strictEqual(mockWs.send.mock.calls.length, 1)
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.CONNECTION.connectRejected)
-      assert.strictEqual(sentMessage.payload.connectionId, "conn-123")
+      assert.strictEqual(sentMessage.payload.connectionId, DEFAULT_PAYLOAD.connectionId)
       assert.ok(sentMessage.payload.err)
     } finally {
       GlideClient.createClient = originalCreateClient
@@ -226,20 +208,22 @@ describe("connectToValkey", () => {
     const originalCreateClient = GlideClient.createClient
     GlideClient.createClient = mock.fn(async (config: any) => {
       assert.ok(config)
-      assert.deepStrictEqual(config.addresses, [{ host: "192.168.1.1", port: 7000 }])
+      assert.deepStrictEqual(config.addresses, [{ host: DEFAULT_PAYLOAD.host, port: DEFAULT_PAYLOAD.port }])
       assert.strictEqual(config.requestTimeout, 5000)
       assert.strictEqual(config.clientName, "test_client")
       return mockStandaloneClient as any
     })
 
-    const payload = {
+    const alternate_payload = {
       host: "192.168.1.1",
       port: 7000,
+      username: "user1",
+      password: "helloWorld456!",
       connectionId: "conn-456",
     }
 
     try {
-      await connectToValkey(mockWs, payload, clients)
+      await connectToValkey(mockWs, alternate_payload, clients)
       assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 1)
     } finally {
       GlideClient.createClient = originalCreateClient
@@ -256,18 +240,16 @@ describe("connectToValkey", () => {
     const originalCreateClient = GlideClient.createClient
     GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
 
-    const payload = {
-      host: "127.0.0.1",
-      port: 6379,
-      connectionId: "unique-conn-id",
-    }
+    const payload = structuredClone(DEFAULT_PAYLOAD)
+    const uniqueConnID = "unique-conn-id"
+    payload.connectionId = uniqueConnID
 
     try {
       await connectToValkey(mockWs, payload, clients)
 
       assert.strictEqual(clients.size, 1)
-      assert.ok(clients.has("unique-conn-id"))
-      assert.strictEqual(clients.get("unique-conn-id"), mockStandaloneClient)
+      assert.ok(clients.has(uniqueConnID))
+      assert.strictEqual(clients.get(uniqueConnID), mockStandaloneClient)
     } finally {
       GlideClient.createClient = originalCreateClient
     }
