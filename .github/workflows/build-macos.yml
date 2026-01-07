@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: macos-latest
     steps:
     - name: Checkout code
@@ -22,3 +22,5 @@ jobs:
       run: npm ci
     - name: Package unsigned mac app
       run: npm run package:mac:nosign
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
