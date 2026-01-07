@@ -4,4 +4,10 @@ Include a summary of the change.
 
 ### Change Visualization
 
-Include a screenshot or video of the change.
+#### Before
+
+Include a screenshot or video of before the change.
+
+#### After
+
+Include a screenshot or video of after the change.
