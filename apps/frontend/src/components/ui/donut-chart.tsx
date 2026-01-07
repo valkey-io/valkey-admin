@@ -69,6 +69,9 @@ export default function DonutChart() {
     "Hash": "var(--tw-chart1)",
     "List": "var(--tw-chart4)",
     "String": "var(--tw-chart2)",
+    "Zset": "var(--tw-chart5)",
+    "Stream": "var(--tw-chart6)",
+    "ReJSON-RL": "var(--tw-chart7)",
   }
 
   const CustomTooltip = ({ active, payload }: TooltipProps) => {

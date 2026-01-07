@@ -49,6 +49,9 @@
   --color-tw-chart2: var(--tw-chart2);
   --color-tw-chart3: var(--tw-chart3);
   --color-tw-chart4: var(--tw-chart4);
+  --color-tw-chart5: var(--tw-chart5);
+  --color-tw-chart6: var(--tw-chart6);
+  --color-tw-chart7: var(--tw-chart7);
 }
 
 :root {
@@ -94,6 +97,9 @@
   --tw-chart2: #FF8042;
   --tw-chart3: #FFBB28;
   --tw-chart4: #009688;
+  --tw-chart5: #8BC34A;
+  --tw-chart6: #FF5722;
+  --tw-chart7: #03A9F4;
 }
 
 .dark {
