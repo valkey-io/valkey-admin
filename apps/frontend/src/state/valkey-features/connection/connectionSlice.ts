@@ -50,7 +50,7 @@ export interface ConnectionState {
   wasEdit?: boolean;
 }
 
-interface ValkeyConnectionsState {
+export interface ValkeyConnectionsState {
   [connectionId: string]: ConnectionState
 }
 

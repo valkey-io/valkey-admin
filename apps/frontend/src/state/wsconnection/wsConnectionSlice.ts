@@ -8,7 +8,7 @@ interface ReconnectState {
   nextRetryDelay: number | null
 }
 
-interface WsConnectionState {
+export interface WsConnectionState {
   status: typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR
   errorMessage: string | null
   reconnect: ReconnectState
