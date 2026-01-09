@@ -228,8 +228,11 @@ const keyBrowserSlice = createSlice({
         keyType: string;
         value?: string;
         fields?: { field: string; value: string }[];
+        deletedHashFields?: string[];
         listUpdates?: { index: number; value: string }[];
+        deletedListItems?: { index: number; value: string }[];
         setUpdates?: { oldValue: string; newValue: string }[];
+        deletedSetItems?: string[];
         zsetUpdates?: { key: string; value: number }[];
         ttl?: number;
       }>,

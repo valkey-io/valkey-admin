@@ -145,17 +145,16 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                     </Button>
                   </CustomTooltip>
                 )}
+                {/* Delete Modal */}
+                {isDeleteModalOpen && (
+                  <DeleteModal
+                    itemName={selectedKeyInfo.name}
+                    onCancel={handleDeleteModal}
+                    onConfirm={() => handleKeyDelete(selectedKeyInfo.name)}
+                  />
+                )}
               </div>
             </div>
-
-            {/* Delete Modal */}
-            {isDeleteModalOpen && (
-              <DeleteModal
-                keyName={selectedKeyInfo.name}
-                onCancel={handleDeleteModal}
-                onConfirm={() => handleKeyDelete(selectedKeyInfo.name)}
-              />
-            )}
 
             {/* show different key types */}
             {selectedKeyInfo.type === "string" && (

@@ -585,13 +585,24 @@ async function updateHashKey(
   key: string,
   fields: { field: string; value: string }[],
   ttl?: number,
+  deletedHashFields?: string[],
 ) {
-  const hsetCommand = ["HSET", key]
-  fields.forEach(({ field, value }) => {
-    hsetCommand.push(field, value)
-  })
+  console.log("delete hash fields:::", deletedHashFields)
+  console.log("update hash fields:::", fields)
+  // first delete fields if any
+  if (deletedHashFields && deletedHashFields.length > 0) {
+    const hdelCommand = ["HDEL", key, ...deletedHashFields]
+    await client.customCommand(hdelCommand)
+  }
 
-  await client.customCommand(hsetCommand)
+  // then update fields
+  if (fields && fields.length > 0) {
+    const hsetCommand = ["HSET", key]
+    fields.forEach(({ field, value }) => {
+      hsetCommand.push(field, value)
+    })
+    await client.customCommand(hsetCommand)
+  }
 
   if (ttl && ttl > 0) {
     await client.customCommand(["EXPIRE", key, ttl.toString()])
@@ -603,14 +614,26 @@ async function updateListKey(
   key: string,
   updates: { index: number; value: string }[],
   ttl?: number,
+  deletedListItems?: { index: number; value: string }[],
 ) {
 
   if (client instanceof GlideClient) {
     const batch = new Batch(true)
 
-    updates.forEach(({ index, value }) =>
-      batch.customCommand(["LSET", key, index.toString(), value]),
-    )
+    // first delete items (sorted by index descending to avoid index shifting issues)
+    if (deletedListItems && deletedListItems.length > 0) {
+      const sortedDeletes = [...deletedListItems].sort((a, b) => b.index - a.index)
+      sortedDeletes.forEach(({ value }) => {
+        batch.customCommand(["LREM", key, "1", value])
+      })
+    }
+
+    // then update items
+    if (updates && updates.length > 0) {
+      updates.forEach(({ index, value }) =>
+        batch.customCommand(["LSET", key, index.toString(), value]),
+      )
+    }
 
     if (ttl && ttl > 0) {
       batch.customCommand(["EXPIRE", key, ttl.toString()])
@@ -620,9 +643,18 @@ async function updateListKey(
   } else if (client instanceof GlideClusterClient) {
     const batch = new ClusterBatch(true)
 
-    updates.forEach(({ index, value }) =>
-      batch.customCommand(["LSET", key, index.toString(), value]),
-    )
+    if (deletedListItems && deletedListItems.length > 0) {
+      const sortedDeletes = [...deletedListItems].sort((a, b) => b.index - a.index)
+      sortedDeletes.forEach(({ value }) => {
+        batch.customCommand(["LREM", key, "1", value])
+      })
+    }
+
+    if (updates && updates.length > 0) {
+      updates.forEach(({ index, value }) =>
+        batch.customCommand(["LSET", key, index.toString(), value]),
+      )
+    }
 
     if (ttl && ttl > 0) {
       batch.customCommand(["EXPIRE", key, ttl.toString()])
@@ -639,13 +671,24 @@ async function updateSetKey(
   key: string,
   updates: { oldValue: string; newValue: string }[],
   ttl?: number,
+  deletedSetItems?: string[],
 ) {
   if (client instanceof GlideClient) {
     const batch = new Batch(true)
 
-    for (const { oldValue, newValue } of updates) {
-      batch.customCommand(["SREM", key, oldValue])
-      batch.customCommand(["SADD", key, newValue])
+    // first delete items if any
+    if (deletedSetItems && deletedSetItems.length > 0) {
+      deletedSetItems.forEach((value) => {
+        batch.customCommand(["SREM", key, value])
+      })
+    }
+
+    // then update items
+    if (updates && updates.length > 0) {
+      for (const { oldValue, newValue } of updates) {
+        batch.customCommand(["SREM", key, oldValue])
+        batch.customCommand(["SADD", key, newValue])
+      }
     }
 
     if (ttl && ttl > 0) {
@@ -657,9 +700,17 @@ async function updateSetKey(
   else if (client instanceof GlideClusterClient) {
     const batch = new ClusterBatch(true)
 
-    for (const { oldValue, newValue } of updates) {
-      batch.customCommand(["SREM", key, oldValue])
-      batch.customCommand(["SADD", key, newValue])
+    if (deletedSetItems && deletedSetItems.length > 0) {
+      deletedSetItems.forEach((value) => {
+        batch.customCommand(["SREM", key, value])
+      })
+    }
+
+    if (updates && updates.length > 0) {
+      for (const { oldValue, newValue } of updates) {
+        batch.customCommand(["SREM", key, oldValue])
+        batch.customCommand(["SADD", key, newValue])
+      }
     }
 
     if (ttl && ttl > 0) {
@@ -716,8 +767,11 @@ export async function updateKey(
     keyType: string;
     value?: string; // for string type
     fields?: { field: string; value: string }[]; // for hash type
+    deletedHashFields?: string[]; // for hash type - fields to delete
     listUpdates?: { index: number; value: string }[]; // for list type
+    deletedListItems?: { index: number; value: string }[]; // for list type - items to delete
     setUpdates?: { oldValue: string; newValue: string }[]; // for set type
+    deletedSetItems?: string[]; // for set type - items to delete
     zsetUpdates?: { member: string; score: number }[]; // for zset type
     ttl?: number;
   },
@@ -734,23 +788,25 @@ export async function updateKey(
         await updateStringKey(client, payload.key, payload.value, payload.ttl)
         break
       case "hash":
-        if (payload.fields && payload.fields.length > 0) {
-          await updateHashKey(client, payload.key, payload.fields, payload.ttl)
+        if ((payload.fields && payload.fields.length > 0) || (payload.deletedHashFields && payload.deletedHashFields.length > 0)) {
+          await updateHashKey(client, payload.key, payload.fields || [], payload.ttl, payload.deletedHashFields)
           break
         } else {
-          throw new Error("Fields are required for hash type")
+          throw new Error("Fields or deletedHashFields are required for hash type")
         }
       case "list":
-        if (!payload.listUpdates || payload.listUpdates.length === 0) {
-          throw new Error("List updates are required for list type")
+        if ((!payload.listUpdates || payload.listUpdates.length === 0) &&
+            (!payload.deletedListItems || payload.deletedListItems.length === 0)) {
+          throw new Error("List updates or deletedListItems are required for list type")
         }
-        await updateListKey(client, payload.key, payload.listUpdates, payload.ttl)
+        await updateListKey(client, payload.key, payload.listUpdates || [], payload.ttl, payload.deletedListItems)
         break
       case "set":
-        if (!payload.setUpdates || payload.setUpdates.length === 0) {
-          throw new Error("Set updates are required for set type")
+        if ((!payload.setUpdates || payload.setUpdates.length === 0) &&
+            (!payload.deletedSetItems || payload.deletedSetItems.length === 0)) {
+          throw new Error("Set updates or deletedSetItems are required for set type")
         }
-        await updateSetKey(client, payload.key, payload.setUpdates, payload.ttl)
+        await updateSetKey(client, payload.key, payload.setUpdates || [], payload.ttl, payload.deletedSetItems)
         break
       case "zset":
         if (!payload.zsetUpdates || payload.zsetUpdates.length === 0) {
