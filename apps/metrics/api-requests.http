@@ -1,0 +1,113 @@
+### Base vars
+@host = http://localhost
+@port = 3000
+@baseUrl = {{host}}:{{port}}
+
+#####################################################################
+# HEALTH
+#####################################################################
+
+### Health check
+GET {{baseUrl}}/health
+Accept: application/json
+
+
+#####################################################################
+# MEMORY
+#####################################################################
+
+### Memory stats (ndjson streamer-backed)
+GET {{baseUrl}}/memory
+Accept: application/json
+
+
+#####################################################################
+# CPU
+#####################################################################
+
+### CPU series (default tolerance=0.025)
+GET {{baseUrl}}/cpu
+Accept: application/json
+
+### CPU series with explicit tolerance (e.g. 1%)
+GET {{baseUrl}}/cpu?tolerance=0.01
+Accept: application/json
+
+#####################################################################
+# COMMAND LOG
+#####################################################################
+
+### Command log
+GET {{baseUrl}}/commandlog
+Accept: application/json
+
+
+#####################################################################
+# SLOWLOG LEN
+#####################################################################
+
+### Slowlog length stats
+GET {{baseUrl}}/slowlog_len
+Accept: application/json
+
+
+#####################################################################
+# MONITOR
+#####################################################################
+
+### Monitor action: start
+GET {{baseUrl}}/monitor?action=start
+Accept: application/json
+
+### Monitor action: stop
+GET {{baseUrl}}/monitor?action=stop
+Accept: application/json
+
+### Monitor action: status
+GET {{baseUrl}}/monitor?action=status
+Accept: application/json
+
+
+#####################################################################
+# HOT KEYS
+#####################################################################
+
+### Hot keys via hot slots path
+# count is passed through as req.query.count (string), your handler decides parsing.
+GET {{baseUrl}}/hot-keys?useHotSlots=true&count=20
+Accept: application/json
+
+### Hot keys via monitor-based path (when useHotSlots != "true")
+GET {{baseUrl}}/hot-keys
+Accept: application/json
+
+
+#####################################################################
+# UPDATE CONFIG
+#####################################################################
+
+### Update config (example payload)
+POST {{baseUrl}}/update-config
+Content-Type: application/json
+Accept: application/json
+
+{
+  "server": {
+    "port": 3000,
+    "data_dir": "./data"
+  },
+  "valkey": {
+    "url": "valkey://localhost:6379"
+  }
+}
+
+### Update config (intentionally invalid example)
+POST {{baseUrl}}/update-config
+Content-Type: application/json
+Accept: application/json
+
+{
+  "server": {
+    "port": "not-a-number"
+  }
+}
