@@ -12,7 +12,7 @@
     "apps/frontend",
     "apps/server",
     "apps/metrics",
-    "common/*"
+    "common"
   ],
   "main": "apps/frontend/electron.main.js",
   "devDependencies": {
@@ -40,6 +40,10 @@
     "build:frontend": "npm --workspace apps/frontend run build",
     "build:metrics": "npm --workspace apps/metrics run build",
     "build:all": "npm run build:server && npm run build:frontend && npm run build:metrics",
+    "test": "npm --workspace apps/frontend run test && npm --workspace apps/server run test && npm --workspace common run test",
+    "test:frontend": "npm --workspace apps/frontend run test",
+    "test:server": "npm --workspace apps/server run test",
+    "test:common": "npm --workspace common run test",
     "package:mac": "npm run build:all && npx electron-builder --mac --arm64",
     "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
     "package:linux": "npm run build:all && npx electron-builder --linux --x64",

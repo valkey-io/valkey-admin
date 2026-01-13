@@ -18,17 +18,20 @@ import { AppHeader } from "./ui/app-header"
 import AddNewKey from "./ui/add-key"
 import KeyDetails from "./ui/key-details"
 import { KeyTree } from "./ui/key-tree"
+import { KeySortControl, type SortOption } from "./ui/key-sort-control"
 import { CustomTooltip } from "./ui/custom-tooltip"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectKeys,
   selectLoading,
   selectError,
-  selectTotalKeys
+  selectTotalKeys,
+  selectSortOption
 } from "@/state/valkey-features/keys/keyBrowserSelectors"
 import {
   getKeysRequested,
-  getKeyTypeRequested
+  getKeyTypeRequested,
+  setSortOption
 } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectData } from "@/state/valkey-features/info/infoSelectors"
 
@@ -90,6 +93,7 @@ export function KeyBrowser() {
   const loading = useSelector(selectLoading(id!))
   const error = useSelector(selectError(id!))
   const totalKeys = useSelector(selectTotalKeys(id!))
+  const currentSort = useSelector(selectSortOption(id!))
 
   useEffect(() => {
     if (id) {
@@ -99,6 +103,12 @@ export function KeyBrowser() {
 
   const handleRefresh = () => {
     dispatch(getKeysRequested({ connectionId: id! }))
+  }
+
+  const handleSortChange = (sortOption: SortOption) => {
+    if (id) {
+      dispatch(setSortOption({ connectionId: id, sortOption }))
+    }
   }
 
   const handleKeyClick = (keyName: string) => {
@@ -198,7 +208,15 @@ export function KeyBrowser() {
             ))}
           </select>
         </div>
-        <form className="flex items-center justify-between flex-1 h-10 p-2 dark:border-tw-dark-border border rounded" onSubmit={handleSearch}>
+        <KeySortControl
+          currentSort={currentSort}
+          disabled={loading}
+          onSortChange={handleSortChange}
+        />
+        <form
+          className="flex items-center justify-between flex-1 h-10 p-2 ml-2 dark:border-tw-dark-border border rounded"
+          onSubmit={handleSearch}
+        >
           <button className={`mr-1 ${!searchPattern ? "invisible" : "text-tw-primary"}`} onClick={handleClearSearch} type="button">
             <CircleX size={14} />
           </button>
@@ -249,6 +267,7 @@ export function KeyBrowser() {
                   loading={loading}
                   onKeyClick={handleKeyClick}
                   selectedKey={selectedKey}
+                  sortOption={currentSort}
                 />
               </div>
             )}

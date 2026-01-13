@@ -2,7 +2,8 @@ import { useState } from "react"
 import { ChevronRight, ChevronDown, Key, Database, Hourglass } from "lucide-react"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
-import { keyTreeBuilder, countKeys } from "@common/src/key-tree-builder"
+import { keyTreeBuilder, countKeys, type KeyTreeBuilderOptions } from "@common/src/key-tree-builder"
+import { type SortOption } from "@common/src/key-sorting"
 import { CustomTooltip } from "./custom-tooltip"
 
 interface KeyInfo {
@@ -28,6 +29,7 @@ interface KeyTreeProps {
   selectedKey: string | null
   onKeyClick: (keyName: string) => void
   loading: boolean
+  sortOption?: SortOption
 }
 
 interface TreeNodeItemProps {
@@ -67,7 +69,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
   return (
     <div>
       <div
-        className={`${showBorder ? "h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30 cursor-pointer rounded" 
+        className={`${showBorder ? "h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30 cursor-pointer rounded"
           : "py-1 px-2 cursor-pointer hover:bg-tw-primary/10 rounded text-sm"} flex items-center gap-2 justify-between ${
           isSelected ? "bg-tw-primary/80 hover:bg-tw-primary/80" : ""
         }`}
@@ -166,8 +168,9 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
   )
 }
 
-export function KeyTree({ keys, selectedKey, onKeyClick, loading }: KeyTreeProps) {
-  const tree = keyTreeBuilder(keys)
+export function KeyTree({ keys, selectedKey, onKeyClick, loading, sortOption }: KeyTreeProps) {
+  const options: KeyTreeBuilderOptions | undefined = sortOption ? { sortOption } : undefined
+  const tree = keyTreeBuilder(keys, options)
 
   return (
     <div className="h-full overflow-y-auto space-y-2 p-2">

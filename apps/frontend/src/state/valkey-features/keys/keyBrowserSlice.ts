@@ -8,6 +8,14 @@ interface KeyInfo {
   collectionSize?: number;
 }
 
+export type SortField = "name" | "ttl" | "size"
+export type SortDirection = "asc" | "desc"
+
+export interface SortOption {
+  field: SortField
+  direction: SortDirection
+}
+
 interface KeyBrowserState {
   [connectionId: string]: {
     keys: KeyInfo[];
@@ -16,6 +24,7 @@ interface KeyBrowserState {
     error: string | null;
     keyTypeLoading: { [key: string]: boolean };
     totalKeys: number;
+    sortOption: SortOption;
   };
 }
 
@@ -26,6 +35,7 @@ export const defaultConnectionState = {
   error: null,
   keyTypeLoading: {},
   totalKeys: 0,
+  sortOption: { field: "name" as SortField, direction: "asc" as SortDirection },
 }
 
 const initialState: KeyBrowserState = {}
@@ -278,6 +288,19 @@ const keyBrowserSlice = createSlice({
         state[connectionId].error = error
       }
     },
+    setSortOption: (
+      state,
+      action: PayloadAction<{
+        connectionId: string;
+        sortOption: SortOption;
+      }>,
+    ) => {
+      const { connectionId, sortOption } = action.payload
+      if (!state[connectionId]) {
+        state[connectionId] = { ...defaultConnectionState }
+      }
+      state[connectionId].sortOption = sortOption
+    },
 
   },
 })
@@ -299,4 +322,5 @@ export const {
   updateKeyRequested,
   updateKeyFulfilled,
   updateKeyFailed,
+  setSortOption,
 } = keyBrowserSlice.actions

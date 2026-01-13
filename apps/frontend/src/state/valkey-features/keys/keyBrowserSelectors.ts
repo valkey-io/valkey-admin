@@ -30,28 +30,31 @@ export const selectKeyTypeLoadingForKey = (id: string, key: string) => (state: R
 
 export const selectKeyType = (id: string, keyName: string | null | undefined) => (state: RootState) => {
   if (!keyName) return undefined
-  
+
   const keys = selectKeys(id)(state)
   return keys.find((k) => k.name === keyName)?.type
 }
 
 export const selectKeyTTL = (id: string, keyName: string | null | undefined) => (state: RootState) => {
   if (!keyName) return undefined
-  
+
   const keys = selectKeys(id)(state)
   return keys.find((k) => k.name === keyName)?.ttl
 }
 
 export const selectKeySize = (id: string, keyName: string | null | undefined) => (state: RootState) => {
   if (!keyName) return undefined
-  
+
   const keys = selectKeys(id)(state)
   return keys.find((k) => k.name === keyName)?.size
 }
 
 export const selectKeyCollectionSize = (id: string, keyName: string | null | undefined) => (state: RootState) => {
   if (!keyName) return undefined
-  
+
   const keys = selectKeys(id)(state)
   return keys.find((k) => k.name === keyName)?.collectionSize
 }
+
+export const selectSortOption = (id: string) => (state: RootState) =>
+  R.pathOr(defaultConnectionState.sortOption, [VALKEY.KEYS.name, id, "sortOption"], state)
