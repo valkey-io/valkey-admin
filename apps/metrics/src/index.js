@@ -11,6 +11,8 @@ import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { GlideClient } = require("@valkey/valkey-glide")
+import memoryFold from "./analyzers/memory-metrics.js"
+import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 
 async function main() {
   const cfg = getConfig()
@@ -49,31 +51,25 @@ async function main() {
 
   const app = express()
   app.use(express.json())
-  // public API goes here:
-  app.get("/health", (_req, res) => res.json({ ok: true }))
 
-  app.get("/memory", async (_req, res) => {
+  // public API goes here:
+  app.get("/health", (req, res) => res.json({ ok: true }))
+
+  app.get("/memory", async (req, res) => {
     try {
-      const rows = await Streamer.memory_stats()
-      res.json({ rows })
+      const { maxPoints, since, until } = parseQuery(memoryQuerySchema)(req.query)
+      const series = await Streamer.memory_stats(memoryFold({ maxPoints, since, until }))
+      res.json(series)
     } catch (e) {
+      console.log(e)
       res.status(500).json({ error: e.message })
     }
   })
 
-  app.get("/cpu", async (_req, res) => {
+  app.get("/cpu", async (req, res) => {
     try {
-      const tolerance = R.pipe(
-        R.pathOr("0.025", ["query", "tolerance"]),
-        Number,
-        Math.abs, // no negative numbers
-        R.when( // when not a number or more than 20% — default to 2.5% tolerance interval
-          R.either(Number.isNaN, R.lte(0.2)),
-          R.always(0.025),
-        ),
-      )(_req)
-
-      const series = await Streamer.info_cpu(cpuFold({ tolerance }))
+      const { maxPoints, tolerance, since, until } = parseQuery(cpuQuerySchema)(req.query)
+      const series = await Streamer.info_cpu(cpuFold({ maxPoints, tolerance, since, until }))
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })
@@ -82,7 +78,7 @@ async function main() {
 
   app.get("/commandlog", getCommandLogs)
 
-  app.get("/slowlog_len", async (_req, res) => {
+  app.get("/slowlog_len", async (req, res) => {
     try {
       const rows = await Streamer.slowlog_len()
       res.json({ rows })
