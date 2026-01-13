@@ -15,7 +15,8 @@
     "iovalkey": "^0.3.3",
     "ramda": "^0.31.3",
     "rxjs": "^7.8.2",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "vite": "^7.2.0"
