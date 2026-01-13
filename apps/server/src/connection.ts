@@ -36,6 +36,14 @@ export async function connectToValkey(
       addresses,
       credentials,
       useTLS: payload.connectionDetails.tls,
+      ...(payload.connectionDetails.verifyTlsCertificate === false && {
+        advancedConfiguration: {
+          tlsAdvancedConfiguration: {
+            insecure: true,
+          },
+        },
+      }),
+
       requestTimeout: 5000,
       clientName: "test_client",
     })
@@ -90,7 +98,10 @@ async function belongsToCluster(client: GlideClient): Promise<boolean> {
   return parsed["cluster_enabled"] === "1"
 }
 
-async function discoverCluster(client: GlideClient, credentials: ServerCredentials | undefined, tls: boolean)  {
+async function discoverCluster(client: GlideClient, payload: {
+  connectionDetails: ConnectionDetails
+  connectionId: string;
+})  {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await client.customCommand(["CLUSTER", "SLOTS"]) as any[][]
@@ -112,11 +123,12 @@ async function discoverCluster(client: GlideClient, credentials: ServerCredentia
         acc[primaryKey] = {
           host: primaryHost,
           port: primaryPort,
-          ...(credentials && {
-            username: credentials.username,
-            password: credentials.password,
+          ...(payload.connectionDetails.password && {
+            username: payload.connectionDetails.username,
+            password: payload.connectionDetails.password,
           }),
-          tls,
+          tls: payload.connectionDetails.tls,
+          verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
           replicas: [],
         }
       }
@@ -136,6 +148,7 @@ async function discoverCluster(client: GlideClient, credentials: ServerCredentia
       username?: string, 
       password?: string,
       tls: boolean,
+      verifyTlsCertificate: boolean,
       replicas: { id: string; host: string; port: number }[];
     }>)
 
@@ -158,7 +171,7 @@ async function connectToCluster(
   jsonModuleAvailable: boolean,
 ) {
   standaloneClient.customCommand(["CONFIG", "SET", "cluster-announce-hostname", addresses[0].host])
-  const { clusterNodes, clusterId } = await discoverCluster(standaloneClient, credentials, payload.connectionDetails.tls)
+  const { clusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
   if (R.isEmpty(clusterNodes)) {
     throw new Error("No cluster nodes discovered")
   }
@@ -173,6 +186,13 @@ async function connectToCluster(
     addresses,
     credentials,
     useTLS: payload.connectionDetails.tls,
+    ...(payload.connectionDetails.verifyTlsCertificate === false && {
+      advancedConfiguration: {
+        tlsAdvancedConfiguration: {
+          insecure: true,
+        },
+      },
+    }),
     requestTimeout: 5000,
     clientName: "cluster_client",
   })
@@ -213,7 +233,6 @@ export async function returnIfDuplicateConnection(
   ws: WebSocket) 
 {
   const resolvedAddresses = (await resolveHostnameOrIpAddress(payload.connectionDetails.host)).addresses
-  console.log("Resolved addresses: ", resolvedAddresses)
   if (resolvedAddresses.some((address) => clients.has(sanitizeUrl(`${address}:${payload.connectionDetails.port}`)))) {
     return ws.send(
       JSON.stringify({

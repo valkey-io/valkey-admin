@@ -19,6 +19,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     username: "",
     password: "",
     tls: false,
+    verifyTlsCertificate: false,
     alias: "",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
@@ -131,7 +132,19 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
                     type="checkbox"
                   />
                   <label className="text-sm select-none" htmlFor="tls">
-                    TLS
+                    Use TLS
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    checked={connectionDetails.verifyTlsCertificate}
+                    className="h-4 w-4"
+                    id="verifycert"
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, verifyTlsCertificate: e.target.checked }))}
+                    type="checkbox"
+                  />
+                  <label className="text-sm select-none" htmlFor="tls">
+                    Verify TLS Certificate
                   </label>
                 </div>
                 <div className="pt-2 text-sm">

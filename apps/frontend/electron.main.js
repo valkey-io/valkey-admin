@@ -32,6 +32,7 @@ function startMetricsForClusterNodes(clusterNodes, credentials) {
       username: credentials?.username,
       password: credentials?.password,
       tls: node.tls,
+      verifyTlsCertificate: node.verifyTlsCertificate,
     }
         
     const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
@@ -47,8 +48,7 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
   let metricsServerPath
   let configPath
 
-  const { host, port, username, password, tls } = serverConnectionDetails
-  const credentials = password ? `${username}:${password}@` : ""
+  const { host, port, username, password } = serverConnectionDetails
 
   if (app.isPackaged) {
     metricsServerPath = path.join(process.resourcesPath, "server-metrics.js")
@@ -58,14 +58,17 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
     configPath = path.join(__dirname, "../../metrics/config.yml") // Path for development
   }
 
-  const scheme = tls ? "valkeys" : "valkey"
-
   const metricsProcess = fork(metricsServerPath, [], {
     env: {
       ...process.env,
       PORT: 0,
       DATA_DIR: dataDir,
-      VALKEY_URL: `${scheme}://${credentials}${host}:${port}`,
+      VALKEY_HOST: host,
+      VALKEY_PORT: port,
+      VALKEY_USERNAME: username,
+      VALKEY_PASSWORD: password,
+      VALKEY_TLS: serverConnectionDetails.tls, 
+      VALKEY_VERIFY_CERT: serverConnectionDetails.verifyTlsCertificate,
       CONFIG_PATH: configPath, // Explicitly provide the config path
     },
   })

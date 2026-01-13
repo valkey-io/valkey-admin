@@ -29,6 +29,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     username: "",
     password: "",
     tls: false,
+    verifyTlsCertificate: false,
     alias: "",
   })
 
@@ -41,6 +42,8 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         password: "",
         alias: currentConnection.alias ?? "",
         tls: currentConnection.tls ?? false,
+        verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
+        caCertPath: currentConnection.caCertPath ?? "",
       })
     }
   }, [currentConnection])

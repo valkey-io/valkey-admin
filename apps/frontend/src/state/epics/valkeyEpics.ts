@@ -117,6 +117,7 @@ export const connectionEpic = (store: Store) =>
               username: "",
               password: "",
               tls: false,
+              verifyTlsCertificate: false, 
               alias: alias || "Valkey Cluster",
             },
             connectionId,
