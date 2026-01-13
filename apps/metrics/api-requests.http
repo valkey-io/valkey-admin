@@ -1,0 +1,168 @@
+### Base vars
+@host = http://localhost
+@port = 3000
+@baseUrl = {{host}}:{{port}}
+
+#####################################################################
+# HEALTH
+#####################################################################
+
+### Health check
+GET {{baseUrl}}/health
+Accept: application/json
+
+
+#####################################################################
+# MEMORY
+#####################################################################
+
+### Memory stats — all data
+GET {{baseUrl}}/memory
+Accept: application/json
+
+###
+
+### Memory stats — last hour
+< {%
+  request.variables.set("since", String(Date.now() - 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/memory?since={{since}}
+Accept: application/json
+
+###
+
+### Memory stats — last hour, downsampled to 10 points
+< {%
+  request.variables.set("since", String(Date.now() - 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/memory?since={{since}}&maxPoints=10
+Accept: application/json
+
+###
+
+### Memory stats — last 6 hours, downsampled to 10 points
+< {%
+  request.variables.set("since", String(Date.now() - 6 * 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/memory?since={{since}}&maxPoints=10
+Accept: application/json
+
+###
+
+### Memory stats — last 24 hours, downsampled to 120 points
+< {%
+  request.variables.set("since", String(Date.now() - 24 * 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/memory?since={{since}}&maxPoints=120
+Accept: application/json
+
+#####################################################################
+# CPU
+#####################################################################
+
+### CPU series (default tolerance=0.025)
+GET {{baseUrl}}/cpu
+Accept: application/json
+
+###
+
+### CPU series with explicit tolerance (e.g. 1%)
+GET {{baseUrl}}/cpu?tolerance=0.3
+Accept: application/json
+
+###
+
+### CPU series since last hour
+< {%
+  request.variables.set("since", String(Date.now() -  60 * 60 * 1000))
+%}
+GET {{baseUrl}}/cpu?since={{since}}
+Accept: application/json
+
+###
+
+### CPU series for the last hour with downsampling
+< {%
+  request.variables.set("since", String(Date.now() - 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/cpu?since={{since}}&maxPoints=10
+Accept: application/json
+
+###
+
+### CPU series with everything combined -12..-2 hours 10 points with 0.25 tolerance
+< {%
+  const now = Date.now()
+  request.variables.set("since", String(now - 12 * 60 * 60 * 1000))
+  request.variables.set("until", String(now - 2 * 60 * 60 * 1000))
+%}
+GET {{baseUrl}}/cpu?since={{since}}&until={{until}}&maxPoints=10&tolerance=0.25
+Accept: application/json
+
+#####################################################################
+# COMMAND LOG
+#####################################################################
+
+### Command log
+GET {{baseUrl}}/commandlog
+Accept: application/json
+
+
+#####################################################################
+# SLOWLOG LEN
+#####################################################################
+
+### Slowlog length stats
+GET {{baseUrl}}/slowlog_len
+Accept: application/json
+
+
+#####################################################################
+# MONITOR
+#####################################################################
+
+### Monitor action: start
+GET {{baseUrl}}/monitor?action=start
+Accept: application/json
+
+### Monitor action: stop
+GET {{baseUrl}}/monitor?action=stop
+Accept: application/json
+
+### Monitor action: status
+GET {{baseUrl}}/monitor?action=status
+Accept: application/json
+
+
+#####################################################################
+# HOT KEYS
+#####################################################################
+
+### Hot keys via hot slots path
+# count is passed through as req.query.count (string), your handler decides parsing.
+GET {{baseUrl}}/hot-keys?useHotSlots=true&count=20
+Accept: application/json
+
+### Hot keys via monitor-based path (when useHotSlots != "true")
+GET {{baseUrl}}/hot-keys
+Accept: application/json
+
+
+#####################################################################
+# UPDATE CONFIG
+#####################################################################
+
+### Update config (example payload)
+POST {{baseUrl}}/update-config
+Content-Type: application/json
+Accept: application/json
+
+{
+  "server": {
+    "port": 3000,
+    "data_dir": "./data"
+  },
+  "valkey": {
+    "url": "valkey://localhost:6379"
+  }
+}

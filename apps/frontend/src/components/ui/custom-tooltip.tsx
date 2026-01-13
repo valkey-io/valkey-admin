@@ -10,9 +10,10 @@ interface CustomTooltipProps {
   content?: string;
   description?: string;
   unit?: string;
+  side?: "right" | "bottom";
 }
 
-export function CustomTooltip({ children, content, description, unit }: CustomTooltipProps) {
+export function CustomTooltip({ children, content, description, unit, side }: CustomTooltipProps) {
   return (
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
@@ -29,7 +30,7 @@ export function CustomTooltip({ children, content, description, unit }: CustomTo
         <TooltipContent
           align="center"
           className={"bg-tw-primary text-white px-2 py-1 mt-1 rounded text-xs font-light z-10 w-1/2"}
-          side="right"
+          side={side || "right"}
         >
           <p>{description}</p>
           {unit && (
