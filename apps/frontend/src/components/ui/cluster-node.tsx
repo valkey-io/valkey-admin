@@ -47,6 +47,10 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
           password: primary.password,
         }),
         tls: primary.tls,
+        verifyTlsCertificate: primary.verifyTlsCertificate, 
+        ...(primary.caCertPath && {
+          caCertPath: primary.caCertPath,
+        }),
       }
       dispatch(connectPending({
         connectionId,

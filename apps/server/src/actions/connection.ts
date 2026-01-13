@@ -9,6 +9,8 @@ export interface ConnectionDetails {
   username?: string;
   password?: string;
   tls: boolean;
+  verifyTlsCertificate: boolean;
+  caCertPath?: string;
 }
 
 type ConnectPayload = {

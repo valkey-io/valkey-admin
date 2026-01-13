@@ -8,7 +8,7 @@ const kvPairsToRows = R.curry((ts, pairs) =>
 
 export const makeFetcher = (client) => ({
   memory_stats: async () => {
-    const result = await client.sendCommand(["MEMORY", "STATS"])
+    const result = await client.customCommand(["MEMORY", "STATS"])
     const ts = Date.now()
 
     return R.pipe(
@@ -49,25 +49,25 @@ export const makeFetcher = (client) => ({
   },
 
   commandlog_slow: async (count = 50) => {
-    const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.SLOW])
+    const entries = await client.customCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.SLOW])
     const values = parseCommandLogs(entries)
     return [{ ts: Date.now(), metric: COMMANDLOG_SLOW, values }]
   },
 
   commandlog_slow: async (count = 50) => {
-    const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.SLOW])
+    const entries = await client.customCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.SLOW])
     const values = parseCommandLogs(entries, COMMANDLOG_TYPE.SLOW)
     return [{ ts: Date.now(), metric: COMMANDLOG_SLOW, values }]
   },
 
   commandlog_large_reply: async (count = 50) => {
-    const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REPLY])
+    const entries = await client.customCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REPLY])
     const values = parseCommandLogs(entries, COMMANDLOG_TYPE.LARGE_REPLY)
     return [{ ts: Date.now(), metric: COMMANDLOG_LARGE_REPLY, values }]
   },
 
   commandlog_large_request: async (count = 50) => {
-    const entries = await client.sendCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REQUEST])
+    const entries = await client.customCommand(["COMMANDLOG", "GET", String(count), COMMANDLOG_TYPE.LARGE_REQUEST])
     const values = parseCommandLogs(entries, COMMANDLOG_TYPE.LARGE_REQUEST)
     return [{ ts: Date.now(), metric: COMMANDLOG_LARGE_REQUEST, values }]
   },

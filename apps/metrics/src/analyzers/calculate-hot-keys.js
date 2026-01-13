@@ -79,7 +79,7 @@ export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
     let cursorToSlot = slotId
 
     do {
-      const [nextCursor, scannedKeys] = await client.sendCommand(["SCAN", cursor.toString(), "COUNT", "1"])
+      const [nextCursor, scannedKeys] = await client.customCommand(["SCAN", cursor.toString(), "COUNT", "1"])
       cursor = nextCursor
       keys.push(...scannedKeys)
       cursorToSlot = Number(cursor) & 0x3FFF
@@ -88,7 +88,7 @@ export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
     
     return keys.map( async (key) => {
       // Must have LFU enabled for this to work
-      const freq = parseInt(await client.sendCommand(["OBJECT", "FREQ", key]))
+      const freq = parseInt(await client.customCommand(["OBJECT", "FREQ", key]))
       return { key, freq }
     })
   })

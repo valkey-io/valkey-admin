@@ -20,6 +20,8 @@ export interface ConnectionDetails {
   username?: string;
   password?: string;
   tls: boolean;
+  verifyTlsCertificate: boolean
+  caCertPath?: string
   alias?: string;
   role?: Role;
   clusterId?: string;

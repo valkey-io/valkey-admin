@@ -1,7 +1,6 @@
 import fs from "node:fs"
 import express from "express"
 import * as R from "ramda"
-import { createClient } from "@valkey/client"
 import { getConfig, updateConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors } from "./init-collectors.js"
@@ -10,22 +9,42 @@ import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { GlideClient } = require("@valkey/valkey-glide")
 
 async function main() {
   const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
 
-  // Valkey single URL
-  const url = String(process.env.VALKEY_URL || cfg.valkey.url || "").trim()
-  if (!/^valkeys?:\/\//i.test(url)) {
-    console.error(`VALKEY_URL must start with valkey:// or valkeys://, got: ${url || "(empty)"}`)
-    process.exit(1)
-  }
+  const addresses = [
+    {
+      host: process.env.VALKEY_HOST,
+      port: Number(process.env.VALKEY_PORT),
+    },
+  ]
+  const credentials = 
+    process.env.VALKEY_PASSWORD ? {
+      username: process.env.VALKEY_USERNAME,
+      password: process.env.VALKEY_PASSWORD,
+    } : undefined
+    
+  const client = await GlideClient.createClient({
+    addresses,
+    credentials,
+    useTLS: process.env.VALKEY_TLS === "true" ? true : false,
+    ...(process.env.VALKEY_VERIFY_CERT === "false" && {
+      advancedConfiguration: {
+        tlsAdvancedConfiguration: {
+          insecure: true,
+        },
+      },
+    }),
 
-  const client = createClient({ url })
-  client.on("error", (err) => console.error("valkey error", err))
-  await client.connect()
+    requestTimeout: 5000,
+    clientName: "test_client",
+  })  
+
   const stoppers = await setupCollectors(client, cfg)
 
   const app = express()
@@ -103,7 +122,7 @@ async function main() {
   const server = app.listen(port, () => {
     const assignedPort = server.address().port
     console.log(`listening on http://0.0.0.0:${assignedPort}`)
-    process.send?.({ type: "metrics-started", payload: { valkeyUrl: url, metricsHost: "http://0.0.0.0", metricsPort: assignedPort } })
+    process.send?.({ type: "metrics-started", payload: { metricsHost: "http://0.0.0.0", metricsPort: assignedPort } })
   })
 
   const shutdown = async () => {

@@ -13,6 +13,8 @@ export interface MasterNode {
   username?: string;
   password?: string;
   tls: boolean;
+  verifyTlsCertificate: boolean
+  caCertPath?: string
   replicas: ReplicaNode[];
 }
 

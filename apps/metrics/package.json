@@ -9,7 +9,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@valkey/client": "^1.0.0",
+    "@valkey/valkey-glide": "^2.0.1",
     "express": "^4.21.2",
     "heap-js": "^2.7.1",
     "iovalkey": "^0.3.3",

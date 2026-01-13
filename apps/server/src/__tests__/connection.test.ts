@@ -7,14 +7,19 @@ import { connectToValkey, returnIfDuplicateConnection } from "../connection.ts"
 import { resolveHostnameOrIpAddress, dns } from "../utils.ts"
 import { checkJsonModuleAvailability } from "../check-json-module.ts"
 import { KEY_EVICTION_POLICY, VALKEY } from "../../../../common/src/constants.ts"
+import { ConnectionDetails } from "../actions/connection.ts"
 
 const DEFAULT_PAYLOAD = {
-  host: "127.0.0.1",
-  port: 6379,
-  username: "user0",
-  password: "helloWorld123!",
-  tls: false,
-  connectionId: "conn-123",
+  connectionDetails: {
+    host: "127.0.0.1",
+    port: "6379",
+    username: "user0",
+    password: "helloWorld123!",
+    tls: false,
+    verifyTlsCertificate: false,
+    connectionId: "conn-123",
+  } as ConnectionDetails,
+  connectionId: "",
 }
 
 describe("connectToValkey", () => {
@@ -150,14 +155,14 @@ describe("connectToValkey", () => {
       )
       assert.strictEqual(sentMessage.payload.connectionId, payload.connectionId)
       const expectedDetails: any = {
-        host: payload.host,
-        port: payload.port,
+        host: payload.connectionDetails.host,
+        port: payload.connectionDetails.port,
         keyEvictionPolicy: KEY_EVICTION_POLICY.ALLKEYS_LFU,
         jsonModuleAvailable: false,
       }
 
-      expectedDetails.username = payload.username
-      expectedDetails.password = payload.password
+      expectedDetails.username = payload.connectionDetails.username
+      expectedDetails.password = payload.connectionDetails.password
 
       assert.deepStrictEqual(
         sentMessage.payload.connectionDetails,
@@ -209,18 +214,23 @@ describe("connectToValkey", () => {
     const originalCreateClient = GlideClient.createClient
     GlideClient.createClient = mock.fn(async (config: any) => {
       assert.ok(config)
-      assert.deepStrictEqual(config.addresses, [{ host: DEFAULT_PAYLOAD.host, port: DEFAULT_PAYLOAD.port }])
+      assert.deepStrictEqual(config.addresses, [{ host: DEFAULT_PAYLOAD.connectionDetails.host, port: DEFAULT_PAYLOAD.connectionDetails.port }])
       assert.strictEqual(config.requestTimeout, 5000)
       assert.strictEqual(config.clientName, "test_client")
       return mockStandaloneClient as any
     })
 
     const alternate_payload = {
-      host: "192.168.1.1",
-      port: 7000,
-      username: "user1",
-      password: "helloWorld456!",
-      connectionId: "conn-456",
+      connectionDetails: {
+        host: "192.168.1.1",
+        port: "7000",
+        username: "user1",
+        password: "helloWorld456!",
+        tls: false,
+        verifyTlsCertificate: false,
+        connectionId: "conn-456",
+      } as ConnectionDetails,
+      connectionId: "",
     }
 
     try {
@@ -345,7 +355,7 @@ describe("returnIfDuplicateConnection", () => {
     } as any
 
     await returnIfDuplicateConnection(
-      { connectionId: "abc123", host: "my-host", port: 6379 },
+      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
       clients,
       ws,
     )
@@ -371,7 +381,7 @@ describe("returnIfDuplicateConnection", () => {
     } as any
 
     await returnIfDuplicateConnection(
-      { connectionId: "abc123", host: "my-host", port: 6379 },
+      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
       clients,
       ws,
     )

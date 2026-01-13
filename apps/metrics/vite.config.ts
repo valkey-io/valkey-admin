@@ -17,16 +17,11 @@ export default defineConfig({
       fileName: "index", // Vite will add the correct extension, e.g., .cjs
       formats: ["cjs"],
     },
-    // rollupOptions: {
-    //   // No longer externalizing the client, it will be bundled
-    //   external: ["express"],
-    // },
 
     emptyOutDir: false,
   },
   ssr: {
-    // Force Vite to bundle all other dependencies into the single output file.
-    // `rollupOptions.external` will still take priority for `@valkey/client`.
+    external: ["@valkey/valkey-glide"],
     noExternal: true,
   },
 })
