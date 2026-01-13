@@ -17,7 +17,6 @@ const DEFAULT_PAYLOAD = {
     password: "helloWorld123!",
     tls: false,
     verifyTlsCertificate: false,
-    connectionId: "conn-123",
   } as ConnectionDetails,
   connectionId: "",
 }
@@ -159,6 +158,8 @@ describe("connectToValkey", () => {
         port: payload.connectionDetails.port,
         keyEvictionPolicy: KEY_EVICTION_POLICY.ALLKEYS_LFU,
         jsonModuleAvailable: false,
+        tls: false, 
+        verifyTlsCertificate: false,
       }
 
       expectedDetails.username = payload.connectionDetails.username
