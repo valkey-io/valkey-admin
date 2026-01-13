@@ -36,9 +36,10 @@ async function main() {
 
   app.get("/memory", async (_req, res) => {
     try {
-      const rows = await Streamer.memory_stats(memoryFold)
-      res.json({ rows })
+      const series = await Streamer.memory_stats(memoryFold({ maxPoints: 120 }))
+      res.json(series)
     } catch (e) {
+      console.log(e)
       res.status(500).json({ error: e.message })
     }
   })

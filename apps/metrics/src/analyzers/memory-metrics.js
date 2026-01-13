@@ -1,4 +1,5 @@
 import * as R from "ramda"
+import { downsampleMinMaxOrdered } from "../utils/helpers.js"
 
 export const MEMORY_METRICS = {
   // core usage
@@ -88,11 +89,19 @@ const reducer = (acc, point) =>
     },
   )(point) || acc
 
-const memoryFold = {
+export const finalizeDownsample = ({ maxPoints = 120 } = {}) => (acc) => {
+  for (const key of Object.keys(acc)) {
+    acc[key].series = downsampleMinMaxOrdered(acc[key].series, { maxPoints })
+  }
+  return acc
+}
+
+const memoryFold = ({ maxPoints = 120 } = {}) => ({
   seed: seed(),
   filterFn,
   mapFn,
   reducer,
-}
+  finalize: finalizeDownsample({ maxPoints }),
+})
 
 export default memoryFold
