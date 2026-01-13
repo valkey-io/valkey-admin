@@ -143,7 +143,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
                     onChange={(e) => setConnectionDetails((prev) => ({ ...prev, verifyTlsCertificate: e.target.checked }))}
                     type="checkbox"
                   />
-                  <label className="text-sm select-none" htmlFor="tls">
+                  <label className="text-sm select-none" htmlFor="verifycert">
                     Verify TLS Certificate
                   </label>
                 </div>
