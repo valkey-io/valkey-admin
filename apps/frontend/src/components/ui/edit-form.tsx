@@ -43,6 +43,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         alias: currentConnection.alias ?? "",
         tls: currentConnection.tls ?? false,
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
+        //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
       })
     }

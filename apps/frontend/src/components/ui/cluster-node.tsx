@@ -48,6 +48,7 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
         }),
         tls: primary.tls,
         verifyTlsCertificate: primary.verifyTlsCertificate, 
+        //TODO: Add handling and UI for uploading cert
         ...(primary.caCertPath && {
           caCertPath: primary.caCertPath,
         }),

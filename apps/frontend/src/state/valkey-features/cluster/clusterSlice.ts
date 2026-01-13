@@ -14,6 +14,7 @@ export interface MasterNode {
   password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean
+  //TODO: Add handling and UI for uploading cert
   caCertPath?: string
   replicas: ReplicaNode[];
 }
