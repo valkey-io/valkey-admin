@@ -43,7 +43,7 @@ export const ConnectionEntry = ({
 
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
   const handleConnect = () => dispatch(connectPending({
-    ...connection.connectionDetails,
+    connectionDetails: connection.connectionDetails,
     connectionId,
     preservedHistory: connection.connectionHistory,
   }))

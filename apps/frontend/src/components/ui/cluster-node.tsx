@@ -6,36 +6,13 @@ import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Card } from "./card"
 import { CustomTooltip } from "./custom-tooltip"
 import type { RootState } from "@/store.ts"
-import { connectPending } from "@/state/valkey-features/connection/connectionSlice.ts"
+import type { MasterNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
+import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-
-interface ReplicaNode {
-  id: string
-  host: string
-  port: number
-}
-
-interface PrimaryNode {
-  host: string
-  port: number
-  replicas: ReplicaNode[]
-}
-
-interface ParsedNodeInfo {
-  server_name: string | null
-  uptime_in_days: string | null
-  tcp_port: string | null
-  used_memory_human: string | null
-  used_cpu_sys: string | null
-  instantaneous_ops_per_sec: string | null
-  total_commands_processed: string | null
-  role: string | null
-  connected_clients: string | null
-}
 
 interface ClusterNodeProps {
   primaryKey: string
-  primary: PrimaryNode
+  primary: MasterNode
   primaryData: ParsedNodeInfo
   allNodeData: Record<string, ParsedNodeInfo>
   clusterId: string
@@ -62,10 +39,23 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
 
   const handleNodeConnect = () => {
     if (!isConnected) {
-      dispatch(connectPending({
-        connectionId,
+      const connectionDetails: ConnectionDetails = {
         host: primary.host,
         port: primary.port.toString(),
+        ...(primary.username && primary.password && {
+          username: primary.username,
+          password: primary.password,
+        }),
+        tls: primary.tls,
+        verifyTlsCertificate: primary.verifyTlsCertificate, 
+        //TODO: Add handling and UI for uploading cert
+        ...(primary.caCertPath && {
+          caCertPath: primary.caCertPath,
+        }),
+      }
+      dispatch(connectPending({
+        connectionId,
+        connectionDetails,
       }))
     }
   }

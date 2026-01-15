@@ -1,3 +1,6 @@
+import * as R from "ramda"
+import { downsampleMinMaxOrdered } from "../utils/helpers.js"
+
 // Valkey exposes CPU usage as cumulative counters:
 //   `used_cpu_user`: time spent executing Valkey code in user space
 //   `used_cpu_sys`: time spent in kernel space (syscalls, networking)
@@ -15,9 +18,15 @@ export const cpuSeed = {
   curTotal: null,
 }
 
-export const cpuFilter = ({ metric }) => metric === "used_cpu_sys" || metric === "used_cpu_user"
+export const cpuFilter =
+  ({ since, until } = {}) =>
+    ({ ts, metric }) =>
+      (metric === "used_cpu_sys" || metric === "used_cpu_user") &&
+      (since == null || ts >= since) &&
+      (until == null || ts <= until)
 
 const shouldEmitPoint = ({ prevValue, currValue, tolerance = 0 }) =>
+  tolerance === 0 ||
   prevValue == null || // first point
   (prevValue === 0 && currValue !== 0) || // went from zero to something
   (prevValue !== 0 && currValue === 0) || // went from something to zero
@@ -96,11 +105,14 @@ export const cpuFinalize =
       return acc.out
     }
 
-const cpuFold = ({ tolerance = 0 } = {}) => ({
-  filterFn: cpuFilter,
+const cpuFold = ({ maxPoints, tolerance = 0, since, until } = {}) => ({
+  filterFn: cpuFilter({ since, until }),
   seed: { ...cpuSeed, out: [] },
   reducer: cpuReducer({ tolerance }),
-  finalize: cpuFinalize({ tolerance }),
+  finalize: R.pipe(
+    cpuFinalize({ tolerance }),
+    R.isNil(maxPoints) ? R.identity : downsampleMinMaxOrdered({ maxPoints }),
+  ),
 })
 
 export default cpuFold

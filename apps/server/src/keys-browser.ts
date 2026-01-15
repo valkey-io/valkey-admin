@@ -615,6 +615,7 @@ async function updateListKey(
   updates: { index: number; value: string }[],
   ttl?: number,
   deletedListItems?: { index: number; value: string }[],
+  newListItems?: string[],
 ) {
 
   if (client instanceof GlideClient) {
@@ -633,6 +634,11 @@ async function updateListKey(
       updates.forEach(({ index, value }) =>
         batch.customCommand(["LSET", key, index.toString(), value]),
       )
+    }
+
+    // then add new items to the end of the list
+    if (newListItems && newListItems.length > 0) {
+      batch.customCommand(["RPUSH", key, ...newListItems])
     }
 
     if (ttl && ttl > 0) {
@@ -656,6 +662,11 @@ async function updateListKey(
       )
     }
 
+    // then add new items to the end of the list
+    if (newListItems && newListItems.length > 0) {
+      batch.customCommand(["RPUSH", key, ...newListItems])
+    }
+
     if (ttl && ttl > 0) {
       batch.customCommand(["EXPIRE", key, ttl.toString()])
     }
@@ -672,6 +683,7 @@ async function updateSetKey(
   updates: { oldValue: string; newValue: string }[],
   ttl?: number,
   deletedSetItems?: string[],
+  newSetItems?: string[],
 ) {
   if (client instanceof GlideClient) {
     const batch = new Batch(true)
@@ -689,6 +701,11 @@ async function updateSetKey(
         batch.customCommand(["SREM", key, oldValue])
         batch.customCommand(["SADD", key, newValue])
       }
+    }
+
+    // then add new items
+    if (newSetItems && newSetItems.length > 0) {
+      batch.customCommand(["SADD", key, ...newSetItems])
     }
 
     if (ttl && ttl > 0) {
@@ -711,6 +728,11 @@ async function updateSetKey(
         batch.customCommand(["SREM", key, oldValue])
         batch.customCommand(["SADD", key, newValue])
       }
+    }
+
+    // then add new items
+    if (newSetItems && newSetItems.length > 0) {
+      batch.customCommand(["SADD", key, ...newSetItems])
     }
 
     if (ttl && ttl > 0) {
@@ -770,8 +792,10 @@ export async function updateKey(
     deletedHashFields?: string[]; // for hash type - fields to delete
     listUpdates?: { index: number; value: string }[]; // for list type
     deletedListItems?: { index: number; value: string }[]; // for list type - items to delete
+    newListItems?: string[]; // for list type - new items to add
     setUpdates?: { oldValue: string; newValue: string }[]; // for set type
     deletedSetItems?: string[]; // for set type - items to delete
+    newSetItems?: string[]; // for set type - new items to add
     zsetUpdates?: { member: string; score: number }[]; // for zset type
     ttl?: number;
   },
@@ -796,17 +820,19 @@ export async function updateKey(
         }
       case "list":
         if ((!payload.listUpdates || payload.listUpdates.length === 0) &&
-            (!payload.deletedListItems || payload.deletedListItems.length === 0)) {
-          throw new Error("List updates or deletedListItems are required for list type")
+            (!payload.deletedListItems || payload.deletedListItems.length === 0) &&
+            (!payload.newListItems || payload.newListItems.length === 0)) {
+          throw new Error("List updates, deletedListItems, or newListItems are required for list type")
         }
-        await updateListKey(client, payload.key, payload.listUpdates || [], payload.ttl, payload.deletedListItems)
+        await updateListKey(client, payload.key, payload.listUpdates || [], payload.ttl, payload.deletedListItems, payload.newListItems)
         break
       case "set":
         if ((!payload.setUpdates || payload.setUpdates.length === 0) &&
-            (!payload.deletedSetItems || payload.deletedSetItems.length === 0)) {
-          throw new Error("Set updates or deletedSetItems are required for set type")
+            (!payload.deletedSetItems || payload.deletedSetItems.length === 0) &&
+            (!payload.newSetItems || payload.newSetItems.length === 0)) {
+          throw new Error("Set updates, deletedSetItems, or newSetItems are required for set type")
         }
-        await updateSetKey(client, payload.key, payload.setUpdates || [], payload.ttl, payload.deletedSetItems)
+        await updateSetKey(client, payload.key, payload.setUpdates || [], payload.ttl, payload.deletedSetItems, payload.newSetItems)
         break
       case "zset":
         if (!payload.zsetUpdates || payload.zsetUpdates.length === 0) {

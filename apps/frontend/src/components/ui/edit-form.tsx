@@ -6,7 +6,8 @@ import {
   updateConnectionDetails,
   connectPending,
   deleteConnection,
-  stopRetry
+  stopRetry,
+  type ConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnectionDetails, selectConnections } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -22,29 +23,36 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
   const allConnections = useSelector(selectConnections)
   const fullConnection = connectionId ? allConnections[connectionId] : null
 
-  const [host, setHost] = useState("localhost")
-  const [port, setPort] = useState("6379")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [alias, setAlias] = useState("")
+  const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails>({
+    host: "localhost",
+    port: "6379",
+    username: "",
+    password: "",
+    tls: false,
+    verifyTlsCertificate: false,
+    alias: "",
+  })
 
   useEffect(() => {
     if (currentConnection) {
-      setHost(currentConnection.host)
-      setPort(currentConnection.port)
-      setUsername(currentConnection.username || "")
-      setPassword("")
-      setAlias(currentConnection.alias || "")
+      setConnectionDetails({
+        host: currentConnection.host,
+        port: currentConnection.port,
+        username: currentConnection.username ?? "",
+        password: "",
+        alias: currentConnection.alias ?? "",
+        tls: currentConnection.tls ?? false,
+        verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
+        //TODO: Add handling and UI for uploading cert
+        caCertPath: currentConnection.caCertPath ?? "",
+      })
     }
   }, [currentConnection])
 
   const hasCoreChanges = () => {
     if (!currentConnection) return false
     return (
-      host !== currentConnection.host ||
-      port !== currentConnection.port ||
-      username !== (currentConnection.username || "") ||
-      password !== ""
+      connectionDetails !== currentConnection 
     )
   }
 
@@ -54,7 +62,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     if (!connectionId || !currentConnection) return
 
     if (hasCoreChanges()) {
-      const newConnectionId = sanitizeUrl(`${host}-${port}`)
+      const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
 
       // Stop any ongoing retries for the current connection
       dispatch(stopRetry({ connectionId }))
@@ -67,18 +75,14 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
 
       dispatch(connectPending({
         connectionId: newConnectionId,
-        host,
-        port,
-        username,
-        password,
-        alias,
+        connectionDetails,
         isEdit: true,
         preservedHistory: connectionHistory,
       }))
     } else {
       dispatch(updateConnectionDetails({
         connectionId,
-        alias: alias || undefined,
+        alias: connectionDetails.alias || undefined,
       }))
     }
 
@@ -101,58 +105,71 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
           <div>
             <label className="block mb-1 text-sm">Host</label>
             <input
-              autoFocus
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setHost(e.target.value)}
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, host: e.target.value }))}
               placeholder="localhost"
               required
               type="text"
-              value={host}
+              value={connectionDetails.host}
             />
           </div>
           <div>
             <label className="block mb-1 text-sm">Port</label>
             <input
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setPort(e.target.value)}
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, port: e.target.value }))}
               placeholder="6379"
               required
               type="number"
-              value={port}
+              value={connectionDetails.port}
             />
           </div>
           <div>
             <label className="block mb-1 text-sm">Alias</label>
             <input
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
-              onChange={(e) => setAlias(e.target.value)}
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, alias: e.target.value }))}
               placeholder="Alias of the first cluster node will be the alias of the cluster"
               type="text"
-              value={alias}
+              value={connectionDetails.alias}
             />
           </div>
           <div>
             <label className="block mb-1 text-sm">Username</label>
             <input
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, username: e.target.value }))}
               type="text"
-              value={username}
+              value={connectionDetails.username}
             />
           </div>
+
           <div>
             <label className="block mb-1 text-sm">Password</label>
             <input
               className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, password: e.target.value }))}
               type="password"
-              value={password}
+              value={connectionDetails.password}
             />
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              checked={connectionDetails.tls}
+              className="h-4 w-4"
+              id="tls"
+              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, tls: e.target.checked }))}
+              type="checkbox"
+            />
+            <label className="text-sm select-none" htmlFor="tls">
+              TLS
+            </label>
+          </div>
+
           <div className="pt-2 text-sm">
             <button
               className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
-              disabled={!host || !port}
+              disabled={!connectionDetails.host || !connectionDetails.port}
               type="submit"
             >
               Apply Changes

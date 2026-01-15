@@ -22,5 +22,7 @@ jobs:
       run: npm ci
     - name: Test Server
       run: npm test --workspace=apps/server
+    - name: Test Frontend
+      run: npm test --workspace=apps/frontend
     - name: Test Metrics
       run: npm test --workspace=apps/metrics

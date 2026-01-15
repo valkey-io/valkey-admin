@@ -9,15 +9,19 @@ type ConnectionFormProps = {
 import { sanitizeUrl } from "@common/src/url-utils.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
-import { connectPending } from "@/state/valkey-features/connection/connectionSlice.ts"
+import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
-  const [host, setHost] = useState("localhost")
-  const [port, setPort] = useState("6379")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [alias, setAlias] = useState("")
+  const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails>({
+    host: "localhost",
+    port: "6379",
+    username: "",
+    password: "",
+    tls: false,
+    verifyTlsCertificate: false,
+    alias: "",
+  })
   const [connectionId, setConnectionId] = useState<string | null>(null)
 
   const connectionState = useAppSelector((state) =>
@@ -37,10 +41,10 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const newConnectionId = sanitizeUrl(`${host}-${port}`)
+    const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
     setConnectionId(newConnectionId)
     dispatch(
-      connectPending({ host, port, username, password, alias, connectionId: newConnectionId }),
+      connectPending({ connectionId: newConnectionId, connectionDetails }),
     )
   }
 
@@ -72,41 +76,41 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
                   <label className="block mb-1 text-sm">Host</label>
                   <input
                     className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-                    onChange={(e) => setHost(e.target.value)}
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, host: e.target.value }))}
                     placeholder="localhost"
                     required
                     type="text"
-                    value={host}
+                    value={connectionDetails.host}
                   />
                 </div>
                 <div>
                   <label className="block mb-1 text-sm">Port</label>
                   <input
                     className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-                    onChange={(e) => setPort(e.target.value)}
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, port: e.target.value }))}
                     placeholder="6379"
                     required
                     type="number"
-                    value={port}
+                    value={connectionDetails.port}
                   />
                 </div>
                 <div>
                   <label className="block mb-1 text-sm">Alias</label>
                   <input
                     className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
-                    onChange={(e) => setAlias(e.target.value)}
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, alias: e.target.value }))}
                     placeholder="Alias of the first cluster node will be the alias of the cluster"
                     type="text"
-                    value={alias}
+                    value={connectionDetails.alias}
                   />
                 </div>
                 <div>
                   <label className="block mb-1 text-sm">Username</label>
                   <input
                     className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, username: e.target.value }))}
                     type="text"
-                    value={username}
+                    value={connectionDetails.username}
                   />
                 </div>
 
@@ -114,16 +118,40 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
                   <label className="block mb-1 text-sm">Password</label>
                   <input
                     className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, password: e.target.value }))}
                     type="password"
-                    value={password}
+                    value={connectionDetails.password}
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    checked={connectionDetails.tls}
+                    className="h-4 w-4"
+                    id="tls"
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, tls: e.target.checked }))}
+                    type="checkbox"
+                  />
+                  <label className="text-sm select-none" htmlFor="tls">
+                    Use TLS
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    checked={connectionDetails.verifyTlsCertificate}
+                    className="h-4 w-4"
+                    id="verifycert"
+                    onChange={(e) => setConnectionDetails((prev) => ({ ...prev, verifyTlsCertificate: e.target.checked }))}
+                    type="checkbox"
+                  />
+                  <label className="text-sm select-none" htmlFor="verifycert">
+                    Verify TLS Certificate
+                  </label>
                 </div>
                 <div className="pt-2 text-sm">
                   <button
                     className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90 disabled:opacity-50 
                     disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    disabled={!host || !port || isConnecting}
+                    disabled={!connectionDetails.host || !connectionDetails.port || isConnecting}
                     type="submit"
                   >
                     {isConnecting && <Loader2 className="animate-spin" size={16} />}

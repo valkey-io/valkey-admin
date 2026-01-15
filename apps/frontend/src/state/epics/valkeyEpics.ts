@@ -13,7 +13,8 @@ import {
   connectRejected,
   startRetry,
   stopRetry,
-  updateConnectionDetails
+  updateConnectionDetails,
+  type ConnectionState
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
@@ -110,12 +111,17 @@ export const connectionEpic = (store: Store) =>
           const connectionId = sanitizeUrl(`${host}-${port}`)
 
           store.dispatch(connectPending({
-            host,
-            port: String(port),
-            username: "",
-            password: "",
-            alias: alias || "Valkey Cluster",
+            connectionDetails: {
+              host,
+              port: String(port),
+              username: "",
+              password: "",
+              tls: false,
+              verifyTlsCertificate: false, 
+              alias: alias || "Valkey Cluster",
+            },
             connectionId,
+
           }))
         }
       }),
@@ -172,16 +178,11 @@ export const valkeyRetryEpic = (store: Store) =>
 
       return timer(nextDelay).pipe(
         tap(() => {
-          const { host, port, username, password, alias } = connection.connectionDetails
           console.log(`Attempting retry ${currentAttempt} for ${connectionId}`)
 
           store.dispatch(connectPending({
             connectionId,
-            host,
-            port,
-            username,
-            password,
-            alias,
+            connectionDetails: connection.connectionDetails,
             isRetry: true,
           }))
         }),
@@ -201,9 +202,8 @@ export const autoReconnectEpic = (store: Store) =>
     delay(500), // Small delay to ensure WebSocket is fully connected
     tap(() => {
       const state = store.getState()
-      const connections = state.valkeyConnection?.connections || {}
+      const connections: Record<string, ConnectionState> = state.valkeyConnection?.connections || {}
 
-      // disconnected Valkey connections
       const disconnectedConnections = Object.entries(connections)
         .filter(([, connection]) => connection.status === DISCONNECTED)
 
@@ -213,16 +213,10 @@ export const autoReconnectEpic = (store: Store) =>
 
         // reconnect each disconnected connection
         disconnectedConnections.forEach(([connectionId, connection]) => {
-          const { host, port, username, password, alias } = connection.connectionDetails
-
           console.log(`Attempting to reconnect ${connectionId}`)
           store.dispatch(connectPending({
             connectionId,
-            host,
-            port,
-            username,
-            password,
-            alias,
+            connectionDetails: connection.connectionDetails,
           }))
         })
       }

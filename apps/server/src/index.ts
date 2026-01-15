@@ -33,8 +33,10 @@ const metricsServerURIs: Map<string, string> = new Map()
 process.on("message", (message: MetricsServerMessage ) => {
   if (message?.type === "metrics-started") {
     const metricsServerURI = `${message.payload.metricsHost}:${message.payload.metricsPort}`
-    metricsServerURIs.set(message.payload.serverConnectionId, metricsServerURI)
-    console.log(`Metrics server for ${message.payload.serverConnectionId} saved with URI ${metricsServerURI}`)
+    const { serverConnectionId } = message.payload
+    metricsServerURIs.set(serverConnectionId, metricsServerURI)
+    console.log(`Metrics server for ${serverConnectionId} saved with URI ${metricsServerURI}`)
+
   }
 
   if (message?.type === "metrics-closed"){
@@ -54,6 +56,25 @@ wss.on("listening", () => { // Add a listener for when the server starts listeni
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected.")
   const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
+  
+  const handlers: Record<string, Handler> = {
+    [VALKEY.CONNECTION.connectPending]: connectPending,
+    [VALKEY.CONNECTION.resetConnection]: resetConnection,
+    [VALKEY.CONFIG.updateConfig]: updateConfig, 
+    [VALKEY.CLUSTER.setClusterData]: setClusterData,
+    [VALKEY.COMMAND.sendRequested]: sendRequested,
+    [VALKEY.STATS.setData]: setData,
+    [VALKEY.KEYS.getKeysRequested]: getKeysRequested,
+    [VALKEY.KEYS.getKeyTypeRequested]: getKeyTypeRequested,
+    [VALKEY.KEYS.deleteKeyRequested]: deleteKeyRequested,
+    [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
+    [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
+    [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
+    [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
+    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
+    [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
+
+  }
 
   ws.on("message", async (message) => {
     let action: WsActionMessage | undefined
@@ -64,25 +85,6 @@ wss.on("connection", (ws: WebSocket) => {
       connectionId = action!.payload.connectionId
     } catch (e) {
       console.log("Failed to parse the message", message.toString(), e)
-    }
-
-    const handlers: Record<string, Handler> = {
-      [VALKEY.CONNECTION.connectPending]: connectPending,
-      [VALKEY.CONNECTION.resetConnection]: resetConnection,
-      [VALKEY.CLUSTER.setClusterData]: setClusterData,
-      [VALKEY.COMMAND.sendRequested]: sendRequested,
-      [VALKEY.STATS.setData]: setData,
-      [VALKEY.KEYS.getKeysRequested]: getKeysRequested,
-      [VALKEY.KEYS.getKeyTypeRequested]: getKeyTypeRequested,
-      [VALKEY.KEYS.deleteKeyRequested]: deleteKeyRequested,
-      [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
-      [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
-      [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
-      [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
-      [VALKEY.CONFIG.updateConfig]: updateConfig, 
-      [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
-      [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
-
     }
 
     const handler = handlers[action!.type] ?? unknownHandler

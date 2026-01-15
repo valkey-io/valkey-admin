@@ -14,11 +14,15 @@ import * as R from "ramda"
 type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED;
 type Role = "primary" | "replica";
 
-interface ConnectionDetails {
+export interface ConnectionDetails {
   host: string;
   port: string;
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  tls: boolean;
+  verifyTlsCertificate: boolean
+  //TODO: Add handling and UI for uploading cert
+  caCertPath?: string
   alias?: string;
   role?: Role;
   clusterId?: string;
@@ -50,7 +54,7 @@ export interface ConnectionState {
   wasEdit?: boolean;
 }
 
-interface ValkeyConnectionsState {
+export interface ValkeyConnectionsState {
   [connectionId: string]: ConnectionState
 }
 
@@ -69,11 +73,7 @@ const connectionSlice = createSlice({
       state,
       action: PayloadAction<{
         connectionId: string;
-        host: string;
-        port: string;
-        username?: string;
-        password?: string;
-        alias?: string;
+        connectionDetails: ConnectionDetails;
         isRetry?: boolean;
         isEdit?: boolean;
         preservedHistory?: ConnectionHistoryEntry[];
@@ -81,11 +81,7 @@ const connectionSlice = createSlice({
     ) => {
       const {
         connectionId,
-        host,
-        port,
-        username = "",
-        password = "",
-        alias = "",
+        connectionDetails,
         isRetry = false,
         isEdit = false,
         preservedHistory,
@@ -96,11 +92,7 @@ const connectionSlice = createSlice({
         status: CONNECTING,
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
         connectionDetails: {
-          host,
-          port,
-          username,
-          password,
-          ...(alias && { alias }),
+          ...connectionDetails,
           clusterSlotStatsEnabled: false,
           jsonModuleAvailable: false,
         },

@@ -31,6 +31,8 @@ function startMetricsForClusterNodes(clusterNodes, credentials) {
       port: node.port,
       username: credentials?.username,
       password: credentials?.password,
+      tls: node.tls,
+      verifyTlsCertificate: node.verifyTlsCertificate,
     }
         
     const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
@@ -47,7 +49,6 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
   let configPath
 
   const { host, port, username, password } = serverConnectionDetails
-  const credentials = password ? `${username}:${password}@` : ""
 
   if (app.isPackaged) {
     metricsServerPath = path.join(process.resourcesPath, "server-metrics.js")
@@ -62,7 +63,12 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
       ...process.env,
       PORT: 0,
       DATA_DIR: dataDir,
-      VALKEY_URL: `valkey://${credentials}${host}:${port}`,
+      VALKEY_HOST: host,
+      VALKEY_PORT: port,
+      VALKEY_USERNAME: username,
+      VALKEY_PASSWORD: password,
+      VALKEY_TLS: serverConnectionDetails.tls, 
+      VALKEY_VERIFY_CERT: serverConnectionDetails.verifyTlsCertificate,
       CONFIG_PATH: configPath, // Explicitly provide the config path
     },
   })

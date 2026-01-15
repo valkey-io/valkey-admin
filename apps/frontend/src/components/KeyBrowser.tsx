@@ -3,23 +3,22 @@ import { useSelector } from "react-redux"
 import * as R from "ramda"
 import { useParams } from "react-router"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
-import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import {
   KeyRound,
-  Key,
-  Hourglass,
-  Database,
   RefreshCw,
   Search,
   ListFilter,
-  CircleX
+  CircleX,
+  CircleQuestionMark
 } from "lucide-react"
-import { CustomTooltip } from "./ui/custom-tooltip"
+import { calculateHitRatio } from "@common/src/cache-hit-ratio"
 import { AppHeader } from "./ui/app-header"
 import AddNewKey from "./ui/add-key"
 import KeyDetails from "./ui/key-details"
+import { KeyTree } from "./ui/key-tree"
+import { CustomTooltip } from "./ui/custom-tooltip"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectKeys,
@@ -31,6 +30,7 @@ import {
   getKeysRequested,
   getKeyTypeRequested
 } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { selectData } from "@/state/valkey-features/info/infoSelectors"
 
 interface KeyInfo {
   name: string;
@@ -49,6 +49,7 @@ export function KeyBrowser() {
   const [isAddKeyOpen, setIsAddKeyOpen] = useState(false)
   const [searchPattern, setSearchPattern] = useState("")
   const [selectedType, setSelectedType] = useState<string>("all")
+  const infoData = useSelector(selectData(id!)) || {}
 
   const keyTypes = [
     { value: "all", label: "All Key Types" },
@@ -122,6 +123,16 @@ export function KeyBrowser() {
     ? keys
     : keys.filter((key) => key.type.toLowerCase() === selectedType.toLowerCase())
 
+  const hitRateData = {
+    keyspace_hits: infoData.keyspace_hits,
+    keyspace_misses: infoData.keyspace_misses,
+  }
+
+  const operationsData = {
+    // infoData.instantaneous_ops_per_sec is another option
+    total_commands : infoData.total_commands_processed,
+  }
+
   return (
     <div className="flex flex-col h-screen p-4">
       <AppHeader icon={<KeyRound size={20} />} title="Key Browser" />
@@ -129,27 +140,47 @@ export function KeyBrowser() {
       {error && <div className="ml-2">Error loading keys: {error}</div>}
 
       {/* Total Keys and Key Stats */}
-      <div className="flex justify-between mb-8">
-        <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
-          <span className="text-2xl font-semibold">{totalKeys}</span>
-          <span className="font-light text-sm">Total Keys</span>
+      <TooltipProvider>
+        <div className="flex justify-between mb-8">
+          <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
+            <span className="text-2xl font-semibold">{totalKeys}</span>
+            <span className="font-light text-sm flex items-center gap-1">Total Keys
+              <CustomTooltip description="Total number of keys in the database">
+                <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={14} />
+              </CustomTooltip>
+            </span>
+          </div>
+          <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
+            <span className="text-2xl font-semibold">
+              {formatBytes(totalMemoryUsage)}
+            </span>
+            <span className="font-light text-sm flex items-center gap-1">Memory Usage
+              <CustomTooltip description="Memory used by all keys in the database">
+                <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={14} />
+              </CustomTooltip>
+            </span>
+          
+          </div>
+          <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
+            <span className="text-2xl font-semibold">{operationsData.total_commands}</span>
+            <span className="font-light text-sm flex items-center gap-1">Operations
+              <CustomTooltip description="Total number of commands processed">
+                <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={14} />
+              </CustomTooltip>
+            </span>
+          </div>
+          <div className="h-20 w-1/5 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
+            <span className="text-2xl font-semibold">
+              {calculateHitRatio(Number(hitRateData.keyspace_hits) || 0, Number(hitRateData.keyspace_misses) || 0)}
+            </span>
+            <span className="font-light text-sm flex items-center gap-1">Hit Ratio
+              <CustomTooltip description="Ratio of key lookups that resulted in a cache hit" side="bottom">
+                <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={14} />
+              </CustomTooltip>
+            </span>
+          </div>
         </div>
-        <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
-          <span className="text-2xl font-semibold">
-            {formatBytes(totalMemoryUsage)}
-          </span>
-          <span className="font-light text-sm">Memory Usage</span>
-        </div>
-        <div className="h-20 w-1/4 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
-          <span className="text-2xl font-semibold">TBD</span>
-          <span className="font-light text-sm">Operations</span>
-        </div>
-        <div className="h-20 w-1/5 p-4 dark:border-tw-dark-border border rounded flex flex-col justify-center items-center">
-          <span className="text-2xl font-semibold">TBD</span>
-          <span className="font-light text-sm">Hit Rate</span>
-        </div>
-      </div>
-
+      </TooltipProvider>
       {/* Search and Refresh */}
       <div className="flex items-center w-full mb-4 text-sm font-light">
         <div className="h-10 mr-2 px-4 py-2 dark:border-tw-dark-border border rounded bg-white dark:bg-gray-800">
@@ -213,54 +244,12 @@ export function KeyBrowser() {
               </div>
             ) : (
               <div className={`h-full dark:border-tw-dark-border border rounded overflow-hidden ${loading ? "opacity-50 pointer-events-none" : ""}`}>
-                <ul className="h-full overflow-y-auto space-y-2 p-2">
-                  {filteredKeys.map((keyInfo: KeyInfo, index) => (
-                    <li
-                      className={`h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30
-                      cursor-pointer rounded flex items-center gap-2 justify-between ${selectedKey === keyInfo.name ? "bg-tw-primary/80 hover:bg-tw-primary/80" : ""}`}
-                      key={index}
-                      onClick={() => handleKeyClick(keyInfo.name)}
-                    >
-                      <div className=" items-center gap-2">
-                        <span className="flex items-center gap-2">
-                          <Key size={16} /> {keyInfo.name}
-                        </span>
-                        <div className={`ml-6 text-xs font-light uppercase text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""}`}>
-                          {keyInfo.type === "ReJSON-RL" ? "json" : keyInfo.type}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        {keyInfo.size && (
-                          <CustomTooltip content="Size">
-                            <span
-                              className={`flex items-center justify-between gap-1 text-xs px-2 py-1 
-                             text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""} dark:text-white`}
-                            >
-                              <Database
-                                className="text-white bg-tw-primary p-1 rounded-full"
-                                size={20}
-                              />{" "}
-                              {formatBytes(keyInfo.size)}
-                            </span>
-                          </CustomTooltip>
-                        )}
-                        {/* text-red-400 is a placehodler for now, will change to a custom tw color */}
-                        <CustomTooltip content="TTL">
-                          <span
-                            className={`flex items-center justify-between gap-1 text-xs px-2 py-1 
-                              text-tw-primary ${selectedKey === keyInfo.name ? "text-white" : ""} dark:text-white`}
-                          >
-                            <Hourglass
-                              className="text-white bg-tw-primary p-1 rounded-full"
-                              size={20}
-                            />{" "}
-                            {convertTTL(keyInfo.ttl)}
-                          </span>
-                        </CustomTooltip>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <KeyTree
+                  keys={filteredKeys}
+                  loading={loading}
+                  onKeyClick={handleKeyClick}
+                  selectedKey={selectedKey}
+                />
               </div>
             )}
           </div>

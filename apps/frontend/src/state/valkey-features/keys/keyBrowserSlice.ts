@@ -233,6 +233,8 @@ const keyBrowserSlice = createSlice({
         deletedListItems?: { index: number; value: string }[];
         setUpdates?: { oldValue: string; newValue: string }[];
         deletedSetItems?: string[];
+        newListItems?: string[];
+        newSetItems?: string[];
         zsetUpdates?: { key: string; value: number }[];
         ttl?: number;
       }>,

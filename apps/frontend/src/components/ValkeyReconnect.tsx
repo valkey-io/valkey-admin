@@ -29,14 +29,10 @@ export function ValkeyReconnect() {
 
   const handleManualReconnect = () => {
     if (!connection) return
-
-    const { host, port, username, password } = connection.connectionDetails
+    
     dispatch(connectPending({
       connectionId: id!,
-      host,
-      port,
-      username,
-      password,
+      connectionDetails: connection.connectionDetails,
     }))
   }
 

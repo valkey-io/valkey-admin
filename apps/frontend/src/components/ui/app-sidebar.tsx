@@ -15,6 +15,7 @@ import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
 import logo from "../../../assets/img/logo.png"
 import useIsConnected from "@/hooks/useIsConnected.ts"
+import { cn } from "@/lib/utils.ts"
 
 export function AppSidebar() {
   const isConnected = useIsConnected()
@@ -37,9 +38,15 @@ export function AppSidebar() {
         {/* Header */}
         <div className="flex items-center" title="Valkey Admin">
           <img alt="logo" className="h-8" src={logo} /> {/* Use the imported logo */}
-          {isExpanded && (
-            <span className="ml-3 font-bold text-lg">Valkey Admin</span>
-          )}
+          <span
+            className={cn(
+              "ml-3 font-bold text-lg whitespace-nowrap transition-[opacity] duration-200 ease-out",
+              !isExpanded && "opacity-0 pointer-events-none",
+            )}
+          >
+            Valkey Admin
+          </span>
+
         </div>
 
         {/* menu items */}

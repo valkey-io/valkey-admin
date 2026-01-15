@@ -1,7 +1,5 @@
 import fs from "node:fs"
 import express from "express"
-import * as R from "ramda"
-import { createClient } from "@valkey/client"
 import { getConfig, updateConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors, stopCollectors } from "./init-collectors.js"
@@ -10,51 +8,67 @@ import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
+import memoryFold from "./analyzers/memory-metrics.js"
+import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { GlideClient } = require("@valkey/valkey-glide")
 
 async function main() {
   const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
 
-  // Valkey single URL
-  const url = String(process.env.VALKEY_URL || cfg.valkey.url || "").trim()
-  if (!/^valkeys?:\/\//i.test(url)) {
-    console.error(`VALKEY_URL must start with valkey:// or valkeys://, got: ${url || "(empty)"}`)
-    process.exit(1)
-  }
+  const addresses = [
+    {
+      host: process.env.VALKEY_HOST,
+      port: Number(process.env.VALKEY_PORT),
+    },
+  ]
+  const credentials =
+    process.env.VALKEY_PASSWORD ? {
+      username: process.env.VALKEY_USERNAME,
+      password: process.env.VALKEY_PASSWORD,
+    } : undefined
 
-  const client = createClient({ url })
-  client.on("error", (err) => console.error("valkey error", err))
-  await client.connect()
+  const client = await GlideClient.createClient({
+    addresses,
+    credentials,
+    useTLS: process.env.VALKEY_TLS === "true" ? true : false,
+    ...(process.env.VALKEY_VERIFY_CERT === "false" && {
+      advancedConfiguration: {
+        tlsAdvancedConfiguration: {
+          insecure: true,
+        },
+      },
+    }),
+
+    requestTimeout: 5000,
+    clientName: "test_client",
+  })
+
   await setupCollectors(client, cfg)
 
   const app = express()
   app.use(express.json())
-  // public API goes here:
-  app.get("/health", (_req, res) => res.json({ ok: true }))
 
-  app.get("/memory", async (_req, res) => {
+  // public API goes here:
+  app.get("/health", (req, res) => res.json({ ok: true }))
+
+  app.get("/memory", async (req, res) => {
     try {
-      const rows = await Streamer.memory_stats()
-      res.json({ rows })
+      const { maxPoints, since, until } = parseQuery(memoryQuerySchema)(req.query)
+      const series = await Streamer.memory_stats(memoryFold({ maxPoints, since, until }))
+      res.json(series)
     } catch (e) {
+      console.log(e)
       res.status(500).json({ error: e.message })
     }
   })
 
-  app.get("/cpu", async (_req, res) => {
+  app.get("/cpu", async (req, res) => {
     try {
-      const tolerance = R.pipe(
-        R.pathOr("0.025", ["query", "tolerance"]),
-        Number,
-        Math.abs, // no negative numbers
-        R.when( // when not a number or more than 20% — default to 2.5% tolerance interval
-          R.either(Number.isNaN, R.lte(0.2)),
-          R.always(0.025),
-        ),
-      )(_req)
-
-      const series = await Streamer.info_cpu(cpuFold({ tolerance }))
+      const { maxPoints, tolerance, since, until } = parseQuery(cpuQuerySchema)(req.query)
+      const series = await Streamer.info_cpu(cpuFold({ maxPoints, tolerance, since, until }))
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })
@@ -63,7 +77,7 @@ async function main() {
 
   app.get("/commandlog", getCommandLogs)
 
-  app.get("/slowlog_len", async (_req, res) => {
+  app.get("/slowlog_len", async (req, res) => {
     try {
       const rows = await Streamer.slowlog_len()
       res.json({ rows })
@@ -104,7 +118,7 @@ async function main() {
   const server = app.listen(port, () => {
     const assignedPort = server.address().port
     console.log(`listening on http://0.0.0.0:${assignedPort}`)
-    process.send?.({ type: "metrics-started", payload: { valkeyUrl: url, metricsHost: "http://0.0.0.0", metricsPort: assignedPort } })
+    process.send?.({ type: "metrics-started", payload: { metricsHost: "http://0.0.0.0", metricsPort: assignedPort } })
   })
 
   const shutdown = async () => {
