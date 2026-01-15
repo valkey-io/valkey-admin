@@ -40,31 +40,42 @@ export async function streamNdjson(
 
   let acc = seed
   let count = 0
+  let limitReached = false
 
   for (const file of files) {
-    if (!fs.existsSync(file)) continue
+    if (limitReached) break
 
-    const fileStream = fs.createReadStream(file, { encoding: "utf8" })
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity })
+    let fileStream
+    let rl
 
-    for await (const line of rl) {
-      if (count >= limit) {
-        rl.close()
-        fileStream.destroy()
-        break
+    try {
+      fileStream = fs.createReadStream(file, { encoding: "utf8" })
+      rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity })
+
+      for await (const line of rl) {
+        if (count >= limit) {
+          limitReached = true
+          break
+        }
+
+        if (!line.trim()) continue
+
+        try {
+          const obj = JSON.parse(line)
+          if (!filterFn(obj)) continue
+
+          acc = reducer(acc, mapFn ? mapFn(obj) : obj)
+          count++
+        } catch {
+          // ignore bad lines
+        }
       }
-
-      if (!line.trim()) continue
-
-      try {
-        const obj = JSON.parse(line)
-        if (!filterFn(obj)) continue
-
-        acc = reducer(acc, mapFn ? mapFn(obj) : obj)
-        count++
-      } catch {
-        // ignore bad lines
-      }
+    } catch (err) {
+      if (err.code === "ENOENT") continue
+      throw err
+    } finally {
+      if (rl) rl.close()
+      if (fileStream) fileStream.destroy()
     }
   }
 
