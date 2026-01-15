@@ -83,6 +83,11 @@ export const VALKEY = {
     cpuUsageFulfilled: "cpuUsageFulfilled",
     cpuUsageError: "cpuUsageError",
   }),
+  MEMORY: makeNamespace( "memory",{
+    memoryUsageRequested: "memoryUsageRequested",
+    memoryUsageFulfilled: "memoryUsageFulfilled",
+    memoryUsageError: "memoryUsageError",
+  }),
 } as const
 
 export const CONNECTED = "Connected"

@@ -26,6 +26,7 @@ import history from "../../history.ts"
 import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
+import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
 const getConnectionIds = (store: Store, action) => {
@@ -385,6 +386,26 @@ export const getCpuUsageEpic = (store: Store) =>
         })
       } catch (error) {
         console.error("[getCpuUsageEpic] Error sending action:", error)
+      }
+    }),
+    ignoreElements(),
+  )
+
+export const getMemoryUsageEpic = (store: Store) =>
+  action$.pipe(
+    select(memoryUsageRequested),
+    tap((action) => {
+      try {
+        const { timeRange } = action.payload
+        const socket = getSocket()
+        const connectionIds = getConnectionIds(store, action)
+
+        socket.next({
+          type: action.type,
+          payload: { connectionIds, timeRange },
+        })
+      } catch (error) {
+        console.error("[getMemoryUsageEpic] Error sending action:", error)
       }
     }),
     ignoreElements(),

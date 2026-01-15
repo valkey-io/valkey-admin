@@ -4,54 +4,61 @@ import { VALKEY } from "@common/src/constants.ts"
 import * as R from "ramda"
 import type { RootState } from "@/store.ts"
 
-export const selectCpuUsage =
+export const selectMemoryUsage =
   (connectionId: string) =>
     (state: RootState) =>
-      R.path([VALKEY.CPU.name, connectionId, "data"], state)
+      R.path([VALKEY.MEMORY.name, connectionId, "data"], state)
 
-interface CpuDataPoint {
-  timestamp: number
-  value: number
+interface MemoryMetric {
+  description: string
+  series: Array<{
+    timestamp: number
+    value: number
+  }>
 }
 
-interface CpuState {
+interface MemoryData {
+  [key: string]: MemoryMetric
+}
+
+interface MemoryState {
   [connectionId: string]: {
-    data: CpuDataPoint[]
+    data: MemoryData | null
     error?: JSONObject | null
     loading?: boolean
   }
 }
 
-const initialCpuState: CpuState = {}
+const initialMemoryState: MemoryState = {}
 
-const cpuSlice = createSlice({
-  name: "cpu",
-  initialState: initialCpuState,
+const memorySlice = createSlice({
+  name: "memory",
+  initialState: initialMemoryState,
   reducers: {
-    cpuUsageRequested: (state, action) => {
+    memoryUsageRequested: (state, action) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
-          data: [],
+          data: null,
           loading: false,
         }
       }
       state[connectionId].loading = true
     },
-    cpuUsageFulfilled: (state, action) => {
+    memoryUsageFulfilled: (state, action) => {
       const { connectionId, parsedResponse } = action.payload
 
-      // Validate that parsedResponse is an array
-      if (Array.isArray(parsedResponse)) {
+      // validating that parsedResponse is an object (not an array, not null)
+      if (parsedResponse && typeof parsedResponse === "object" && !Array.isArray(parsedResponse)) {
         state[connectionId].data = parsedResponse
       } else {
-        console.error("Invalid CPU usage response format:", parsedResponse)
-        state[connectionId].data = []
+        console.error("Invalid memory usage response format:", parsedResponse)
+        state[connectionId].data = null
         state[connectionId].error = { message: "Invalid data format received" }
       }
       state[connectionId].loading = false
     },
-    cpuUsageError: (state, action) => {
+    memoryUsageError: (state, action) => {
       const { connectionId, error } = action.payload
       if (state[connectionId]) {
         state[connectionId].error = error
@@ -61,9 +68,9 @@ const cpuSlice = createSlice({
   },
 })
 
-export default cpuSlice.reducer
+export default memorySlice.reducer
 export const {
-  cpuUsageRequested,
-  cpuUsageFulfilled,
-  cpuUsageError,
-} = cpuSlice.actions
+  memoryUsageRequested,
+  memoryUsageFulfilled,
+  memoryUsageError,
+} = memorySlice.actions

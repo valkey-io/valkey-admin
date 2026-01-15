@@ -12,6 +12,7 @@ import hotKeysReducer from "@/state/valkey-features/hotkeys/hotKeysSlice.ts"
 import commandLogsReducer from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import configReducer from "@/state/valkey-features/config/configSlice"
 import cpuReducer from "@/state/valkey-features/cpu/cpuSlice.ts"
+import memoryReducer from "@/state/valkey-features/memory/memorySlice.ts"
 
 export const store = configureStore({
   reducer: {
@@ -25,6 +26,7 @@ export const store = configureStore({
     [VALKEY.COMMANDLOGS.name]: commandLogsReducer,
     [VALKEY.CONFIG.name]: configReducer,
     [VALKEY.CPU.name]: cpuReducer,
+    [VALKEY.MEMORY.name]: memoryReducer,
   },
   middleware: (getDefaultMiddleware) => {
     return getDefaultMiddleware({

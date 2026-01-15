@@ -4,8 +4,10 @@ interface LineChartComponentProps {
   data: Array<{ timestamp: number; value: number }>;
   label?: string;
   color?: string;
-  title: string;
+  title?: string;
   subtitle?: string;
+  unit?: string;
+  valueFormatter?: (value: number) => string;
 }
 
 // could be resued for memory usage or cpu usage
@@ -15,29 +17,9 @@ export default function LineChartComponent({
   color = "var(--tw-chart1)",
   title,
   subtitle,
+  unit,
+  valueFormatter,
 }: LineChartComponentProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="w-full">
-        <h2 className="text-xl font-bold text-center mb-2 text-black dark:text-white">
-          {title}
-        </h2>
-        {subtitle && (
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {subtitle}
-          </div>
-        )}
-        <div className="flex items-center justify-center h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-          <div className="text-center">
-            <p className="text-gray-500 dark:text-gray-400">
-              {label} data will appear here
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="w-full">
       <h2 className="text-xl font-bold text-center mb-2 text-black dark:text-white">
@@ -63,16 +45,20 @@ export default function LineChartComponent({
             angle={-45}
             className="text-xs"
             dataKey="timestamp"
+            fontSize={12}
             height={80}
             textAnchor="end"
             tick={{ fill: "currentColor" }}
-            tickFormatter={(ts) => new Date(ts).toLocaleTimeString()}
+            tickFormatter={(ts) => ts ? new Date(ts).toLocaleTimeString() : ""}
+            tickSize={5}
           />
           <YAxis
             className="text-xs"
-            label={{ value: `${label} (%)`, angle: -90, position: "insideLeft" }}
+            fontSize={12}
+            label={{ value: `${unit}`, angle: -90, position: "insideLeft", fontSize: 12, offset: 5 }}
             tick={{ fill: "currentColor" }}
-            width={50}
+            tickFormatter={valueFormatter}
+            width={80}
           />
           <Tooltip
             contentStyle={{
@@ -80,8 +66,8 @@ export default function LineChartComponent({
               border: "1px solid #e5e7eb",
               borderRadius: "0.375rem",
             }}
-            formatter={(value) => `${value}%`}
-            labelFormatter={(ts) => new Date(ts).toLocaleTimeString()}
+            formatter={(value) => valueFormatter ? valueFormatter(Number(value)) : `${value}%`}
+            labelFormatter={(ts) => ts ? new Date(ts).toLocaleTimeString() : ""}
             labelStyle={{ color: "#666" }}
           />
           <Line

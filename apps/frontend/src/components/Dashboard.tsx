@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSelector } from "react-redux"
 import { LayoutDashboard, Search } from "lucide-react"
 import { useParams } from "react-router"
@@ -9,24 +9,13 @@ import { singleMetricDescriptions } from "@common/src/dashboard-metrics"
 import { AppHeader } from "./ui/app-header"
 import Accordion from "./ui/accordion"
 import DonutChart from "./ui/donut-chart"
-import LineChartComponent from "./ui/line-chart"
+import CpuMemoryUsage from "./ui/cpu-memory-usage"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
-import { cpuUsageRequested, selectCpuUsage } from "@/state/valkey-features/cpu/cpuSlice.ts"
-import { useAppDispatch } from "@/hooks/hooks"
 
 export function Dashboard() {
   const { id } = useParams()
-  const dispatch = useAppDispatch()
   const infoData = useSelector(selectData(id!)) || {}
-  const cpuUsageData = useSelector(selectCpuUsage(id!))
   const [searchQuery, setSearchQuery] = useState("")
-  const [timeRange, setTimeRange] = useState("1h")
-
-  useEffect(() => {
-    if (id) {
-      dispatch(cpuUsageRequested({ connectionId: id, timeRange }))
-    }
-  }, [id, dispatch, timeRange])
 
   if (!infoData) {
     return (
@@ -41,7 +30,7 @@ export function Dashboard() {
       </div>
     )
   }
-  
+
   const memoryUsageMetrics = {
     used_memory: infoData.used_memory,
     used_memory_dataset: infoData.used_memory_dataset,
@@ -71,7 +60,7 @@ export function Dashboard() {
   const clientConnectivityMetrics = {
     blocked_clients: infoData.blocked_clients,
     clients_in_timeout_table: infoData.clients_in_timeout_table,
-    connected_clients : infoData.connected_clients,
+    connected_clients: infoData.connected_clients,
     connected_slaves: infoData.connected_slaves,
     total_connections_received: infoData.total_connections_received,
     evicted_clients: infoData.evicted_clients,
@@ -149,48 +138,48 @@ export function Dashboard() {
               accordionItems={memoryUsageMetrics}
               accordionName="Memory Usage Metrics"
               searchQuery={searchQuery}
-              singleMetricDescriptions={singleMetricDescriptions} 
+              singleMetricDescriptions={singleMetricDescriptions}
               valueType="bytes" />
             <Accordion
               accordionDescription={accordionDescriptions.uptimeMetrics}
               accordionItems={upTimeMetrics}
               accordionName="Uptime Metrics"
               searchQuery={searchQuery}
-              singleMetricDescriptions={singleMetricDescriptions} 
+              singleMetricDescriptions={singleMetricDescriptions}
               valueType="mixed" />
             <Accordion
               accordionDescription={accordionDescriptions.replicationPersistenceMetrics}
               accordionItems={replicationPersistenceMetrics}
               accordionName="Replication & Persistence Metrics"
               searchQuery={searchQuery}
-              singleMetricDescriptions={singleMetricDescriptions} 
+              singleMetricDescriptions={singleMetricDescriptions}
               valueType="number" />
             <Accordion
               accordionDescription={accordionDescriptions.clientConnectivityMetrics}
               accordionItems={clientConnectivityMetrics}
               accordionName="Client Connectivity Metrics"
               searchQuery={searchQuery}
-              singleMetricDescriptions={singleMetricDescriptions} 
+              singleMetricDescriptions={singleMetricDescriptions}
               valueType="number" />
             <Accordion
               accordionDescription={accordionDescriptions.commandExecutionMetrics}
               accordionItems={commandExecutionMetrics}
               accordionName="Command Execution Metrics"
               searchQuery={searchQuery}
-              singleMetricDescriptions={singleMetricDescriptions} 
+              singleMetricDescriptions={singleMetricDescriptions}
               valueType="number" />
             <Accordion
               accordionDescription={accordionDescriptions.dataEffectivenessEvictionMetrics}
               accordionItems={dataEffectivenessAndEvictionMetrics}
               accordionName="Data Effectiveness & Eviction Metrics"
-              searchQuery={searchQuery} 
+              searchQuery={searchQuery}
               singleMetricDescriptions={singleMetricDescriptions}
               valueType="number" />
             <Accordion
               accordionDescription={accordionDescriptions.messagingMetrics}
               accordionItems={messagingMetrics}
               accordionName="Messaging Metrics"
-              searchQuery={searchQuery} 
+              searchQuery={searchQuery}
               singleMetricDescriptions={singleMetricDescriptions}
               valueType="number" />
           </div>
@@ -199,32 +188,9 @@ export function Dashboard() {
             <DonutChart />
           </div>
         </div>
-        {/* cpu usage chart */}
-        <div className="flex gap-3 mt-4">
-          <div className="w-full border dark:border-tw-dark-border rounded p-4 bg-white dark:bg-gray-800">
-            <div className="flex gap-2 justify-end">
-              {(["1h", "6h", "12h"] as const).map((range) => (
-                <button
-                  className={`px-2 py-1 rounded text-sm ${timeRange === range
-                    ? "bg-tw-primary text-white"
-                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  }`}
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                >
-                  {range.toUpperCase()}
-                </button>
-              ))}
-            </div>
-            <LineChartComponent
-              color="var(--tw-chart1)"
-              data={cpuUsageData || []}
-              label="CPU Usage"
-              subtitle="Real-time CPU utilization monitoring"
-              title="CPU Usage Over Time"
-            />
-          </div>
-        </div></div>
+        {/* cpu and memory usage charts */}
+        <CpuMemoryUsage />
+      </div>
     </div>
   )
 }

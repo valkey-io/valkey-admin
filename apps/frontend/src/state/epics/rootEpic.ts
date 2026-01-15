@@ -11,7 +11,8 @@ import {
   getHotKeysEpic,
   getCommandLogsEpic,
   updateConfigEpic,
-  getCpuUsageEpic
+  getCpuUsageEpic,
+  getMemoryUsageEpic
 } from "./valkeyEpics"
 import { keyBrowserEpic } from "./keyBrowserEpic"
 import type { Store } from "@reduxjs/toolkit"
@@ -31,6 +32,7 @@ export const registerEpics = (store: Store) => {
     updateConfigEpic(store),
     keyBrowserEpic(),
     getCpuUsageEpic(store),
+    getMemoryUsageEpic(store),
   ).subscribe({
     error: (err) => console.error("Epic error:", err),
   })
