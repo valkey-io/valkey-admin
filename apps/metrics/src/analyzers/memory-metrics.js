@@ -79,7 +79,7 @@ const mapFn = ({ ts, metric, value }) =>
     R.prop(metric),
     R.unless(
       R.isNil,
-      ({ key }) => ({ key, timestamp: ts, value }),
+      ({ key }) => ({ key, timestamp: Number(ts), value: Number(value) }), // Ensure numbers
     ),
   )(MEMORY_METRICS)
 
