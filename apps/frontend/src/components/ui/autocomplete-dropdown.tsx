@@ -15,7 +15,6 @@ interface AutocompleteDropdownProps {
 interface CommandSuggestionProps {
   matchResult: MatchResult;
   isSelected: boolean;
-  query: string;
   onClick: () => void;
   optionId: string;
 }
@@ -225,7 +224,6 @@ export function AutocompleteDropdown({
               matchResult={matchResult}
               onClick={() => onSelect(matchResult.command)}
               optionId={`${dropdownId}-option-${index}`}
-              query=""
             />
           </div>
         ))
