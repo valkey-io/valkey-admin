@@ -5,8 +5,8 @@ import {
   CircleDotIcon,
   CircleSmallIcon,
   PencilIcon,
-  PowerIcon,
-  PowerOffIcon,
+  Plug,
+  Unplug,
   Trash2Icon,
   Server
 } from "lucide-react"
@@ -18,6 +18,7 @@ import {
   deleteConnection
 } from "@/state/valkey-features/connection/connectionSlice"
 import { Button } from "@/components/ui/button.tsx"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
 import { cn } from "@/lib/utils.ts"
 import history from "@/history.ts"
 import { useAppDispatch } from "@/hooks/hooks.ts"
@@ -119,7 +120,7 @@ export const ConnectionEntry = ({
                 </Link>
               </Button>
             </div>{lastConnectionTime && lastConnectionTime.event === CONNECTED && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 truncate" title={`Last connected: ${new Date(lastConnectionTime.timestamp).toLocaleString()}`}>
                 Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
               </span>
             )}</div>
@@ -128,29 +129,59 @@ export const ConnectionEntry = ({
           <div className="flex items-center gap-1">
             {isConnected && (
               <>
-                <Button onClick={handleDisconnect} size="sm" variant="ghost">
-                  <PowerOffIcon size={16} />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={handleDisconnect} size="sm" variant="ghost">
+                      <Unplug size={16} />
+                      Disconnect
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Disconnect from this Valkey instance
+                  </TooltipContent>
+                </Tooltip>
               </>
             )}
             {(isDisconnected || (!isConnected && !isConnecting)) && (
-              <Button onClick={handleConnect} size="sm" variant="ghost">
-                <PowerIcon size={16} />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={handleConnect} size="sm" variant="ghost">
+                    <Plug size={16} />
+                    Connect
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Connect to this Valkey instance
+                </TooltipContent>
+              </Tooltip>
             )}
-            <Button onClick={handleEdit} size="sm" variant="ghost">
-              <PencilIcon size={16} />
-            </Button>
-            <Button onClick={handleDelete} size="sm" variant="destructiveGhost">
-              <Trash2Icon size={16} />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleEdit} size="sm" variant="ghost">
+                  <PencilIcon size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Edit connection settings
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleDelete} size="sm" variant="destructiveGhost">
+                  <Trash2Icon size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Delete this connection
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
     )
   }
 
-  // for standalone instnces
+  // for standalone instances
   return (
     <div className="mb-3 p-2 border dark:border-tw-dark-border rounded bg-white dark:bg-tw-dark-primary">
       <div className="flex items-center justify-between gap-4">
@@ -170,13 +201,13 @@ export const ConnectionEntry = ({
               </Link>
             </Button>
             {connection.connectionDetails.alias && (
-              <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50">
+              <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50 truncate" title={label}>
                 ({label})
               </span>)}
             <div className="flex items-center gap-3">
               <StatusBadge />
               {lastConnectionTime && lastConnectionTime.event === CONNECTED && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-gray-500 dark:text-gray-400 truncate" title={`Last connected: ${new Date(lastConnectionTime.timestamp).toLocaleString()}`}>
                   Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
                 </span>
               )}
@@ -198,22 +229,52 @@ export const ConnectionEntry = ({
                   Open
                 </button>
               )}
-              <Button disabled={false} onClick={handleDisconnect} size="sm" variant="ghost">
-                <PowerOffIcon size={16} />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button disabled={false} onClick={handleDisconnect} size="sm" variant="ghost">
+                    <Unplug size={16} />
+                    Disconnect
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Disconnect from this Valkey instance
+                </TooltipContent>
+              </Tooltip>
             </>
           )}
           {(isDisconnected || (!isConnected && !isConnecting)) && (
-            <Button onClick={handleConnect} size="sm" variant="ghost">
-              <PowerIcon size={16} />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleConnect} size="sm" variant="ghost">
+                  <Plug size={16} />
+                  Connect
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Connect to this Valkey instance
+              </TooltipContent>
+            </Tooltip>
           )}
-          <Button disabled={false} onClick={handleEdit} size="sm" variant="ghost">
-            <PencilIcon size={16} />
-          </Button>
-          <Button disabled={false} onClick={handleDelete} size="sm" variant="destructiveGhost">
-            <Trash2Icon size={16} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button disabled={false} onClick={handleEdit} size="sm" variant="ghost">
+                <PencilIcon size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Edit connection settings
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button disabled={false} onClick={handleDelete} size="sm" variant="destructiveGhost">
+                <Trash2Icon size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Delete this connection
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>
