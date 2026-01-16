@@ -51,7 +51,7 @@ export const downsampleMinMaxOrdered = R.curry(({ maxPoints }, series) => {
 
   for (const currentDataPoint of series) {
 
-    if (!currentDataPoint?.timestamp || typeof currentDataPoint.value === 'undefined') {
+    if (!currentDataPoint?.timestamp || typeof currentDataPoint.value === "undefined") {
       continue // Skip invalid data points
     }
 
