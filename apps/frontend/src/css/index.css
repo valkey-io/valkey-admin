@@ -92,7 +92,7 @@
   --tw-dark-primary: oklch(21% 0.034 264.665);
   --tw-dark-border: oklch(55.1% 0.027 264.364);
   --tw-accent: rgba(86, 118, 248, 0.5);
-  --tw-accent2: rgba(255, 136, 138, 0.4); 
+  --tw-accent2: rgba(255, 136, 138, 0.4);
   --tw-chart1: var(--tw-primary);
   --tw-chart2: #FF8042;
   --tw-chart3: #FFBB28;
@@ -142,6 +142,19 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Screen reader only class for accessibility */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 

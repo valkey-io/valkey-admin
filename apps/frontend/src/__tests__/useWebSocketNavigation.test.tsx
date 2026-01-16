@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react"
 import { Provider } from "react-redux"
 import { BrowserRouter } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
-import { useWebSocketNavigation } from "./useWebSocketNavigation"
+import { useWebSocketNavigation } from "../hooks/useWebSocketNavigation"
 import { setupTestStore } from "@/test/utils/test-utils"
 import { mockWebSocketState } from "@/test/utils/mocks"
 

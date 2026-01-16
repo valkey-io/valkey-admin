@@ -14,6 +14,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import DiffCommands from "@/components/send-command/DiffCommands.tsx"
 import Response from "@/components/send-command/Response.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
+import { useValkeyAutocomplete } from "@/hooks/useValkeyAutocomplete.ts"
+import { AutocompleteDropdown } from "@/components/ui/autocomplete-dropdown.tsx"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
@@ -28,13 +30,131 @@ export function SendCommand() {
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
+  // Initialize autocomplete hook
+  const autocomplete = useValkeyAutocomplete({
+    maxSuggestions: 10,
+    debounceMs: 50,
+    minQueryLength: 1,
+  })
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null as HTMLTextAreaElement)
+
+  const insertSelectedCommand = (command: ValkeyCommand) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const currentValue = textarea.value
+    const cursorPosition = textarea.selectionStart || 0
+    const lineStart = currentValue.lastIndexOf("\n", cursorPosition - 1) + 1
+
+    let commandStart = lineStart
+    while (commandStart < currentValue.length && /\s/.test(currentValue[commandStart])) {
+      commandStart++
+    }
+
+    let commandEnd = commandStart
+    while (commandEnd < currentValue.length &&
+           /\S/.test(currentValue[commandEnd]) &&
+           currentValue[commandEnd] !== "\n") {
+      commandEnd++
+    }
+
+    let existingArgs = ""
+    let argsStart = commandEnd
+
+    while (argsStart < currentValue.length && currentValue[argsStart] === " ") {
+      argsStart++
+    }
+
+    let lineEnd = currentValue.indexOf("\n", argsStart)
+    if (lineEnd === -1) lineEnd = currentValue.length
+
+    if (argsStart < lineEnd) {
+      existingArgs = currentValue.substring(argsStart, lineEnd)
+    }
+
+    let commandText = command.name
+    if (existingArgs.trim()) {
+      commandText += ` ${existingArgs}`
+    }
+
+    const beforeCommand = currentValue.substring(0, commandStart)
+    const afterLine = currentValue.substring(lineEnd)
+    const newValue = beforeCommand + commandText + afterLine
+
+    setText(newValue)
+    autocomplete.actions.hide()
+
+    setTimeout(() => {
+      const newCursorPosition = commandStart + command.name.length + (existingArgs.trim() ? 1 + existingArgs.length : 0)
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition)
+      textarea.focus()
+    }, 0)
+  }
+
   const onSubmit = (command?: string) => {
     dispatch(sendRequested({ command: command || text, connectionId: id }))
     setCommandIndex(length)
     setText("")
+    // Hide autocomplete when submitting
+    autocomplete.actions.hide()
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (autocomplete.state.isVisible) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault()
+          autocomplete.actions.navigateDown()
+          return
+        case "ArrowUp":
+          e.preventDefault()
+          autocomplete.actions.navigateUp()
+          return
+        case "Home":
+          // Only handle Home for autocomplete if Ctrl is not pressed
+          if (!e.ctrlKey) {
+            e.preventDefault()
+            autocomplete.actions.navigateToFirst()
+            return
+          }
+          break
+        case "End":
+          // Only handle End for autocomplete if Ctrl is not pressed
+          if (!e.ctrlKey) {
+            e.preventDefault()
+            autocomplete.actions.navigateToLast()
+            return
+          }
+          break
+        case "Enter":
+          if (autocomplete.state.suggestions.length > 0) {
+            e.preventDefault()
+            const selectedCommand = autocomplete.state.suggestions[autocomplete.state.selectedIndex]?.command
+            if (selectedCommand) {
+              insertSelectedCommand(selectedCommand)
+              return
+            }
+          }
+          break
+        case "Tab":
+          if (autocomplete.state.suggestions.length > 0) {
+            e.preventDefault()
+            const selectedCommand = autocomplete.state.suggestions[autocomplete.state.selectedIndex]?.command
+            if (selectedCommand) {
+              insertSelectedCommand(selectedCommand)
+              return
+            }
+          }
+          break
+        case "Escape":
+          e.preventDefault()
+          autocomplete.actions.hide()
+          return
+      }
+    }
+
+    // Original keyboard handling for non-autocomplete cases
     if (e.key === "Enter") {
       e.preventDefault()
       if (text.trim().length > 0) {
@@ -43,7 +163,28 @@ export function SendCommand() {
     } else if (e.key === "Escape") {
       e.preventDefault()
       setText("")
+      autocomplete.actions.hide()
     }
+  }
+
+  const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value
+    setText(newText)
+
+    // Update autocomplete query based on current cursor position
+    const cursorPosition = e.target.selectionStart || 0
+    const textBeforeCursor = newText.substring(0, cursorPosition)
+
+    // Find the current line
+    const lineStart = textBeforeCursor.lastIndexOf("\n") + 1
+    const currentLine = textBeforeCursor.substring(lineStart)
+
+    // Extract the command part (first word) for autocomplete
+    const commandMatch = currentLine.match(/^\s*(\S*)/)
+    const commandPart = commandMatch ? commandMatch[1] : ""
+
+    // Update autocomplete query
+    autocomplete.actions.updateQuery(commandPart)
   }
 
   const canDiff = (index) => { // can diff only the same command, i.e. info vs info
@@ -51,8 +192,6 @@ export function SendCommand() {
     const targetCommand = allCommands[index]
     return currentCommand.command.toLowerCase() === targetCommand.command.toLowerCase()
   }
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null as HTMLTextAreaElement)
 
   return (
     <RouteContainer title="Send Command">
@@ -193,18 +332,41 @@ export function SendCommand() {
         </div>
       </div>
 
-      <div className="flex items-center w-full text-sm font-light">
-        <textarea
-          className="flex-1 h-10 p-2 dark:border-tw-dark-border border rounded"
-          onChange={(e) => setText(e.target.value)}
-          onFocus={() => {
-            textareaRef.current?.select()
-          }}
-          onKeyDown={onKeyDown}
-          placeholder="Type your Valkey command here"
-          ref={textareaRef}
-          value={text}
-        />
+      <div className="flex items-center w-full text-sm font-light relative">
+        <div className="flex-1 relative">
+          <textarea
+            aria-autocomplete="list"
+            aria-describedby="valkey-autocomplete-instructions"
+            aria-expanded={autocomplete.state.isVisible}
+            aria-haspopup="listbox"
+            aria-owns="valkey-autocomplete-dropdown"
+            className="w-full h-10 p-2 dark:border-tw-dark-border border rounded"
+            onChange={onTextChange}
+            onFocus={() => {
+              textareaRef.current?.select()
+            }}
+            onKeyDown={onKeyDown}
+            placeholder="Type your Valkey command here"
+            ref={textareaRef}
+            role="combobox"
+            value={text}
+          />
+          <div
+            className="sr-only"
+            id="valkey-autocomplete-instructions"
+          >
+            Use arrow keys to navigate suggestions, Enter or Tab to select, Escape to close, Ctrl+Space to show
+          </div>
+          <AutocompleteDropdown
+            inputRef={textareaRef}
+            isLoading={autocomplete.state.isLoading}
+            isVisible={autocomplete.state.isVisible}
+            onClose={autocomplete.actions.hide}
+            onSelect={(command) => insertSelectedCommand(command)}
+            selectedIndex={autocomplete.state.selectedIndex}
+            suggestions={autocomplete.state.suggestions}
+          />
+        </div>
         <button
           className="h-10 ml-2 px-4 py-2 bg-tw-primary cursor-pointer text-white rounded hover:bg-tw-primary/70"
           disabled={text.trim().length === 0}
