@@ -45,73 +45,11 @@ valkey-admin
 
 **Windows:** The desktop app builds for Linux/macOS only. Use `./quickstart-web.sh` for web interface.
 
-## Manual Setup
+### Manual Connection
+Once the app is running, manually add a connection to your cluster (default local cluster is usually `localhost:7001`).
 
-### Desktop App Setup
+## Contributing
+Interested in improving Valkey Admin? Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for environment setup, WSL instructions, and development workflows.
 
-For the full-featured desktop application:
-
-1. **Install dependencies:** `npm install`
-2. **Start Valkey cluster:** `./tools/valkey-cluster/scripts/build_run_cluster.sh`
-3. **Build desktop app:**
-   - macOS: `npm run package:mac:nosign`
-   - Linux: `npm run package:linux:nosign`
-4. **Launch app:** Find the built app in `release/` folder and launch it
-5. **Connect:** Manually add a connection to `localhost:7001`
-
-### Web Development Setup
-
-For development servers (limited features - no hotkeys/commandlogs):
-
-1. **Install dependencies:** `npm install`
-2. **Start Valkey cluster:** `./tools/valkey-cluster/scripts/build_run_cluster.sh`
-3. **Start dev servers:** `npm run dev` or use `./quickstart-web.sh`
-4. **Connect:** Open http://localhost:5173 and manually add connection to `localhost:7001`
-
-### Windows/WSL Users
-
-Fix line endings before running scripts:
-```bash
-sed -i 's/\r$//' tools/valkey-cluster/scripts/build_run_cluster.sh
-sed -i 's/\r$//' tools/valkey-cluster/scripts/cluster_init.sh
-chmod +x tools/valkey-cluster/scripts/*.sh
-```
-
-### Shutting Down
-
-```bash
-cd tools/valkey-cluster
-docker compose down -v
-```
-
-## IDE Setup
-
-### VSCode
-
-The repository includes settings for the ESLint extension. Please install it.
-
-**Note:** If you have a formatter i.e. Prettier, it could interfere with the ESLint extension. Please disable it from the workspace.
-
-This requires ESLint v9.0.0 and above.
-
-## Create DMG
-
-You are able to build notarized or non-notarized Applications.
-
-### Unnotarized Application
-
-#### Overview
-    - Much faster build process.
-    - While you won't encounter any issues running this on the system that built it, distributing the DMG will lead to a `"Valkey Admin" is damaged and can't be opened` error when running the application. To bypass this, run `xattr -c <path/to/app>` in terminal to disable the quarantine flag.
-
-#### Process
-In the root directory, create a DMG by running `npm run package:mac:nosign`.
-
-### Notarized Application
-
-#### Overview
-    - Much slower build process (could be hours the first time, and up to 10 minutes consequently).
-    - Has additional requirements listed in `mac_build`.
-
-#### Process
-In the root directory, create a DMG by running `npm run package:mac`.
+## License
+Valkey Admin is released under the **Apache License 2.0**.
