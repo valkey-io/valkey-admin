@@ -81,7 +81,7 @@ export default function KeyDetailsZSet(
           <div className="flex justify-end gap-1">
             {!readOnly && (isEditable ? (
               <>
-                <CustomTooltip content="Save">
+                <CustomTooltip content="Save" side={"left"}>
                   <Button
                     className="text-tw-primary hover:text-tw-primary"
                     onClick={handleSave}
@@ -90,7 +90,7 @@ export default function KeyDetailsZSet(
                     <Check />
                   </Button>
                 </CustomTooltip>
-                <CustomTooltip content="Cancel">
+                <CustomTooltip content="Cancel" side={"top"}>
                   <Button
                     onClick={handleEdit}
                     variant={"destructiveGhost"}

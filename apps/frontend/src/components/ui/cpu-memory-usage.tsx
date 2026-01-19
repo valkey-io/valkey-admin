@@ -84,7 +84,7 @@ export default function CpuMemoryUsage() {
         </div>
         <div className="flex flex-col items-center">
           <h3 className="text-lg font-bold mb-2 text-center">CPU Usage Over Time</h3>
-          <span className="text-center text-sm text-gray-600 dark:text-gray-400">Real-time CPU utilization monitoring</span>
+          <span className="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">Real-time CPU utilization monitoring</span>
         </div>
         {!cpuUsageData || cpuUsageData.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">

@@ -10,7 +10,7 @@ interface CustomTooltipProps {
   content?: string;
   description?: string;
   unit?: string;
-  side?: "right" | "bottom";
+  side?: "right" | "bottom" | "left" | "top";
 }
 
 export function CustomTooltip({ children, content, description, unit, side }: CustomTooltipProps) {
@@ -20,8 +20,9 @@ export function CustomTooltip({ children, content, description, unit, side }: Cu
       {content &&
         <TooltipContent
           align="center"
-          className={"bg-tw-primary text-white px-2 py-1 mt-1 rounded text-xs font-light z-10"}
-          side="bottom"
+          className={"bg-slate-600 dark:bg-slate-400 text-white px-2 py-1 rounded text-xs font-light z-10"}
+          side={side || "bottom"}
+          sideOffset={2}
         >
           <p>{content}</p>
         </TooltipContent>
@@ -29,7 +30,7 @@ export function CustomTooltip({ children, content, description, unit, side }: Cu
       {description &&
         <TooltipContent
           align="center"
-          className={"bg-tw-primary text-white px-2 py-1 mt-1 rounded text-xs font-light z-10 w-1/2"}
+          className={"bg-slate-600 dark:bg-slate-400 text-white px-2 py-1 mt-1 rounded text-xs font-light z-10 w-1/2"}
           side={side || "right"}
         >
           <p>{description}</p>
