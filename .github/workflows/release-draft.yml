@@ -1,0 +1,36 @@
+name: Draft release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  actions: write
+  contents: write
+  deployments: write
+  packages: write
+  pull-requests: write
+  repository-projects: write
+
+jobs:
+  release-draft:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v6
+      with:
+        node-version: 'latest'
+    - name: Install dependencies
+      run: npm ci
+    - name: Package unsigned mac app
+      run: npm run package:mac:nosign
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 'Upload to draft release'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./release/*-arm64.dmg
+        token: ${{ secrets.GITHUB_TOKEN }}
