@@ -35,11 +35,11 @@ open "release/Valkey Admin.app"
 **Linux:**
 ```bash
 # Make executable and run AppImage
-chmod +x "release/Valkey Admin-0.0.0.AppImage"
-./release/Valkey\ Admin-0.0.0.AppImage
+chmod +x "release/Valkey Admin-${VERSION}.AppImage"
+./release/Valkey\ Admin-${VERSION}.AppImage
 
 # Or install DEB package
-sudo dpkg -i "release/valkey-admin_0.0.0_amd64.deb"
+sudo dpkg -i "release/valkey-admin_${VERSION}_amd64.deb"
 valkey-admin
 ```
 

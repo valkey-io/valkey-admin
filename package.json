@@ -3,7 +3,7 @@
   "productName": "Valkey Admin",
   "description": "A modern admin interface for Valkey databases",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": {
     "name": "Valkey Admin Team",
     "email": "admin@valkey.io"

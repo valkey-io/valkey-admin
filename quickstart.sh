@@ -5,6 +5,10 @@ echo "🖥️  Valkey Admin Desktop Quickstart"
 echo "=================================="
 echo ""
 
+# This reads the 'version' field from the root package.json
+VERSION=$(node -p "require('./package.json').version")
+echo "📦 Version detected: $VERSION"
+
 # Source common setup functions
 source "$(dirname "$0")/scripts/common-setup.sh"
 
@@ -24,7 +28,7 @@ if [ "$PLATFORM" = "mac" ]; then
 elif [ "$PLATFORM" = "linux" ] || [ "$PLATFORM" = "wsl" ]; then
     echo "🐧 Building Linux app..."
     npm run package:linux:nosign
-    APP_PATH="release/Valkey Admin-0.0.0.AppImage"
+    APP_PATH="release/Valkey Admin-${VERSION}.AppImage"
     echo "✅ Linux app built successfully!"
     echo "📍 Location: $APP_PATH"
     if [ "$PLATFORM" = "linux" ]; then
