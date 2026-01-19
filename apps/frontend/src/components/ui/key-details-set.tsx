@@ -132,7 +132,7 @@ export default function KeyDetailsSet(
           <div className="flex justify-end gap-1">
             {!readOnly && (isEditable ? (
               <>
-                <CustomTooltip content="Save">
+                <CustomTooltip content="Save" side={"left"}>
                   <Button
                     className="text-tw-primary hover:text-tw-primary"
                     onClick={handleSave}
