@@ -1,5 +1,5 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, catchError, filter, take, mergeMap } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
@@ -109,6 +109,7 @@ export const connectionEpic = (store: Store) =>
           toast.error("Connection to server failed!")
           console.error(e)
         }
+        return EMPTY
       }),
     ),
 
@@ -297,6 +298,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
       } catch (e) {
         console.error(e)
       }
+      return EMPTY
     }),
     ignoreElements(),
   )
