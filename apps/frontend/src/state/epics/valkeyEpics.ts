@@ -1,5 +1,5 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, catchError, filter, take, mergeMap } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
@@ -27,6 +27,7 @@ import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
+import { secureStorage } from "../../utils/secureStorage.ts"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
 const getConnectionIds = (store: Store, action) => {
@@ -51,6 +52,25 @@ export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
+      mergeMap(async (action) => {
+        if (action.payload.connectionDetails.password) {
+          const decryptedPassword = await secureStorage.decrypt(
+            action.payload.connectionDetails.password,
+          )
+          
+          return {
+            ...action,
+            payload: {
+              ...action.payload,
+              connectionDetails: {
+                ...action.payload.connectionDetails,
+                password: decryptedPassword,
+              },
+            },
+          }
+        }
+        return action
+      }),
       tap((action) => {
         const socket = getSocket()
         console.log("Sending message to server from connecting epic...")
@@ -65,30 +85,35 @@ export const connectionEpic = (store: Store) =>
           type === standaloneConnectFulfilled.type ||
           type === clusterConnectFulfilled.type,
       ),
-      tap(({ payload }) => {
+      mergeMap(async ({ payload }) => {
         try {
           const currentConnections = getCurrentConnections()
 
-          // for getting the full connection state from redux (which includes alias)
           const state = store.getState()
           const connection = state.valkeyConnection?.connections?.[payload.connectionId]
 
-          R.pipe(
-            (p) => ({
-              connectionDetails: connection?.connectionDetails || p.connectionDetails,
-              status: NOT_CONNECTED,
-              connectionHistory: connection?.connectionHistory || [],
-            }),
-            (connectionToSave) => ({ ...currentConnections, [payload.connectionId]: connectionToSave }),
-            JSON.stringify,
-            (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
-          )(payload)
+          let connectionDetails = connection?.connectionDetails || payload.connectionDetails
+          if (connectionDetails.password) {
+            connectionDetails = {
+              ...connectionDetails,
+              password: await secureStorage.encrypt(connectionDetails.password),
+            }
+          }
+
+          const connectionToSave = {
+            connectionDetails,
+            status: NOT_CONNECTED,
+            connectionHistory: connection?.connectionHistory || [],
+          }
+          currentConnections[payload.connectionId] = connectionToSave
+          localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
 
           toast.success("Connected to server successfully!")
         } catch (e) {
           toast.error("Connection to server failed!")
           console.error(e)
         }
+        return EMPTY
       }),
     ),
 
@@ -250,11 +275,11 @@ export const deleteConnectionEpic = () =>
     }),
   )
 
-// for updating connection details: this will presist the edits
+// for updating connection details: this will persist the edits
 export const updateConnectionDetailsEpic = (store: Store) =>
   action$.pipe(
     select(updateConnectionDetails),
-    tap(({ payload: { connectionId } }) => {
+    mergeMap(async ({ payload: { connectionId } }) => {
       try {
         const currentConnections = getCurrentConnections()
 
@@ -262,13 +287,23 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {
-          currentConnections[connectionId].connectionDetails = connection.connectionDetails
+          let connectionDetails = connection.connectionDetails
+          
+          if (connectionDetails.password) {
+            connectionDetails = {
+              ...connectionDetails,
+              password: await secureStorage.encrypt(connectionDetails.password),
+            }
+          }
+          
+          currentConnections[connectionId].connectionDetails = connectionDetails
           currentConnections[connectionId].connectionHistory = connection.connectionHistory || []
           localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
         }
       } catch (e) {
         console.error(e)
       }
+      return EMPTY
     }),
     ignoreElements(),
   )
