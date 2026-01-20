@@ -20,13 +20,13 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
 
   const formatKey = (key: string) => {
-    // Special case for terminology updates
-    if (key === "connected_slaves") return "Connected Replicas"
-    
-    return key
+    const formatted = key
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ")
+    
+    // Replace outdated terminology
+    return formatted.replace(/\bSlave(s)?\b/g, "Replica$1")
   }
 
   const filteredItems = useMemo(() => {
