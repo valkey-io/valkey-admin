@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow } = require("electron")
+const { app, BrowserWindow, ipcMain, safeStorage } = require("electron")
 const path = require("path")
 const { fork } = require("child_process")
 
@@ -34,7 +34,7 @@ function startMetricsForClusterNodes(clusterNodes, credentials) {
       tls: node.tls,
       verifyTlsCertificate: node.verifyTlsCertificate,
     }
-        
+
     const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
     if (!metricsProcesses.has(connectionId)) {
       startMetrics(connectionId, connectionDetails)
@@ -67,7 +67,7 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
       VALKEY_PORT: port,
       VALKEY_USERNAME: username,
       VALKEY_PASSWORD: password,
-      VALKEY_TLS: serverConnectionDetails.tls, 
+      VALKEY_TLS: serverConnectionDetails.tls,
       VALKEY_VERIFY_CERT: serverConnectionDetails.verifyTlsCertificate,
       CONFIG_PATH: configPath, // Explicitly provide the config path
     },
@@ -129,6 +129,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   })
 
@@ -152,7 +153,7 @@ app.whenReady().then(() => {
           startMetrics(message.payload.connectionId, message.payload.connectionDetails)
           break
         case "valkeyConnection/clusterConnectFulfilled":
-          startMetricsForClusterNodes(message.payload.clusterNodes, message.payload.credentials )
+          startMetricsForClusterNodes(message.payload.clusterNodes, message.payload.credentials)
           break
         default:
           try {
@@ -181,6 +182,22 @@ app.on("before-quit", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
+  }
+})
+
+ipcMain.handle("secure-storage:encrypt", async (event, password) => {
+  if (!password || !safeStorage.isEncryptionAvailable()) return password
+  const encrypted = safeStorage.encryptString(password)
+  return encrypted.toString("base64")
+})
+
+ipcMain.handle("secure-storage:decrypt", async (event, encryptedBase64) => {
+  if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) return encryptedBase64
+  try {
+    const encrypted = Buffer.from(encryptedBase64, "base64")
+    return safeStorage.decryptString(encrypted)
+  } catch {
+    return encryptedBase64 // Return as-is if decryption fails
   }
 })
 

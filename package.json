@@ -54,6 +54,7 @@
     },
     "files": [
       "apps/frontend/electron.main.js",
+      "apps/frontend/preload.js",
       "apps/frontend/dist/**/*",
       "package.json"
     ],
