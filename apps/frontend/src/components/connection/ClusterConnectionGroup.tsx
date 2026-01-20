@@ -95,7 +95,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
   }
 
   const handleConnectLatest = () => lastOpenedNode && dispatch(connectPending({
-    ...lastOpenedNode.connection.connectionDetails,
+    connectionDetails: lastOpenedNode.connection.connectionDetails,
     connectionId: lastOpenedNode.connectionId,
     preservedHistory: lastOpenedNode.connection.connectionHistory,
   }))
