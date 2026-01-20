@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 vi.mock("@valkey/valkey-glide", () => ({
-  InfoOptions: {},   // just a placeholder, enough for your code
+  InfoOptions: {},
 }))
 
 import { createMockValkeyClient } from "../__tests__/test-helpers.js"
