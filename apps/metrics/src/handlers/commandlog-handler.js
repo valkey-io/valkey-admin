@@ -5,13 +5,12 @@ const getCommandLogRows = async (commandlogType, count) => {
   try {
     switch (commandlogType) {
       case COMMANDLOG_TYPE.SLOW: {
-        const rows = await Streamer.commandlog_slow({ limit: count })
-        return rows
+        return Streamer.commandlog_slow({ limit: count })
       }
       case COMMANDLOG_TYPE.LARGE_REQUEST:
-        return await Streamer.commandlog_large_request({ limit: count })
+        return Streamer.commandlog_large_request({ limit: count })
       case COMMANDLOG_TYPE.LARGE_REPLY:
-        return await Streamer.commandlog_large_reply({ limit: count })
+        return Streamer.commandlog_large_reply({ limit: count })
       default:
         throw new Error(`Unknown commandlog type: ${commandlogType}`)
     }
