@@ -1,16 +1,22 @@
 import { COMMANDLOG_TYPE } from "../utils/constants.js"
 import { getCollectorMeta } from "../init-collectors.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
-const getCommandLogRows = async (commandlogType, count) => {
+
+const latestByTsFold = () => ({
+  seed: null,
+  reducer: (acc, curr) => (acc == null || curr.ts > acc.ts ? curr : acc),
+  finalize: (acc) => acc,
+})
+
+const getCommandLogRows = async (commandlogType) => {
   try {
     switch (commandlogType) {
-      case COMMANDLOG_TYPE.SLOW: {
-        return Streamer.commandlog_slow({ limit: count })
-      }
+      case COMMANDLOG_TYPE.SLOW:
+        return Streamer.commandlog_slow(latestByTsFold())
       case COMMANDLOG_TYPE.LARGE_REQUEST:
-        return Streamer.commandlog_large_request({ limit: count })
+        return Streamer.commandlog_large_request(latestByTsFold())
       case COMMANDLOG_TYPE.LARGE_REPLY:
-        return Streamer.commandlog_large_reply({ limit: count })
+        return Streamer.commandlog_large_reply(latestByTsFold())
       default:
         throw new Error(`Unknown commandlog type: ${commandlogType}`)
     }
