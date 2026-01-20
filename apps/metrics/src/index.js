@@ -30,11 +30,12 @@ async function main() {
       password: process.env.VALKEY_PASSWORD,
     } : undefined
 
+  const useTLS = process.env.VALKEY_TLS === "true"
   const client = await GlideClient.createClient({
     addresses,
     credentials,
-    useTLS: process.env.VALKEY_TLS === "true" ? true : false,
-    ...(process.env.VALKEY_VERIFY_CERT === "false" && {
+    useTLS,
+    ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
       advancedConfiguration: {
         tlsAdvancedConfiguration: {
           insecure: true,

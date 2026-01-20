@@ -32,11 +32,12 @@ export async function connectToValkey(
   try {
     // If we've connected to the same host using IP addr or vice versa, return
     returnIfDuplicateConnection(payload, clients, ws)
+    const useTLS = payload.connectionDetails.tls
     const standaloneClient = await GlideClient.createClient({
       addresses,
       credentials,
-      useTLS: payload.connectionDetails.tls,
-      ...(payload.connectionDetails.verifyTlsCertificate === false && {
+      useTLS,
+      ...(useTLS && payload.connectionDetails.verifyTlsCertificate === false && {
         advancedConfiguration: {
           tlsAdvancedConfiguration: {
             insecure: true,
@@ -182,11 +183,12 @@ async function connectToCluster(
       payload: { clusterId, clusterNodes },
     }),
   )
+  const useTLS = payload.connectionDetails.tls
   const clusterClient = await GlideClusterClient.createClient({
     addresses,
     credentials,
-    useTLS: payload.connectionDetails.tls,
-    ...(payload.connectionDetails.verifyTlsCertificate === false && {
+    useTLS,
+    ...(useTLS && payload.connectionDetails.verifyTlsCertificate === false && {
       advancedConfiguration: {
         tlsAdvancedConfiguration: {
           insecure: true,
