@@ -52,24 +52,18 @@ export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
-      mergeMap(async (action) => {
-        if (action.payload.connectionDetails.password) {
-          const decryptedPassword = await secureStorage.decrypt(
-            action.payload.connectionDetails.password,
-          )
-          
-          return {
-            ...action,
-            payload: {
-              ...action.payload,
-              connectionDetails: {
-                ...action.payload.connectionDetails,
-                password: decryptedPassword,
-              },
-            },
-          }
-        }
-        return action
+      tap(async (action) => {
+        const { password } = action.payload.connectionDetails
+        
+        if (R.isNil(password)) return action
+        
+        const decryptedPassword = await secureStorage.decrypt(password)
+        
+        return R.assocPath(
+          ["payload", "connectionDetails", "password"],
+          decryptedPassword,
+          action,
+        )
       }),
       tap((action) => {
         const socket = getSocket()
@@ -85,26 +79,28 @@ export const connectionEpic = (store: Store) =>
           type === standaloneConnectFulfilled.type ||
           type === clusterConnectFulfilled.type,
       ),
-      mergeMap(async ({ payload }) => {
+      tap(async ({ payload }) => {
         try {
           const currentConnections = getCurrentConnections()
 
           const state = store.getState()
           const connection = state.valkeyConnection?.connections?.[payload.connectionId]
 
-          let connectionDetails = connection?.connectionDetails || payload.connectionDetails
-          if (connectionDetails.password) {
-            connectionDetails = {
-              ...connectionDetails,
-              password: await secureStorage.encrypt(connectionDetails.password),
-            }
-          }
+          const baseConnectionDetails =
+            connection?.connectionDetails ?? payload.connectionDetails
 
           const connectionToSave = {
-            connectionDetails,
+            connectionDetails: R.isNil(R.path(["password"], baseConnectionDetails))
+              ? baseConnectionDetails
+              : R.assoc(
+                "password",
+                await secureStorage.encrypt(baseConnectionDetails.password),
+                baseConnectionDetails,
+              ),
             status: NOT_CONNECTED,
-            connectionHistory: connection?.connectionHistory || [],
+            connectionHistory: connection?.connectionHistory ?? [],
           }
+
           currentConnections[payload.connectionId] = connectionToSave
           localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
 
@@ -113,7 +109,6 @@ export const connectionEpic = (store: Store) =>
           toast.error("Connection to server failed!")
           console.error(e)
         }
-        return EMPTY
       }),
     ),
 
@@ -279,7 +274,7 @@ export const deleteConnectionEpic = () =>
 export const updateConnectionDetailsEpic = (store: Store) =>
   action$.pipe(
     select(updateConnectionDetails),
-    mergeMap(async ({ payload: { connectionId } }) => {
+    tap(async ({ payload: { connectionId } }) => {
       try {
         const currentConnections = getCurrentConnections()
 
@@ -287,14 +282,13 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {
-          let connectionDetails = connection.connectionDetails
-          
-          if (connectionDetails.password) {
-            connectionDetails = {
-              ...connectionDetails,
-              password: await secureStorage.encrypt(connectionDetails.password),
-            }
-          }
+          const connectionDetails = connection.connectionDetails.password
+            ? R.assoc(
+              "password",
+              await secureStorage.encrypt(connection.connectionDetails.password),
+              connection.connectionDetails,
+            )
+            : connection.connectionDetails
           
           currentConnections[connectionId].connectionDetails = connectionDetails
           currentConnections[connectionId].connectionHistory = connection.connectionHistory || []
@@ -303,7 +297,6 @@ export const updateConnectionDetailsEpic = (store: Store) =>
       } catch (e) {
         console.error(e)
       }
-      return EMPTY
     }),
     ignoreElements(),
   )

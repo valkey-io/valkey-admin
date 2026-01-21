@@ -1,6 +1,6 @@
 export const secureStorage = {
   encrypt: async (password: string): Promise<string> => {
-    if (!password) return password
+    if (!password) return ""
     if (window.secureStorage) {
       return await window.secureStorage.encrypt(password)
     }
@@ -8,11 +8,11 @@ export const secureStorage = {
   },
 
   decrypt: async (encrypted: string): Promise<string> => {
-    if (!encrypted) return encrypted
+    if (!encrypted) return ""
     if (window.secureStorage) {
       return await window.secureStorage.decrypt(encrypted)
     }
-    return encrypted
+    return ""
   },
 }
 

@@ -192,12 +192,12 @@ ipcMain.handle("secure-storage:encrypt", async (event, password) => {
 })
 
 ipcMain.handle("secure-storage:decrypt", async (event, encryptedBase64) => {
-  if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) return encryptedBase64
+  if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) return ""
   try {
     const encrypted = Buffer.from(encryptedBase64, "base64")
     return safeStorage.decryptString(encrypted)
   } catch {
-    return encryptedBase64 // Return as-is if decryption fails
+    return "" // TODO: Look into this case more closely
   }
 })
 
