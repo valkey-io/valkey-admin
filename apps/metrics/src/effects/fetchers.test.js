@@ -24,12 +24,9 @@ describe("fetchers", () => {
   describe("memory_stats", () => {
     it("should parse array pairs correctly", async () => {
       client.customCommand.mockResolvedValue([
-        "peak.allocated",
-        1000000,
-        "used.memory",
-        800000,
-        "fragmentation.ratio",
-        1.25,
+        { key: "peak.allocated", value: 1000000 },
+        { key: "used.memory", value: 800000 },
+        { key: "fragmentation.ratio", value: 1.25 },
       ])
 
       const result = await fetcher.memory_stats()
@@ -51,10 +48,10 @@ describe("fetchers", () => {
     })
 
     it("should convert object responses to rows", async () => {
-      client.customCommand.mockResolvedValue({
-        "peak.allocated": 1000000,
-        "used.memory": 800000,
-      })
+      client.customCommand.mockResolvedValue([
+        { key: "peak.allocated", value: 1000000 },
+        { key: "used.memory", value: 800000 },
+      ])
 
       const result = await fetcher.memory_stats()
 
@@ -65,14 +62,10 @@ describe("fetchers", () => {
 
     it("should filter out non-numeric values", async () => {
       client.customCommand.mockResolvedValue([
-        "valid.metric",
-        100,
-        "invalid.metric",
-        "not-a-number",
-        "nan.metric",
-        NaN,
-        "null.metric",
-        null,  // Note: null converts to 0, which is considered valid
+        { key: "valid.metric", value: 100 },
+        { key: "invalid.metric", value: "not-a-number" },
+        { key: "nan.metric", value: NaN },
+        { key: "null.metric", value: null },  // Note: null converts to 0, which is considered valid
       ])
 
       const result = await fetcher.memory_stats()
@@ -87,10 +80,8 @@ describe("fetchers", () => {
 
     it("should replace dots in metric names with underscores", async () => {
       client.customCommand.mockResolvedValue([
-        "used.memory.peak",
-        1000,
-        "another.metric.with.dots",
-        2000,
+        { key: "used.memory.peak", value: 1000 },
+        { key: "another.metric.with.dots", value: 2000 },
       ])
 
       const result = await fetcher.memory_stats()
@@ -100,7 +91,10 @@ describe("fetchers", () => {
     })
 
     it("should add timestamp to all rows", async () => {
-      client.customCommand.mockResolvedValue(["metric1", 100, "metric2", 200])
+      client.customCommand.mockResolvedValue([
+        { key: "metric1", value: 100 },
+        { key: "metric2", value: 200 },
+      ])
 
       const result = await fetcher.memory_stats()
 
