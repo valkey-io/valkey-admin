@@ -5,7 +5,7 @@ import * as Streamer from "../effects/ndjson-streamer.js"
 const latestByTsFold = () => ({
   seed: null,
   reducer: (acc, curr) => (acc == null || curr.ts > acc.ts ? curr : acc),
-  finalize: (acc) => acc,
+  finalize: (acc) => [acc],
 })
 
 const getCommandLogRows = async (commandlogType) => {
