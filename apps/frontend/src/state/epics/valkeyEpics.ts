@@ -109,7 +109,6 @@ export const connectionEpic = (store: Store) =>
           toast.error("Connection to server failed!")
           console.error(e)
         }
-        return EMPTY
       }),
     ),
 
@@ -298,7 +297,6 @@ export const updateConnectionDetailsEpic = (store: Store) =>
       } catch (e) {
         console.error(e)
       }
-      return EMPTY
     }),
     ignoreElements(),
   )
