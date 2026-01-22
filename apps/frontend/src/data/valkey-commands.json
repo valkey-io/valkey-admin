@@ -1,0 +1,1334 @@
+[
+  {
+    "name": "PING",
+    "syntax": "PING",
+    "category": "connection",
+    "description": "Test server connectivity",
+    "tier": "default",
+    "parameters": []
+  },
+  {
+    "name": "INFO",
+    "syntax": "INFO [section]",
+    "category": "server",
+    "description": "Get server information and statistics",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "section",
+        "type": "value",
+        "required": false,
+        "placeholder": "section"
+      }
+    ]
+  },
+  {
+    "name": "TYPE",
+    "syntax": "TYPE key",
+    "category": "generic",
+    "description": "Determine the type stored at key",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "GET",
+    "syntax": "GET key",
+    "category": "string",
+    "description": "Get the value of a key",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "MGET",
+    "syntax": "MGET key [key ...]",
+    "category": "string",
+    "description": "Get values of multiple keys",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "STRLEN",
+    "syntax": "STRLEN key",
+    "category": "string",
+    "description": "Get string value length",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "GETRANGE",
+    "syntax": "GETRANGE key start end",
+    "category": "string",
+    "description": "Get substring of string value",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "end",
+        "type": "number",
+        "required": true,
+        "placeholder": "-1"
+      }
+    ]
+  },
+  {
+    "name": "TTL",
+    "syntax": "TTL key",
+    "category": "generic",
+    "description": "Get time to live in seconds",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "PTTL",
+    "syntax": "PTTL key",
+    "category": "generic",
+    "description": "Get time to live in milliseconds",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "KEYS",
+    "syntax": "KEYS pattern",
+    "category": "generic",
+    "description": "Find keys matching pattern (use SCAN for production)",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": true,
+        "placeholder": "*"
+      }
+    ]
+  },
+  {
+    "name": "DBSIZE",
+    "syntax": "DBSIZE",
+    "category": "server",
+    "description": "Get total number of keys",
+    "tier": "default",
+    "parameters": []
+  },
+  {
+    "name": "MEMORY USAGE",
+    "syntax": "MEMORY USAGE key",
+    "category": "server",
+    "description": "Get memory usage of key in bytes",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "EXISTS",
+    "syntax": "EXISTS key [key ...]",
+    "category": "generic",
+    "description": "Check if keys exist",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SCAN",
+    "syntax": "SCAN cursor [MATCH pattern] [COUNT count] [TYPE type]",
+    "category": "scan",
+    "description": "Incrementally iterate keys",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "cursor",
+        "type": "cursor",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "10"
+      },
+      {
+        "name": "type",
+        "type": "value",
+        "required": false,
+        "placeholder": "string"
+      }
+    ]
+  },
+  {
+    "name": "HGET",
+    "syntax": "HGET key field",
+    "category": "hash",
+    "description": "Get hash field value",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      }
+    ]
+  },
+  {
+    "name": "HGETALL",
+    "syntax": "HGETALL key",
+    "category": "hash",
+    "description": "Get all hash fields and values",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "HKEYS",
+    "syntax": "HKEYS key",
+    "category": "hash",
+    "description": "Get all hash field names",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "HVALS",
+    "syntax": "HVALS key",
+    "category": "hash",
+    "description": "Get all hash values",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "HLEN",
+    "syntax": "HLEN key",
+    "category": "hash",
+    "description": "Get number of hash fields",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "HEXISTS",
+    "syntax": "HEXISTS key field",
+    "category": "hash",
+    "description": "Check if hash field exists",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      }
+    ]
+  },
+  {
+    "name": "HMGET",
+    "syntax": "HMGET key field [field ...]",
+    "category": "hash",
+    "description": "Get multiple hash field values",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "HSCAN",
+    "syntax": "HSCAN key cursor [MATCH pattern] [COUNT count]",
+    "category": "hash",
+    "description": "Incrementally iterate hash fields",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "cursor",
+        "type": "cursor",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "10"
+      }
+    ]
+  },
+  {
+    "name": "LRANGE",
+    "syntax": "LRANGE key start stop",
+    "category": "list",
+    "description": "Get list elements by range",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "stop",
+        "type": "number",
+        "required": true,
+        "placeholder": "-1"
+      }
+    ]
+  },
+  {
+    "name": "LLEN",
+    "syntax": "LLEN key",
+    "category": "list",
+    "description": "Get list length",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "LINDEX",
+    "syntax": "LINDEX key index",
+    "category": "list",
+    "description": "Get list element by index",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "index",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SISMEMBER",
+    "syntax": "SISMEMBER key member",
+    "category": "set",
+    "description": "Check if member exists in set",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "SMEMBERS",
+    "syntax": "SMEMBERS key",
+    "category": "set",
+    "description": "Get all set members",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "SCARD",
+    "syntax": "SCARD key",
+    "category": "set",
+    "description": "Get set cardinality",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "SINTER",
+    "syntax": "SINTER key [key ...]",
+    "category": "set",
+    "description": "Get intersection of sets",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SDIFF",
+    "syntax": "SDIFF key [key ...]",
+    "category": "set",
+    "description": "Get difference between sets",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SUNION",
+    "syntax": "SUNION key [key ...]",
+    "category": "set",
+    "description": "Get union of sets",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SSCAN",
+    "syntax": "SSCAN key cursor [MATCH pattern] [COUNT count]",
+    "category": "set",
+    "description": "Incrementally iterate set members",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "cursor",
+        "type": "cursor",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "10"
+      }
+    ]
+  },
+  {
+    "name": "ZSCORE",
+    "syntax": "ZSCORE key member",
+    "category": "sorted_set",
+    "description": "Get member score in sorted set",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "ZCARD",
+    "syntax": "ZCARD key",
+    "category": "sorted_set",
+    "description": "Get sorted set cardinality",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "ZCOUNT",
+    "syntax": "ZCOUNT key min max",
+    "category": "sorted_set",
+    "description": "Count members in score range",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "required": true,
+        "placeholder": "-inf"
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": true,
+        "placeholder": "+inf"
+      }
+    ]
+  },
+  {
+    "name": "ZRANK",
+    "syntax": "ZRANK key member",
+    "category": "sorted_set",
+    "description": "Get member rank (low to high)",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "ZREVRANK",
+    "syntax": "ZREVRANK key member",
+    "category": "sorted_set",
+    "description": "Get member rank (high to low)",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "ZRANGEBYSCORE",
+    "syntax": "ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]",
+    "category": "sorted_set",
+    "description": "Get members by score range",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "required": true,
+        "placeholder": "-inf"
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": true,
+        "placeholder": "+inf"
+      }
+    ]
+  },
+  {
+    "name": "ZRANGE",
+    "syntax": "ZRANGE key start stop [WITHSCORES]",
+    "category": "sorted_set",
+    "description": "Get sorted set range by index",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "stop",
+        "type": "number",
+        "required": true,
+        "placeholder": "-1"
+      }
+    ]
+  },
+  {
+    "name": "ZREVRANGE",
+    "syntax": "ZREVRANGE key start stop [WITHSCORES]",
+    "category": "sorted_set",
+    "description": "Get sorted set range in reverse",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "stop",
+        "type": "number",
+        "required": true,
+        "placeholder": "-1"
+      }
+    ]
+  },
+  {
+    "name": "ZSCAN",
+    "syntax": "ZSCAN key cursor [MATCH pattern] [COUNT count]",
+    "category": "sorted_set",
+    "description": "Incrementally iterate sorted set",
+    "tier": "default",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "cursor",
+        "type": "cursor",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "10"
+      }
+    ]
+  },
+  {
+    "name": "SET",
+    "syntax": "SET key value",
+    "category": "string",
+    "description": "Set key to hold string value",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "APPEND",
+    "syntax": "APPEND key value",
+    "category": "string",
+    "description": "Append value to string",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "UNLINK",
+    "syntax": "UNLINK key [key ...]",
+    "category": "generic",
+    "description": "Delete keys asynchronously (safer than DEL)",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "DEL",
+    "syntax": "DEL key [key ...]",
+    "category": "generic",
+    "description": "Delete keys synchronously",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "EXPIRE",
+    "syntax": "EXPIRE key seconds",
+    "category": "generic",
+    "description": "Set key expiration in seconds",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "seconds"
+      }
+    ]
+  },
+  {
+    "name": "PEXPIRE",
+    "syntax": "PEXPIRE key milliseconds",
+    "category": "generic",
+    "description": "Set key expiration in milliseconds",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "milliseconds"
+      }
+    ]
+  },
+  {
+    "name": "PERSIST",
+    "syntax": "PERSIST key",
+    "category": "generic",
+    "description": "Remove key expiration",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "RENAME",
+    "syntax": "RENAME key newkey",
+    "category": "generic",
+    "description": "Rename a key",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "newkey",
+        "type": "key",
+        "required": true,
+        "placeholder": "newkey"
+      }
+    ]
+  },
+  {
+    "name": "HSET",
+    "syntax": "HSET key field value [field value ...]",
+    "category": "hash",
+    "description": "Set hash field values",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "HDEL",
+    "syntax": "HDEL key field [field ...]",
+    "category": "hash",
+    "description": "Delete hash fields",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LPUSH",
+    "syntax": "LPUSH key element [element ...]",
+    "category": "list",
+    "description": "Prepend elements to list",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "RPUSH",
+    "syntax": "RPUSH key element [element ...]",
+    "category": "list",
+    "description": "Append elements to list",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LREM",
+    "syntax": "LREM key count element",
+    "category": "list",
+    "description": "Remove list elements",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element"
+      }
+    ]
+  },
+  {
+    "name": "LTRIM",
+    "syntax": "LTRIM key start stop",
+    "category": "list",
+    "description": "Trim list to specified range",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "stop",
+        "type": "number",
+        "required": true,
+        "placeholder": "-1"
+      }
+    ]
+  },
+  {
+    "name": "LSET",
+    "syntax": "LSET key index element",
+    "category": "list",
+    "description": "Set list element by index",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "index",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element"
+      }
+    ]
+  },
+  {
+    "name": "SADD",
+    "syntax": "SADD key member [member ...]",
+    "category": "set",
+    "description": "Add members to set",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SREM",
+    "syntax": "SREM key member [member ...]",
+    "category": "set",
+    "description": "Remove set members",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SMOVE",
+    "syntax": "SMOVE source destination member",
+    "category": "set",
+    "description": "Move member between sets",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "ZADD",
+    "syntax": "ZADD key score member [score member ...]",
+    "category": "sorted_set",
+    "description": "Add members to sorted set",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "score",
+        "type": "number",
+        "required": true,
+        "placeholder": "score"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "ZREM",
+    "syntax": "ZREM key member [member ...]",
+    "category": "sorted_set",
+    "description": "Remove sorted set members",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZINCRBY",
+    "syntax": "ZINCRBY key increment member",
+    "category": "sorted_set",
+    "description": "Increment member score",
+    "tier": "remediation",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "increment",
+        "type": "number",
+        "required": true,
+        "placeholder": "1"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "FLUSHDB",
+    "syntax": "FLUSHDB",
+    "category": "admin",
+    "description": "Delete all keys in current database",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "FLUSHALL",
+    "syntax": "FLUSHALL",
+    "category": "admin",
+    "description": "Delete all keys in all databases",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "CONFIG GET",
+    "syntax": "CONFIG GET parameter",
+    "category": "admin",
+    "description": "Get configuration parameter",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "parameter",
+        "type": "value",
+        "required": true,
+        "placeholder": "parameter"
+      }
+    ]
+  },
+  {
+    "name": "CONFIG SET",
+    "syntax": "CONFIG SET parameter value",
+    "category": "admin",
+    "description": "Set configuration parameter",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "parameter",
+        "type": "value",
+        "required": true,
+        "placeholder": "parameter"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "CLIENT LIST",
+    "syntax": "CLIENT LIST",
+    "category": "admin",
+    "description": "List all connected clients",
+    "tier": "admin",
+    "parameters": []
+  }
+]

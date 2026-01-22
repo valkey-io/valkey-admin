@@ -1,5 +1,5 @@
 import { CopyIcon, GitCompareIcon, RotateCwIcon, SquareTerminal } from "lucide-react"
-import React, { useRef, useState } from "react"
+import { useState } from "react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
@@ -14,18 +14,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import DiffCommands from "@/components/send-command/DiffCommands.tsx"
 import Response from "@/components/send-command/Response.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
+import { CommandInputWithAutocomplete } from "@/components/ui/command-input-with-autocomplete"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
 
   const [text, setText] = useState("")
   const [commandIndex, setCommandIndex] = useState<number>(0)
-  const [compareWith, setCompareWith] = useState(null)
+  const [compareWith, setCompareWith] = useState<number | null>(null)
   const [keysFilter, setKeysFilter] = useState("")
   const [historyFilter, setHistoryFilter] = useState("")
 
   const { id } = useParams()
-  const allCommands = useSelector(selectAllCommands(id as string)) || []
+  const allCommands = (useSelector(selectAllCommands(id as string)) || []) as CommandMetadata[]
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const onSubmit = (command?: string) => {
@@ -34,25 +35,11 @@ export function SendCommand() {
     setText("")
   }
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      if (text.trim().length > 0) {
-        onSubmit()
-      }
-    } else if (e.key === "Escape") {
-      e.preventDefault()
-      setText("")
-    }
-  }
-
-  const canDiff = (index) => { // can diff only the same command, i.e. info vs info
+  const canDiff = (index: number) => {
     const currentCommand = allCommands[commandIndex]
     const targetCommand = allCommands[index]
     return currentCommand.command.toLowerCase() === targetCommand.command.toLowerCase()
   }
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null as HTMLTextAreaElement)
 
   return (
     <RouteContainer title="Send Command">
@@ -193,16 +180,12 @@ export function SendCommand() {
         </div>
       </div>
 
-      <div className="flex items-center w-full text-sm font-light">
-        <textarea
-          className="flex-1 h-10 p-2 dark:border-tw-dark-border border rounded"
-          onChange={(e) => setText(e.target.value)}
-          onFocus={() => {
-            textareaRef.current?.select()
-          }}
-          onKeyDown={onKeyDown}
+      <div className="flex items-center w-full text-sm font-light relative">
+        <CommandInputWithAutocomplete
+          className="w-full h-10 p-2 dark:border-tw-dark-border border rounded"
+          onChange={setText}
+          onSubmit={onSubmit}
           placeholder="Type your Valkey command here"
-          ref={textareaRef}
           value={text}
         />
         <button

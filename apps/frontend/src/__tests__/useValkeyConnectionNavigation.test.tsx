@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react"
 import { Provider } from "react-redux"
 import { BrowserRouter } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
-import { useValkeyConnectionNavigation } from "./useValkeyConnectionNavigation"
+import { useValkeyConnectionNavigation } from "../hooks/useValkeyConnectionNavigation"
 import { setupTestStore } from "@/test/utils/test-utils"
 import { mockConnectionState } from "@/test/utils/mocks"
 

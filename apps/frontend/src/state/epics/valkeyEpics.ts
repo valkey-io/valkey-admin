@@ -30,7 +30,7 @@ import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
-const getConnectionIds = (store: Store, action) => {
+const getConnectionIds = (store: Store, action: PayloadAction<{ clusterId?: string; connectionId: string }>) => {
   // If we're connected to a cluster, pass connectionId of each node
   // Else pass connectionId of current node only
   const { clusterId, connectionId } = action.payload
@@ -138,7 +138,7 @@ export const connectionEpic = (store: Store) =>
               username: "",
               password: "",
               tls: false,
-              verifyTlsCertificate: false, 
+              verifyTlsCertificate: false,
               alias: alias || "Valkey Cluster",
             },
             connectionId,
