@@ -1,4 +1,4 @@
-import { CONNECTED, ERROR, DISCONNECTED, CONNECTING } from "@common/src/constants.ts"
+import { CONNECTED, ERROR, CONNECTING } from "@common/src/constants.ts"
 import {
   AlertCircleIcon,
   CircleChevronRight,
@@ -56,7 +56,6 @@ export const ConnectionEntry = ({
   const isConnected = connection.status === CONNECTED
   const isConnecting = connection.status === CONNECTING
   const isError = connection.status === ERROR
-  const isDisconnected = connection.status === DISCONNECTED
   const label = connection.connectionDetails.username
     ? `${connection.connectionDetails.username}@${connection.connectionDetails.host}:${connection.connectionDetails.port}`
     : `${connection.connectionDetails.host}:${connection.connectionDetails.port}`
@@ -71,15 +70,6 @@ export const ConnectionEntry = ({
          text-teal-700 dark:text-teal-400 rounded-full">
           <CircleDotIcon size={12} />
           Connected
-        </span>
-      )
-    }
-    if (isDisconnected) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-orange-100 dark:bg-orange-900/30
-         text-orange-700 dark:text-orange-400 rounded-full">
-          <AlertCircleIcon size={12} />
-          Disconnected
         </span>
       )
     }
@@ -133,7 +123,7 @@ export const ConnectionEntry = ({
                 </Button>
               </>
             )}
-            {(isDisconnected || (!isConnected && !isConnecting)) && (
+            {((!isConnected && !isConnecting)) && (
               <Button onClick={handleConnect} size="sm" variant="ghost">
                 <PowerIcon size={16} />
               </Button>
@@ -203,7 +193,7 @@ export const ConnectionEntry = ({
               </Button>
             </>
           )}
-          {(isDisconnected || (!isConnected && !isConnecting)) && (
+          {(!isConnected && !isConnecting) && (
             <Button onClick={handleConnect} size="sm" variant="ghost">
               <PowerIcon size={16} />
             </Button>

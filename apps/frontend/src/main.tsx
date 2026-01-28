@@ -38,7 +38,8 @@ const AppWithHistory = () => {
         <Route element={<WebSocketReconnect />} path="/reconnect" />
         <Route element={<Settings />} path="/settings" />
         <Route element={<LearnMore />} path="/learnmore" />
-
+        <Route element={<ValkeyReconnect />} path="/:id/valkey-reconnect" />
+        
         {/* Routes with clusterId */}
         <Route element={<RequireConnection />}>
           <Route element={<Connection />} path="/:clusterId/:id/connect" />
@@ -52,7 +53,6 @@ const AppWithHistory = () => {
 
         {/* Routes without clusterId */}
         <Route element={<RequireConnection />}>
-          <Route element={<ValkeyReconnect />} path="/:id/valkey-reconnect" />
           <Route element={<Connection />} path="/:id/connect" />
           <Route element={<Dashboard />} path="/:id/dashboard" />
           <Route element={<SendCommand />} path="/:id/sendcommand" />

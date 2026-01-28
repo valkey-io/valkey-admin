@@ -1,5 +1,13 @@
 import { WebSocket } from "ws"
-import { GlideClient, GlideClusterClient, Batch, ClusterBatch, RouteOption } from "@valkey/valkey-glide"
+import { 
+  GlideClient, 
+  GlideClusterClient, 
+  Batch, ClusterBatch, 
+  RouteOption, 
+  ConnectionError, 
+  TimeoutError, 
+  ClosingError 
+} from "@valkey/valkey-glide"
 import pLimit from "p-limit"
 import { VALKEY } from "../../../common/src/constants.ts"
 import { buildScanCommandArgs } from "./valkey-client-commands.ts"
@@ -185,6 +193,7 @@ export async function getKeys(
     count?: number;
   },
 ) {
+  const { connectionId } = payload
   try {
     const totalKeys = await client.customCommand(["DBSIZE"])
     const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
@@ -205,35 +214,40 @@ export async function getKeys(
       JSON.stringify({
         type: VALKEY.KEYS.getKeysFulfilled,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId: connectionId,
           keys: enrichedKeys,
           totalKeys,
         },
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
+    console.error(`Valkey connection error for ${connectionId}:`, err)
 
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.getKeysFailed,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId: connectionId,
           error: err instanceof Error ? err.message : String(err),
         },
       }),
     )
 
     // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Error getting keys - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error adding key - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
 
@@ -245,6 +259,7 @@ export async function getKeyInfoSingle(
     key: string;
   },
 ) {
+  const { connectionId } = payload
   try {
     const keyInfo = await getKeyInfo(client, payload.key)
 
@@ -252,20 +267,18 @@ export async function getKeyInfoSingle(
       JSON.stringify({
         type: VALKEY.KEYS.getKeyTypeFulfilled,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: payload.key,
           ...keyInfo,
         },
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
-
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.getKeyTypeFailed,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: payload.key,
           error: err instanceof Error ? err.message : String(err),
         },
@@ -273,15 +286,20 @@ export async function getKeyInfoSingle(
     )
 
     // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Error getting key info - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error getting key info - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
 
@@ -290,6 +308,7 @@ export async function deleteKey(
   ws: WebSocket,
   payload: { connectionId: string; key: string },
 ) {
+  const connectionId = payload.connectionId
   try {
     // Using UNLINK for non-blocking deletion, DEL is also an option but can block
     const result = (await client.customCommand([
@@ -301,20 +320,19 @@ export async function deleteKey(
       JSON.stringify({
         type: VALKEY.KEYS.deleteKeyFulfilled,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: payload.key,
           deleted: result === 1,
         },
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
 
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.deleteKeyFailed,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: payload.key,
           error: err instanceof Error ? err.message : String(err),
         },
@@ -322,15 +340,20 @@ export async function deleteKey(
     )
 
     // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Error in deleting key - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error adding key - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
 
@@ -460,9 +483,9 @@ export async function addKey(
     ttl?: number;
   },
 ) {
+  const connectionId = payload.connectionId
   try {
     const keyType = payload.keyType.toLowerCase().trim()
-
     switch (keyType) {
       case "string":
         if (!payload.value) {
@@ -520,35 +543,40 @@ export async function addKey(
       JSON.stringify({
         type: VALKEY.KEYS.addKeyFulfilled,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: keyInfo,
           message: "Key added successfully",
         },
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
+    console.error(`Valkey connection error for ${connectionId}:`, err)
 
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.addKeyFailed,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           error: err instanceof Error ? err.message : String(err),
         },
       }),
     )
 
     // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Error in adding key - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error adding key - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
 
@@ -800,7 +828,7 @@ export async function updateKey(
     ttl?: number;
   },
 ) {
-
+  const connectionId = payload.connectionId
   try {
     const keyType = payload.keyType.toLowerCase().trim()
 
@@ -858,34 +886,38 @@ export async function updateKey(
       JSON.stringify({
         type: VALKEY.KEYS.updateKeyFulfilled,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId,
           key: keyInfo,
           message: "Key updated successfully",
         },
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${payload.connectionId}:`, err)
+    console.error(`Valkey connection error for ${connectionId}:`, err)
 
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.updateKeyFailed,
         payload: {
-          connectionId: payload.connectionId,
+          connectionId: connectionId,
           error: err instanceof Error ? err.message : String(err),
         },
       }),
     )
 
-    // valkey connection issue
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId: payload.connectionId,
-          errorMessage: "Error in updating key - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error updating key - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
