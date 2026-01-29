@@ -10,7 +10,7 @@ import {
   retry
 } from "rxjs/operators"
 import { CONNECTED, VALKEY, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
-import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddlware"
+import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddleware"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
 import {
@@ -56,6 +56,7 @@ const connect = (store: Store) =>
                 }
               })
               socket$ = null
+              
             },
           },
         })
@@ -67,23 +68,23 @@ const connect = (store: Store) =>
           const socket = createSocket()
           return socket.pipe(ignoreElements())
         }),
-        retry({
-          count: RETRY_CONFIG.MAX_RETRIES,
-          delay: (error, retryCount) => {
-            console.error(`WebSocket error (attempt ${retryCount}):`, error)
+        // retry({
+        //   count: RETRY_CONFIG.MAX_RETRIES,
+        //   delay: (error, retryCount) => {
+        //     console.error(`WebSocket error (attempt ${retryCount}):`, error)
 
-            const delay = retryDelay(retryCount - 1)
+        //     const delay = retryDelay(retryCount - 1)
 
-            store.dispatch(reconnectAttempt({
-              attempt: retryCount,
-              maxRetries: RETRY_CONFIG.MAX_RETRIES,
-              nextRetryDelay: delay,
-            }))
+        //     store.dispatch(reconnectAttempt({
+        //       attempt: retryCount,
+        //       maxRetries: RETRY_CONFIG.MAX_RETRIES,
+        //       nextRetryDelay: delay,
+        //     }))
 
-            return timer(delay)
-          },
-          resetOnSuccess: true,
-        }),
+        //     return timer(delay)
+        //   },
+        //   resetOnSuccess: true,
+        // }),
         catchError((err) => {
           console.error("WebSocket connection failed permanently:", err)
           store.dispatch(reconnectExhausted())

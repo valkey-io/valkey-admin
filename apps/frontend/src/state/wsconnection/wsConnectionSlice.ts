@@ -1,5 +1,7 @@
 import { CONNECTED, CONNECTING, ERROR, NOT_CONNECTED } from "@common/src/constants"
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import * as R from "ramda"
+import { type RootState } from "@/store"
 
 interface ReconnectState {
   isRetrying: boolean
@@ -13,6 +15,9 @@ export interface WsConnectionState {
   errorMessage: string | null
   reconnect: ReconnectState
 }
+
+export const selectStatus = () => (state: RootState) =>
+  R.path(["websocket", "status"], state)
 
 const wsConnectionSlice = createSlice({
   name: "wsconnection",

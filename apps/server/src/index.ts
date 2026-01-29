@@ -28,7 +28,6 @@ interface MetricsServerMessage {
   }
 }
 
-const wss = new WebSocketServer({ port: 8080 })
 const metricsServerURIs: Map<string, string> = new Map()
 
 process.on("message", (message: MetricsServerMessage ) => {
@@ -47,59 +46,95 @@ process.on("message", (message: MetricsServerMessage ) => {
   }
 })
 
-wss.on("listening", () => { // Add a listener for when the server starts listening
-  console.log("Websocket server running on localhost:8080")
-  if (process.send) { // Check if process.send is available (i.e., if forked)
-    process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
-  }
-})
+let wss: WebSocketServer | null = null
+let restartAttempts = 0
+const MAX_RESTART_DELAY = 30_000 // 30s cap
 
-wss.on("connection", (ws: WebSocket) => {
-  console.log("Client connected.")
-  const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
+function restartWebSocketServer() {
+  if (!wss) return
+  const delay = Math.min(
+    1000 * 2 ** restartAttempts,
+    MAX_RESTART_DELAY,
+  )
+  console.warn(`Restarting WebSocket server in ${delay}ms (attempt ${restartAttempts + 1})`)
+  restartAttempts++
+
+  wss.close(() => {
+    wss = null
+
+    setTimeout(() => {
+      startWebSocketServer()
+    }, delay)
+  })
+}
+
+function startWebSocketServer() {
+  wss = new WebSocketServer({ port: 8080 })
+  wss.on("listening", () => { // Add a listener for when the server starts listening
+    console.log("Websocket server running on localhost:8080")
+
+    restartAttempts = 0
+
+    if (process.send) { // Check if process.send is available (i.e., if forked)
+      process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
+    }
+  })
+
+  wss.on("connection", (ws: WebSocket) => {
+    console.log("Client connected.")
+    const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
   
-  const handlers: Record<string, Handler> = {
-    [VALKEY.CONNECTION.connectPending]: connectPending,
-    [VALKEY.CONNECTION.resetConnection]: resetConnection,
-    [VALKEY.CONFIG.updateConfig]: updateConfig, 
-    [VALKEY.CLUSTER.setClusterData]: setClusterData,
-    [VALKEY.COMMAND.sendRequested]: sendRequested,
-    [VALKEY.STATS.setData]: setData,
-    [VALKEY.KEYS.getKeysRequested]: getKeysRequested,
-    [VALKEY.KEYS.getKeyTypeRequested]: getKeyTypeRequested,
-    [VALKEY.KEYS.deleteKeyRequested]: deleteKeyRequested,
-    [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
-    [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
-    [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
-    [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
-    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
-    [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
-    [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
+    const handlers: Record<string, Handler> = {
+      [VALKEY.CONNECTION.connectPending]: connectPending,
+      [VALKEY.CONNECTION.resetConnection]: resetConnection,
+      [VALKEY.CONFIG.updateConfig]: updateConfig, 
+      [VALKEY.CLUSTER.setClusterData]: setClusterData,
+      [VALKEY.COMMAND.sendRequested]: sendRequested,
+      [VALKEY.STATS.setData]: setData,
+      [VALKEY.KEYS.getKeysRequested]: getKeysRequested,
+      [VALKEY.KEYS.getKeyTypeRequested]: getKeyTypeRequested,
+      [VALKEY.KEYS.deleteKeyRequested]: deleteKeyRequested,
+      [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
+      [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
+      [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
+      [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
+      [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
+      [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
+      [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
 
-  }
-
-  ws.on("message", async (message) => {
-    let action: WsActionMessage | undefined
-    let connectionId: string | undefined
-
-    try {
-      action = JSON.parse(message.toString())
-      connectionId = action!.payload.connectionId
-    } catch (e) {
-      console.log("Failed to parse the message", message.toString(), e)
     }
 
-    const handler = handlers[action!.type] ?? unknownHandler
-    await handler({ ws, clients, connectionId: connectionId!, metricsServerURIs })(action as ReduxAction)
-  })
-  ws.on("error", (err) => {
-    console.error("WebSocket error:", err)
-  })
-  ws.on("close", (code, reason) => {
-    // Close all Valkey connections
-    clients.forEach((client) => client.close())
-    clients.clear()
+    ws.on("message", async (message) => {
+      let action: WsActionMessage | undefined
+      let connectionId: string | undefined
 
-    console.log("Client disconnected. Reason:", code, reason.toString())
+      try {
+        action = JSON.parse(message.toString())
+        connectionId = action!.payload.connectionId
+      } catch (e) {
+        console.log("Failed to parse the message", message.toString(), e)
+      }
+
+      const handler = handlers[action!.type] ?? unknownHandler
+      await handler({ ws, clients, connectionId: connectionId!, metricsServerURIs })(action as ReduxAction)
+    })
+    ws.on("error", (err) => {
+      console.error("WebSocket error:", err)
+    })
+    ws.on("close", (code, reason) => {
+    // Close all Valkey connections
+      clients.forEach((client) => client.close())
+      clients.clear()
+      console.log("Client disconnected. Reason:", code, reason.toString())
+    })
   })
-})
+
+  wss.on("error", (err) => {
+    console.error("WebSocket Server Error: ", err)
+    console.log("Attempting to reconnect...")
+    restartWebSocketServer()
+  })
+}
+
+startWebSocketServer()
+
