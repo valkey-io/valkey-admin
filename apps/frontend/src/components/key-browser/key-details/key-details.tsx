@@ -88,7 +88,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
   }
 
   return (
-    <div className= "w-1/2 pl-2">
+    <div className="pl-2 h-full">
       <div className="h-full dark:border-tw-dark-border border rounded overflow-hidden">
         {selectedKey && selectedKeyInfo ? (
           <div className="h-full p-4 text-sm font-light overflow-y-auto">

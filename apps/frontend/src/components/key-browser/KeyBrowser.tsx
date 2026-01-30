@@ -21,6 +21,8 @@ import { StatCard } from "../ui/stat-card"
 import { SearchInput } from "../ui/search-input"
 import RouteContainer from "../ui/route-container"
 import { TooltipIcon } from "../ui/tooltip-icon"
+import { SplitPanel } from "../ui/split-panel"
+import { Panel } from "../ui/panel"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectKeys,
@@ -227,27 +229,27 @@ export function KeyBrowser() {
 
       {/* Key Viewer */}
       <TooltipProvider>
-        <div className="flex flex-1 min-h-0">
-          {/* Keys List */}
-          <div className="w-1/2 pr-2">
-            {filteredKeys.length === 0 && !loading ? (
-              <div className="h-full p-2 dark:border-tw-dark-border border rounded flex items-center justify-center">
-                {selectedType === "all" ? "No keys found" : `No ${selectedType} keys found`}
-              </div>
-            ) : (
-              <div className={`h-full dark:border-tw-dark-border border rounded overflow-hidden ${loading ? "opacity-50 pointer-events-none" : ""}`}>
-                <KeyTree
-                  keys={filteredKeys}
-                  loading={loading}
-                  onKeyClick={handleKeyClick}
-                  selectedKey={selectedKey}
-                />
-              </div>
-            )}
-          </div>
-          {/* Key Details */}
-          <KeyDetails connectionId={id!} selectedKey={selectedKey} selectedKeyInfo={selectedKeyInfo!} setSelectedKey={setSelectedKey} />
-        </div>
+        <SplitPanel
+          left={
+            <Panel
+              emptyState={selectedType === "all" ? "No keys found" : `No ${selectedType} keys found`}
+              isEmpty={filteredKeys.length === 0 && !loading}
+              loading={loading}
+            >
+              <KeyTree
+                keys={filteredKeys}
+                loading={loading}
+                onKeyClick={handleKeyClick}
+                selectedKey={selectedKey}
+              />
+            </Panel>
+          }
+          right={
+            <KeyDetails connectionId={id!} readOnly={false} 
+              selectedKey={selectedKey} selectedKeyInfo={selectedKeyInfo} setSelectedKey={setSelectedKey} />
+          }
+          rightClassName=""
+        />
       </TooltipProvider>
     </RouteContainer>
   )

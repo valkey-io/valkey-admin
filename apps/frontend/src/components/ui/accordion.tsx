@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react"
-import { CircleChevronDown, CircleChevronUp, Dot, CircleQuestionMark } from "lucide-react"
+import { CircleChevronDown, CircleChevronUp, Dot } from "lucide-react"
 import { formatMetricValue, type ValueType } from "@common/src/format-metric-value"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
-import { CustomTooltip } from "./custom-tooltip"
+import { TooltipIcon } from "./tooltip-icon"
 
 interface AccordionProps {
   accordionName?: string;
@@ -64,12 +64,10 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
   return (
     <div className="w-full mt-2">
       <TooltipProvider>
-        <div className="h-14 px-2 py-4 dark:border-tw-dark-border border rounded flex items-center gap-2 justify-between">
+        <div className="h-14 px-2 py-4 border border-input rounded-md shadow-xs flex items-center gap-2 justify-between">
           <div className="flex flex-col gap-1">
             <span className="font-semibold text-sm flex items-center gap-1">{accordionName}
-              <CustomTooltip description={accordionDescription}>
-                <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={16} />
-              </CustomTooltip>
+              <TooltipIcon description={accordionDescription} size={16} />
             </span>
             <span className="text-xs font-light text-tw-dark-border">
               {searchQuery.trim() && filteredItemCount !== itemCount ? (
@@ -90,9 +88,7 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
                 <div className="flex items-center gap-1">
                   <span className="font-normal flex items-center"><Dot className="text-tw-primary" size={30} />{formatKey(key)}</span>
                   {singleMetricDescriptions[key] && (
-                    <CustomTooltip description={singleMetricDescriptions[key].description} unit={singleMetricDescriptions[key].unit}>
-                      <CircleQuestionMark className="bg-tw-primary/10 rounded-full text-tw-primary" size={13} />
-                    </CustomTooltip>
+                    <TooltipIcon description={`${singleMetricDescriptions[key].description} ${singleMetricDescriptions[key].unit}` } size={13} />
                   )}
                 </div>
                 <span className="font-light">{formatMetricValue(key, value, valueType)}</span>

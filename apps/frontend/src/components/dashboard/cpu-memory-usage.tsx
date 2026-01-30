@@ -3,6 +3,8 @@ import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { formatBytes } from "@common/src/bytes-conversion"
 import LineChartComponent from "../ui/line-chart"
+import { ButtonGroup } from "../ui/button-group"
+import { ChartSection } from "../ui/chart-section"
 import { cpuUsageRequested, selectCpuUsage } from "@/state/valkey-features/cpu/cpuSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import { memoryUsageRequested, selectMemoryUsage } from "@/state/valkey-features/memory/memorySlice"
@@ -70,93 +72,69 @@ export default function CpuMemoryUsage() {
   return (
     <>
       {/* CPU Usage Section */}
-      <div className="mt-4 border dark:border-tw-dark-border rounded p-4 bg-white dark:bg-gray-800">
-        <div className="flex gap-2 justify-end">
-          {(["1h", "6h", "12h"] as const).map((range) => (
-            <button
-              className={`px-2 py-1 rounded text-sm ${cpuTimeRange === range
-                ? "bg-tw-primary text-white"
-                : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-              }`}
-              key={range}
-              onClick={() => setCpuTimeRange(range)}
-            >
-              {range.toUpperCase()}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-col items-center">
-          <h3 className="text-lg font-bold mb-2 text-center">CPU Usage Over Time</h3>
-          <span className="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">Real-time CPU utilization monitoring</span>
-        </div>
-        {!cpuUsageData || cpuUsageData.length === 0 ? (
-          <div className="flex items-center justify-center h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-            <div className="text-center">
-              <p className="text-gray-500 dark:text-gray-400">
-                CPU usage data will appear here
-              </p>
-            </div>
-          </div>
-        ) : (
-          <LineChartComponent
-            color="var(--tw-chart1)"
-            data={cpuUsageData}
-            label="CPU Usage"
-            unit=" (%)"
+      <ChartSection
+        action={
+          <ButtonGroup
+            onChange={setCpuTimeRange}
+            options={[
+              { value: "1h", label: "1H" },
+              { value: "6h", label: "6H" },
+              { value: "12h", label: "12H" },
+            ]}
+            value={cpuTimeRange}
           />
-        )}
-      </div>
+        }
+        className="mt-4"
+        emptyMessage="CPU usage data will appear here"
+        isEmpty={!cpuUsageData || cpuUsageData.length === 0}
+        subtitle="Real-time CPU utilization monitoring"
+        title="CPU Usage Over Time"
+      >
+        <LineChartComponent
+          color="var(--tw-chart1)"
+          data={cpuUsageData}
+          label="CPU Usage"
+          unit=" (%)"
+        />
+      </ChartSection>
 
       {/* Memory Usage Section */}
-      <div className="mt-4 border dark:border-tw-dark-border rounded p-4 bg-white dark:bg-gray-800">
-        <div className="">
-          
-          <div className="flex gap-2 justify-end">
-            {(["1h", "6h", "12h"] as const).map((range) => (
-              <button
-                className={`px-2 py-1 rounded text-sm ${memoryTimeRange === range
-                  ? "bg-tw-primary text-white"
-                  : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-                }`}
-                key={range}
-                onClick={() => setMemoryTimeRange(range)}
-              >
-                {range.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col items-center">
-
-            <h3 className="text-lg font-bold mb-2">Memory Usage Over Time</h3>
-            <span className="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">Real-time Memory utilization monitoring</span>
-          </div>
+      <ChartSection
+        action={
+          <ButtonGroup
+            onChange={setMemoryTimeRange}
+            options={[
+              { value: "1h", label: "1H" },
+              { value: "6h", label: "6H" },
+              { value: "12h", label: "12H" },
+            ]}
+            value={memoryTimeRange}
+          />
+        }
+        className="mt-4"
+        emptyMessage="Memory usage data will appear here"
+        isEmpty={memoryMetrics.length === 0}
+        subtitle="Real-time Memory utilization monitoring"
+        title="Memory Usage Over Time"
+      >
+        <div className="grid grid-cols-2 gap-4">
+          {memoryMetrics?.map(([key, metric], index) => (
+            <ChartSection
+              key={key}
+              subtitle={metric?.description}
+              title={formatMetricName(key)}
+            >
+              <LineChartComponent
+                color={colors[index % colors.length]}
+                data={metric?.series || []}
+                label={formatMetricName(key)}
+                unit={formatMetricUnit(key)}
+                valueFormatter={getValueFormatter(key)}
+              />
+            </ChartSection>
+          ))}
         </div>
-        {memoryMetrics.length === 0 ? (
-          <div className="flex items-center justify-center h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-            <div className="text-center">
-              <p className="text-gray-500 dark:text-gray-400">
-                Memory usage data will appear here
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {memoryMetrics?.map(([key, metric], index) => (
-              <div className="border dark:border-tw-dark-border rounded p-4 bg-white dark:bg-gray-800" key={key}>
-                <LineChartComponent
-                  color={colors[index % colors.length]}
-                  data={metric?.series || []}
-                  label={formatMetricName(key)}
-                  subtitle={metric?.description}
-                  title={formatMetricName(key)}
-                  unit={formatMetricUnit(key)}
-                  valueFormatter={getValueFormatter(key)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      </ChartSection>
     </>
   )
 }
