@@ -22,7 +22,7 @@ export default function Settings() {
       setMonitorEnabled(config.monitoring.monitorEnabled)
       setMonitorDuration(config.monitoring.monitorDuration)
     }
-  }, [config?.monitoring?.monitorEnabled, config?.monitoring?.monitorDuration])
+  }, [config?.monitoring, config?.monitoring?.monitorEnabled, config?.monitoring?.monitorDuration])
 
   const hasChanges =
     config?.monitoring &&
