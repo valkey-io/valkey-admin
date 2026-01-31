@@ -63,8 +63,6 @@ export const ConnectionEntry = ({
 
   const lastConnectionTime = connection.connectionHistory?.at(-1) ?? null
 
-  console.log("The connection status is: ", connection.status)
-
   const StatusBadge = () => {
     if (isConnected) {
       return (

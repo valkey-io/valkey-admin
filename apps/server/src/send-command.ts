@@ -52,7 +52,7 @@ export async function sendValkeyRunCommand(
     ) {
       ws.send(
         JSON.stringify({
-          type: VALKEY.CONNECTION.connectRejected,
+          type: VALKEY.CONNECTION.connectionBroken,
           payload: {
             connectionId: payload.connectionId,
             errorMessage: "Connection to Valkey instance lost",

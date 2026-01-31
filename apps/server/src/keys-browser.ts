@@ -237,7 +237,6 @@ export async function getKeys(
     if (
       err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
     ) {
-      console.error(`Valkey connection error for ${connectionId}:`, err)
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.connectRejected,
@@ -349,7 +348,7 @@ export async function deleteKey(
           type: VALKEY.CONNECTION.connectRejected,
           payload: {
             connectionId,
-            errorMessage: "Error adding key - Valkey instance could be down",
+            errorMessage: "Error deleting key - Valkey instance could be down",
           },
         }),
       )

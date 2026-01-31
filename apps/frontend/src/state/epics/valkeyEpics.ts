@@ -68,7 +68,6 @@ export const connectionEpic = (store: Store) =>
       }),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending message to server from connecting epic...")
         socket.next(action)
       }),
       ignoreElements(),
@@ -154,7 +153,7 @@ export const connectionEpic = (store: Store) =>
 // Valkey connection retry epic
 export const valkeyRetryEpic = (store: Store) =>
   action$.pipe(
-    select(connectionBroken),
+    select(connectRejected),
     switchMap(({ payload: { connectionId } }) => {
       const state = store.getState()
       const connection = state.valkeyConnection?.connections?.[connectionId]

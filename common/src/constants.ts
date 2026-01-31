@@ -27,6 +27,7 @@ export const VALKEY = {
     standaloneConnectFulfilled: "standaloneConnectFulfilled",
     clusterConnectFulfilled: "clusterConnectFulfilled",
     connectRejected: "connectRejected",
+    connectionBroken: "connectionBroken",
     resetConnection: "resetConnection",
     closeConnection: "closeConnection",
   } as const),
