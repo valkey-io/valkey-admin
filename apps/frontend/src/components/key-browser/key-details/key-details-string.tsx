@@ -1,9 +1,9 @@
 import { useState } from "react"
-import { Check, Pencil, X } from "lucide-react"
-import { CustomTooltip } from "../../ui/custom-tooltip"
-import { Button } from "../../ui/button"
+import { EditActionButtons } from "../../ui/edit-action-buttons"
+import { Textarea } from "../../ui/textarea"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { cn } from "@/lib/utils"
 
 interface KeyDetailsStringProps {
   selectedKey: string;
@@ -50,55 +50,28 @@ export default function KeyDetailsString(
   return (
     <div className="flex items-center justify-center w-full p-4">
       <table className="table-auto w-full overflow-hidden">
-        <thead className="bg-tw-dark-border opacity-85 text-white">
+        <thead className={cn("bg-muted/60 text-foreground")}>
           <tr>
             <th className="w-full py-3 px-4 text-left font-semibold">
               Value
             </th>
             <th className="">
-              {!readOnly && (isEditable ? (
-                <div className="flex gap-1">
-                  <CustomTooltip content="Save">
-                    <Button
-                      className="text-tw-primary hover:text-tw-primary"
-                      onClick={handleSave}
-                      variant={"secondary"}
-                    >
-                      <Check />
-                    </Button>
-                  </CustomTooltip>
-                  <CustomTooltip content="Cancel">
-                    <Button
-                      onClick={handleEdit}
-                      variant={"destructiveGhost"}
-                    >
-                      <X />
-                    </Button>
-                  </CustomTooltip>
-                </div>
-              ) : (
-                <CustomTooltip content="Edit">
-                  <Button
-                    className="mr-1"
-                    onClick={handleEdit}
-                    variant={"ghost"}
-                  >
-                    <Pencil />
-                  </Button>
-                </CustomTooltip>
-              ))}
-              
+              <EditActionButtons
+                isEditable={isEditable}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                readOnly={readOnly}
+              />
             </th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td className="py-3 px-4 font-light dark:text-white" colSpan={2}>
+            <td className={cn("py-3 px-4 font-light text-foreground")} colSpan={2}>
               {isEditable ? (
-                <textarea
+                <Textarea
                   autoFocus
-                  className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none 
-                    focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  className="min-h-[100px]"
                   onChange={(e) => setEditedValue(e.target.value)}
                   value={editedValue}
                 />

@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { Check, Pencil, X, Trash, Plus } from "lucide-react"
+import { Trash, Plus, X } from "lucide-react"
 import { CustomTooltip } from "../../ui/custom-tooltip"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
+import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
@@ -147,36 +148,12 @@ export default function KeyDetailsHash(
           <div className="font-semibold text-left">Key</div>
           <div className="col-span-2 font-semibold text-left">Value</div>
           <div className="flex justify-end gap-1">
-            {!readOnly && (isEditable ? (
-              <>
-                <CustomTooltip content="Save" side={"left"}>
-                  <Button
-                    onClick={handleSave}
-                    variant={"secondary"}
-                  >
-                    <Check />
-                  </Button>
-                </CustomTooltip>
-                <CustomTooltip content="Cancel">
-                  <Button
-                    onClick={handleEdit}
-                    variant={"destructiveGhost"}
-                  >
-                    <X />
-                  </Button>
-                </CustomTooltip>
-              </>
-            ) : (
-              <CustomTooltip content="Edit">
-                <Button
-                  className="mr-1"
-                  onClick={handleEdit}
-                  variant={"ghost"}
-                >
-                  <Pencil />
-                </Button>
-              </CustomTooltip>
-            ))}
+            <EditActionButtons
+              isEditable={isEditable}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              readOnly={readOnly}
+            />
           </div>
         </div>
         {selectedKeyInfo.elements

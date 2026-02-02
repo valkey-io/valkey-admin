@@ -1,12 +1,13 @@
 import { useState } from "react"
-import { Check, Pencil, X, TriangleAlert } from "lucide-react"
+import { TriangleAlert } from "lucide-react"
 import { KEY_TYPES } from "@common/src/constants"
 import { useSelector } from "react-redux"
-import { CustomTooltip } from "../../ui/custom-tooltip"
-import { Button } from "../../ui/button"
+import { EditActionButtons } from "../../ui/edit-action-buttons"
+import { Textarea } from "../../ui/textarea"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectJsonModuleAvailable } from "@/state/valkey-features/connection/connectionSelectors"
+import { cn } from "@/lib/utils"
 
 interface KeyDetailsJsonProps {
   selectedKey: string;
@@ -75,44 +76,20 @@ export default function KeyDetailsJson(
   return (
     <div className="flex items-center justify-center w-full p-4">
       <table className="table-auto w-full overflow-hidden">
-        <thead className="bg-tw-dark-border opacity-85 text-white">
+        <thead className={cn("bg-muted/60 text-foreground")}>
           <tr>
             <th className="w-full py-3 px-4 text-left font-semibold">
               JSON Value
             </th>
             <th className="">
-              {!readOnly && (isEditable ? (
-                <div className="flex gap-1">
-                  <CustomTooltip content="Save">
-                    <Button
-                      className="text-tw-primary hover:text-tw-primary"
-                      onClick={handleSave}
-                      variant={"secondary"}
-                    >
-                      <Check />
-                    </Button>
-                  </CustomTooltip>
-                  <CustomTooltip content="Cancel">
-                    <Button
-                      onClick={handleEdit}
-                      variant={"destructiveGhost"}
-                    >
-                      <X />
-                    </Button>
-                  </CustomTooltip>
-                </div>
-              ) : (
-                <CustomTooltip content={jsonModuleAvailable ? "Edit" : "JSON module not available"}>
-                  <Button
-                    className="mr-1"
-                    disabled={!jsonModuleAvailable}
-                    onClick={handleEdit}
-                    variant={"ghost"}
-                  >
-                    <Pencil />
-                  </Button>
-                </CustomTooltip>
-              ))}
+              <EditActionButtons
+                disabled={!jsonModuleAvailable}
+                disabledTooltip="JSON module not available"
+                isEditable={isEditable}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                readOnly={readOnly}
+              />
             </th>
           </tr>
         </thead>
@@ -130,13 +107,12 @@ export default function KeyDetailsJson(
             </tr>
           )}
           <tr>
-            <td className="py-3 px-4 font-light dark:text-white" colSpan={2}>
+            <td className={cn("py-3 px-4 font-light text-foreground")} colSpan={2}>
               {isEditable ? (
                 <div>
-                  <textarea
+                  <Textarea
                     autoFocus
-                    className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none
-                      focus:ring-2 focus:ring-tw-primary min-h-[400px] font-mono text-sm"
+                    className="min-h-[400px] font-mono text-sm"
                     onChange={(e) => setEditedValue(e.target.value)}
                     value={editedValue}
                   />

@@ -2,8 +2,9 @@ import { Key, Trash, X } from "lucide-react"
 import { useState } from "react"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
-import { CustomTooltip } from "../../ui/custom-tooltip"
 import { Button } from "../../ui/button"
+import { Panel } from "../../ui/panel"
+import { InfoChip } from "../../ui/info-chip"
 import DeleteModal from "../../ui/delete-modal"
 import KeyDetailsString from "./key-details-string"
 import KeyDetailsHash from "./key-details-hash"
@@ -14,6 +15,7 @@ import KeyDetailsStream from "./key-details-stream"
 import KeyDetailsJson from "./key-details-json"
 import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { CustomTooltip } from "@/components/ui/custom-tooltip"
 
 interface BaseKeyInfo {
   name: string;
@@ -89,7 +91,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
 
   return (
     <div className="pl-2 h-full">
-      <div className="h-full dark:border-tw-dark-border border rounded overflow-hidden">
+      <Panel className="dark:border-tw-dark-border">
         {selectedKey && selectedKeyInfo ? (
           <div className="h-full p-4 text-sm font-light overflow-y-auto">
             {/* Header Section */}
@@ -99,31 +101,25 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 {selectedKey}
               </span>
               <div className="space-x-2 flex items-center relative">
-                
+
                 {!readOnly && (
-                  <CustomTooltip content="TTL">
-                    <span className="text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white">
-                      {convertTTL(selectedKeyInfo.ttl)}
-                    </span>
-                  </CustomTooltip>
+                  <InfoChip tooltip="TTL">
+                    {convertTTL(selectedKeyInfo.ttl)}
+                  </InfoChip>
                 )}
-                <CustomTooltip content="Type">
-                  <span className={`text-xs px-2 py-1 rounded-full ${readOnly ? "" : "border-2 border-tw-primary"} text-tw-primary dark:text-white`}>
-                    {selectedKeyInfo.type === "ReJSON-RL" ? "json" : selectedKeyInfo.type}
-                  </span>
-                </CustomTooltip>
-                {!readOnly && (<CustomTooltip content="Size">
-                  <span className={"text-xs px-2 py-1 rounded-full border-2 border-tw-primary text-tw-primary dark:text-white"}>
+                <InfoChip showBorder={!readOnly} tooltip="Type">
+                  {selectedKeyInfo.type === "ReJSON-RL" ? "json" : selectedKeyInfo.type}
+                </InfoChip>
+                {!readOnly && (
+                  <InfoChip tooltip="Size">
                     {formatBytes(selectedKeyInfo.size)}
-                  </span>
-                </CustomTooltip>)}
-                
+                  </InfoChip>
+                )}
+
                 {selectedKeyInfo.collectionSize !== undefined && (
-                  <CustomTooltip content="Collection size">
-                    <span className={`text-xs px-2 py-1 rounded-full ${readOnly ? "" : "border-2 border-tw-primary"} text-tw-primary dark:text-white`}>
-                      {selectedKeyInfo.collectionSize.toLocaleString()}
-                    </span>
-                  </CustomTooltip>
+                  <InfoChip showBorder={!readOnly} tooltip="Collection size">
+                    {selectedKeyInfo.collectionSize.toLocaleString()}
+                  </InfoChip>
                 )}
                 {readOnly && (
                   <button
@@ -225,7 +221,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
             Select a key to see details
           </div>
         )}
-      </div>
+      </Panel>
     </div>
   )
 }

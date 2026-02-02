@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils"
+
 interface KeyDetailsStreamProps {
   selectedKey: string;
   selectedKeyInfo: {
@@ -22,11 +24,11 @@ export default function KeyDetailsStream(
     <div className="flex flex-col w-full p-4 space-y-4">
       {selectedKeyInfo?.elements.map((entry, index: number) => (
         <div className="overflow-hidden" key={index}>
-          <div className="bg-tw-dark-border opacity-85 text-white py-2 px-4 font-semibold">
+          <div className={cn("bg-muted/60 text-foreground py-2 px-4 font-semibold")}>
             Entry ID: {entry.key} <span className="text-xs font-light">({new Date(Number(entry.key.split("-")[0])).toLocaleString()})</span>
           </div>
           <table className="table-auto w-full">
-            <thead className="bg-tw-dark-border opacity-70 text-white">
+            <thead className={cn("bg-muted/50 text-foreground")}>
               <tr>
                 <th className="w-1/2 py-3 px-4 text-left font-semibold">
                   Field
@@ -39,10 +41,10 @@ export default function KeyDetailsStream(
             <tbody>
               {entry.value.map(([field, value], fieldIndex: number) => (
                 <tr key={fieldIndex}>
-                  <td className="py-3 px-4 border-b border-tw-dark-border font-light dark:text-white">
+                  <td className={cn("py-3 px-4 border-b border-border font-light text-foreground")}>
                     {field}
                   </td>
-                  <td className="py-3 px-4 border-b border-tw-dark-border font-light dark:text-white">
+                  <td className={cn("py-3 px-4 border-b border-border font-light text-foreground")}>
                     {value}
                   </td>
                 </tr>

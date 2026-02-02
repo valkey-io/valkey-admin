@@ -1,10 +1,13 @@
 import { useState } from "react"
-import { Check, Pencil, X, Trash, Plus } from "lucide-react"
+import { Trash, Plus, X } from "lucide-react"
 import { CustomTooltip } from "../../ui/custom-tooltip"
 import { Button } from "../../ui/button"
+import { Input } from "../../ui/input"
+import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { cn } from "@/lib/utils"
 
 interface KeyDetailsSetProps {
   selectedKey: string;
@@ -126,55 +129,28 @@ export default function KeyDetailsSet(
   return (
     <div className="flex items-center justify-center w-full p-4">
       <div className="w-full">
-        <div className="grid grid-cols-4 gap-4 bg-tw-dark-border opacity-85 text-white items-center py-1 px-4">
+        <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
           <div className="font-semibold text-left">Index</div>
           <div className="col-span-2 font-semibold text-left">Value</div>
           <div className="flex justify-end gap-1">
-            {!readOnly && (isEditable ? (
-              <>
-                <CustomTooltip content="Save" side={"left"}>
-                  <Button
-                    className="text-tw-primary hover:text-tw-primary"
-                    onClick={handleSave}
-                    variant={"secondary"}
-                  >
-                    <Check />
-                  </Button>
-                </CustomTooltip>
-                <CustomTooltip content="Cancel">
-                  <Button
-                    onClick={handleEdit}
-                    variant={"destructiveGhost"}
-                  >
-                    <X />
-                  </Button>
-                </CustomTooltip>
-              </>
-            ) : (
-              <CustomTooltip content="Edit">
-                <Button
-                  className="mr-1"
-                  onClick={handleEdit}
-                  variant={"ghost"}
-                >
-                  <Pencil />
-                </Button>
-              </CustomTooltip>
-            ))}
+            <EditActionButtons
+              isEditable={isEditable}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              readOnly={readOnly}
+            />
           </div>
         </div>
         {selectedKeyInfo.elements
           .map((element: string, index: number) => ({ element, index }))
           .filter(({ element }) => !deletedValues.has(element))
           .map(({ element, index }) => (
-            <div className="grid grid-cols-4 gap-4 py-3 px-4 border-b border-tw-dark-border font-light dark:text-white" key={index}>
+            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={index}>
               <div>{index}</div>
               <div className="col-span-3">
                 {isEditable ? (
                   <div className="flex gap-2 relative">
-                    <input
-                      className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none
-                                        focus:ring-2 focus:ring-tw-primary"
+                    <Input
                       onChange={(e) => handleSetFieldChange(index, e.target.value)}
                       type="text"
                       value={editedSetValues[index] || ""}
@@ -203,13 +179,11 @@ export default function KeyDetailsSet(
             </div>
           ))}
         {isEditable && newItems.map((newItem) => (
-          <div className="grid grid-cols-4 gap-4 py-3 px-4 border-b border-tw-dark-border font-light dark:text-white" key={newItem.tempId}>
+          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={newItem.tempId}>
             <div>New</div>
             <div className="col-span-3">
               <div className="flex gap-2">
-                <input
-                  className="w-full p-2 dark:bg-tw-dark-bg dark:border-tw-dark-border border rounded focus:outline-none
-                                    focus:ring-2 focus:ring-tw-primary"
+                <Input
                   onChange={(e) => handleNewItemChange(newItem.tempId, e.target.value)}
                   placeholder="Enter value"
                   type="text"
