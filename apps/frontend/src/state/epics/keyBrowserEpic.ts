@@ -8,7 +8,7 @@ import {
   addKeyRequested,
   updateKeyRequested
 } from "../valkey-features/keys/keyBrowserSlice"
-import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
+import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware"
 
 export const keyBrowserEpic = () =>
   merge(

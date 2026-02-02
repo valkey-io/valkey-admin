@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow, ipcMain, safeStorage, shell } = require("electron")
+const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor } = require("electron")
 const path = require("path")
 const { fork } = require("child_process")
 
@@ -204,6 +204,21 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
+})
+
+powerMonitor.on("suspend", () => {
+  console.log("System suspending")
+  serverProcess.send({
+    type: "system-suspended",
+  })
+  
+})
+
+powerMonitor.on("resume", () => {
+  console.log("System resumed")
+  serverProcess.send({
+    type: "system-resumed",
+  })
 })
 
 ipcMain.handle("secure-storage:encrypt", async (event, password) => {

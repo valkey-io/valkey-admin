@@ -31,7 +31,7 @@ export async function connectToValkey(
 
   try {
     // If we've connected to the same host using IP addr or vice versa, return
-    returnIfDuplicateConnection(payload, clients, ws)
+    await returnIfDuplicateConnection(payload, clients, ws)
     const useTLS = payload.connectionDetails.tls
     const standaloneClient = await GlideClient.createClient({
       addresses,

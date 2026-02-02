@@ -42,7 +42,7 @@ describe("useIsConnected", () => {
     expect(result.current).toBe(true)
   })
 
-  it("should return true when status is DISCONNECTED", () => {
+  it("should return false when status is DISCONNECTED", () => {
     const store = setupTestStore({
       valkeyConnection: {
         connections: {
@@ -57,10 +57,10 @@ describe("useIsConnected", () => {
       wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
     })
 
-    expect(result.current).toBe(true)
+    expect(result.current).toBe(false)
   })
 
-  it("should return true when status is CONNECTING", () => {
+  it("should return false when status is CONNECTING", () => {
     const store = setupTestStore({
       valkeyConnection: {
         connections: {
@@ -75,10 +75,10 @@ describe("useIsConnected", () => {
       wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
     })
 
-    expect(result.current).toBe(true)
+    expect(result.current).toBe(false)
   })
 
-  it("should return true when status is ERROR", () => {
+  it("should return false when status is ERROR", () => {
     const store = setupTestStore({
       valkeyConnection: {
         connections: {
@@ -94,7 +94,7 @@ describe("useIsConnected", () => {
       wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
     })
 
-    expect(result.current).toBe(true)
+    expect(result.current).toBe(false)
   })
 
   it("should return false when status is undefined (no connection found)", () => {
@@ -126,7 +126,7 @@ describe("useIsConnected", () => {
       wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
     })
 
-    expect(result.current).toBe(true)
+    expect(result.current).toBe(false)
 
     // Update status to CONNECTED using action creator
     store.dispatch(standaloneConnectFulfilled({

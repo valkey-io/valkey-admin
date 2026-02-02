@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
+import { ConnectionError } from "@valkey/valkey-glide"
 import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser.ts"
 import { VALKEY } from "../../../../common/src/constants.ts"
 
@@ -173,7 +174,7 @@ describe("deleteKey", () => {
     it("should handle deletion errors", async () => {
       const mockClient = {
         customCommand: mock.fn(async () => {
-          throw new Error("Delete failed")
+          throw new ConnectionError("Delete failed")
         }),
       }
 
@@ -501,7 +502,7 @@ describe("updateKey", () => {
     it("should handle update errors", async () => {
       const mockClient = {
         customCommand: mock.fn(async () => {
-          throw new Error("Update failed")
+          throw new ConnectionError("Delete failed")
         }),
       }
 
@@ -567,7 +568,7 @@ describe("getKeys", () => {
     it("should handle errors when getting keys", async () => {
       const mockClient = {
         customCommand: mock.fn(async () => {
-          throw new Error("SCAN failed")
+          throw new ConnectionError("Get failed")
         }),
         instanceof: () => false,
       }

@@ -32,7 +32,7 @@ export const resetConnection = withDeps<Deps, void>(
     const { clusterId } = action.payload as unknown as { clusterId: string }
 
     if (client instanceof GlideClusterClient) {
-      await setClusterDashboardData(clusterId, client, ws)
+      await setClusterDashboardData(clusterId, client, ws, connectionId)
     }
   },
 )

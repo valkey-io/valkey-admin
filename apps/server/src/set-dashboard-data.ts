@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, Decoder, RouteByAddress } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, Decoder, RouteByAddress, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY } from "../../../common/src/constants"
 import { parseClusterInfo, parseInfo } from "./utils"
@@ -45,16 +45,20 @@ export async function setDashboardData(
       }),
     )
   } catch (err) {
-    console.error(`Valkey connection error for ${connectionId}:`, err)
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          connectionId,
-          errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
-        },
-      }),
-    )
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
+          },
+        }),
+      )
+    }
   }
 }
 
@@ -62,17 +66,37 @@ export async function setClusterDashboardData(
   clusterId: string,
   client: GlideClusterClient,
   ws: WebSocket,
+  connectionId: string,
 ) {
-  const rawInfo = await client.info()
-  const clusterInfo = parseClusterInfo(rawInfo)
+  try {
+    const rawInfo = await client.info()
+    const clusterInfo = parseClusterInfo(rawInfo)
   
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CLUSTER.setClusterData,
-      payload: {
-        clusterId,
-        info: clusterInfo,
-      },
-    }),
-  )
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.CLUSTER.setClusterData,
+        payload: {
+          clusterId,
+          info: clusterInfo,
+        },
+      }),
+    )
+  } catch (err) {
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      console.error(`Valkey connection error for ${connectionId}:`, err)
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
+          },
+        }),
+      )
+    }
+
+  }
+
 }

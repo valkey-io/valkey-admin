@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, mock, beforeEach } from "node:test"
+import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl } from "common/src/url-utils.ts"
@@ -27,11 +27,20 @@ describe("connectToValkey", () => {
   let clients: Map<string, any>
 
   beforeEach(() => {
+    mock.restoreAll()
     messages = []
     mockWs = {
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     clients = new Map()
+  })
+
+  afterEach(async () => {
+    for (const client of clients.values()) {
+      await client.close?.()
+      await client.quit?.()
+    }
+    clients.clear()
   })
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {

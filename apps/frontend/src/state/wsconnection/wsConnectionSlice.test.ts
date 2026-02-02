@@ -20,6 +20,7 @@ describe("wsConnectionSlice", () => {
       currentAttempt: 0,
       maxRetries: 8,
       nextRetryDelay: null,
+      retriesPaused: false,
     },
   } as WsConnectionState
 
@@ -222,6 +223,7 @@ describe("wsConnectionSlice", () => {
           currentAttempt: 5,
           maxRetries: 8,
           nextRetryDelay: 5000,
+          retriesPaused: true,
         },
       } as WsConnectionState
 

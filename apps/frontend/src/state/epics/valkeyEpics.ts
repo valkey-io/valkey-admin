@@ -18,7 +18,7 @@ import {
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
-import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddlware"
+import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
@@ -67,7 +67,6 @@ export const connectionEpic = (store: Store) =>
       }),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending message to server from connecting epic...")
         socket.next(action)
       }),
       ignoreElements(),

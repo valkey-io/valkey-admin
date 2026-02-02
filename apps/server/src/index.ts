@@ -31,22 +31,6 @@ interface MetricsServerMessage {
 const wss = new WebSocketServer({ port: 8080 })
 const metricsServerURIs: Map<string, string> = new Map()
 
-process.on("message", (message: MetricsServerMessage ) => {
-  if (message?.type === "metrics-started") {
-    const metricsServerURI = `${message.payload.metricsHost}:${message.payload.metricsPort}`
-    const { serverConnectionId } = message.payload
-    metricsServerURIs.set(serverConnectionId, metricsServerURI)
-    console.log(`Metrics server for ${serverConnectionId} saved with URI ${metricsServerURI}`)
-
-  }
-
-  if (message?.type === "metrics-closed"){
-    if (metricsServerURIs.delete(message.payload.serverConnectionId)) {
-      console.log(`Metrics server for ${message.payload.serverConnectionId} closed.`)
-    }
-  }
-})
-
 wss.on("listening", () => { // Add a listener for when the server starts listening
   console.log("Websocket server running on localhost:8080")
   if (process.send) { // Check if process.send is available (i.e., if forked)
@@ -75,8 +59,36 @@ wss.on("connection", (ws: WebSocket) => {
     [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
-
   }
+  process.on("message", (message: MetricsServerMessage ) => {
+    if (message?.type === "metrics-started") {
+      const metricsServerURI = `${message.payload.metricsHost}:${message.payload.metricsPort}`
+      const { serverConnectionId } = message.payload
+      metricsServerURIs.set(serverConnectionId, metricsServerURI)
+      console.log(`Metrics server for ${serverConnectionId} saved with URI ${metricsServerURI}`)
+    }
+    if (message?.type === "metrics-closed"){
+      if (metricsServerURIs.delete(message.payload.serverConnectionId)) {
+        console.log(`Metrics server for ${message.payload.serverConnectionId} closed.`)
+      }
+    }
+    if (message?.type === "system-suspended"){
+      ws.send(
+        JSON.stringify({
+          type: "websocket/pauseRetries",
+          payload: { pauseRetries: true },
+        }),
+      )
+    }
+    if (message?.type === "system-resumed"){
+      ws.send(
+        JSON.stringify({
+          type: "websocket/resumeRetries",
+          payload: { pauseRetries: false },
+        }),
+      )
+    }
+  })
 
   ws.on("message", async (message) => {
     let action: WsActionMessage | undefined
