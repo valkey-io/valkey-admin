@@ -132,7 +132,7 @@ export const ConnectionEntry = ({
                 </Tooltip>
               </>
             )}
-            {((!isConnected && !isConnecting)) && (
+            {(!isConnected && !isConnecting) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button onClick={handleConnect} size="sm" variant="ghost">
@@ -232,7 +232,7 @@ export const ConnectionEntry = ({
               </Tooltip>
             </>
           )}
-          {((!isConnected && !isConnecting)) && (
+          {(!isConnected && !isConnecting) && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button onClick={handleConnect} size="sm" variant="ghost">

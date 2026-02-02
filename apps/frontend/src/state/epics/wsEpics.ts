@@ -20,7 +20,8 @@ import {
   connectPending,
   connectRejected,
   reconnectAttempt,
-  reconnectExhausted
+  reconnectExhausted,
+  selectRetriesPaused
 } from "@/state/wsconnection/wsConnectionSlice"
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
@@ -82,7 +83,7 @@ const connect = (store: Store) =>
             }))
             return action$.pipe(
               filter((action) =>
-                !store.getState()["websocket"].reconnect.retriesPaused || action.type === "websocket/resumeRetries",
+                !selectRetriesPaused()(store.getState()) || action.type === "websocket/resumeRetries",
               ),
               take(1),
               switchMap(() => timer(delay)),
