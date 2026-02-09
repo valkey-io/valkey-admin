@@ -49,29 +49,16 @@ export function Cluster() {
   // filtering nodes based on search query
   const filteredEntries = clusterEntries.filter(([primaryKey, primary]) => {
     if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    const primaryData = clusterData.data[primaryKey]
 
     // check primary node
-    if (
-      primaryKey.toLowerCase().includes(query) ||
-      primary.host.toLowerCase().includes(query) ||
-      primary.port.toString().includes(query) ||
-      primaryData?.server_name?.toLowerCase().includes(query)
-    ) {
+    if (clusterData.searchableText[primaryKey]?.includes(searchQuery)) {
       return true
     }
 
     // check replicas
     return primary.replicas.some((replica) => {
       const replicaKey = `${replica.host}:${replica.port}`
-      const replicaData = clusterData.data[replicaKey]
-      return (
-        replicaKey.toLowerCase().includes(query) ||
-        replica.host.toLowerCase().includes(query) ||
-        replica.port.toString().includes(query) ||
-        replicaData?.server_name?.toLowerCase().includes(query)
-      )
+      return clusterData.searchableText[replicaKey]?.includes(searchQuery)
     })
   })
 
@@ -105,7 +92,7 @@ export function Cluster() {
       {/* Search */}
       <div className="">
         <SearchInput
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
           placeholder="Search nodes by name, host, or port..."
           value={searchQuery}
         />
