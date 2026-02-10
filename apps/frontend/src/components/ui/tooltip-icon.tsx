@@ -1,5 +1,5 @@
 import { CircleQuestionMark } from "lucide-react"
-import { CustomTooltip } from "./custom-tooltip"
+import { CustomTooltip } from "./tooltip"
 
 interface TooltipIconProps {
   size?: number;

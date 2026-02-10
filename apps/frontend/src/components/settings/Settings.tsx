@@ -4,7 +4,7 @@ import { useParams } from "react-router"
 import { useEffect, useState } from "react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import ThemeToggle from "../ui/theme-toggle"
-import { CustomTooltip } from "../ui/custom-tooltip"
+import { CustomTooltip } from "../ui/tooltip"
 import { selectConfig, updateConfig } from "@/state/valkey-features/config/configSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 

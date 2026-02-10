@@ -3,6 +3,10 @@ import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
+import RouteContainer from "../ui/route-container.tsx"
+import { Button } from "../ui/button.tsx"
+import { EmptyState } from "../ui/empty-state.tsx"
+import { SectionHeader } from "../ui/section-header.tsx"
 import type { ConnectionState } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
@@ -51,47 +55,47 @@ export function Connection() {
   const hasStandaloneConnections = standaloneConnections.length > 0
   const hasConnectionsWithHistory = connectionsWithHistory.length > 0
 
-  const connectButton = () =>
-    <button
-      className="bg-tw-primary text-white px-2 rounded text-sm font-light py-1 cursor-pointer"
-      onClick={() => setShowConnectionForm(!showConnectionForm)}
-    >
-      + Add Connection
-    </button>
-
   return (
-    <div className="p-4 relative min-h-screen flex flex-col">
+    <RouteContainer title="connection">
       {/* top header */}
       <div className="flex items-center justify-between h-10">
         <h1 className="text-xl font-bold flex items-center gap-2 text-gray-700 dark:text-white">
           <HousePlug /> Connections
         </h1>
-        {hasConnectionsWithHistory && connectButton()}
+        {hasConnectionsWithHistory && (
+          <Button
+            onClick={() => setShowConnectionForm(!showConnectionForm)}
+            size="sm"
+            variant={"default"}
+          >
+            + Add Connection
+          </Button>
+        )}
       </div>
 
       {showConnectionForm && <ConnectionForm onClose={() => setShowConnectionForm(false)} />}
       {showEditForm && <EditForm connectionId={editingConnectionId} onClose={handleCloseEditForm} />}
 
       {!hasConnectionsWithHistory ? (
-        <div className="flex-1 flex items-center justify-center flex-col gap-4">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-gray-700 dark:text-white mb-2">
-              You Have No Connections!
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              Click "+ Add Connection" button to connect to a Valkey instance or cluster.
-            </p>
-            {connectButton()}
-          </div>
-        </div>
+        <EmptyState
+          action={
+            <Button
+              onClick={() => setShowConnectionForm(!showConnectionForm)}
+              size="sm"
+              variant={"default"}
+            >
+              + Add Connection
+            </Button>
+          }
+          description="Click '+ Add Connection' button to connect to a Valkey instance or cluster."
+          title="You Have No Connections!"
+        />
       ) : (
-        <div className="flex-1 mt-8">
+        <div className="flex-1">
           {/* for clusters */}
           {hasClusterGroups && (
             <div className="mb-8">
-              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
-                Clusters
-              </h2>
+              <SectionHeader>Clusters</SectionHeader>
               <div>
                 {Object.entries(clusterGroups).map(([clusterId, clusterConnections]) => (
                   <ClusterConnectionGroup
@@ -108,9 +112,7 @@ export function Connection() {
           {/* for standalone instances */}
           {hasStandaloneConnections && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
-                Instances
-              </h2>
+              <SectionHeader>Instances</SectionHeader>
               <div>
                 {standaloneConnections.map(({ connectionId, connection }) => (
                   <ConnectionEntry
@@ -125,6 +127,6 @@ export function Connection() {
           )}
         </div>
       )}
-    </div>
+    </RouteContainer>
   )
 }

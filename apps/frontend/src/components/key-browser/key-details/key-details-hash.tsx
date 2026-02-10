@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Trash, Plus, X } from "lucide-react"
-import { CustomTooltip } from "../../ui/custom-tooltip"
+import { CustomTooltip } from "../../ui/tooltip"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
