@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router"
 import { CONNECTED } from "@common/src/constants.ts"
 import { ConnectionEntry } from "./ConnectionEntry.tsx"
+import { Input } from "../ui/input.tsx"
 import {
   updateConnectionDetails,
   type ConnectionState,
@@ -94,17 +95,18 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
 
   return (
     <div
-      className="mb-3 border dark:border-tw-dark-border rounded bg-white dark:bg-tw-dark-primary"
+      className="mb-3 border border-input rounded-md shadow-xs bg-white dark:bg-tw-dark-primary"
     >
       {/* cluster head */}
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1">
-          <button
-            className="ml-2 p-2 rounded hover:bg-tw-primary/20"
+          <Button
+            className="ml-2"
             onClick={() => setIsOpen(!isOpen)}
+            variant={"ghost"}
           >
             {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-          </button>
+          </Button>
 
           <div className="flex items-center gap-2 flex-1 p-2">
             <div className="p-2 bg-tw-primary/10 dark:bg-tw-primary/20 rounded">
@@ -113,14 +115,11 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
             <div className="flex-1 min-w-0">
               {isEditing ? (
                 <div className="flex items-center gap-2">
-                  <input
+                  <Input
                     autoFocus
-                    className="px-2 py-1 text-sm border dark:border-tw-dark-border rounded font-mono mr-1
-                      bg-white dark:bg-tw-primary/20 focus:outline-none focus:ring-2 focus:ring-tw-primary min-w-[100px] max-w-[250px]"
                     onChange={(e) => setEditedAlias(e.target.value)}
                     placeholder={clusterId}
                     style={{ width: `${Math.max(Math.min((editedAlias || clusterId).length * 8 + 20, 250), 100)}px` }}
-                    type="text"
                     value={editedAlias}
                   />
                   <Button onClick={handleSave} size="sm" title="Save" variant="secondary">

@@ -15,7 +15,7 @@ import KeyDetailsStream from "./key-details-stream"
 import KeyDetailsJson from "./key-details-json"
 import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
-import { CustomTooltip } from "@/components/ui/custom-tooltip"
+import { CustomTooltip } from "@/components/ui/tooltip"
 
 interface BaseKeyInfo {
   name: string;

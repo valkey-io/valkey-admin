@@ -1,5 +1,5 @@
 import { Check, Pencil, X } from "lucide-react"
-import { CustomTooltip } from "./custom-tooltip"
+import { CustomTooltip } from "./tooltip"
 import { Button } from "./button"
 
 interface EditActionButtonsProps {
@@ -24,7 +24,7 @@ export function EditActionButtons({
   if (isEditable) {
     return (
       <div className="flex gap-1">
-        <CustomTooltip content="Save" side="left">
+        <CustomTooltip content="Save">
           <Button
             className="text-tw-primary hover:text-tw-primary"
             onClick={onSave}

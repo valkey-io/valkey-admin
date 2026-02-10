@@ -1,4 +1,4 @@
-import { CustomTooltip } from "./custom-tooltip"
+import { CustomTooltip } from "./tooltip"
 import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 

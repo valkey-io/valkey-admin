@@ -3,7 +3,7 @@ import { ChevronRight, ChevronDown, Key, Database, Hourglass } from "lucide-reac
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { keyTreeBuilder, countKeys } from "@common/src/key-tree-builder"
-import { CustomTooltip } from "../ui/custom-tooltip"
+import { CustomTooltip } from "../ui/tooltip"
 
 interface KeyInfo {
   name: string
