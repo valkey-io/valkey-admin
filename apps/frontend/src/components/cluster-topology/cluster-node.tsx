@@ -1,7 +1,7 @@
 import { Dot, LayoutDashboard, Terminal, PowerIcon } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Card } from "../ui/card"
 import { CustomTooltip } from "../ui/custom-tooltip"
@@ -9,6 +9,7 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
+import { selectConnectionCount } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface ClusterNodeProps {
   primaryKey: string
@@ -28,6 +29,7 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
   const isConnected = connectionStatus === CONNECTED
+  const isDisabled = useSelector(selectConnectionCount) >= MAX_CONNECTIONS
 
   const formatRole = (role: string | null) => {
     if (!role) return "UNKNOWN"
@@ -66,13 +68,22 @@ export default function ClusterNode({ primaryKey, primary, primaryData, allNodeD
       <TooltipProvider>
         <div className="flex items-center justify-between">
           <span className="font-bold">{formatRole(primaryData?.role)}</span>
-          <CustomTooltip content={`${isConnected ? "Connected" : "Not Connected"}`}>
+          <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected" }`}>
             <PowerIcon
-              className={`${isConnected ? "text-green-500 bg-green-100" : "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"} rounded-full p-0.5`}
-              onClick={handleNodeConnect}
+              className={`
+      rounded-full p-0.5
+      ${isConnected 
+      ? "text-green-500 bg-green-100" 
+      : isDisabled 
+        ? "text-gray-300 cursor-not-allowed bg-gray-100"
+        : "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"
+    }
+    `}
+              onClick={isDisabled ? undefined : handleNodeConnect}
               size={18}
             />
           </CustomTooltip>
+
         </div>
       </TooltipProvider>
       <div className="flex flex-col text-xs text-tw-dark-border"><span>{primaryData?.server_name}</span><span>{`${primary.host}:${primary.port}`}</span></div>

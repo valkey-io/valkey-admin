@@ -36,9 +36,9 @@ describe("connectToValkey", () => {
   })
 
   afterEach(async () => {
-    for (const client of clients.values()) {
-      await client.close?.()
-      await client.quit?.()
+    for (const connection of clients.values()) {
+      await connection.client.close?.()
+      await connection.client.quit?.()
     }
     clients.clear()
   })
@@ -100,7 +100,8 @@ describe("connectToValkey", () => {
 
       assert.ok(result)
       assert.strictEqual(mockStandaloneClient.close.mock.calls.length, 1)
-      assert.strictEqual(clients.get(payload.connectionId), mockClusterClient)
+      const connection = clients.get(payload.connectionId)
+      assert.strictEqual(connection.client, mockClusterClient)
 
       const parsedMessages = messages.map((msg) => JSON.parse(msg))
 
@@ -153,7 +154,8 @@ describe("connectToValkey", () => {
       const result = await connectToValkey(mockWs, payload, clients)
 
       assert.ok(result)
-      assert.strictEqual(clients.get(payload.connectionId), mockStandaloneClient)
+      const connection = clients.get(payload.connectionId)
+      assert.strictEqual(connection.client, mockStandaloneClient)
       assert.strictEqual(mockWs.send.mock.calls.length, 1)
 
       const sentMessage = JSON.parse(messages[0])
@@ -270,7 +272,8 @@ describe("connectToValkey", () => {
 
       assert.strictEqual(clients.size, 1)
       assert.ok(clients.has(uniqueConnID))
-      assert.strictEqual(clients.get(uniqueConnID), mockStandaloneClient)
+      const connection = clients.get(uniqueConnID)
+      assert.strictEqual(connection.client, mockStandaloneClient)
     } finally {
       GlideClient.createClient = originalCreateClient
     }

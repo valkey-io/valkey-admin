@@ -1,7 +1,7 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, mergeMap, catchError, filter, take } from "rxjs/operators"
 import * as R from "ramda"
-import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
+import { DISCONNECTED, LOCAL_STORAGE, MAX_CONNECTIONS, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { sanitizeUrl } from "@common/src/url-utils"
 import { getSocket } from "./wsEpics"
@@ -31,6 +31,7 @@ import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-featur
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
+import { selectConnectionCount } from "../valkey-features/connection/connectionSelectors.ts"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
 const getConnectionIds = (store: Store, action) => {
@@ -55,9 +56,9 @@ export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
-      tap(async (action) => {
+      filter(() => selectConnectionCount(store.getState()) < MAX_CONNECTIONS),
+      mergeMap(async (action) => {
         const { password } = action.payload.connectionDetails
-        
         if (R.isNil(password)) return action
         
         const decryptedPassword = await secureStorage.decrypt(password)
