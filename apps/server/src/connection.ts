@@ -276,7 +276,7 @@ export async function returnIfDuplicateConnection(
 export async function closeMetricsServer(connectionId: string, metricsServerURIs: Map<string, string>) {
   const metricsServer = metricsServerURIs.get(connectionId)
   if (metricsServer) {
-    const res = await fetch(`${metricsServer}/connection/close`, { method: "POST" })
+    const res = await fetch(`${metricsServer}/connection/close`, { method: "POST", body: JSON.stringify({ connectionId }) })
     if (res.ok) console.log(`Connection ${connectionId} closed successfully`)
     else console.warn("Could not kill metrics server process")
   }

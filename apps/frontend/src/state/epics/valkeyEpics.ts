@@ -32,7 +32,7 @@ import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
 import { selectIsAtConnectionLimit } from "../valkey-features/connection/connectionSelectors.ts"
-import type { Action, PayloadAction, Store } from "@reduxjs/toolkit"
+import type { Store } from "@reduxjs/toolkit"
 
 const getCurrentConnections = () => R.pipe(
   (v: string) => localStorage.getItem(v),

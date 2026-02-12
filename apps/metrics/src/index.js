@@ -116,9 +116,10 @@ async function main() {
 
   app.post("connection/close", async (req, res) => {
     try {
+      const { connectionId } = req.body
       client.close()
       const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${Number(process.env.VALKEY_PORT)}`)
-      process.send?.({ type: "close-client", payload: { ownConnectionId } })
+      if (connectionId === ownConnectionId) process.send?.({ type: "close-client", payload: { connectionId } })
       return res.status(200).json({
         ok: true,
         connectionId,
