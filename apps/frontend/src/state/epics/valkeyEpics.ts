@@ -1,7 +1,7 @@
 import { merge, timer, EMPTY } from "rxjs"
 import { ignoreElements, tap, delay, switchMap, mergeMap, catchError, filter, take } from "rxjs/operators"
 import * as R from "ramda"
-import { DISCONNECTED, LOCAL_STORAGE, MAX_CONNECTIONS, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
+import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { sanitizeUrl } from "@common/src/url-utils"
 import { getSocket } from "./wsEpics"
