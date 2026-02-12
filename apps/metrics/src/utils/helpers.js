@@ -88,3 +88,5 @@ export const downsampleMinMaxOrdered = R.curry(({ maxPoints }, series) => {
 
   return out
 })
+
+export const sanitizeUrl = (input) => input.replace(/[^a-zA-Z0-9_-]/g, "-")

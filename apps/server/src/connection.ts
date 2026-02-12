@@ -106,7 +106,7 @@ async function discoverCluster(client: GlideClient, payload: {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await client.customCommand(["CLUSTER", "SLOTS"]) as any[][]
-
+    // First primary node's ID
     const clusterId = R.path([0, 2, 2], response)
 
     const clusterNodes = response.reduce((acc, slotRange) => {
@@ -184,8 +184,7 @@ async function connectToCluster(
     : undefined
 
   if (existingConnection) {
-    const existingClient = existingConnection.client
-    const existingClusterId = existingConnection.clusterId
+    const { client: existingClient, clusterId: existingClusterId } = existingConnection
     clusterClient = existingClient
     clients.set(payload.connectionId, { client: existingClient, clusterId: existingClusterId })
   } 
@@ -247,6 +246,9 @@ export async function returnIfDuplicateConnection(
 {
   const { connectionId, connectionDetails } = payload
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
+  // Prevent duplicate connections: 
+  // 1) Block if any resolved host:port is already connected
+  // 2) Or if this connectionId already exists as a standalone (GlideClient) connection
   if (resolvedAddresses.some((address) => clients.has(sanitizeUrl(`${address}:${connectionDetails.port}`)))
       || (clients.has(connectionId) && clients.get(connectionId) instanceof GlideClient))  {
     return ws.send(
@@ -261,8 +263,8 @@ export async function returnIfDuplicateConnection(
 export async function closeMetricsServer(connectionId: string, metricsServerURIs: Map<string, string>) {
   const metricsServer = metricsServerURIs.get(connectionId)
   if (metricsServer) {
-    const res = await fetch(`${metricsServer}/close-client/${encodeURIComponent(connectionId)}`, { method: "DELETE" })
-    if (res.ok) console.log("Connection closed successfully")
+    const res = await fetch(`${metricsServer}/connection/close`, { method: "POST" })
+    if (res.ok) console.log(`Connection ${connectionId} closed successfully`)
     else console.warn("Could not kill metrics server process")
   }
 }
@@ -272,7 +274,7 @@ export async function closeClient(
   client: GlideClient | GlideClusterClient | undefined,
   ws: WebSocket,
 )  {
-  if ( client) {
+  if (client) {
     try {
       client.close()
       return ws.send(

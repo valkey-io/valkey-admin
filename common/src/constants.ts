@@ -98,8 +98,7 @@ export const ERROR = "Error"
 export const NOT_CONNECTED = "Not Connected"
 export const DISCONNECTED = "Disconnected"
 export const RECONNECTING = "Reconnecting"
-export const DELETING = "Deleting"
-// Change to 12 after testing
+export const DISCONNECTING = "Disconnecting"
 export const MAX_CONNECTIONS = 12
 
 export const PENDING = "Pending"

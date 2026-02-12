@@ -10,7 +10,8 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-import { selectConnectionCount } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { cn } from "@/lib/utils"
 
 interface ClusterNodeProps {
   primaryKey: string
@@ -33,7 +34,7 @@ export function ClusterNode({
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
   const isConnected = connectionStatus === CONNECTED
-  const isDisabled = useSelector(selectConnectionCount) >= MAX_CONNECTIONS
+  const isDisabled = useSelector(selectIsAtConnectionLimit) 
 
   const handleNodeConnect = () => {
     if (!isConnected) {
@@ -117,15 +118,12 @@ export function ClusterNode({
             <div className="flex items-center gap-2 shrink-0">
               <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected" }`}>
                 <PowerIcon
-                  className={`
-      rounded-full p-0.5
-      ${isConnected 
-      ? "text-green-500 bg-green-100" 
-      : isDisabled 
-        ? "text-gray-300 cursor-not-allowed bg-gray-100"
-        : "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"
-    }
-    `}
+                  className={cn(
+                    "rounded-full p-0.5",
+                    isConnected && "text-green-500 bg-green-100",
+                    !isConnected && isDisabled && "text-gray-300 cursor-not-allowed bg-gray-100",
+                    !isConnected && !isDisabled && "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600",
+                  )}
                   onClick={isDisabled ? undefined : handleNodeConnect}
                   size={18}
                 />

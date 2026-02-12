@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import {
   CONNECTED,
   CONNECTING,
+  DISCONNECTING,
   DISCONNECTED,
   ERROR,
   LOCAL_STORAGE,
@@ -11,7 +12,7 @@ import {
 } from "@common/src/constants"
 import * as R from "ramda"
 
-type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED 
+type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED | typeof DISCONNECTING
 type Role = "primary" | "replica";
 
 export interface ConnectionDetails {
@@ -206,12 +207,15 @@ const connectionSlice = createSlice({
       }
     },
     closeConnection: (state, action) => {
-      console.log(action)
       const { connectionId } = action.payload
-      state.connections[connectionId].status = NOT_CONNECTED
+      state.connections[connectionId].status = DISCONNECTING
       state.connections[connectionId].errorMessage = null
     },
-    closeConnectionFulfilled: () => {
+    closeConnectionFulfilled: (state, action) => {
+      const { connectionId } = action.payload
+      if (state.connections[connectionId]) {
+        state.connections[connectionId].status = NOT_CONNECTED
+      }
 
     },
     closeConnectionFailed: (state, action) => {

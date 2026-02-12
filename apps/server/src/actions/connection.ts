@@ -43,11 +43,22 @@ export const closeConnection = withDeps<Deps, void>(
     const { connectionId } = action.payload 
     const connection = clients.get(connectionId)
     closeMetricsServer(connectionId, metricsServerURIs)
-    if (connection && (connection.client instanceof GlideClient
-      || (connection.client instanceof GlideClusterClient && await isLastConnectedClusterNode(connectionId, clients)))
-    ){
+    if (connection && await canSafelyDisconnect(connectionId, connection, clients)){
       await closeClient(connectionId, connection.client, ws)
     }
     clients.delete(connectionId)
   },
 )
+
+const canSafelyDisconnect = async (
+  connectionId: string,
+  connection: { client: GlideClient | GlideClusterClient } | undefined,
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
+) => {
+  if (connection?.client instanceof GlideClient) return true
+
+  if (connection?.client instanceof GlideClusterClient)
+    return isLastConnectedClusterNode(connectionId, clients)
+
+  return false
+}

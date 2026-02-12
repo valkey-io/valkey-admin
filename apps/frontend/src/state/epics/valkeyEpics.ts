@@ -31,7 +31,7 @@ import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-featur
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
-import { selectConnectionCount } from "../valkey-features/connection/connectionSelectors.ts"
+import { selectIsAtConnectionLimit } from "../valkey-features/connection/connectionSelectors.ts"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 
 const getConnectionIds = (store: Store, action) => {
@@ -56,7 +56,7 @@ export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
-      filter(() => selectConnectionCount(store.getState()) < MAX_CONNECTIONS),
+      filter(() => selectIsAtConnectionLimit(store.getState())),
       mergeMap(async (action) => {
         const { password } = action.payload.connectionDetails
         if (R.isNil(password)) return action

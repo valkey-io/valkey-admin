@@ -10,7 +10,7 @@ import {
   stopRetry,
   type ConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice.ts"
-import { selectConnectionCount, selectConnectionDetails, selectConnections } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectConnectionDetails, selectConnections, selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 
 type EditFormProps = {
@@ -21,7 +21,7 @@ type EditFormProps = {
 function EditForm({ onClose, connectionId }: EditFormProps) {
   const dispatch = useAppDispatch()
   const currentConnection = useSelector(selectConnectionDetails(connectionId || ""))
-  const isAtConnectionLimit = useSelector(selectConnectionCount) >= MAX_CONNECTIONS
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const allConnections = useSelector(selectConnections)
   const fullConnection = connectionId ? allConnections[connectionId] : null
 

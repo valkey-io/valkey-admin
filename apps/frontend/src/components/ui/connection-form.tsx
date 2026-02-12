@@ -11,7 +11,7 @@ import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/const
 import { useSelector } from "react-redux"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
-import { selectConnectionCount } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
@@ -25,8 +25,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     alias: "",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
-  const connectedConnections = useSelector(selectConnectionCount)
-  const isAtConnectionLimit = connectedConnections >= MAX_CONNECTIONS
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const connectionState = useAppSelector((state) =>
     connectionId ? state.valkeyConnection.connections[connectionId] : null,
   )

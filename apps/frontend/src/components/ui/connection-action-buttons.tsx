@@ -4,7 +4,7 @@ import { MAX_CONNECTIONS } from "@common/src/constants"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { selectConnectionCount } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface ConnectionActionButtonsProps {
   isConnected: boolean
@@ -25,8 +25,7 @@ function ConnectionActionButtons({
   onDelete,
   className,
 }: ConnectionActionButtonsProps) {
-  const connectedConnections = useSelector(selectConnectionCount)
-  const isAtConnectionLimit = connectedConnections >= MAX_CONNECTIONS
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {isConnected && onDisconnect && (

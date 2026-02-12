@@ -11,6 +11,7 @@ import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
 import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
+import { sanitizeUrl } from "./utils/helpers.js"
 
 async function main() {
   const cfg = getConfig()
@@ -113,11 +114,11 @@ async function main() {
     }
   })
 
-  app.delete("/close-client/:connectionId", async (req, res) => {
-    const { connectionId } = req.params
+  app.post("connection/close", async (req, res) => {
     try {
       client.close()
-      process.send?.({ type: "close-client", payload: { connectionId } })
+      const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${Number(process.env.VALKEY_PORT)}`)
+      process.send?.({ type: "close-client", payload: { ownConnectionId } })
       return res.status(200).json({
         ok: true,
         connectionId,
