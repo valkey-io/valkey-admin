@@ -33,7 +33,14 @@ export async function connectToValkey(
 
   try {
     // If we've connected to the same host using IP addr or vice versa, return
-    await returnIfDuplicateConnection(payload, clients, ws)
+    if (await isDuplicateConnection(payload, clients)) {
+      return ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.standaloneConnectFulfilled,
+          payload: { connectionId: payload.connectionId },
+        }),
+      )
+    }
     const useTLS = payload.connectionDetails.tls
     const standaloneClient = await GlideClient.createClient({
       addresses,
@@ -190,6 +197,7 @@ async function connectToCluster(
   let clusterClient 
   standaloneClient.close()
 
+  // Check if a node from the same cluster has already been connected 
   const existingKey = Object.keys(clusterNodes).find(
     (key) => clients.get(key) instanceof GlideClusterClient,
   )
@@ -203,6 +211,12 @@ async function connectToCluster(
     clusterClient = existingClient
     clients.set(payload.connectionId, { client: existingClient, clusterId: existingClusterId })
     clusterNodesMap.get(existingClusterId!)?.push(payload.connectionId)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.CLUSTER.updateClusterInfo,
+        payload: { existingClusterId, clusterNodes },
+      }),
+    )
   } 
   else {
     ws.send(
@@ -239,7 +253,7 @@ async function connectToCluster(
     payload: {
       connectionId: payload.connectionId,
       clusterNodes,
-      clusterId,
+      clusterId: existingConnection ? existingConnection.clusterId : clusterId,
       address: addresses[0],
       credentials,
       keyEvictionPolicy,
@@ -256,25 +270,18 @@ async function connectToCluster(
   return clusterClient
 }
 
-export async function returnIfDuplicateConnection(
+export async function isDuplicateConnection(
   payload:{connectionId: string, connectionDetails: ConnectionDetails}, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  ws: WebSocket) 
+) 
 {
   const { connectionId, connectionDetails } = payload
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
   // Prevent duplicate connections: 
-  // 1) Block if any resolved host:port is already connected
-  // 2) Or if this connectionId already exists as a standalone (GlideClient) connection
-  if (resolvedAddresses.some((address) => clients.has(sanitizeUrl(`${address}:${connectionDetails.port}`)))
-      || (clients.has(connectionId) && clients.get(connectionId) instanceof GlideClient))  {
-    return ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.standaloneConnectFulfilled,
-        payload: { connectionId },
-      }),
-    )
-  }
+  // 1) True if any resolved host:port is already connected
+  // 2) Or if this connectionId already exists as a standalone connection
+  return (resolvedAddresses.some((address) => clients.has(sanitizeUrl(`${address}:${connectionDetails.port}`))) || 
+  (clients.has(connectionId) && clients.get(connectionId)?.client instanceof GlideClient))
 }
 
 export async function closeMetricsServer(connectionId: string, metricsServerURIs: Map<string, string>) {
@@ -285,7 +292,10 @@ export async function closeMetricsServer(connectionId: string, metricsServerURIs
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ connectionId }), 
       })
-    if (res.ok) console.log(`Connection ${connectionId} closed successfully`)
+    if (res.ok) {
+      metricsServerURIs.delete(connectionId)
+      console.log(`Connection ${connectionId} closed successfully`)
+    }
     else console.warn("Could not kill metrics server process")
   }
 }
