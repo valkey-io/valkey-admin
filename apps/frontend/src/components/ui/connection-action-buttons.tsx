@@ -1,7 +1,10 @@
 import { Plug, Unplug, PencilIcon, Trash2Icon } from "lucide-react"
+import { useSelector } from "react-redux"
+import { MAX_CONNECTIONS } from "@common/src/constants"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface ConnectionActionButtonsProps {
   isConnected: boolean
@@ -22,6 +25,7 @@ function ConnectionActionButtons({
   onDelete,
   className,
 }: ConnectionActionButtonsProps) {
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {isConnected && onDisconnect && (
@@ -38,12 +42,15 @@ function ConnectionActionButtons({
       {!isConnected && !isConnecting && onConnect && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button onClick={onConnect} size="sm" variant="ghost">
-              <Plug size={16} />
-              Connect
-            </Button>
+            <span>
+              <Button disabled={isAtConnectionLimit} onClick={onConnect} size="sm" variant="ghost">
+                <Plug size={16} />
+                Connect
+              </Button>
+            </span>
           </TooltipTrigger>
-          <TooltipContent>Connect to this Valkey instance</TooltipContent>
+          <TooltipContent>{isAtConnectionLimit 
+            ? `Disconnect one of your ${MAX_CONNECTIONS} active connections to continue` : "Connect to this Valkey instance"}</TooltipContent>
         </Tooltip>
       )}
       {onEdit && (

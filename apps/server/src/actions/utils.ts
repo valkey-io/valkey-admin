@@ -3,9 +3,10 @@ import type WebSocket from "ws"
 
 export type Deps = {
   ws: WebSocket
-  clients: Map<string, GlideClient | GlideClusterClient>
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>
   connectionId: string,
   metricsServerURIs: Map<string, string>,
+  clusterNodesMap: Map<string, string[]>,
 }
 
 export type ReduxAction = {

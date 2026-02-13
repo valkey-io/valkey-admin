@@ -1,4 +1,4 @@
-import { ClusterResponse } from "@valkey/valkey-glide"
+import { ClusterResponse, GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { sanitizeUrl } from "../../../common/src/url-utils"
@@ -119,7 +119,6 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
 // If user connects with IP address and then connects with hostname, we want a single connection
 export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
   const isIP = /^[0-9:.]+$/.test(hostnameOrIP)
-
   const hostnameType = isIP ? "ip" : "hostname"
   try {
     const addresses = isIP
@@ -128,7 +127,17 @@ export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
 
     return { input: hostnameOrIP, hostnameType, addresses }
   } catch (err) {
-    console.log("Unable to resolve hostname or IP:", err)
+    console.warn("Unable to resolve hostname or IP:", err)
     return { input: hostnameOrIP, hostnameType, addresses: [hostnameOrIP] }
   }
+}
+
+export async function isLastConnectedClusterNode(
+  connectionId: string, 
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId? :string }>,
+  clusterNodesMap: Map<string, string[]>) 
+{
+  const connection = clients.get(connectionId)
+  const currentClusterId = connection?.clusterId
+  return clusterNodesMap.get(currentClusterId!)?.length === 1
 }

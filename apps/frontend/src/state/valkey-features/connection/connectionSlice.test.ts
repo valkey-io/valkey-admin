@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { CONNECTED, CONNECTING, ERROR, DISCONNECTED, NOT_CONNECTED } from "@common/src/constants"
+import { CONNECTED, CONNECTING, ERROR, DISCONNECTED, DISCONNECTING } from "@common/src/constants"
 import connectionReducer, {
   connectPending,
   standaloneConnectFulfilled,
@@ -528,7 +528,7 @@ describe("connectionSlice", () => {
         }),
       )
 
-      expect(state.connections["conn-1"].status).toBe(NOT_CONNECTED)
+      expect(state.connections["conn-1"].status).toBe(DISCONNECTING)
       expect(state.connections["conn-1"].errorMessage).toBeNull()
     })
   })

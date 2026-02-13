@@ -28,11 +28,11 @@ export const registerEpics = (store: Store) => {
     sendRequestEpic(),
     setDataEpic(store),
     getHotKeysEpic(store),
-    getCommandLogsEpic(store),
-    updateConfigEpic(store),
+    getCommandLogsEpic(),
+    updateConfigEpic(),
     keyBrowserEpic(),
-    getCpuUsageEpic(store),
-    getMemoryUsageEpic(store),
+    getCpuUsageEpic(),
+    getMemoryUsageEpic(),
   ).subscribe({
     error: (err) => console.error("Epic error:", err),
   })

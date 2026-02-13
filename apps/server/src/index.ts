@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from "ws"
 import {  GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { VALKEY } from "../../../common/src/constants.ts"
-import { connectPending, resetConnection } from "./actions/connection.ts"
+import { connectPending, resetConnection, closeConnection } from "./actions/connection.ts"
 import { sendRequested } from "./actions/command.ts"
 import { setData } from "./actions/stats.ts"
 import { setClusterData } from "./actions/cluster.ts"
@@ -40,11 +40,13 @@ wss.on("listening", () => { // Add a listener for when the server starts listeni
 
 wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected.")
-  const clients: Map<string, GlideClient | GlideClusterClient> = new Map()
+  const clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}> = new Map()
+  const clusterNodesMap: Map<string, string[]> = new Map()
   
   const handlers: Record<string, Handler> = {
     [VALKEY.CONNECTION.connectPending]: connectPending,
     [VALKEY.CONNECTION.resetConnection]: resetConnection,
+    [VALKEY.CONNECTION.closeConnection]: closeConnection,
     [VALKEY.CONFIG.updateConfig]: updateConfig, 
     [VALKEY.CLUSTER.setClusterData]: setClusterData,
     [VALKEY.COMMAND.sendRequested]: sendRequested,
@@ -102,15 +104,16 @@ wss.on("connection", (ws: WebSocket) => {
     }
 
     const handler = handlers[action!.type] ?? unknownHandler
-    await handler({ ws, clients, connectionId: connectionId!, metricsServerURIs })(action as ReduxAction)
+    await handler({ ws, clients, connectionId: connectionId!, metricsServerURIs, clusterNodesMap })(action as ReduxAction)
   })
   ws.on("error", (err) => {
     console.error("WebSocket error:", err)
   })
   ws.on("close", (code, reason) => {
     // Close all Valkey connections
-    clients.forEach((client) => client.close())
+    clients.forEach((connection) => connection.client.close())
     clients.clear()
+    clusterNodesMap.clear()
 
     console.log("Client disconnected. Reason:", code, reason.toString())
   })

@@ -18,7 +18,7 @@ const colors = [
 ]
 
 export default function CpuMemoryUsage() {
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
   const cpuUsageData = useSelector(selectCpuUsage(id ?? ""))
   const memoryUsageData = useSelector(selectMemoryUsage(id ?? ""))
@@ -28,16 +28,16 @@ export default function CpuMemoryUsage() {
   // for cpu
   useEffect(() => {
     if (id) {
-      dispatch(cpuUsageRequested({ connectionId: id, timeRange: cpuTimeRange }))
+      dispatch(cpuUsageRequested({ connectionId: id, clusterId, timeRange: cpuTimeRange }))
     }
-  }, [id, dispatch, cpuTimeRange])
+  }, [id, clusterId, dispatch, cpuTimeRange])
 
   // for memory
   useEffect(() => {
     if (id) {
-      dispatch(memoryUsageRequested({ connectionId: id, timeRange: memoryTimeRange }))
+      dispatch(memoryUsageRequested({ connectionId: id, clusterId, timeRange: memoryTimeRange }))
     }
-  }, [id, dispatch, memoryTimeRange])
+  }, [id, clusterId, dispatch, memoryTimeRange])
 
   const memoryMetrics = memoryUsageData ? Object.entries(memoryUsageData) : []
 

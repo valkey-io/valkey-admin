@@ -1,7 +1,7 @@
 import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Badge } from "../ui/badge"
 import { CustomTooltip } from "../ui/tooltip"
@@ -10,6 +10,8 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { cn } from "@/lib/utils"
 
 interface ClusterNodeProps {
   primaryKey: string
@@ -32,6 +34,7 @@ export function ClusterNode({
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
   const isConnected = connectionStatus === CONNECTED
+  const isDisabled = useSelector(selectIsAtConnectionLimit) 
 
   const handleNodeConnect = () => {
     if (!isConnected) {
@@ -113,11 +116,15 @@ export function ClusterNode({
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <CustomTooltip content={`${isConnected ? "Connected" : "Not Connected"}`}>
+              <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected" }`}>
                 <PowerIcon
-                  className={`${isConnected ? "text-green-500 bg-green-100" : 
-                    "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"} rounded-full p-0.5`}
-                  onClick={handleNodeConnect}
+                  className={cn(
+                    "rounded-full p-0.5",
+                    isConnected && "text-green-500 bg-green-100",
+                    !isConnected && isDisabled && "text-gray-300 cursor-not-allowed bg-gray-100",
+                    !isConnected && !isDisabled && "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600",
+                  )}
+                  onClick={isDisabled ? undefined : handleNodeConnect}
                   size={18}
                 />
               </CustomTooltip>

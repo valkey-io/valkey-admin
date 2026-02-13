@@ -3,9 +3,6 @@ const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor } = requir
 const path = require("path")
 const { fork } = require("child_process")
 
-// TODO: import from common
-const sanitizeUrl = (input) => input.replace(/[^a-zA-Z0-9_-]/g, "-")
-
 let serverProcess
 const metricsProcesses = new Map()
 
@@ -24,22 +21,19 @@ function startServer() {
   }
 }
 
-function startMetricsForClusterNodes(clusterNodes, credentials) {
-  Object.values(clusterNodes).forEach((node) => {
-    const connectionDetails = {
-      host: node.host,
-      port: node.port,
-      username: credentials?.username,
-      password: credentials?.password,
-      tls: node.tls,
-      verifyTlsCertificate: node.verifyTlsCertificate,
-    }
-
-    const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
-    if (!metricsProcesses.has(connectionId)) {
-      startMetrics(connectionId, connectionDetails)
-    }
-  })
+function startMetricsForClusterNode(clusterNodes, connectionId) {
+  const node = clusterNodes[connectionId]
+  const connectionDetails = {
+    host: node.host,
+    port: node.port,
+    username: node.username,
+    password: node.password,
+    tls: node.tls,
+    verifyTlsCertificate: node.verifyTlsCertificate,
+  }
+  if (!metricsProcesses.has(connectionId)) {
+    startMetrics(connectionId, connectionDetails)
+  }
 }
 
 function startMetrics(serverConnectionId, serverConnectionDetails) {
@@ -101,6 +95,11 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
         },
       })
     }
+    if (message.type === "close-client") {
+      const { connectionId } = message.payload
+      console.debug(`Stopping metrics server for ${connectionId}`)
+      stopMetricServer(connectionId)
+    }
   })
 
   metricsProcess.on("close", (code) => {
@@ -119,10 +118,15 @@ function startMetrics(serverConnectionId, serverConnectionDetails) {
   })
 }
 
-// Disconnect functionality in the server has not been implemented. Once that is implemented, this can be used.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function stopMetricServer(serverConnectionId) {
-  metricsProcesses.get(serverConnectionId).kill()
+  try {
+    console.log("Killing metrics server for ", serverConnectionId)
+    metricsProcesses.get(serverConnectionId).kill()
+    metricsProcesses.delete(serverConnectionId)
+  }
+  catch (e) {
+    console.warn(`Failed to kill metrics server ${serverConnectionId}:`, e)
+  }
 }
 
 function stopMetricServers() {
@@ -133,6 +137,7 @@ function stopMetricServers() {
       console.warn(`Failed to kill metrics server ${serverConnectionId}:`, e)
     }
   })
+  metricsProcesses.clear()
 }
 
 function createWindow() {
@@ -174,7 +179,7 @@ app.whenReady().then(() => {
           startMetrics(message.payload.connectionId, message.payload.connectionDetails)
           break
         case "valkeyConnection/clusterConnectFulfilled":
-          startMetricsForClusterNodes(message.payload.clusterNodes, message.payload.credentials)
+          startMetricsForClusterNode(message.payload.clusterNodes, message.payload.connectionId)
           break
         default:
           try {

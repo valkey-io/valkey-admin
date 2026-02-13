@@ -1,5 +1,5 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, mergeMap, catchError, filter, take } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
@@ -14,7 +14,10 @@ import {
   startRetry,
   stopRetry,
   updateConnectionDetails,
-  type ConnectionState
+  type ConnectionState,
+  closeConnectionFulfilled,
+  closeConnectionFailed,
+  closeConnection
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
@@ -28,20 +31,8 @@ import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-featur
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
-import type { PayloadAction, Store } from "@reduxjs/toolkit"
-
-const getConnectionIds = (store: Store, action) => {
-  // If we're connected to a cluster, pass connectionId of each node
-  // Else pass connectionId of current node only
-  const { clusterId, connectionId } = action.payload
-  const state = store.getState()
-  const clusters = state.valkeyCluster.clusters
-
-  return clusterId !== undefined
-    ? Object.keys(clusters[clusterId].clusterNodes)
-    : [connectionId]
-
-}
+import { selectIsAtConnectionLimit } from "../valkey-features/connection/connectionSelectors.ts"
+import type { Store } from "@reduxjs/toolkit"
 
 const getCurrentConnections = () => R.pipe(
   (v: string) => localStorage.getItem(v),
@@ -52,9 +43,9 @@ export const connectionEpic = (store: Store) =>
   merge(
     action$.pipe(
       select(connectPending),
-      tap(async (action) => {
+      filter(() => !selectIsAtConnectionLimit(store.getState())),
+      mergeMap(async (action) => {
         const { password } = action.payload.connectionDetails
-        
         if (R.isNil(password)) return action
         
         const decryptedPassword = await secureStorage.decrypt(password)
@@ -245,28 +236,51 @@ export const autoReconnectEpic = (store: Store) =>
   )
 
 export const deleteConnectionEpic = () =>
-  action$.pipe(
-    select(deleteConnection),
-    tap(({ payload: { connectionId, silent = false } }) => {
-      try {
-        const currentConnections = getCurrentConnections()
-        R.pipe(
-          R.dissoc(connectionId),
-          JSON.stringify,
-          (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
-          () => {
-            if (!silent) {
-              toast.success("Connection removed successfully!")
-            }
-          },
-        )(currentConnections)
-      } catch (e) {
-        if (!silent) {
-          toast.error("Failed to remove connection!")
+  merge (
+    action$.pipe(
+      select(deleteConnection),
+      tap((action) => {
+        const { connectionId, silent } = action.payload
+        try {
+          const currentConnections = getCurrentConnections()
+          R.pipe(
+            R.dissoc(connectionId),
+            JSON.stringify,
+            (updated) => localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, updated),
+          )(currentConnections)
+        } catch (e) {
+          if (!silent) {
+            toast.error("Failed to remove connection!")
+          }
+          console.error(e)
         }
-        console.error(e)
-      }
-    }),
+        const socket = getSocket()
+        socket.next({ type: closeConnection.type, payload: action.payload })
+      }),
+    ),
+    action$.pipe(
+      select(closeConnection),
+      tap((action) => {
+        const socket = getSocket()
+        socket.next(action)
+      }),
+    ),
+    action$.pipe(
+      select(closeConnectionFulfilled),
+      tap((action) => {
+        const { silent } = action.payload!
+        if (!silent) {
+          toast.success("Connection closed successfully!")
+        }
+
+      }),
+    ),
+    action$.pipe(
+      select(closeConnectionFailed),
+      tap((action) => {
+        toast.error("Failed to close connection: ", action.payload.errorMessage)
+      }),
+    ),
   )
 
 // for updating connection details: this will persist the edits
@@ -316,10 +330,10 @@ export const setDataEpic = (store: Store) =>
         type === standaloneConnectFulfilled.type ||
           type === clusterConnectFulfilled.type,
     ),
-    tap((action: PayloadAction) => {
+    tap((action) => {
       const socket = getSocket()
 
-      const { clusterId, connectionId } = action.payload
+      const { clusterId, connectionId } = action.payload as unknown as {clusterId:string, connectionId:string}
       store.dispatch(setConfig( action.payload))
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
@@ -338,10 +352,8 @@ export const getHotKeysEpic = (store: Store) =>
   action$.pipe(
     select(hotKeysRequested),
     tap((action) => {
-      const { connectionId } = action.payload
+      const { connectionId, clusterId } = action.payload
       const socket = getSocket()
-      const connectionIds = getConnectionIds(store, action)
-
       const state = store.getState()
       const connection = state.valkeyConnection.connections[connectionId]
       const monitorEnabled = state.config[connectionId].monitoring.monitorEnabled
@@ -350,24 +362,22 @@ export const getHotKeysEpic = (store: Store) =>
 
       socket.next({
         type: action.type,
-        payload: { connectionIds, lfuEnabled, clusterSlotStatsEnabled, monitorEnabled },
+        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, monitorEnabled },
       })
 
     }),
   )
 
-export const getCommandLogsEpic = (store: Store) =>
+export const getCommandLogsEpic = () =>
   action$.pipe(
     select(commandLogsRequested),
     tap((action) => {
       try {
-        const { commandLogType } = action.payload
+        const { commandLogType, connectionId, clusterId } = action.payload
         const socket = getSocket()
-        const connectionIds = getConnectionIds(store, action)
-
         socket.next({
           type: action.type,
-          payload: { connectionIds, commandLogType },
+          payload: { connectionId, clusterId, commandLogType },
         })
       } catch (error) {
         console.error("[getCommandLogsEpic] Error sending action:", error)
@@ -376,40 +386,38 @@ export const getCommandLogsEpic = (store: Store) =>
     ignoreElements(),
   )
 
-export const updateConfigEpic = (store: Store) =>
+export const updateConfigEpic = () =>
   action$.pipe(
     select(updateConfig),
     tap((action) => {
-      const {  config } = action.payload
+      const { config, connectionId, clusterId } = action.payload
       const socket = getSocket()
-      const connectionIds = getConnectionIds(store, action)
-      socket.next({ type: action.type, payload: { connectionIds, config } })
+      socket.next({ type: action.type, payload: { connectionId, clusterId, config } })
     }),
   )
 
 // TODO: Add frontend component to dispatch this
-export const enableClusterSlotStatsEpic = (store: Store) =>
+export const enableClusterSlotStatsEpic = () =>
   action$.pipe(
     select(updateConfigFulfilled),
     tap((action) => {
+      const { clusterId, connectionId } = action.payload
       const socket = getSocket()
-      const connectionIds = getConnectionIds(store, action)
-      socket.next({ type: "config/enableClusterSlotStats", payload: { connectionIds } })
+      socket.next({ type: "config/enableClusterSlotStats", payload: { connectionId, clusterId } })
     }),
   )
 
-export const getCpuUsageEpic = (store: Store) =>
+export const getCpuUsageEpic = () =>
   action$.pipe(
     select(cpuUsageRequested),
     tap((action) => {
       try {
-        const { timeRange } = action.payload
+        const { timeRange, connectionId, clusterId } = action.payload
         const socket = getSocket()
-        const connectionIds = getConnectionIds(store, action)
 
         socket.next({
           type: action.type,
-          payload: { connectionIds, timeRange },
+          payload: { connectionId, clusterId, timeRange },
         })
       } catch (error) {
         console.error("[getCpuUsageEpic] Error sending action:", error)
@@ -418,18 +426,17 @@ export const getCpuUsageEpic = (store: Store) =>
     ignoreElements(),
   )
 
-export const getMemoryUsageEpic = (store: Store) =>
+export const getMemoryUsageEpic = () =>
   action$.pipe(
     select(memoryUsageRequested),
     tap((action) => {
       try {
-        const { timeRange } = action.payload
+        const { timeRange, connectionId, clusterId } = action.payload
         const socket = getSocket()
-        const connectionIds = getConnectionIds(store, action)
 
         socket.next({
           type: action.type,
-          payload: { connectionIds, timeRange },
+          payload: { connectionId, timeRange, clusterId },
         })
       } catch (error) {
         console.error("[getMemoryUsageEpic] Error sending action:", error)

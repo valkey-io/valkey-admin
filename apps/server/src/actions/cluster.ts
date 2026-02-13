@@ -4,11 +4,11 @@ import { setClusterDashboardData } from "../set-dashboard-data.ts"
 
 export const setClusterData = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
-    const client = clients.get(connectionId)
+    const connection = clients.get(connectionId)
 
-    if (client instanceof GlideClusterClient) {
+    if (connection && connection.client instanceof GlideClusterClient) {
       const { clusterId } = action.payload 
-      await setClusterDashboardData(clusterId as string, client, ws, connectionId)
+      await setClusterDashboardData(clusterId as string, connection.client, ws, connectionId)
     }
   },
 )

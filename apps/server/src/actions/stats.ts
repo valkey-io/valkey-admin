@@ -4,8 +4,8 @@ import { setDashboardData } from "../set-dashboard-data.ts"
 
 export const setData = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
-    const client = clients.get(connectionId)
+    const connection = clients.get(connectionId)
     const { address } = action.payload
-    await setDashboardData(connectionId, client as GlideClient | GlideClusterClient, ws, address as {host: string, port: number} )
+    await setDashboardData(connectionId, connection?.client as GlideClient | GlideClusterClient, ws, address as {host: string, port: number} )
   },
 )

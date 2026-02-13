@@ -79,7 +79,6 @@ export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
 
     do {
       const [nextCursor, scannedKeys] = await client.customCommand(["SCAN", cursor.toString(), "COUNT", "1"])
-      process.send?.({ type: "metrics-hotkeys", payload: { nextCursor, scannedKeys } })
       cursor = nextCursor
       keys.push(...scannedKeys)
       cursorToSlot = Number(cursor) & 0x3FFF

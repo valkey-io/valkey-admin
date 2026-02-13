@@ -29,6 +29,8 @@ export const VALKEY = {
     connectRejected: "connectRejected",
     resetConnection: "resetConnection",
     closeConnection: "closeConnection",
+    closeConnectionFulfilled: "closeConnectionFulfilled",
+    closeConnectionFailed: "closeConnectionFailed",
   } as const),
   COMMAND: makeNamespace("valkeyCommand", {
     sendFailed: "sendFailed",
@@ -96,6 +98,8 @@ export const ERROR = "Error"
 export const NOT_CONNECTED = "Not Connected"
 export const DISCONNECTED = "Disconnected"
 export const RECONNECTING = "Reconnecting"
+export const DISCONNECTING = "Disconnecting"
+export const MAX_CONNECTIONS = 12
 
 export const PENDING = "Pending"
 export const FULFILLED = "Fulfilled"

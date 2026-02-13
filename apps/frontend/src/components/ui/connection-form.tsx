@@ -7,9 +7,11 @@ type ConnectionFormProps = {
 };
 
 import { sanitizeUrl } from "@common/src/url-utils.ts"
-import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { useSelector } from "react-redux"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
+import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
@@ -23,7 +25,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     alias: "",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
-
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const connectionState = useAppSelector((state) =>
     connectionId ? state.valkeyConnection.connections[connectionId] : null,
   )
@@ -41,6 +43,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
+    if (isAtConnectionLimit) return
     const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
     setConnectionId(newConnectionId)
     dispatch(
@@ -147,11 +150,20 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
                     Verify TLS Certificate
                   </label>
                 </div>
+                {isAtConnectionLimit && (
+                  <div className="mt-4 p-2 text-sm bg-yellow-100 text-yellow-800 border rounded">
+                    You’ve reached the maximum of {MAX_CONNECTIONS} active connections.
+                    Please disconnect one before connecting to another.
+                  </div>
+                )}
                 <div className="pt-2 text-sm">
                   <button
                     className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90 disabled:opacity-50 
                     disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    disabled={!connectionDetails.host || !connectionDetails.port || isConnecting}
+                    disabled={!connectionDetails.host || !connectionDetails.port || isConnecting || isAtConnectionLimit}
+                    title={isAtConnectionLimit
+                      ? `Disconnect one of your ${MAX_CONNECTIONS} active connections to continue` : undefined
+                    }
                     type="submit"
                   >
                     {isConnecting && <Loader2 className="animate-spin" size={16} />}

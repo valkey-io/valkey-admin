@@ -50,13 +50,15 @@ const sendMemoryUsageError = (
 }
 
 type RequestPayload = {
-  connectionIds: string[]
+  connectionId: string, 
+  clusterId: string,
   timeRange?: string
 }
 
 export const memoryUsageRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerURIs, action }) => {
-    const { connectionIds, timeRange = "12h" } = action.payload as unknown as RequestPayload
+  async ({ ws, metricsServerURIs, action, clusterNodesMap }) => {
+    const { connectionId, clusterId, timeRange = "12h" } = action.payload as unknown as RequestPayload
+    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerURIs.get(connectionId)
       try {

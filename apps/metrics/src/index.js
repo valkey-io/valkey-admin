@@ -11,6 +11,7 @@ import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
 import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
+import { sanitizeUrl } from "./utils/helpers.js"
 
 async function main() {
   const cfg = getConfig()
@@ -109,6 +110,27 @@ async function main() {
         success: false,
         message: error instanceof Error ? error.message : String(error),
         data: error,
+      })
+    }
+  })
+
+  app.post("connection/close", async (req, res) => {
+    try {
+      const { connectionId } = req.body
+      client.close()
+      const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${Number(process.env.VALKEY_PORT)}`)
+      // Required to kill electron-managed metrics service
+      // TODO: revisit to decouple concerns
+      if (connectionId === ownConnectionId) process.send?.({ type: "close-client", payload: { connectionId } })
+      return res.status(200).json({
+        ok: true,
+        connectionId,
+      })
+    } catch (err) {
+      console.log("Error is ", err)
+      return res.status(500).json({
+        ok: false,
+        err,
       })
     }
   })

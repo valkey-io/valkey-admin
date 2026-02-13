@@ -2,6 +2,7 @@ import { X } from "lucide-react"
 import { type FormEvent, useState, useEffect } from "react"
 import { useSelector } from "react-redux"
 import { sanitizeUrl } from "@common/src/url-utils.ts"
+import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants"
 import {
   updateConnectionDetails,
   connectPending,
@@ -9,7 +10,7 @@ import {
   stopRetry,
   type ConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice.ts"
-import { selectConnectionDetails, selectConnections } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectConnectionDetails, selectConnections, selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 
 type EditFormProps = {
@@ -20,6 +21,7 @@ type EditFormProps = {
 function EditForm({ onClose, connectionId }: EditFormProps) {
   const dispatch = useAppDispatch()
   const currentConnection = useSelector(selectConnectionDetails(connectionId || ""))
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const allConnections = useSelector(selectConnections)
   const fullConnection = connectionId ? allConnections[connectionId] : null
 
@@ -165,11 +167,18 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
               TLS
             </label>
           </div>
-
+          {isAtConnectionLimit && fullConnection?.status != CONNECTED && (
+            <div className="mt-4 p-2 text-sm bg-yellow-100 text-yellow-800 border rounded">
+              You’ve reached the maximum of {MAX_CONNECTIONS} active connections.
+              Please disconnect one before connecting to another.
+            </div>
+          )}
           <div className="pt-2 text-sm">
             <button
-              className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
-              disabled={!connectionDetails.host || !connectionDetails.port}
+              className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90 disabled:opacity-50 
+                    disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={!connectionDetails.host || !connectionDetails.port || (isAtConnectionLimit && fullConnection?.status != CONNECTED)}
+              title={isAtConnectionLimit ? `Disconnect one of your ${MAX_CONNECTIONS} active connections to continue` : undefined}
               type="submit"
             >
               Apply Changes

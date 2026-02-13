@@ -10,10 +10,10 @@ type GetKeysPayload = {
 
 export const getKeysRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
-    const client = clients.get(connectionId)
+    const connection = clients.get(connectionId)
 
-    if (client) {
-      await getKeys(client, ws, action.payload as GetKeysPayload)
+    if (connection) {
+      await getKeys(connection.client, ws, action.payload as GetKeysPayload)
     } else {
       ws.send(
         JSON.stringify({
@@ -38,10 +38,10 @@ export const getKeyTypeRequested = withDeps<Deps, void>(
     const { key } = action.payload as unknown as KeyPayload
 
     console.log("Handling getKeyTypeRequested for key:", key)
-    const client = clients.get(connectionId)
+    const connection = clients.get(connectionId)
 
-    if (client) {
-      await getKeyInfoSingle(client, ws, action.payload as unknown as KeyPayload)
+    if (connection) {
+      await getKeyInfoSingle(connection.client, ws, action.payload as unknown as KeyPayload)
     } else {
       console.log("No client found for connectionId:", connectionId)
       ws.send(
@@ -63,10 +63,10 @@ export const deleteKeyRequested = withDeps<Deps, void>(
     const { key } = action.payload as unknown as KeyPayload
 
     console.log("Handling deleteKeyRequested for key:", key)
-    const client = clients.get(connectionId)
+    const connection = clients.get(connectionId)
 
-    if (client) {
-      await deleteKey(client, ws, action.payload as unknown as KeyPayload)
+    if (connection) {
+      await deleteKey(connection.client, ws, action.payload as unknown as KeyPayload)
     } else {
       console.log("No client found for connectionId:", connectionId)
       ws.send(
@@ -101,9 +101,9 @@ export const addKeyRequested = withDeps<Deps, void>(
     const { key } = action.payload as unknown as KeyPayload
 
     console.log("Handling addKeyRequested for key:", key)
-    const client = clients.get(connectionId)
-    if (client) {
-      await addKey(client, ws, action.payload as unknown as AddKeyRequestedPayload)
+    const connection = clients.get(connectionId)
+    if (connection) {
+      await addKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {
       console.log("No client found for connectionId:", connectionId)
       ws.send(
@@ -125,9 +125,9 @@ export const updateKeyRequested = withDeps<Deps, void>(
     const { key } = action.payload as unknown as KeyPayload
 
     console.log("Handling updateKeyRequested for key:", key)
-    const client = clients.get(connectionId)
-    if (client) {
-      await updateKey(client, ws, action.payload as unknown as AddKeyRequestedPayload)
+    const connection = clients.get(connectionId)
+    if (connection) {
+      await updateKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {
       console.log("No client found for connectionId:", connectionId)
       ws.send(
