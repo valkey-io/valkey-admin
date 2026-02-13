@@ -114,18 +114,22 @@ async function main() {
     }
   })
 
-  app.post("connection/close", async (req, res) => {
+  app.post("/connection/close", async (req, res) => {
     try {
       const { connectionId } = req.body
       client.close()
-      const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${Number(process.env.VALKEY_PORT)}`)
-      // Required to kill electron-managed metrics service
-      // TODO: revisit to decouple concerns
-      if (connectionId === ownConnectionId) process.send?.({ type: "close-client", payload: { connectionId } })
-      return res.status(200).json({
+      const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
+      if (connectionId !== ownConnectionId) {
+        return res.status(400).json({
+          ok: false,
+          error: "Invalid connectionId",
+        })
+      }
+      res.status(200).json({
         ok: true,
         connectionId,
       })
+      setImmediate(shutdown)
     } catch (err) {
       console.log("Error is ", err)
       return res.status(500).json({
@@ -147,6 +151,9 @@ async function main() {
     console.log("shutting down")
     try {
       await stopCollectors()
+      if (client) {
+        client.close()
+      }
       server.close(() => process.exit(0))
     } catch (e) {
       console.error("shutdown error", e)

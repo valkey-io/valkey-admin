@@ -21,8 +21,8 @@ type ConnectPayload = {
 }
 
 export const connectPending = withDeps<Deps, void>(
-  async ({ ws, clients, action, clusterNodesMap }) => {
-    await connectToValkey(ws, action.payload as ConnectPayload, clients, clusterNodesMap)
+  async ({ ws, clients, action, clusterNodesMap, metricsServerURIs }) => {
+    await connectToValkey(ws, action.payload as ConnectPayload, clients, clusterNodesMap, metricsServerURIs)
   },
 )
 
