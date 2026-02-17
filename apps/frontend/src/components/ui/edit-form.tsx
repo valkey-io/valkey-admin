@@ -1,8 +1,8 @@
-import { X } from "lucide-react"
 import { type FormEvent, useState, useEffect } from "react"
 import { useSelector } from "react-redux"
 import { sanitizeUrl } from "@common/src/url-utils.ts"
-import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants"
+import { CONNECTED } from "@common/src/constants"
+import { ConnectionModal } from "./connection-modal.tsx"
 import {
   updateConnectionDetails,
   connectPending,
@@ -10,13 +10,17 @@ import {
   stopRetry,
   type ConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice.ts"
-import { selectConnectionDetails, selectConnections, selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import {
+  selectConnectionDetails,
+  selectConnections,
+  selectIsAtConnectionLimit
+} from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 
-type EditFormProps = {
-  onClose: () => void;
-  connectionId?: string;
-};
+interface EditFormProps {
+  onClose: () => void
+  connectionId?: string
+}
 
 function EditForm({ onClose, connectionId }: EditFormProps) {
   const dispatch = useAppDispatch()
@@ -53,9 +57,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
 
   const hasCoreChanges = () => {
     if (!currentConnection) return false
-    return (
-      connectionDetails !== currentConnection 
-    )
+    return connectionDetails !== currentConnection
   }
 
   const handleSubmit = (e: FormEvent) => {
@@ -75,118 +77,47 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       // Always delete the old connection when making core changes
       dispatch(deleteConnection({ connectionId, silent: true }))
 
-      dispatch(connectPending({
-        connectionId: newConnectionId,
-        connectionDetails,
-        isEdit: true,
-        preservedHistory: connectionHistory,
-      }))
+      dispatch(
+        connectPending({
+          connectionId: newConnectionId,
+          connectionDetails,
+          isEdit: true,
+          preservedHistory: connectionHistory,
+        }),
+      )
     } else {
-      dispatch(updateConnectionDetails({
-        connectionId,
-        alias: connectionDetails.alias || undefined,
-      }))
+      dispatch(
+        updateConnectionDetails({
+          connectionId,
+          alias: connectionDetails.alias || undefined,
+        }),
+      )
     }
 
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center">
-      <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border">
-        <div className="flex justify-between">
-          <h2 className="text-lg font-semibold">Edit Connection</h2>
-          <button className="hover:text-tw-primary" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <span className="text-sm font-light">
-          Modify your server's connection details.
-        </span>
-        <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="block mb-1 text-sm">Host</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, host: e.target.value }))}
-              placeholder="localhost"
-              required
-              type="text"
-              value={connectionDetails.host}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Port</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, port: e.target.value }))}
-              placeholder="6379"
-              required
-              type="number"
-              value={connectionDetails.port}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Alias</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, alias: e.target.value }))}
-              placeholder="Alias of the first cluster node will be the alias of the cluster"
-              type="text"
-              value={connectionDetails.alias}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Username</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, username: e.target.value }))}
-              type="text"
-              value={connectionDetails.username}
-            />
-          </div>
+  const shouldShowConnectionLimitWarning =
+    isAtConnectionLimit && fullConnection?.status !== CONNECTED
 
-          <div>
-            <label className="block mb-1 text-sm">Password</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, password: e.target.value }))}
-              type="password"
-              value={connectionDetails.password}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              checked={connectionDetails.tls}
-              className="h-4 w-4"
-              id="tls"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, tls: e.target.checked }))}
-              type="checkbox"
-            />
-            <label className="text-sm select-none" htmlFor="tls">
-              TLS
-            </label>
-          </div>
-          {isAtConnectionLimit && fullConnection?.status != CONNECTED && (
-            <div className="mt-4 p-2 text-sm bg-yellow-100 text-yellow-800 border rounded">
-              You’ve reached the maximum of {MAX_CONNECTIONS} active connections.
-              Please disconnect one before connecting to another.
-            </div>
-          )}
-          <div className="pt-2 text-sm">
-            <button
-              className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90 disabled:opacity-50 
-                    disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              disabled={!connectionDetails.host || !connectionDetails.port || (isAtConnectionLimit && fullConnection?.status != CONNECTED)}
-              title={isAtConnectionLimit ? `Disconnect one of your ${MAX_CONNECTIONS} active connections to continue` : undefined}
-              type="submit"
-            >
-              Apply Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+  return (
+    <ConnectionModal
+      connectionDetails={connectionDetails}
+      description="Modify your server's connection details."
+      isSubmitDisabled={
+        !connectionDetails.host ||
+        !connectionDetails.port ||
+        shouldShowConnectionLimitWarning
+      }
+      onClose={onClose}
+      onConnectionDetailsChange={setConnectionDetails}
+      onSubmit={handleSubmit}
+      open
+      showConnectionLimitWarning={shouldShowConnectionLimitWarning}
+      showVerifyTlsCertificate={false}
+      submitButtonText="Apply Changes"
+      title="Edit Connection"
+    />
   )
 }
 
