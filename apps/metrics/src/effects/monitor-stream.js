@@ -4,11 +4,26 @@ import Valkey from "iovalkey"
 
 export const makeMonitorStream = (onLogs = async () => { }, config) => {
   const { monitoringInterval, monitoringDuration, maxCommandsPerRun: maxLogs } = config
-  // URL hardcoded for testing 
-  const url = String(process.env.VALKEY_URL || config.valkey.url || "valkey://host.docker.internal:6379").trim()
+
+  const host = process.env.VALKEY_HOST
+  const port = Number(process.env.VALKEY_PORT)
+
+  const username = process.env.VALKEY_USERNAME
+  const password = process.env.VALKEY_PASSWORD
+  const verifyTlsCertificate  = process.env.VALKEY_VERIFY_CERT
+  let tls = undefined
+  if (process.env.VALKEY_TLS === "true") {
+    tls = verifyTlsCertificate === "false" ? { rejectUnauthorized: false } :  {}
+  }
 
   const runMonitorOnce = async () => {
-    const monitorClient = new Valkey(url)
+    const monitorClient = new Valkey({
+      host,
+      port, 
+      username,
+      password,
+      tls,
+    })
     const monitor = await monitorClient.monitor()
 
     const rows = []

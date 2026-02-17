@@ -6,8 +6,8 @@ let mockValkeyInstances = []
 
 // Mock iovalkey with a class
 class MockValkey {
-  constructor(url) {
-    this.url = url
+  constructor(options) {
+    this.options = options
     mockValkeyInstances.push(this)
   }
   async monitor() {
@@ -48,29 +48,13 @@ describe("monitor-stream", () => {
   })
 
   describe("makeMonitorStream", () => {
-    it("should create Valkey client with correct URL from config", async () => {
-      const { makeMonitorStream } = await import("./monitor-stream.js")
-
-      const config = {
-        valkey: { url: "valkey://testhost:6379" },
-        monitoringInterval: 5000,
-        monitoringDuration: 1000,
-        maxCommandsPerRun: 100,
-      }
-
-      const stream$ = makeMonitorStream(async () => { }, config)
-      const subscription = stream$.subscribe()
-
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(mockValkeyInstances.length).toBeGreaterThan(0)
-      expect(mockValkeyInstances[0].url).toBe("valkey://testhost:6379")
-
-      subscription.unsubscribe()
-    })
-
-    it("should fall back to environment variable URL", async () => {
-      cleanupEnv = mockEnv({ VALKEY_URL: "valkey://envhost:6380" })
+    it("should use environment variables to connect to iovalkey client", async () => {
+      cleanupEnv = mockEnv({
+        VALKEY_HOST: "envhost",
+        VALKEY_PORT: "6379",
+        VALKEY_USERNAME: "envuser",
+        VALKEY_PASSWORD: "envpass",
+      })
 
       const { makeMonitorStream } = await import("./monitor-stream.js")
 
@@ -81,32 +65,16 @@ describe("monitor-stream", () => {
         maxCommandsPerRun: 100,
       }
 
-      const stream$ = makeMonitorStream(async () => { }, config)
+      const stream$ = makeMonitorStream(async () => {}, config)
       const subscription = stream$.subscribe()
 
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(mockValkeyInstances[0].url).toBe("valkey://envhost:6380")
-
-      subscription.unsubscribe()
-    })
-
-    it("should use hardcoded default URL when no config or env URL", async () => {
-      const { makeMonitorStream } = await import("./monitor-stream.js")
-
-      const config = {
-        valkey: {},
-        monitoringInterval: 5000,
-        monitoringDuration: 1000,
-        maxCommandsPerRun: 100,
-      }
-
-      const stream$ = makeMonitorStream(async () => { }, config)
-      const subscription = stream$.subscribe()
-
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(mockValkeyInstances[0].url).toBe("valkey://host.docker.internal:6379")
+      const instance = mockValkeyInstances[0]
+      expect(instance.options.host).toBe("envhost")
+      expect(instance.options.port).toBe(6379)
+      expect(instance.options.username).toBe("envuser")
+      expect(instance.options.password).toBe("envpass")
 
       subscription.unsubscribe()
     })
