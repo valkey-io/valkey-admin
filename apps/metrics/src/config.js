@@ -68,7 +68,6 @@ const updateConfig = (partialConfig) => {
 
   const newConfig = mergeDeepLeft(partialConfig, getConfig())
   setConfig(newConfig)
-
   return {
     success: true,
     statusCode: 200,
