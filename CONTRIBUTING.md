@@ -19,7 +19,7 @@ Before you start writing code for a new feature or a significant architectural c
 
 1.  **Open an Issue:** Create a new GitHub Issue with the prefix `[RFC] Your Feature Name`.
 2.  **Design Proposal:** Provide a general design or technical overview of your approach. Explain the *why* and the *how*.
-3.  **Tag a Maintainer:** Tag @arseny-kostenko, @ravjotbrar, and/or @ArgusLi
+3.  **Tag a Maintainer:** Tag @arseny-kostenko, @ravjotbrar, @ArgusLi, and/or, @nassery318
 4.  **Approval:** Wait for feedback and approval from the project contributors. 
 5.  **Proceed:** Once the design is approved, you are cleared to begin development and submit a PR.
 
