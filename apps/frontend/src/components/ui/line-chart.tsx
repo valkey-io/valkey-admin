@@ -14,7 +14,7 @@ interface LineChartComponentProps {
 export default function LineChartComponent({
   data,
   label = "Usage",
-  color = "var(--tw-chart1)",
+  color = "var(--chart-1)",
   title,
   subtitle,
   unit,
