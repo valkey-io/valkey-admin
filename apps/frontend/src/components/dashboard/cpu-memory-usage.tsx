@@ -91,7 +91,7 @@ export default function CpuMemoryUsage() {
         title="CPU Usage Over Time"
       >
         <LineChartComponent
-          color="var(--tw-chart1)"
+          color="var(--chart-1)"
           data={cpuUsageData}
           label="CPU Usage"
           unit=" (%)"
