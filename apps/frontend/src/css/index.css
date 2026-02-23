@@ -1,3 +1,5 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource/geist-mono";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -47,6 +49,10 @@
   --color-tw-dark-border: var(--tw-dark-border);
   --color-tw-accent: var(--tw-accent);
   --color-tw-accent2: var(--tw-accent2);
+
+  /* Font */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
 }
 
 :root {
@@ -126,8 +132,63 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
+
+  /* Display & Headings */
+  .text-display {
+    @apply text-4xl font-bold leading-tight tracking-tight;
+  }
+
+  .text-title {
+    @apply text-3xl font-semibold leading-tight tracking-tight;
+  }
+
+  .text-heading {
+    @apply text-2xl font-semibold leading-snug;
+  }
+
+  .text-subheading {
+    @apply text-xl font-semibold leading-snug;
+  }
+
+  .text-label {
+    @apply text-sm font-semibold leading-normal;
+  }
+
+  /* Body Text */
+  .text-body-lg {
+    @apply text-lg leading-relaxed;
+  }
+
+  .text-body {
+    @apply text-base leading-normal;
+  }
+
+  .text-body-sm {
+    @apply text-sm leading-normal;
+  }
+
+  .text-body-xs {
+    @apply text-xs leading-normal;
+  }
+
+  /* Special Purpose */
+  .text-caption {
+    @apply text-sm text-muted-foreground leading-normal;
+  }
+
+  .text-overline {
+    @apply text-xs font-medium uppercase tracking-wide text-muted-foreground;
+  }
+
+  .text-code {
+    @apply font-mono text-sm;
+  }
+
+  .text-code-block {
+  @apply font-mono text-sm block w-full whitespace-pre overflow-x-auto;
+}
 }
 
 @keyframes linearProgress {

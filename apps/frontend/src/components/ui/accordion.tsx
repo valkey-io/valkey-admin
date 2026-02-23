@@ -3,6 +3,7 @@ import { CircleChevronDown, CircleChevronUp, Dot } from "lucide-react"
 import { formatMetricValue, type ValueType } from "@common/src/format-metric-value"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { TooltipIcon } from "./tooltip-icon"
+import { Typography } from "./typography"
 
 interface AccordionProps {
   accordionName?: string;
@@ -66,15 +67,17 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
       <TooltipProvider>
         <div className="h-14 px-2 py-4 border border-input rounded-md shadow-xs flex items-center gap-2 justify-between">
           <div className="flex flex-col gap-1">
-            <span className="font-semibold text-sm flex items-center gap-1">{accordionName}
+            <Typography className="flex items-center gap-1" variant="label">
+              {accordionName}
               <TooltipIcon description={accordionDescription} size={16} />
-            </span>
-            <span className="text-xs font-light text-tw-dark-border">
+            </Typography>
+            <Typography variant="bodyXs">
               {searchQuery.trim() && filteredItemCount !== itemCount ? (
                 <>{filteredItemCount} of {itemCount} {itemCount === 1 ? "metric" : "metrics"}</>
               ) : (
                 <>{itemCount} {itemCount === 1 ? "metric" : "metrics"}</>
-              )}</span>
+              )}
+            </Typography>
           </div>
           <button onClick={() => setIsOpen(!isOpen)}><ToggleIcon className="text-tw-primary cursor-pointer hover:text-tw-primary/80" /></button>
         </div>
@@ -86,12 +89,15 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
             {Object.entries(filteredItems).map(([key, value]) => (
               <li className="flex justify-between items-center border-b last:border-b-0" key={key}>
                 <div className="flex items-center gap-1">
-                  <span className="font-normal flex items-center"><Dot className="text-tw-primary" size={30} />{formatKey(key)}</span>
+                  <Typography className="flex items-center" variant="bodySm">
+                    <Dot className="text-tw-primary" size={30} />
+                    {formatKey(key)}
+                  </Typography>
                   {singleMetricDescriptions[key] && (
                     <TooltipIcon description={`${singleMetricDescriptions[key].description} ${singleMetricDescriptions[key].unit}` } size={13} />
                   )}
                 </div>
-                <span className="font-light">{formatMetricValue(key, value, valueType)}</span>
+                <Typography variant="bodySm">{formatMetricValue(key, value, valueType)}</Typography>
               </li>
             ))}
           </ul>

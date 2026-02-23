@@ -15,6 +15,7 @@ import { Panel } from "../ui/panel"
 import { Input } from "../ui/input"
 import { StatCard } from "../ui/stat-card"
 import RouteContainer from "../ui/route-container"
+import { Typography } from "../ui/typography"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
@@ -30,7 +31,9 @@ export function Dashboard() {
           title="Dashboard"
         />
         <div className="flex flex-1 items-center justify-center">
-          <span className="text-gray-500">Loading metrics…</span>
+          <Typography className="text-gray-500" variant="body">
+            Loading metrics…
+          </Typography>
         </div>
       </div>
     )

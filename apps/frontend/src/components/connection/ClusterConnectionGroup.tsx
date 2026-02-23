@@ -21,6 +21,7 @@ import {
 import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Button } from "@/components/ui/button.tsx"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
+import { Typography } from "@/components/ui/typography.tsx"
 
 interface ClusterConnectionGroupProps {
   clusterId: string
@@ -137,19 +138,17 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
-                          <Link
-                            className="block font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              display: "block",
-                            }}
-                            title={firstNodeAlias || clusterId}
-                            to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
+                          <Typography
+                            variant="code"
                           >
-                            {firstNodeAlias || clusterId}
-                          </Link>
+                            <Link
+                              className="hover:underline block truncate"
+                              title={firstNodeAlias || clusterId}
+                              to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
+                            >
+                              {firstNodeAlias || clusterId}
+                            </Link>
+                          </Typography>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -158,21 +157,14 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     </Tooltip>
                   ) : (
                     <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
-                      <h3
-                        className="
-                          font-mono text-sm text-gray-900 dark:text-white
-                          cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"
+                      <Typography
+                        className="hover:underline block truncate"
                         onClick={() => setIsOpen(!isOpen)}
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
                         title={firstNodeAlias || clusterId}
+                        variant="code"
                       >
                         {firstNodeAlias || clusterId}
-                      </h3>
+                      </Typography>
                     </div>
                   )}
                   <Button
@@ -194,7 +186,11 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   </Button>
                 </div>
               )}
-              <div className="text-sm pl-2 text-gray-500 dark:text-gray-400 font-mono truncate" title={`${connections.length} instance${connections.length !== 1 ? "s" : ""}${hasConnectedInstance ? ` - ${connectedCount} connected` : ""}`}>
+              <Typography
+                className="pl-2 text-gray-500 dark:text-gray-400 truncate"
+                title={`${connections.length} instance${connections.length !== 1 ? "s" : ""}${hasConnectedInstance ? ` - ${connectedCount} connected` : ""}`}
+                variant="code"
+              >
                 {connections.length} instance{connections.length !== 1 ? "s" : ""}
                 {hasConnectedInstance && (
                   <span className="ml-2 px-2 py-0.5 text-sm bg-teal-100 dark:bg-teal-900/30 text-teal-700
@@ -202,7 +198,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     {connectedCount} connected
                   </span>
                 )}
-              </div>
+              </Typography>
             </div>
           </div>
         </div>

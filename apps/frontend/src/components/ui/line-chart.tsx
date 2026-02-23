@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { Typography } from "./typography"
 
 interface LineChartComponentProps {
   data: Array<{ timestamp: number; value: number }>;
@@ -22,13 +23,15 @@ export default function LineChartComponent({
 }: LineChartComponentProps) {
   return (
     <div className="w-full">
-      <h2 className="text-xl font-bold text-center mb-2 text-black dark:text-white">
-        {title}
-      </h2>
+      {title && (
+        <Typography className="text-center mb-2" variant="subheading">
+          {title}
+        </Typography>
+      )}
       {subtitle && (
-        <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <Typography className="text-center mb-4" variant="bodySm">
           {subtitle}
-        </div>
+        </Typography>
       )}
       <ResponsiveContainer height={300} width="100%">
         <LineChart
