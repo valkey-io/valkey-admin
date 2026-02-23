@@ -1,4 +1,5 @@
 @import "@fontsource-variable/inter";
+@import "@fontsource/geist-mono";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -51,7 +52,7 @@
 
   /* Font */
   --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
 }
 
 :root {
@@ -184,6 +185,10 @@
   .text-code {
     @apply font-mono text-sm;
   }
+
+  .text-code-block {
+  @apply font-mono text-sm block w-full whitespace-pre overflow-x-auto;
+}
 }
 
 @keyframes linearProgress {

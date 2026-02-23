@@ -18,6 +18,7 @@ const typographyVariants = cva("", {
       caption: "text-caption",
       overline: "text-overline",
       code: "text-code",
+      codeBlock: "text-code-block",
     },
   },
   defaultVariants: {
@@ -25,7 +26,7 @@ const typographyVariants = cva("", {
   },
 })
 
-type AllowedElements = "h1" | "h2" | "h3" | "h4" | "p" | "span" | "code"
+type AllowedElements = "h1" | "h2" | "h3" | "h4" | "p" | "span" | "code" | "pre"
 
 const defaultElements: Record<
   NonNullable<VariantProps<typeof typographyVariants>["variant"]>,
@@ -43,6 +44,7 @@ const defaultElements: Record<
   caption: "span",
   overline: "span",
   code: "code",
+  codeBlock: "pre",
 }
 
 export interface TypographyProps

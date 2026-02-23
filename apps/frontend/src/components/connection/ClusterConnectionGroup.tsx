@@ -142,13 +142,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                             variant="code"
                           >
                             <Link
-                              className="hover:underline"
-                              style={{
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                display: "block",
-                              }}
+                              className="hover:underline block truncate"
                               title={firstNodeAlias || clusterId}
                               to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
                             >
@@ -164,14 +158,9 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   ) : (
                     <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
                       <Typography
-                        as="h3"
+                        // as="h3"
+                        className="hover:underline block truncate"
                         onClick={() => setIsOpen(!isOpen)}
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
                         title={firstNodeAlias || clusterId}
                         variant="code"
                       >

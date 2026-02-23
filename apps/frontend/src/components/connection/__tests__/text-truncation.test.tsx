@@ -161,17 +161,13 @@ describe("Text Truncation Improvements", () => {
         </TestWrapper>,
       )
 
-      // Since there are no connected instances, cluster name should be an h3 element with Typography
-      const clusterNameElement = container.querySelector("h3[title]")
+      // Since there are no connected instances, cluster name should be a code element with Typography
+      const clusterNameElement = container.querySelector("code[title]")
       expect(clusterNameElement).toBeInTheDocument()
       expect(clusterNameElement).toHaveAttribute("title")
 
-      // Check that it has ellipsis styles (via inline styles or classes)
-      const hasEllipsisStyles =
-        clusterNameElement?.classList.contains("overflow-hidden") ||
-        clusterNameElement?.style?.overflow === "hidden" ||
-        container.querySelector(".overflow-hidden.text-ellipsis.whitespace-nowrap")
-      expect(hasEllipsisStyles).toBeTruthy()
+      // Check that it has truncate class
+      expect(clusterNameElement).toHaveClass("truncate")
     })
 
     it("should apply truncate class and title to instance count text", () => {
