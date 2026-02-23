@@ -3,19 +3,12 @@
   "compilerOptions": {
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.server.tsbuildinfo",
     "target": "ES2022",
-    "paths": {
-      "@common/*": [
-        "../../common/src/*"
-      ]
-    },
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "lib": [
       "ES2022"
     ],
     "allowJs": false,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
     "outDir": "dist",
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -36,5 +29,8 @@
   "exclude": [
     "node_modules",
     "dist"
-  ]
+  ],
+  // "references": [
+  //  { "path": "../../common" }
+  // ]
 }

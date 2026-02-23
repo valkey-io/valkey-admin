@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { parseInfo, parseResponse, parseClusterInfo } from "../utils.ts"
+import { parseInfo, parseResponse, parseClusterInfo } from "../utils"
 
 describe("parseInfo", () => {
   it("should parse INFO response string into key-value pairs", () => {

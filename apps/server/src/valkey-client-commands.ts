@@ -1,4 +1,4 @@
-import { VALKEY_CLIENT } from "../../../common/src/constants.ts"
+import { VALKEY_CLIENT } from "valkey-common"
 
 interface BuildScanCommandArgsOptions {
   cursor: string;

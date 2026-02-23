@@ -9,8 +9,8 @@ import {
   ClosingError 
 } from "@valkey/valkey-glide"
 import pLimit from "p-limit"
-import { VALKEY } from "../../../common/src/constants.ts"
-import { buildScanCommandArgs } from "./valkey-client-commands.ts"
+import { VALKEY } from "valkey-common"
+import { buildScanCommandArgs } from "./valkey-client-commands"
 
 interface EnrichedKeyInfo {
   name: string;

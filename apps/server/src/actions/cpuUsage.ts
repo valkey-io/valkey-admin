@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY } from "../../../../common/src/constants"
+import { VALKEY } from "valkey-common"
 import { withDeps, Deps } from "./utils"
 
 type CpuUsageResponse = Array<{

@@ -1,7 +1,7 @@
 import { ClusterResponse, GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
-import { sanitizeUrl } from "../../../common/src/url-utils"
+import { sanitizeUrl } from "valkey-common"
 
 export const dns = {
   lookup,

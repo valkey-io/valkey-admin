@@ -2,8 +2,8 @@
 import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError } from "@valkey/valkey-glide"
-import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser.ts"
-import { VALKEY } from "../../../../common/src/constants.ts"
+import { VALKEY } from "valkey-common"
+import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser"
 
 // Test helper functions
 function createMockWs() {
@@ -440,7 +440,7 @@ describe("updateKey", () => {
         value: "newvalue",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.updateKeyFulfilled)
@@ -473,7 +473,7 @@ describe("updateKey", () => {
         ],
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.updateKeyFulfilled)
@@ -492,7 +492,7 @@ describe("updateKey", () => {
         keyType: "string",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const failMessage = JSON.parse(messages[0])
       assert.strictEqual(failMessage.type, VALKEY.KEYS.updateKeyFailed)
@@ -513,7 +513,7 @@ describe("updateKey", () => {
         value: "newvalue",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       assert.ok(mockWs.send.mock.calls.length >= 2)
       const failMessage = getMessageOfType(messages, VALKEY.KEYS.updateKeyFailed)
@@ -555,7 +555,7 @@ describe("getKeys", () => {
         count: 100,
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeys(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeys(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.getKeysFulfilled)
@@ -577,7 +577,7 @@ describe("getKeys", () => {
         connectionId: "conn-123",
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeys(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeys(mockClient as any, mockWs, payload))
 
       assert.ok(mockWs.send.mock.calls.length >= 2)
       const failMessage = getMessageOfType(messages, VALKEY.KEYS.getKeysFailed)
@@ -614,7 +614,7 @@ describe("getKeyInfoSingle", () => {
         key: "mykey",
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeyInfoSingle(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeyInfoSingle(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.getKeyTypeFulfilled)

@@ -1,4 +1,4 @@
-import { KEY_TYPES } from "./constants"
+import { KEY_TYPES } from "./constants.js"
 interface ValidationData {
   keyName: string
   keyType: string

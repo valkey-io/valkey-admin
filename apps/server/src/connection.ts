@@ -1,12 +1,12 @@
 import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import WebSocket from "ws"
-import { VALKEY } from "../../../common/src/constants"
+import { VALKEY } from "valkey-common"
+import { sanitizeUrl } from "valkey-common"
+import { type KeyEvictionPolicy } from "valkey-common"
 import { parseInfo, resolveHostnameOrIpAddress } from "./utils"
-import { sanitizeUrl } from "../../../common/src/url-utils.ts"
-import { type KeyEvictionPolicy } from "../../../common/src/constants"
-import { checkJsonModuleAvailability } from "./check-json-module.ts"
-import { type ConnectionDetails } from "./actions/connection.ts"
+import { checkJsonModuleAvailability } from "./check-json-module"
+import { type ConnectionDetails } from "./actions/connection"
 
 export async function connectToValkey(
   ws: WebSocket,

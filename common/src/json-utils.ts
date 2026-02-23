@@ -58,15 +58,15 @@ export const diff = (a:JSONObject, b:JSONObject): DiffEntry[] =>
 
 // combining a list of paths back into a json object (which we can then stringify to put into clipboard):
 // path[] -> Record<string, JSONValue>[] -> JSONObject
-export const toJson = (response) => (diffs: JSONObject[]) =>
+export const toJson = (response: unknown) => (diffs: DiffEntry[]) =>
   R.pipe(
-    R.map(({ keyPath, keyPathString }) => ({ [keyPathString]: R.path(keyPath as string[], response) })),
+    R.map<DiffEntry, JSONObject>(({ keyPath, keyPathString }) => ({ [keyPathString]: R.path(keyPath as string[], response) ?? null })),
     R.reduce<JSONObject, JSONObject>(R.mergeLeft, {} as JSONObject),
   )(diffs)
 
 // same as above but for DiffEntry[]
 export const diffToJson = (diffs: DiffEntry[]) =>
   R.pipe(
-    R.map(({ keyPathString, valueA, valueB }) => ({ [keyPathString]: { valueA, valueB } })),
+    R.map<DiffEntry, JSONObject>(({ keyPathString, valueA, valueB }) => ({ [keyPathString]: { valueA, valueB } })),
     R.reduce<JSONObject, JSONObject>(R.mergeLeft, {} as JSONObject),
   )(diffs)

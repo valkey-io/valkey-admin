@@ -1,23 +1,28 @@
 import { WebSocket, WebSocketServer } from "ws"
 import {  GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
-import { VALKEY } from "../../../common/src/constants.ts"
-import { connectPending, resetConnection, closeConnection } from "./actions/connection.ts"
-import { sendRequested } from "./actions/command.ts"
-import { setData } from "./actions/stats.ts"
-import { setClusterData } from "./actions/cluster.ts"
+import express from "express"
+import path from "path"
+import http from "http"
+import { VALKEY } from "valkey-common"
+import { fileURLToPath } from "url"
+import { connectPending, resetConnection, closeConnection } from "./actions/connection"
+import { sendRequested } from "./actions/command"
+import { setData } from "./actions/stats"
+import { setClusterData } from "./actions/cluster"
 import {
   addKeyRequested,
   deleteKeyRequested,
   getKeysRequested,
   getKeyTypeRequested,
   updateKeyRequested
-} from "./actions/keys.ts"
-import { hotKeysRequested } from "./actions/hotkeys.ts"
-import { commandLogsRequested } from "./actions/commandLogs.ts"
-import { updateConfig, enableClusterSlotStats } from "./actions/config.ts"
-import { cpuUsageRequested } from "./actions/cpuUsage.ts"
-import { memoryUsageRequested } from "./actions/memoryUsage.ts"
-import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils.ts"
+} from "./actions/keys"
+import { hotKeysRequested } from "./actions/hotkeys"
+import { commandLogsRequested } from "./actions/commandLogs"
+import { updateConfig, enableClusterSlotStats } from "./actions/config"
+import { cpuUsageRequested } from "./actions/cpuUsage"
+import { memoryUsageRequested } from "./actions/memoryUsage"
+import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
+import type { Request, Response } from "express"
 
 interface MetricsServerMessage {
   type: string
@@ -28,8 +33,27 @@ interface MetricsServerMessage {
   }
 }
 
-const wss = new WebSocketServer({ port: 8080 })
+const app = express()
+const port = process.env.PORT || 8080
+const server = http.createServer(app)
+// --- Serve frontend static files ---
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const frontendDist = path.join(__dirname, "../../frontend/dist")
+app.use(express.static(frontendDist))
+
+// Fallback to index.html for SPA routing
+app.get("*", (_: Request, res: Response) => {
+  res.sendFile(path.join(frontendDist, "index.html"))
+})
+
+const wss = new WebSocketServer({ server })
 const metricsServerURIs: Map<string, string> = new Map()
+
+server.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`)
+})
 
 wss.on("listening", () => { // Add a listener for when the server starts listening
   console.log("Websocket server running on localhost:8080")

@@ -1,8 +1,8 @@
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
-import { closeClient, closeMetricsServer, connectToValkey } from "../connection.ts"
-import { type Deps, withDeps } from "./utils.ts"
-import { setClusterDashboardData } from "../set-dashboard-data.ts"
-import { isLastConnectedClusterNode } from "../utils.ts"
+import { closeClient, closeMetricsServer, connectToValkey } from "../connection"
+import { type Deps, withDeps } from "./utils"
+import { setClusterDashboardData } from "../set-dashboard-data"
+import { isLastConnectedClusterNode } from "../utils"
 
 export interface ConnectionDetails {
   host: string;

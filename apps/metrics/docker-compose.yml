@@ -18,7 +18,7 @@ services:
             - ./config.yml:/app/config.yml:ro
             - ./data:/app/data
         ports:
-            - "3000:3000"
+            - "8080:3000"
         extra_hosts:
             - "host.docker.internal:host-gateway"
         restart: unless-stopped

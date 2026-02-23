@@ -1,7 +1,13 @@
 import { defineConfig } from "vite"
 import { resolve } from "path"
+import { builtinModules } from "module"
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "valkey-common": resolve(__dirname, "../../common/src"), // point directly to source
+    },
+  },
   build: {
     outDir: "dist",
     target: "node22",
@@ -9,11 +15,17 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       fileName: "server-bundle",
-      formats: ["cjs"],
+      formats: ["es"],
     },
 
     rollupOptions: {
-      external: ["@valkey/valkey-glide", "ws", "node:dns/promises", "node:dns", "dns"],
+      external: [
+        "valkey-common",
+        "@valkey/valkey-glide", 
+        "ws", 
+        ...builtinModules,
+        ...builtinModules.map((m) => `node:${m}`),
+      ],
     },
 
     emptyOutDir: false,

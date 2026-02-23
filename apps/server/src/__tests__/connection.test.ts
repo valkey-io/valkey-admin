@@ -2,12 +2,12 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
-import { sanitizeUrl } from "common/src/url-utils.ts"
-import { connectToValkey, isDuplicateConnection } from "../connection.ts"
-import { resolveHostnameOrIpAddress, dns } from "../utils.ts"
-import { checkJsonModuleAvailability } from "../check-json-module.ts"
-import { KEY_EVICTION_POLICY, VALKEY } from "../../../../common/src/constants.ts"
-import { ConnectionDetails } from "../actions/connection.ts"
+import { sanitizeUrl } from "valkey-common"
+import { KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
+import { connectToValkey, isDuplicateConnection } from "../connection"
+import { resolveHostnameOrIpAddress, dns } from "../utils"
+import { checkJsonModuleAvailability } from "../check-json-module"
+import { ConnectionDetails } from "../actions/connection"
 
 const DEFAULT_PAYLOAD = {
   connectionDetails: {

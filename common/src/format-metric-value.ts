@@ -1,5 +1,5 @@
-import { formatBytes } from "./bytes-conversion"
-import { formatSeconds } from "./time-utils"
+import { formatBytes } from "./bytes-conversion.js"
+import { formatSeconds } from "./time-utils.js"
 
 export type ValueType = "bytes" | "number" | "mixed"
 

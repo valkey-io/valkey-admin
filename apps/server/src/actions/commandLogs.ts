@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, COMMANDLOG_TYPE } from "../../../../common/src/constants"
+import { VALKEY, COMMANDLOG_TYPE } from "valkey-common"
 import { withDeps, Deps } from "./utils"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY

@@ -1,6 +1,6 @@
 import { GlideClient, GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
-import { VALKEY } from "../../../common/src/constants"
+import { VALKEY } from "valkey-common"
 import { parseResponse } from "./utils"
 
 export const isRequestError = (x: unknown): x is Error | string =>

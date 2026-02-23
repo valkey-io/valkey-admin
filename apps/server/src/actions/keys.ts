@@ -1,6 +1,6 @@
-import { addKey, deleteKey, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser.ts"
-import { VALKEY } from "../../../../common/src/constants.ts"
-import { type Deps, withDeps } from "./utils.ts"
+import { VALKEY } from "valkey-common"
+import { addKey, deleteKey, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser"
+import { type Deps, withDeps } from "./utils"
 
 type GetKeysPayload = {
   connectionId: string;
