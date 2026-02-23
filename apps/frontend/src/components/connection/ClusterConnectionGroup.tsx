@@ -158,7 +158,6 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   ) : (
                     <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
                       <Typography
-                        // as="h3"
                         className="hover:underline block truncate"
                         onClick={() => setIsOpen(!isOpen)}
                         title={firstNodeAlias || clusterId}
