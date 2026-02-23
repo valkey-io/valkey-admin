@@ -3,8 +3,8 @@ import { useSelector } from "react-redux"
 import { useState, useRef, useEffect, type ReactNode } from "react"
 import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight } from "lucide-react"
 import { CONNECTED } from "@common/src/constants.ts"
-import { Title } from "./title"
 import { Badge } from "./badge"
+import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
@@ -58,9 +58,10 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     <>
       {id && !clusterId ? (
         <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between", className)}>
-          <Title icon={icon} size="md">
+          <Typography className="flex items-center gap-2" variant="heading">
+            {icon}
             {title}
-          </Title>
+          </Typography>
 
           <Badge variant="default">
             {alias ? alias : `${username}@${host}:${port}`}
@@ -68,19 +69,23 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
         </div>
       ) : (
         <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between relative", className)}>
-          <Title icon={icon} size="md">
+          <Typography className="flex items-center gap-2" variant="heading">
+            {icon}
             {title}
-          </Title>
+          </Typography>
           <div>
             <Badge
               className="h-5 w-50 px-2 py-4 flex items-center gap-2 justify-between cursor-pointer"
               variant="default"
             >
               <div className="flex flex-col gap-1">
-                <span className="font-light text-sm text-tw-primary flex items-center">
+                <Typography
+                  className="flex items-center"
+                  variant="bodySm"
+                >
                   <Dot className={isConnected ? "text-green-500" : "text-gray-400"} size={45} />
                   {id}
-                </span>
+                </Typography>
               </div>
               <button disabled={!isConnected} onClick={() => isConnected && setIsOpen(!isOpen)}>
                 <ToggleIcon
@@ -101,17 +106,22 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
-                        <button className="font-normal flex items-center cursor-pointer hover:bg-tw-primary/20"
+                        <button className="flex items-center cursor-pointer hover:bg-tw-primary/20"
                           disabled={!nodeIsConnected}
                           onClick={() => handleNavigate()}>
                           <Dot className={nodeIsConnected ? "text-green-500" : "text-gray-400"} size={45} />
-                          {`${primary.host}:${primary.port}`}
+                          <Typography variant="bodySm">
+                            {`${primary.host}:${primary.port}`}
+                          </Typography>
                         </button>
                         {primary.replicas?.map((replica) => (
                           <div className="flex items-center ml-4" key={replica.id}>
                             <CornerDownRight className="text-tw-dark-border" size={20} />
-                            <button className="font-normal flex items-center text-xs">
-                              <Dot className="text-tw-primary" size={24} />{replica.host}:{replica.port}
+                            <button className="flex items-center">
+                              <Dot className="text-tw-primary" size={24} />
+                              <Typography variant="caption">
+                                {replica.host}:{replica.port}
+                              </Typography>
                             </button>
                           </div>
                         ))}

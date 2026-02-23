@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button.tsx"
 import { ConnectionStatusBadge } from "@/components/ui/connection-status-badge"
 import { ConnectionActionButtons } from "@/components/ui/connection-action-buttons.tsx"
+import { Typography } from "@/components/ui/typography.tsx"
 import { cn } from "@/lib/utils.ts"
 import history from "@/history.ts"
 import { useAppDispatch } from "@/hooks/hooks.ts"
@@ -65,19 +66,21 @@ export const ConnectionEntry = ({
           <div>
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <ConnectionStatusBadge status={statusType} />
-              <Button
-                asChild
-                className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm truncate")}
-                variant="link"
-              >
-                <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
-                  {label}
-                </Link>
-              </Button>
+              <Typography asChild variant="code">
+                <Button
+                  asChild
+                  className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto truncate")}
+                  variant="link"
+                >
+                  <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                    {label}
+                  </Link>
+                </Button>
+              </Typography>
             </div>{lastConnectionTime && lastConnectionTime.event === CONNECTED && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 truncate" title={`Last connected: ${new Date(lastConnectionTime.timestamp).toLocaleString()}`}>
+              <Typography variant="bodyXs">
                 Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
-              </span>
+              </Typography>
             )}</div>
 
           {/* action buttons */}
@@ -104,25 +107,27 @@ export const ConnectionEntry = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <Button
-              asChild
-              className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto font-mono text-sm mb-1 truncate")}
-              variant="link"
-            >
-              <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
-                {aliasLabel}
-              </Link>
-            </Button>
+            <Typography asChild variant="code">
+              <Button
+                asChild
+                className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto mb-1 truncate")}
+                variant="link"
+              >
+                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                  {aliasLabel}
+                </Link>
+              </Button>
+            </Typography>
             {connection.connectionDetails.alias && (
-              <span className="ml-1 font-mono text-xs text-tw-dark-border dark:text-white/50 truncate" title={label}>
+              <Typography className="ml-1 text-tw-dark-border dark:text-white/50 truncate" title={label} variant="bodyXs">
                 ({label})
-              </span>)}
+              </Typography>)}
             <div className="flex items-center gap-3">
               <ConnectionStatusBadge status={statusType} />
               {lastConnectionTime && lastConnectionTime.event === CONNECTED && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 truncate" title={`Last connected: ${new Date(lastConnectionTime.timestamp).toLocaleString()}`}>
+                <Typography variant="bodyXs">
                   Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
-                </span>
+                </Typography>
               )}
             </div>
           </div>

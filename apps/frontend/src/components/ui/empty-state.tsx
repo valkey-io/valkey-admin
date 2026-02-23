@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Typography } from "./typography"
 import { cn } from "@/lib/utils"
 
 interface EmptyStateProps extends React.ComponentProps<"div"> {
@@ -26,13 +27,13 @@ function EmptyState({
     >
       <div className="text-center">
         {icon && <div className="flex justify-center mb-3 opacity-30">{icon}</div>}
-        <h2 className="text-lg font-semibold text-gray-700 dark:text-white mb-2">
+        <Typography className="text-gray-700 dark:text-white mb-2" variant="subheading">
           {title}
-        </h2>
+        </Typography>
         {description && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <Typography className="text-gray-500 dark:text-gray-400 mb-6" variant="bodySm">
             {description}
-          </p>
+          </Typography>
         )}
         {action}
       </div>

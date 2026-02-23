@@ -6,7 +6,7 @@ import EditForm from "../ui/edit-form.tsx"
 import RouteContainer from "../ui/route-container.tsx"
 import { Button } from "../ui/button.tsx"
 import { EmptyState } from "../ui/empty-state.tsx"
-import { SectionHeader } from "../ui/section-header.tsx"
+import { Typography } from "../ui/typography.tsx"
 import type { ConnectionState } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
@@ -59,9 +59,9 @@ export function Connection() {
     <RouteContainer title="connection">
       {/* top header */}
       <div className="flex items-center justify-between h-10">
-        <h1 className="text-xl font-bold flex items-center gap-2 text-gray-700 dark:text-white">
+        <Typography className="flex items-center gap-2" variant="heading">
           <HousePlug /> Connections
-        </h1>
+        </Typography>
         {hasConnectionsWithHistory && (
           <Button
             onClick={() => setShowConnectionForm(!showConnectionForm)}
@@ -95,7 +95,7 @@ export function Connection() {
           {/* for clusters */}
           {hasClusterGroups && (
             <div className="mb-8">
-              <SectionHeader>Clusters</SectionHeader>
+              <Typography className="mb-2" variant="bodyLg">Clusters</Typography>
               <div>
                 {Object.entries(clusterGroups).map(([clusterId, clusterConnections]) => (
                   <ClusterConnectionGroup
@@ -112,7 +112,7 @@ export function Connection() {
           {/* for standalone instances */}
           {hasStandaloneConnections && (
             <div>
-              <SectionHeader>Instances</SectionHeader>
+              <Typography className="mb-2" variant="bodyLg">Instances</Typography>
               <div>
                 {standaloneConnections.map(({ connectionId, connection }) => (
                   <ConnectionEntry
