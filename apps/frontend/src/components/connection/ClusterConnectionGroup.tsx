@@ -164,6 +164,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   ) : (
                     <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
                       <Typography
+                        as="h3"
                         onClick={() => setIsOpen(!isOpen)}
                         style={{
                           overflow: "hidden",
@@ -197,7 +198,11 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   </Button>
                 </div>
               )}
-              <Typography className="pl-2 text-gray-500 dark:text-gray-400 truncate" variant="code">
+              <Typography
+                className="pl-2 text-gray-500 dark:text-gray-400 truncate"
+                title={`${connections.length} instance${connections.length !== 1 ? "s" : ""}${hasConnectedInstance ? ` - ${connectedCount} connected` : ""}`}
+                variant="code"
+              >
                 {connections.length} instance{connections.length !== 1 ? "s" : ""}
                 {hasConnectedInstance && (
                   <span className="ml-2 px-2 py-0.5 text-sm bg-teal-100 dark:bg-teal-900/30 text-teal-700
