@@ -34,7 +34,7 @@ interface MetricsServerMessage {
 }
 
 const app = express()
-const port = process.env.PORT || 8080
+const port = Number(process.env.PORT) || 8080
 const server = http.createServer(app)
 // --- Serve frontend static files ---
 

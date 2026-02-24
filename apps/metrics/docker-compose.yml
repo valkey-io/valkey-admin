@@ -6,7 +6,6 @@ services:
             CONFIG_PATH: "/app/config.yml"
             PORT: "3000"
             DATA_DIR: "/app/data"
-            # VALKEY_URL: "valkey://host.docker.internal:7001" # single URL (router, one seed, or any reachable node)
             VALKEY_HOST: host.docker.internal
             VALKEY_PORT: "7001"
             BATCH_MS: "1000"

@@ -11,10 +11,7 @@ COPY common ./common
 RUN npm ci
 
 # Build frontend + server
-RUN npm run build:common
-RUN npm run build:frontend
-RUN npm run build:server
-
+RUN npm run build:all
 
 # -------- Production Runtime --------
 FROM node:22-bookworm-slim
@@ -29,8 +26,11 @@ COPY package.json package-lock.json ./
 # Copy the server workspace package.json 
 COPY apps/server/package.json ./apps/server/package.json
 
+# Copy the common workspace package.json
+COPY common/package.json ./common/package.json
+
 # Install only production deps for server workspace
-RUN npm ci --omit=dev --workspace=apps/server
+RUN npm ci --omit=dev
 
 # Copy built common
 COPY --from=builder /app/common/dist ./common/dist
@@ -44,4 +44,4 @@ COPY --from=builder /app/apps/frontend/dist ./apps/frontend/dist
 # Expose backend port
 EXPOSE 8080
 
-CMD ["node", "apps/server/dist/apps/server/src/index.js"]
+CMD ["node", "apps/server/dist/index.js"]
