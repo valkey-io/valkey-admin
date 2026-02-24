@@ -13,6 +13,34 @@ import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
 
+async function waitForValkey(createClientFn, {
+  retries = 30,
+  delayMs = 1000,
+  backoffFactor = 1,
+} = {}) {
+  let attempt = 0
+  let currentDelay = delayMs
+
+  while (attempt < retries) {
+    try {
+      const client = await createClientFn()
+      await client.ping?.()
+      console.log("Metrics: Connected to Valkey")
+      return client
+    } catch (error) {
+      attempt++
+      console.log(
+        `Valkey not ready (attempt ${attempt}). ${error.message}. Retrying in ${currentDelay}ms...`,
+      )
+
+      await new Promise((r) => setTimeout(r, currentDelay))
+      currentDelay = Math.floor(currentDelay * backoffFactor)
+    }
+  }
+
+  throw new Error("Unable to connect to Valkey after retries")
+}
+
 async function main() {
   const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
@@ -24,6 +52,7 @@ async function main() {
       port: Number(process.env.VALKEY_PORT),
     },
   ]
+  console.log("Addresses: ", addresses)
   const credentials =
     process.env.VALKEY_PASSWORD ? {
       username: process.env.VALKEY_USERNAME,
@@ -31,22 +60,22 @@ async function main() {
     } : undefined
 
   const useTLS = process.env.VALKEY_TLS === "true"
-  const client = await GlideClient.createClient({
-    addresses,
-    credentials,
-    useTLS,
-    ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
-      advancedConfiguration: {
-        tlsAdvancedConfiguration: {
-          insecure: true,
+  const client = await waitForValkey(() =>
+    GlideClient.createClient({
+      addresses,
+      credentials,
+      useTLS,
+      ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
+        advancedConfiguration: {
+          tlsAdvancedConfiguration: {
+            insecure: true,
+          },
         },
-      },
+      }),
+      requestTimeout: 5000,
+      clientName: "test_client",
     }),
-
-    requestTimeout: 5000,
-    clientName: "test_client",
-  })
-
+  )
   await setupCollectors(client, cfg)
 
   const app = express()
