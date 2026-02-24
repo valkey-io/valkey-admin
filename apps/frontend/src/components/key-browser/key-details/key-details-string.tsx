@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Textarea } from "../../ui/textarea"
+import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -52,8 +53,8 @@ export default function KeyDetailsString(
       <table className="table-auto w-full overflow-hidden">
         <thead className={cn("bg-muted/60 text-foreground")}>
           <tr>
-            <th className="w-full py-3 px-4 text-left font-semibold">
-              Value
+            <th className="w-full py-3 px-4 text-left">
+              <Typography variant="label">Value</Typography>
             </th>
             <th className="">
               <EditActionButtons
@@ -67,7 +68,7 @@ export default function KeyDetailsString(
         </thead>
         <tbody>
           <tr>
-            <td className={cn("py-3 px-4 font-light text-foreground")} colSpan={2}>
+            <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
               {isEditable ? (
                 <Textarea
                   autoFocus
@@ -76,9 +77,9 @@ export default function KeyDetailsString(
                   value={editedValue}
                 />
               ) : (
-                <div className="whitespace-pre-wrap break-words">
+                <Typography className="whitespace-pre-wrap break-words" variant="code">
                   {selectedKeyInfo.elements}
-                </div>
+                </Typography>
               )}
             </td>
           </tr>

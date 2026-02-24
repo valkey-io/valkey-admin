@@ -1,25 +1,27 @@
 import { CircleQuestionMark } from "lucide-react"
+import RouteContainer from "../ui/route-container"
+import { Typography } from "../ui/typography"
 
 export default function LearnMore() {
   return (
-    <div className="p-4 relative min-h-screen flex flex-col">
+    <RouteContainer title="Learn More">
       {/* top header */}
       <div className="flex items-center justify-between h-10">
-        <h1 className="text-xl font-bold flex items-center gap-2 text-gray-700 dark:text-white">
-          <CircleQuestionMark /> Learn More
-        </h1>
+        <Typography className="flex items-center gap-2" variant={"heading"}>
+          <CircleQuestionMark size={20}/> Learn More
+        </Typography>
       </div>
-      <div className="flex flex-col flex-1 items-center justify-center gap-2 font-light text-sm">
+      <div className="flex flex-col flex-1 items-center justify-center gap-2">
         <a
-          className="text-tw-primary underline"
+          className="text-tw-primary underline text-body-sm"
           href="https://github.com/valkey-io/valkey-admin"
           rel="noopener noreferrer"
           target="_blank"
         >
           Valkey Admin Version 0.0.1
         </a>
-        <p className="text-gray-600 dark:text-white">A dedicated UI for Valkey</p>
+        <Typography variant="bodySm">A dedicated UI for Valkey</Typography>
       </div>
-    </div>
+    </RouteContainer>
   )
 }

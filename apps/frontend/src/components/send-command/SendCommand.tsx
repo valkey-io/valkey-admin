@@ -18,6 +18,7 @@ import { Panel } from "@/components/ui/panel.tsx"
 import DiffCommands from "@/components/send-command/DiffCommands.tsx"
 import Response from "@/components/send-command/Response.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
+import { Typography } from "@/components/ui/typography.tsx"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
@@ -67,7 +68,7 @@ export function SendCommand() {
       <div className="flex-1 overflow-auto w-full flex flex-row gap-4">
         {/* response | diff */}
         <div className="flex flex-col flex-2">
-          <h3 className="text-muted-foreground text-sm font-medium mb-2">{compareWith ? "Diff" : "Response"}</h3>
+          <Typography className="mb-2" variant="bodySm">{compareWith ? "Diff" : "Response"}</Typography>
           <div className="mb-2 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
             <Input
@@ -77,8 +78,8 @@ export function SendCommand() {
               value={keysFilter}
             /> </div>
           <Panel className="flex-1 bg-muted">
-            <pre className="h-full overflow-y-auto whitespace-pre-wrap wrap-break-word p-2">
-              <code className={`text-sm font-mono ${error ? "text-destructive" : "text-primary"}`}>
+            <Typography className="h-full overflow-y-auto whitespace-pre-wrap wrap-break-word p-2" variant={"codeBlock"}>
+              <Typography className={`${error ? "text-destructive" : ""}`} variant={"code"}>
                 {
                   compareWith === null ?
                     <Response
@@ -92,14 +93,14 @@ export function SendCommand() {
                       indexB={compareWith}
                     />
                 }
-              </code>
-            </pre>
+              </Typography>
+            </Typography>
           </Panel>
         </div>
 
         {/* commands history */}
         <div className="flex flex-col flex-1 max-w-[40vw]">
-          <h3 className="text-muted-foreground text-sm font-medium mb-2">History</h3>
+          <Typography className="mb-2" variant="bodySm">History</Typography>
           <div className="mb-2 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
             <Input
@@ -129,22 +130,23 @@ export function SendCommand() {
                       />
                       <Tooltip delayDuration={2000}>
                         <TooltipTrigger asChild>
-                          <div
+                          <Typography
                             className="truncate text-left cursor-pointer"
                             onClick={() => {
                               setText("")
                               setCompareWith(null)
                               setCommandIndex(i)
                             }}
+                            variant="code"
                           >
                             {command}
-                          </div>
+                          </Typography>
                         </TooltipTrigger>
                         <TooltipContent side="left">
-                          <p className="max-w-[50vw]">
+                          <Typography className="max-w-[50vw]" variant="bodySm">
                             See response for:<br/>
-                            <code>{command}</code>
-                          </p>
+                            <Typography as="span" variant="code">{command}</Typography>
+                          </Typography>
                         </TooltipContent>
                       </Tooltip>
                       <div className="flex flex-row justify-self-end ml-auto">
@@ -214,6 +216,7 @@ export function SendCommand() {
         <Button
           disabled={text.trim().length === 0}
           onClick={() => onSubmit()}
+          variant={"default"}
         >
           Send
         </Button>

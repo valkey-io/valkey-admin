@@ -5,6 +5,7 @@ import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
+import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -130,8 +131,8 @@ export default function KeyDetailsSet(
     <div className="flex items-center justify-center w-full p-4">
       <div className="w-full">
         <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
-          <div className="font-semibold text-left">Index</div>
-          <div className="col-span-2 font-semibold text-left">Value</div>
+          <Typography className="text-left" variant="label">Index</Typography>
+          <Typography className="col-span-2 text-left" variant="label">Value</Typography>
           <div className="flex justify-end gap-1">
             <EditActionButtons
               isEditable={isEditable}
@@ -145,8 +146,8 @@ export default function KeyDetailsSet(
           .map((element: string, index: number) => ({ element, index }))
           .filter(({ element }) => !deletedValues.has(element))
           .map(({ element, index }) => (
-            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={index}>
-              <div>{index}</div>
+            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+              <Typography variant="bodySm">{index}</Typography>
               <div className="col-span-3">
                 {isEditable ? (
                   <div className="flex gap-2 relative">
@@ -173,14 +174,14 @@ export default function KeyDetailsSet(
                     )}
                   </div>
                 ) : (
-                  String(element)
+                  <Typography variant="code">{String(element)}</Typography>
                 )}
               </div>
             </div>
           ))}
         {isEditable && newItems.map((newItem) => (
-          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={newItem.tempId}>
-            <div>New</div>
+          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={newItem.tempId}>
+            <Typography variant="bodySm">New</Typography>
             <div className="col-span-3">
               <div className="flex gap-2">
                 <Input
