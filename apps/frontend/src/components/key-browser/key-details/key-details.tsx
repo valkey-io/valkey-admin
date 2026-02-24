@@ -16,6 +16,7 @@ import KeyDetailsJson from "./key-details-json"
 import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { CustomTooltip } from "@/components/ui/tooltip"
+import { Typography } from "@/components/ui/typography"
 
 interface BaseKeyInfo {
   name: string;
@@ -96,10 +97,10 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
           <div className="h-full p-4 text-sm font-light overflow-y-auto">
             {/* Header Section */}
             <div className="flex justify-between items-center mb-2 border-b pb-4 border-tw-dark-border">
-              <span className="font-semibold flex items-center gap-2">
+              <Typography className="flex items-center gap-2" variant="label">
                 <Key size={16} />
                 {selectedKey}
-              </span>
+              </Typography>
               <div className="space-x-2 flex items-center relative">
 
                 {!readOnly && (
@@ -217,8 +218,10 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
             )}
           </div>
         ) : (
-          <div className="h-full p-4 text-sm font-light flex items-center justify-center text-gray-500">
-            Select a key to see details
+          <div className="h-full p-4 flex items-center justify-center">
+            <Typography variant="bodySm">
+              Select a key to see details
+            </Typography>
           </div>
         )}
       </Panel>

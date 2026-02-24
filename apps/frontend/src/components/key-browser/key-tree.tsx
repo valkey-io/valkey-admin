@@ -4,6 +4,7 @@ import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { keyTreeBuilder, countKeys } from "@common/src/key-tree-builder"
 import { CustomTooltip } from "../ui/tooltip"
+import { Typography } from "../ui/typography"
 
 interface KeyInfo {
   name: string
@@ -69,7 +70,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
       <div
         className={`${showBorder ? "h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30 cursor-pointer rounded" 
           : "py-1 px-2 cursor-pointer hover:bg-tw-primary/10 rounded text-sm"} flex items-center gap-2 justify-between ${
-          isSelected ? "bg-tw-primary/80 hover:bg-tw-primary/80" : ""
+          isSelected ? "border-l-6 border-primary bg-primary/20 dark:bg-primary/50" : ""
         }`}
         onClick={handleClick}
       >
@@ -99,49 +100,49 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
           <div className="flex flex-col flex-1 min-w-0">
             <span className="flex items-center gap-2">
               {node.isLeaf && <Key size={16} />}
-              <span className="truncate">{node.segment}</span>
+              <Typography className="truncate" variant="bodySm">{node.segment}</Typography>
               {!node.isLeaf && (
-                <span className={`text-xs ${isSelected ? "text-white" : "text-tw-primary"}`}>
+                <Typography  variant="bodySm">
                   ({keyCount})
-                </span>
+                </Typography>
               )}
             </span>
             {node.isLeaf && node.key && (
-              <div className={`ml-6 text-xs font-light uppercase text-tw-primary ${isSelected ? "text-white" : ""}`}>
+              <Typography className="uppercase" variant="bodyXs">
                 {node.key.type === "ReJSON-RL" ? "json" : node.key.type}
-              </div>
+              </Typography>
             )}
           </div>
         </div>
 
         {/* key ttl and size only for leaf nodes */}
         {node.isLeaf && node.key && (
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-1">
             {node.key.size && (
               <CustomTooltip content="Size">
-                <span
-                  className={`flex items-center justify-between gap-1 text-xs px-2 py-1
-                   text-tw-primary ${isSelected ? "text-white" : ""} dark:text-white`}
+                <Typography
+                  className="flex items-center justify-between gap-1 px-2 py-1"
+                  variant="bodyXs"
                 >
                   <Database
                     className="text-white bg-tw-primary p-1 rounded-full"
                     size={20}
                   />{" "}
                   {formatBytes(node.key.size)}
-                </span>
+                </Typography>
               </CustomTooltip>
             )}
             <CustomTooltip content="TTL">
-              <span
-                className={`flex items-center justify-between gap-1 text-xs px-2 py-1
-                  text-tw-primary ${isSelected ? "text-white" : ""} dark:text-white`}
+              <Typography
+                className="flex items-center justify-between gap-1 px-2 py-1"
+                variant="bodyXs"
               >
                 <Hourglass
                   className="text-white bg-tw-primary p-1 rounded-full"
                   size={20}
                 />{" "}
                 {convertTTL(node.key.ttl)}
-              </span>
+              </Typography>
             </CustomTooltip>
           </div>
         )}

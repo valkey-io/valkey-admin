@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import { Typography } from "@/components/ui/typography"
 
 interface AddNewKeyProps {
   onClose: () => void;
@@ -253,7 +254,9 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             <div className="w-1/2 h-3/4 p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg 
             border flex flex-col">
               <div className="flex justify-between">
-                <Dialog.Title className="text-lg font-semibold">Add Key</Dialog.Title>
+                <Dialog.Title asChild>
+                  <Typography variant="subheading">Add Key</Typography>
+                </Dialog.Title>
                 <Dialog.Close asChild>
                   <Button className="hover:text-tw-primary h-auto p-0" variant="ghost">
                     <X size={20} />
@@ -309,9 +312,9 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                       />
                     </div>
                   </div>
-                  <div className="mt-6 text-sm font-semibold border-b border-tw-dark-border pb-2">
+                  <Typography className="mt-6 border-b border-tw-dark-border pb-2" variant="bodySm">
                     Key Elements
-                  </div>
+                  </Typography>
                 </div>
                 <div className="flex-1 overflow-y-auto min-h-0 px-1">
                   {keyType === KEY_TYPES.STRING ? (
@@ -355,14 +358,16 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                   ) : keyType === KEY_TYPES.JSON ? (
                     <JsonFields jsonModuleAvailable={jsonModuleAvailable} setValue={setValue} value={value} />
                   ) : (
-                    <div className="mt-2 text-sm font-light">Select a key type</div>
+                    <Typography className="mt-2 text-gray-500" variant="bodySm">
+                      Select a key type
+                    </Typography>
                   )}
                 </div>
                 <div className="flex-shrink-0">
                   {error && (
-                    <div className="mt-4 text-sm text-red-500 font-medium">
+                    <Typography className="mt-4" variant="bodySm">
                       {error}
-                    </div>
+                    </Typography>
                   )}
 
                   <div className="pt-2 text-sm flex space-x-1">

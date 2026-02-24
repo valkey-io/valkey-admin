@@ -21,6 +21,7 @@ import { StatCard } from "../ui/stat-card"
 import { SearchInput } from "../ui/search-input"
 import RouteContainer from "../ui/route-container"
 import { TooltipIcon } from "../ui/tooltip-icon"
+import { Typography } from "../ui/typography"
 import { SplitPanel } from "../ui/split-panel"
 import { Panel } from "../ui/panel"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -141,7 +142,11 @@ export function KeyBrowser() {
     <RouteContainer title="Key Browser">
       <AppHeader icon={<KeyRound size={20} />} title="Key Browser" />
 
-      {error && <div className="ml-2">Error loading keys: {error}</div>}
+      {error && (
+        <Typography className="ml-2" variant="bodySm">
+          Error loading keys: {error}
+        </Typography>
+      )}
 
       {/* Total Keys and Key Stats */}
       <TooltipProvider>

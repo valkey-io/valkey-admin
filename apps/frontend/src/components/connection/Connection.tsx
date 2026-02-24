@@ -60,7 +60,7 @@ export function Connection() {
       {/* top header */}
       <div className="flex items-center justify-between h-10">
         <Typography className="flex items-center gap-2" variant="heading">
-          <HousePlug /> Connections
+          <HousePlug size={20}/> Connections
         </Typography>
         {hasConnectionsWithHistory && (
           <Button

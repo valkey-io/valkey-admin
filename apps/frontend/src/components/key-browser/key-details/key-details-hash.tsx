@@ -5,6 +5,7 @@ import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
+import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -145,8 +146,8 @@ export default function KeyDetailsHash(
     <div className="flex items-center justify-center w-full p-4">
       <div className="w-full">
         <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
-          <div className="font-semibold text-left">Key</div>
-          <div className="col-span-2 font-semibold text-left">Value</div>
+          <Typography className="text-left" variant="label">Key</Typography>
+          <Typography className="col-span-2 text-left" variant="label">Value</Typography>
           <div className="flex justify-end gap-1">
             <EditActionButtons
               isEditable={isEditable}
@@ -159,8 +160,8 @@ export default function KeyDetailsHash(
         {selectedKeyInfo.elements
           .filter((element: ElementInfo) => !deletedHashFields.has(element.key))
           .map((element: ElementInfo, index: number) => (
-            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={index}>
-              <div>{element.key}</div>
+            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+              <Typography variant="code">{element.key}</Typography>
               <div className="col-span-3">
                 {isEditable ? (
                   <div className="flex gap-2 relative">
@@ -187,13 +188,13 @@ export default function KeyDetailsHash(
                     )}
                   </div>
                 ) : (
-                  element.value
+                  <Typography variant="code">{element.value}</Typography>
                 )}
               </div>
             </div>
           ))}
         {isEditable && newFields.map((newField) => (
-          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={newField.tempId}>
+          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={newField.tempId}>
             <div>
               <Input
                 onChange={(e) => handleNewFieldKeyChange(newField.tempId, e.target.value)}
