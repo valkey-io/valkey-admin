@@ -8,6 +8,7 @@ import { LoadingState } from "../ui/loading-state"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
 import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../ui/sortable-table-header"
+import { Typography } from "../ui/typography"
 import { copyToClipboard } from "@/lib/utils"
 
 interface HotKeysProps {
@@ -51,6 +52,7 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
           />
           <SortableTableHeader
             active={true}
+            className="text-center"
             label="Access Count"
             onClick={toggleSortOrder}
             sortOrder={sortOrder}
@@ -78,14 +80,12 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
             {/* key name */}
             <td className="px-4 py-3 w-2/5">
               <div className="flex items-center gap-2">
-                <span className={`text-sm font-medium truncate
+                <Typography className={`truncate
                             ${isDeleted
-            ? "line-through opacity-75"
-            : selectedKey === keyName
-                    && "text-tw-primary font-light"
-          }`}>
+            ? "line-through opacity-75" : ""
+          }`} variant={"code"}>
                   {keyName}
-                </span>
+                </Typography>
                 {isDeleted && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full
                              bg-red-200 dark:bg-red-400">
@@ -105,28 +105,24 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
             </td>
 
             {/* access count */}
-            <td className="px-4 py-3 w-1/5">
-              <span className={`inline-flex items-center text-sm px-3 py-1 rounded-full
-                          ${isDeleted
-            ? "bg-tw-dark-border/20 dark:bg-gray-700"
-            : "bg-tw-primary/20 text-tw-primary"
-          }`}>
+            <td className="px-4 py-3 w-1/5 text-center">
+              <Typography variant={"bodySm"}>
                 {count.toLocaleString()}
-              </span>
+              </Typography>
             </td>
 
             {/* size */}
             <td className="px-4 py-3 w-1/5 text-center">
-              <span className="font-mono text-sm">
+              <Typography variant={"bodySm"}>
                 {isDeleted ? "—" : formatBytes(size!)}
-              </span>
+              </Typography>
             </td>
 
             {/* ttl */}
             <td className="px-4 py-3 w-1/5 text-center">
-              <span className="font-mono text-sm">
+              <Typography variant={"bodySm"}>
                 {isDeleted ? "—" : convertTTL(ttl)}
-              </span>
+              </Typography>
             </td>
           </tr>
         )
@@ -138,10 +134,10 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
         errorMessage && (
           <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700 dark:text-red-400 text-left">
+              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+              <Typography variant="bodySm">
                 {errorMessage}
-              </p>
+              </Typography>
             </div>
           </div>
         )
