@@ -61,6 +61,16 @@ valkey-admin
 
 **Windows:** The desktop app builds for Linux/macOS only. Use `./quickstart-web.sh` for web interface.
 
+### Run Trial Instances of Valkey Cluster or Standalone
+
+Docker is a prerequisite as these are Docker containers.
+
+From root run:
+
+`./tools/valkey-standalone/build_run_standalone.sh` for standalone instance
+
+`./tools/valkey-standalone/build_run_cluster.sh` for cluster instance
+
 ### Manual Connection
 Once the app is running, manually add a connection to your cluster (default local cluster is usually `localhost:7001`).
 
