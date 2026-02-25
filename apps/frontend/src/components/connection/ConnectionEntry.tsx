@@ -119,7 +119,7 @@ export const ConnectionEntry = ({
               </Button>
             </Typography>
             {connection.connectionDetails.alias && (
-              <Typography className="ml-1 text-tw-dark-border dark:text-white/50 truncate" title={label} variant="bodyXs">
+              <Typography className="ml-1 truncate" title={label} variant="code">
                 ({label})
               </Typography>)}
             <div className="flex items-center gap-3">

@@ -3,6 +3,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
+import { Typography } from "../ui/typography"
 
 interface StringFieldsProps {
   value: string
@@ -309,17 +310,17 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
         <Label htmlFor="json-value">JSON Value *</Label>
 
         {/* JSON Module Indicator */}
-        <div className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
+        <div className={`flex gap-2 px-3 py-2 rounded bg-tw-primary/20 ${
           jsonModuleAvailable
-            ? "bg-tw-primary/20 text-teal-500"
-            : "bg-tw-primary/20 text-red-400"
+            ? "text-teal-500"
+            : "text-red-400"
         }`}>
-          <span className="font-semibold">{jsonModuleAvailable ? <Check size={14} /> : <TriangleAlert size={14} />}</span>
-          <span>
+          {jsonModuleAvailable ? <Check size={14} /> : <TriangleAlert size={14} />}
+          <Typography variant="bodyXs">
             {jsonModuleAvailable
               ? "JSON module is available"
               : "JSON module is not loaded on this Valkey instance"}
-          </span>
+          </Typography>
         </div>
 
         <Textarea
@@ -330,7 +331,7 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
           required
           value={value}
         />
-        <p className="text-xs text-muted-foreground">Enter valid JSON data</p>
+        <Typography variant="bodyXs">Enter valid JSON data</Typography>
       </div>
     </div>
   )

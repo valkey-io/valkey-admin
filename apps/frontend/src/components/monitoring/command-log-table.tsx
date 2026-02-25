@@ -5,6 +5,7 @@ import { SORT_ORDER, SORT_FIELD } from "@common/src/constants"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
 import { SortableTableHeader, StaticTableHeader } from "../ui/sortable-table-header"
+import { Typography } from "../ui/typography"
 
 type SortOrder = typeof SORT_ORDER.ASC | typeof SORT_ORDER.DESC
 type SortField = typeof SORT_FIELD.TIMESTAMP | typeof SORT_FIELD.METRIC
@@ -131,30 +132,30 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
           >
             {/* command */}
             <td className="px-4 py-2 flex-1">
-              <code className="text-sm font-mono text-tw-primary bg-tw-primary/20 px-3 py-1 rounded-full">
+              <Typography className="bg-primary/30 py-1 px-2 rounded-full"  variant="code">
                 {entry.argv.join(" ")}
-              </code>
+              </Typography>
             </td>
 
             {/* metric (duration or size) */}
             <td className="px-4 py-2 w-1/6 text-center">
-              <span className="inline-flex font-mono items-center text-sm bg-tw-primary/30 px-2 text-tw-primary rounded-full">
+              <Typography className="" variant="bodySm">
                 {config.metricFormat(metricValue)}
-              </span>
+              </Typography>
             </td>
 
             {/* timestamp */}
             <td className="px-4 py-2 w-1/4 text-center">
-              <span className="text-sm">
+              <Typography variant="bodySm">
                 {new Date(entry.ts).toLocaleString()}
-              </span>
+              </Typography>
             </td>
 
             {/* client address */}
             <td className="px-4 py-2 w-1/5 text-center">
-              <span className="text-sm font-mono">
+              <Typography variant="code">
                 {entry.addr}
-              </span>
+              </Typography>
             </td>
           </tr>
         )

@@ -100,10 +100,10 @@ describe("Text Truncation Improvements", () => {
         </TestWrapper>,
       )
 
-      // Check for alias in Typography component with truncate and title
-      const aliasElements = container.querySelectorAll("p.truncate[title]")
-      const hasAliasElement = Array.from(aliasElements).some((p) =>
-        p.textContent?.includes("(") && p.textContent?.includes(")"),
+      // Check for alias in Typography component with code variant (renders as <code> element) with title
+      const aliasElements = container.querySelectorAll("code[title]")
+      const hasAliasElement = Array.from(aliasElements).some((code) =>
+        code.textContent?.includes("(") && code.textContent?.includes(")"),
       )
       expect(hasAliasElement).toBe(true)
     })

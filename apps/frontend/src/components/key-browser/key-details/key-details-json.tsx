@@ -98,11 +98,11 @@ export default function KeyDetailsJson(
           {!jsonModuleAvailable && (
             <tr>
               <td className="px-4 pt-3" colSpan={2}>
-                <div className="flex items-center gap-2 px-3 py-2 rounded text-sm bg-tw-primary/20 text-red-400">
+                <div className="flex items-center gap-2 px-3 py-2 rounded bg-tw-primary/20">
                   <TriangleAlert size={14} />
-                  <span>
+                  <Typography variant="bodyXs">
                     JSON module is not loaded on this Valkey instance. Editing is disabled.
-                  </span>
+                  </Typography>
                 </div>
               </td>
             </tr>

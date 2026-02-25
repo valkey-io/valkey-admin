@@ -4,7 +4,9 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
+import { Typography } from "./typography.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
+import { Label } from "@/components/ui/label"
 
 interface ConnectionModalProps {
   open: boolean
@@ -46,28 +48,30 @@ export function ConnectionModal({
           <div className="fixed inset-0 z-40 flex items-center justify-center">
             <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border">
               <div className="flex justify-between">
-                <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
+                <Dialog.Title asChild>
+                  <Typography variant="subheading">{title}</Typography>
+                </Dialog.Title>
                 <Dialog.Close asChild>
                   <Button className="hover:text-tw-primary h-auto p-0" variant="ghost">
                     <X size={20} />
                   </Button>
                 </Dialog.Close>
               </div>
-              <Dialog.Description className="text-sm font-light">
-                {description}
+              <Dialog.Description asChild>
+                <Typography variant="bodySm">{description}</Typography>
               </Dialog.Description>
 
               {errorMessage && (
-                <div className="mt-4 p-1 text-sm bg-tw-primary/20 text-red-500 border rounded">
-                  {errorMessage}
+                <div className="mt-4 p-1 bg-tw-primary/20 border rounded">
+                  <Typography className="text-red-500" variant="bodySm">{errorMessage}</Typography>
                 </div>
               )}
 
               <form className="space-y-4 mt-4" onSubmit={onSubmit}>
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="host">
+                  <Label className="block mb-1" htmlFor="host">
                     Host
-                  </label>
+                  </Label>
                   <Input
                     id="host"
                     onChange={(e) =>
@@ -81,9 +85,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="port">
+                  <Label className="block mb-1" htmlFor="port">
                     Port
-                  </label>
+                  </Label>
                   <Input
                     id="port"
                     onChange={(e) =>
@@ -97,9 +101,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="alias">
+                  <Label className="block mb-1" htmlFor="alias">
                     Alias
-                  </label>
+                  </Label>
                   <Input
                     className="placeholder:text-xs"
                     id="alias"
@@ -113,9 +117,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="username">
+                  <Label className="block mb-1" htmlFor="username">
                     Username
-                  </label>
+                  </Label>
                   <Input
                     id="username"
                     onChange={(e) =>
@@ -127,9 +131,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="password">
+                  <Label className="block mb-1" htmlFor="password">
                     Password
-                  </label>
+                  </Label>
                   <Input
                     id="password"
                     onChange={(e) =>
@@ -153,9 +157,9 @@ export function ConnectionModal({
                     }
                     type="checkbox"
                   />
-                  <label className="text-sm select-none" htmlFor="tls">
+                  <Label className="select-none" htmlFor="tls">
                     {showVerifyTlsCertificate ? "Use TLS" : "TLS"}
-                  </label>
+                  </Label>
                 </div>
 
                 {showVerifyTlsCertificate && (
@@ -172,16 +176,18 @@ export function ConnectionModal({
                       }
                       type="checkbox"
                     />
-                    <label className="text-sm select-none" htmlFor="verifycert">
+                    <Label className="select-none" htmlFor="verifycert">
                       Verify TLS Certificate
-                    </label>
+                    </Label>
                   </div>
                 )}
 
                 {showConnectionLimitWarning && (
-                  <div className="mt-4 p-2 text-sm bg-yellow-100 text-yellow-800 border rounded">
-                    You've reached the maximum of {MAX_CONNECTIONS} active connections.
-                    Please disconnect one before connecting to another.
+                  <div className="mt-4 p-2 bg-yellow-100 border rounded">
+                    <Typography variant="bodyXs">
+                      You've reached the maximum of {MAX_CONNECTIONS} active connections.
+                      Please disconnect one before connecting to another.
+                    </Typography>
                   </div>
                 )}
 
