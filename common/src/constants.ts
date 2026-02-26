@@ -130,7 +130,7 @@ export const VALKEY_CLIENT = {
     defaultPayloadPattern: "*",
     defaultCount: 50,
   } ,
-  KEY_VALUE_SIZE_LIMIT: 2000, // 2KB
+  KEY_VALUE_SIZE_LIMIT: 2048, // 2KiB
 }
 export const COMMANDLOG_TYPE = {
   SLOW: "slow",

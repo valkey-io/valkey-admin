@@ -11,6 +11,7 @@ import {
 import pLimit from "p-limit"
 import { VALKEY, VALKEY_CLIENT } from "../../../common/src/constants.ts"
 import { buildScanCommandArgs } from "./valkey-client-commands.ts"
+import { formatBytes } from "../../../common/src/bytes-conversion.ts"
 
 interface EnrichedKeyInfo {
   name: string;
@@ -64,7 +65,7 @@ export async function getKeyInfo(
           if (commands.sizeCmd){
             keyInfo.collectionSize = await (client.customCommand([commands.sizeCmd, key])) as number
           }
-          keyInfo.elements = `Keys above ${VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT / 1000}KB are not displayed in UI.`
+          keyInfo.elements = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT)}.`
 
           return keyInfo
         } 
