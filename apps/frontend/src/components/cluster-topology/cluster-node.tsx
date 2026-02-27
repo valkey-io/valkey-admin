@@ -35,7 +35,7 @@ export function ClusterNode({
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
   const isConnected = connectionStatus === CONNECTED
-  const isDisabled = useSelector(selectIsAtConnectionLimit) 
+  const isDisabled = useSelector(selectIsAtConnectionLimit)
 
   const handleNodeConnect = () => {
     if (!isConnected) {
@@ -79,7 +79,7 @@ export function ClusterNode({
           <div className="flex items-stretch gap-4">
             {/* Primary Node Section */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <Server className="text-tw-primary shrink-0" size={18} />
+              <Server className="text-primary shrink-0" size={18} />
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Typography variant={"label"}>{primaryData?.server_name || primaryKey}</Typography>
@@ -107,7 +107,7 @@ export function ClusterNode({
                   const replicaKey = `${replica.host}:${replica.port}`
                   return (
                     <div className="flex items-center mb-2 gap-1" key={replicaKey}>
-                      <Server className="text-tw-primary shrink-0" size={16} />
+                      <Server className="text-primary shrink-0" size={16} />
                       <Typography className="underline" variant="bodyXs">{replicaKey}</Typography>
                     </div>
                   )
@@ -117,7 +117,7 @@ export function ClusterNode({
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected" }`}>
+              <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected"}`}>
                 <PowerIcon
                   className={cn(
                     "rounded-full p-0.5",
@@ -131,6 +131,7 @@ export function ClusterNode({
               </CustomTooltip>
               <CustomTooltip content="Dashboard">
                 <Button
+                  aria-label="Dashboard"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
                   onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
@@ -142,6 +143,7 @@ export function ClusterNode({
               </CustomTooltip>
               <CustomTooltip content="Command">
                 <Button
+                  aria-label="Command"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
                   onClick={() => navigate(`/${clusterId}/${connectionId}/sendcommand`)}

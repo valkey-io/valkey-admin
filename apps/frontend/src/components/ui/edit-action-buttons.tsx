@@ -26,7 +26,8 @@ export function EditActionButtons({
       <div className="flex gap-1">
         <CustomTooltip content="Save">
           <Button
-            className="text-tw-primary hover:text-tw-primary"
+            aria-label="Save changes"
+            className="text-primary hover:text-primary"
             onClick={onSave}
             variant="secondary"
           >
@@ -34,7 +35,7 @@ export function EditActionButtons({
           </Button>
         </CustomTooltip>
         <CustomTooltip content="Cancel">
-          <Button onClick={onEdit} variant="destructiveGhost">
+          <Button aria-label="Cancel editing" onClick={onEdit} variant="destructiveGhost">
             <X />
           </Button>
         </CustomTooltip>
@@ -45,6 +46,7 @@ export function EditActionButtons({
   return (
     <CustomTooltip content={disabled && disabledTooltip ? disabledTooltip : "Edit"}>
       <Button
+        aria-label="Edit"
         className="mr-1"
         disabled={disabled}
         onClick={onEdit}

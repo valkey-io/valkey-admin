@@ -25,8 +25,8 @@ export function AppSidebar() {
 
   const getNavItemClasses = (path: string) => {
     return location.pathname.endsWith(path)
-      ? "bg-tw-primary text-white rounded"
-      : "text-gray-600 hover:text-tw-primary"
+      ? "bg-primary text-white rounded"
+      : "text-gray-600 hover:text-primary"
   }
 
   return (
@@ -110,8 +110,8 @@ export function AppSidebar() {
       </div>
       {/* expand/collapse sidebar */}
       <button
-        className="p-1 cursor-pointer rounded-full bg-white border-2 text-tw-primary 
-        hover:bg-tw-primary hover:text-white absolute top-1/2 right-[-14px] z-10"
+        className="p-1 cursor-pointer rounded-full bg-white border-2 text-primary 
+        hover:bg-primary hover:text-white absolute top-1/2 right-[-14px] z-10"
         onClick={() => setIsExpanded(!isExpanded)}
         title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
       >
@@ -163,7 +163,7 @@ export function AppSidebar() {
               <li key={item.to || item.href}>
                 {item.isExternal ? (
                   <a
-                    className="flex p-2 text-nowrap items-center text-gray-600 dark:text-white hover:text-tw-primary h-10"
+                    className="flex p-2 text-nowrap items-center text-gray-600 dark:text-white hover:text-primary h-10"
                     href={item.href}
                     rel="noopener noreferrer"
                     target="_blank"

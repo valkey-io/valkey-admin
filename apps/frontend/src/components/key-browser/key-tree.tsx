@@ -68,8 +68,8 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
   return (
     <div>
       <div
-        className={`${showBorder ? "h-16 p-2 dark:border-tw-dark-border border hover:bg-tw-primary/30 cursor-pointer rounded" 
-          : "py-1 px-2 cursor-pointer hover:bg-tw-primary/10 rounded text-sm"} flex items-center gap-2 justify-between ${
+        className={`${showBorder ? "h-16 p-2 dark:border-tw-dark-border border hover:bg-primary/30 cursor-pointer rounded" 
+          : "py-1 px-2 cursor-pointer hover:bg-primary/10 rounded text-sm"} flex items-center gap-2 justify-between ${
           isSelected ? "border-l-6 border-primary bg-primary/20 dark:bg-primary/50" : ""
         }`}
         onClick={handleClick}
@@ -79,9 +79,9 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
           <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center" onClick={handleToggle}>
             {hasChildren ? (
               isExpanded ? (
-                <ChevronDown className="text-tw-primary" size={16} />
+                <ChevronDown className="text-primary" size={16} />
               ) : (
-                <ChevronRight className="text-tw-primary" size={16} />
+                <ChevronRight className="text-primary" size={16} />
               )
             ) : (
               <span className="inline-block w-4" />
@@ -91,7 +91,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
           {/* Tree Connector for nested items */}
           {!showBorder && (
             <div className="flex-shrink-0 w-6 h-4 relative">
-              <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-tw-primary/30 rounded-bl"
+              <div className="absolute left-0 top-0 w-full h-full border-l-2 border-b-2 border-primary/30 rounded-bl"
                 style={{ borderBottomWidth: "2px", borderLeftWidth: "2px" }} />
             </div>
           )}
@@ -125,7 +125,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
                   variant="bodyXs"
                 >
                   <Database
-                    className="text-white bg-tw-primary p-1 rounded-full"
+                    className="text-white bg-primary p-1 rounded-full"
                     size={20}
                   />{" "}
                   {formatBytes(node.key.size)}
@@ -138,7 +138,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
                 variant="bodyXs"
               >
                 <Hourglass
-                  className="text-white bg-tw-primary p-1 rounded-full"
+                  className="text-white bg-primary p-1 rounded-full"
                   size={20}
                 />{" "}
                 {convertTTL(node.key.ttl)}
@@ -150,7 +150,7 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
 
       {/* expanding container */}
       {hasChildren && isExpanded && (
-        <div className={showBorder ? "mt-1 border-l-2 border-tw-primary/40 pl-2" : "ml-2 border-l-2 border-tw-primary/30 pl-2"}>
+        <div className={showBorder ? "mt-1 border-l-2 border-primary/40 pl-2" : "ml-2 border-l-2 border-primary/30 pl-2"}>
           {Array.from(node.children.values()).map((child) => (
             <TreeNodeItem
               key={child.fullPath}
@@ -171,7 +171,12 @@ export function KeyTree({ keys, selectedKey, onKeyClick, loading }: KeyTreeProps
   const tree = keyTreeBuilder(keys)
 
   return (
-    <div className="h-full overflow-y-auto space-y-2 p-2">
+    <div
+      aria-label="Key tree list"
+      className="h-full overflow-y-auto space-y-2 p-2"
+      role="region"
+      tabIndex={0}
+    >
       {Array.from(tree.children.values()).map((node) => (
         <TreeNodeItem
           key={node.fullPath}

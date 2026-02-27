@@ -33,7 +33,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         />
         {showClearButton && hasValue && onClear && (
           <button
-            className="absolute right-3 text-tw-primary hover:text-tw-primary/80 transition-colors"
+            className="absolute right-3 text-primary hover:text-primary/80 transition-colors"
             onClick={onClear}
             type="button"
           >

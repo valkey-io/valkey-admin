@@ -123,7 +123,7 @@ export const Monitoring = () => {
             size={"sm"}
             variant={"outline"}
           >
-            Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
+            Refresh <RefreshCcw className="hover:text-primary" size={15} />
           </Button>
         )}
 
@@ -142,7 +142,7 @@ export const Monitoring = () => {
               size={"sm"}
               variant={"outline"}
             >
-              Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
+              Refresh <RefreshCcw className="hover:text-primary" size={15} />
             </Button>
           </div>
         )}
@@ -177,7 +177,7 @@ export const Monitoring = () => {
           )}
         </div>
       ) : (
-        <div className="flex-1 h-full border border-input rounded-md shadow-xs">
+        <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
           <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} />
         </div>
       )}
