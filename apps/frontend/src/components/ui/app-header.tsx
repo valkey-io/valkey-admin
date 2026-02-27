@@ -34,8 +34,8 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     state.valkeyConnection?.connections,
   )
 
-  const handleNavigate = () => {
-    navigate(`/${clusterId}/${id}/dashboard`)
+  const handleNavigate = (primaryKey: string) => {
+    navigate(`/${clusterId}/${primaryKey}/dashboard`)
     setIsOpen(false)
   }
 
@@ -75,7 +75,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
           </Typography>
           <div>
             <Badge
-              className="h-5 w-50 px-2 py-4 flex items-center gap-2 justify-between cursor-pointer"
+              className="h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between cursor-pointer"
               variant="default"
             >
               <div className="flex flex-col gap-1">
@@ -87,10 +87,10 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                   {id}
                 </Typography>
               </div>
-              <button disabled={!isConnected} onClick={() => isConnected && setIsOpen(!isOpen)}>
+              <button aria-label="Toggle dropdown" disabled={!isConnected} onClick={() => isConnected && setIsOpen(!isOpen)}>
                 <ToggleIcon
                   className={isConnected
-                    ? "text-tw-primary cursor-pointer hover:text-tw-primary/80"
+                    ? "text-primary cursor-pointer hover:text-primary/80"
                     : "text-gray-400 cursor-not-allowed"
                   }
                   size={18}
@@ -98,17 +98,17 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
               </button>
             </Badge>
             {isOpen && (
-              <div className="p-4 w-50 py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
-                rounded z-10 absolute top-10 right-0" ref={dropdownRef}>
+              <div className="p-4 w-auto text-nowrap py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
+                rounded z-100 absolute top-10 right-0" ref={dropdownRef}>
                 <ul className="space-y-2">
                   {Object.entries(clusterData.clusterNodes).map(([primaryKey, primary]) => {
                     const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
-                        <button className="flex items-center cursor-pointer hover:bg-tw-primary/20"
+                        <button className="flex items-center cursor-pointer hover:bg-primary/20"
                           disabled={!nodeIsConnected}
-                          onClick={() => handleNavigate()}>
+                          onClick={() => handleNavigate(primaryKey)}>
                           <Dot className={nodeIsConnected ? "text-green-500" : "text-gray-400"} size={45} />
                           <Typography variant="bodySm">
                             {`${primary.host}:${primary.port}`}
@@ -118,7 +118,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                           <div className="flex items-center ml-4" key={replica.id}>
                             <CornerDownRight className="text-tw-dark-border" size={20} />
                             <button className="flex items-center">
-                              <Dot className="text-tw-primary" size={24} />
+                              <Dot className="text-primary" size={24} />
                               <Typography variant="caption">
                                 {replica.host}:{replica.port}
                               </Typography>

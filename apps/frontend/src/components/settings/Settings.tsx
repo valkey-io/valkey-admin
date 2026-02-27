@@ -76,7 +76,7 @@ export default function Settings() {
             </div>
 
             {monitorEnabled && (
-              <div className="mt-3 flex items-center gap-2 p-2 bg-tw-primary/20 border border-tw-primary/50 rounded">
+              <div className="mt-3 flex items-center gap-2 p-2 bg-primary/20 border border-primary/50 rounded">
                 <AlertTriangle className="text-amber-600 shrink-0" size={18} />
                 <Typography variant="bodySm">
                   Running{" "}
@@ -94,6 +94,7 @@ export default function Settings() {
                 </TooltipIcon>
               </div>
               <Input
+                aria-label = "Monitor Duration"
                 onChange={(e) => setMonitorDuration(Number(e.target.value))}
                 step="1000"
                 style={{ width: "100px" }}

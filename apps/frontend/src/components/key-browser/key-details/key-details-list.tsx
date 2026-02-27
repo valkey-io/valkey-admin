@@ -155,12 +155,14 @@ export default function KeyDetailsList(
                 {isEditable ? (
                   <div className="flex gap-2 relative">
                     <Input
+                      aria-label="Edit value"
                       onChange={(e) => handleListFieldChange(index, e.target.value)}
                       type="text"
                       value={editedListValues[index] || ""}
                     />
                     <CustomTooltip content="Delete element">
                       <Button
+                        aria-label="Delete element"
                         onClick={() => handleDeleteElement(index)}
                         variant={"destructiveGhost"}
                       >
@@ -188,6 +190,7 @@ export default function KeyDetailsList(
             <div className="col-span-3">
               <div className="flex gap-2">
                 <Input
+                  aria-label="New list item value"
                   onChange={(e) => handleNewItemChange(newItem.tempId, e.target.value)}
                   placeholder="Enter value"
                   type="text"
@@ -195,6 +198,7 @@ export default function KeyDetailsList(
                 />
                 <CustomTooltip content="Remove item">
                   <Button
+                    aria-label="Remove item"
                     onClick={() => handleRemoveNewItem(newItem.tempId)}
                     variant={"destructiveGhost"}
                   >

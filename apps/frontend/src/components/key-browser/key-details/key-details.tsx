@@ -124,7 +124,8 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 )}
                 {readOnly && (
                   <button
-                    className="text-tw-primary hover:text-tw-primary/60 border-2 border-tw-primary rounded-full transition-colors"
+                    aria-label="Close key details"
+                    className="text-primary hover:text-primary/60 border-2 border-primary rounded-full transition-colors"
                     onClick={() => setSelectedKey(null)}
                   >
                     <X size={18} />
@@ -134,6 +135,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 {!readOnly && (
                   <CustomTooltip content="Delete">
                     <Button
+                      aria-label="Delete key"
                       className="mr-0.5"
                       onClick={handleDeleteModal}
                       variant={"destructiveGhost"}

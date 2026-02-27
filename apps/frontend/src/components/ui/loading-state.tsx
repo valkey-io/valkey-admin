@@ -15,7 +15,7 @@ export function LoadingState({
   return (
     <div className={cn("h-full flex items-center justify-center", className)}>
       <div className="flex flex-col items-center gap-3">
-        <Loader2 className="animate-spin text-tw-primary" size={size} />
+        <Loader2 className="animate-spin text-primary" size={size} />
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {message}
         </span>

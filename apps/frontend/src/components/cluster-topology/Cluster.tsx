@@ -68,17 +68,17 @@ export function Cluster() {
       {/* Cluster Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          icon={<Server className="text-tw-primary" size={20} />}
+          icon={<Server className="text-primary" size={20} />}
           label="Total Nodes"
           value={totalClusterNodes}
         />
         <StatCard
-          icon={<Server className="text-tw-primary" size={20} />}
+          icon={<Server className="text-primary" size={20} />}
           label="Primary Nodes"
           value={totalNodes}
         />
         <StatCard
-          icon={<Server className="text-tw-primary" size={20} />}
+          icon={<Server className="text-primary" size={20} />}
           label="Replicas"
           value={totalReplicas}
         />

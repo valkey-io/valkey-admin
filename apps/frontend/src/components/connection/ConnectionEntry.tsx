@@ -102,8 +102,8 @@ export const ConnectionEntry = ({
     <div className="mb-3 p-2 border border-input rounded-md shadow-xs bg-white dark:bg-tw-dark-primary">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="p-2 bg-tw-primary/10 dark:bg-tw-primary/20 rounded">
-            <Server className="text-tw-primary" size={18} />
+          <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded">
+            <Server className="text-primary" size={18} />
           </div>
 
           <div className="flex-1 min-w-0">

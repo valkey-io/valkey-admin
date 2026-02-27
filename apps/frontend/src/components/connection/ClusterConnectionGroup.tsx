@@ -102,6 +102,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1">
           <Button
+            aria-label="Expand/Collapse Cluster"
             className="ml-2"
             onClick={() => setIsOpen(!isOpen)}
             variant={"ghost"}
@@ -110,8 +111,8 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
           </Button>
 
           <div className="flex items-center gap-2 flex-1 p-2">
-            <div className="p-2 bg-tw-primary/10 dark:bg-tw-primary/20 rounded">
-              <Network className="text-tw-primary" size={18} />
+            <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded">
+              <Network className="text-primary" size={18} />
             </div>
             <div className="flex-1 min-w-0">
               {isEditing ? (
@@ -124,7 +125,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     value={editedAlias}
                   />
                   <Button onClick={handleSave} size="sm" title="Save" variant="secondary">
-                    <CheckIcon className="text-tw-primary" size={16} />
+                    <CheckIcon className="text-primary" size={16} />
                     Save
                   </Button>
                   <Button onClick={handleCancel} size="sm" title="Cancel" variant="ghost">
@@ -206,14 +207,21 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
         <div className="flex items-center text-sm gap-2">
           {
             !hasConnectedInstance && lastOpenedNode ? (
-              <Button
-                className="flex items-center gap-1 p-2 mr-4 rounded-md"
-                onClick={handleConnectLatest}
-                variant="secondary"
-              >
-                <Plug size={16} />
-                Connect
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center gap-1 p-2 mr-4 rounded-md"
+                    onClick={handleConnectLatest}
+                    variant="secondary"
+                  >
+                    <Plug size={16} />
+                    Connect
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Connect to the most recent node in this cluster
+                </TooltipContent>
+              </Tooltip>
             ) : null
           }
         </div>

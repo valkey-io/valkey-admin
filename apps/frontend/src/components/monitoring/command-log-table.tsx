@@ -110,7 +110,7 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
           />
           <SortableTableHeader
             active={sortField === SORT_FIELD.TIMESTAMP}
-            icon={<Clock className="text-tw-primary" size={16} />}
+            icon={<Clock className="text-primary" size={16} />}
             label="Timestamp"
             onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
             sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
@@ -127,7 +127,7 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
 
         return (
           <tr
-            className="group border-b dark:border-tw-dark-border hover:bg-tw-primary/10"
+            className="group border-b dark:border-tw-dark-border hover:bg-primary/10"
             key={`${entry.groupTs}-${entry.id}-${index}`}
           >
             {/* command */}

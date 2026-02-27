@@ -71,6 +71,7 @@ export default function KeyDetailsString(
             <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
               {isEditable ? (
                 <Textarea
+                  aria-label="Edit string value"
                   autoFocus
                   className="min-h-[100px]"
                   onChange={(e) => setEditedValue(e.target.value)}
