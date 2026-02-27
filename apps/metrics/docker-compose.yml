@@ -6,10 +6,12 @@ services:
             CONFIG_PATH: "/app/config.yml"
             PORT: "3000"
             DATA_DIR: "/app/data"
-            VALKEY_HOST: host.docker.internal
-            VALKEY_PORT: "6380"
-            VALKEY_TLS: "true"
-            VALKEY_VERIFY_CERT: "false"
+            VALKEY_HOST: ${VALKEY_HOST}
+            VALKEY_PORT: ${VALKEY_PORT}
+            VALKEY_USERNAME: ${VALKEY_USERNAME}
+            VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+            VALKEY_TLS: ${VALKEY_TLS}
+            VALKEY_VERIFY_CERT: ${VALKEY_VERIFY_CERT}
             BATCH_MS: "1000"
             BATCH_MAX: "50"
             DEBUG_METRICS: "1"
