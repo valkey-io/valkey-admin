@@ -37,7 +37,7 @@ export const CopyToClipboard = ({ className, onClick }: { className?: string, on
   <Tooltip delayDuration={1000}>
     <TooltipTrigger asChild>
       <CopyIcon
-        className={cn("sticky top-1 justify-self-end cursor-pointer -mb-6 hover:text-tw-primary", className)}
+        className={cn("sticky top-1 justify-self-end cursor-pointer -mb-6 hover:text-primary", className)}
         onClick={onClick}
       />
     </TooltipTrigger>

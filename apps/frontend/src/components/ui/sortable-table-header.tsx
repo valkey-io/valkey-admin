@@ -26,8 +26,8 @@ export function SortableTableHeader({
   return (
     <button
       className={cn(
-        "text-xs font-bold flex items-center justify-center gap-2 hover:text-tw-primary transition-colors",
-        active && "text-tw-primary",
+        "text-xs font-bold flex items-center justify-center gap-2 hover:text-primary transition-colors",
+        active && "text-primary",
         width,
         className,
       )}

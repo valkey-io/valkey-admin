@@ -15,6 +15,7 @@ function Select({ className, icon, children, ...props }: SelectProps) {
         </div>
       )}
       <select
+        aria-label="Select option"
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white dark:bg-input/30",
           "px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none",

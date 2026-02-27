@@ -79,7 +79,9 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
               )}
             </Typography>
           </div>
-          <button onClick={() => setIsOpen(!isOpen)}><ToggleIcon className="text-tw-primary cursor-pointer hover:text-tw-primary/80" /></button>
+          <button 
+            aria-label="Expand/Toggle Accordion" 
+            onClick={() => setIsOpen(!isOpen)}><ToggleIcon className="text-primary cursor-pointer hover:text-primary/80" /></button>
         </div>
       </TooltipProvider>
 
@@ -90,7 +92,7 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
               <li className="flex justify-between items-center border-b last:border-b-0" key={key}>
                 <div className="flex items-center gap-1">
                   <Typography className="flex items-center" variant="bodySm">
-                    <Dot className="text-tw-primary" size={30} />
+                    <Dot className="text-primary" size={30} />
                     {formatKey(key)}
                   </Typography>
                   {singleMetricDescriptions[key] && (

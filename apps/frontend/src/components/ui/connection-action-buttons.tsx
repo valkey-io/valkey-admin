@@ -56,7 +56,7 @@ function ConnectionActionButtons({
       {onEdit && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button onClick={onEdit} size="sm" variant="ghost">
+            <Button aria-label="Edit connection settings" onClick={onEdit} size="sm" variant="ghost">
               <PencilIcon size={16} />
             </Button>
           </TooltipTrigger>
@@ -66,7 +66,7 @@ function ConnectionActionButtons({
       {onDelete && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button onClick={onDelete} size="sm" variant="destructiveGhost">
+            <Button aria-label="Delete connection" onClick={onDelete} size="sm" variant="destructiveGhost">
               <Trash2Icon size={16} />
             </Button>
           </TooltipTrigger>

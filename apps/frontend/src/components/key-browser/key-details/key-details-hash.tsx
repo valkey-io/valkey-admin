@@ -166,12 +166,14 @@ export default function KeyDetailsHash(
                 {isEditable ? (
                   <div className="flex gap-2 relative">
                     <Input
+                      aria-label="Edit hash field value"
                       onChange={(e) => handleHashFieldChange(element.key, e.target.value)}
                       type="text"
                       value={editedHashValue[element.key] || ""}
                     />
                     <CustomTooltip content="Delete field">
                       <Button
+                        aria-label="Delete field"
                         onClick={() => handleDeleteHashField(element.key)}
                         variant={"destructiveGhost"}
                       >
@@ -213,6 +215,7 @@ export default function KeyDetailsHash(
                 />
                 <CustomTooltip content="Remove field">
                   <Button
+                    aria-label="Remove new field"
                     onClick={() => handleRemoveNewField(newField.tempId)}
                     variant={"destructiveGhost"}
                   >
@@ -226,6 +229,7 @@ export default function KeyDetailsHash(
         {isEditable && (
           <div className="py-3 px-4">
             <Button
+              aria-label="Add new field"
               className="w-full"
               onClick={handleAddNewField}
               variant={"secondary"}

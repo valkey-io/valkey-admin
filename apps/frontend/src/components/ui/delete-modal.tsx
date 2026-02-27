@@ -19,7 +19,7 @@ export default function DeleteModal({
     border border-tw-dark-border rounded p-2 text-sm font-thin shadow-xl absolute top-full mt-1 right-0 z-100">
       <div className="flex flex-row justify-between w-full">
         <span>{message}</span>
-        <X className="hover:text-tw-primary cursor-pointer" onClick={onCancel} size={16} />
+        <X className="hover:text-primary cursor-pointer" onClick={onCancel} size={16} />
       </div>
       <span className="font-semibold break-words w-full">{itemName}</span>
       <Button onClick={onConfirm} variant={"destructiveGhost"}>

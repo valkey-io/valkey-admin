@@ -115,14 +115,14 @@ export function Dashboard() {
         <div className="flex mb-4">
           <div className="w-1/2 pr-2">
             <StatCard
-              icon={<Database className="text-tw-primary" size={24} />}
+              icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
               value={formatBytes(memoryUsageMetrics.total_system_memory || 0)}
             />
           </div>
           <div className="w-1/2 pl-2">
             <StatCard
-              icon={<Database className="text-tw-primary" size={24} />}
+              icon={<Database className="text-primary" size={24} />}
               label="Used Memory"
               value={formatBytes(memoryUsageMetrics.used_memory || 0)}
             />

@@ -94,6 +94,7 @@ export default function KeyDetailsZSet(
             <div className="col-span-3">
               {isEditable ? (
                 <Input
+                  aria-label="Edit zset value"
                   onChange={(e) => handleValueChange(index, e.target.value)}
                   step="any"
                   type="number"

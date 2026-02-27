@@ -119,8 +119,8 @@ export function SendCommand() {
                     <div
                       className={cn(
                         "flex flex-row text-sm items-center py-1 px-2 rounded",
-                        (i === commandIndex) && "bg-tw-primary text-white",
-                        (i === compareWith) && "bg-tw-primary-light",
+                        (i === commandIndex) && "bg-primary text-white",
+                        (i === compareWith) && "bg-primary-light",
                       )}
                       key={timestamp}
                     >

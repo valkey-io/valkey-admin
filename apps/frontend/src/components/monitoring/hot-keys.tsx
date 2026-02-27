@@ -46,7 +46,7 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
       header={
         <>
           <StaticTableHeader
-            icon={<Flame className="text-tw-primary" size={16} />}
+            icon={<Flame className="text-primary" size={16} />}
             label="Key Name"
             width="w-2/5"
           />
@@ -71,7 +71,7 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
                         ${isDeleted
             ? "opacity-75"
             : selectedKey === keyName
-              ? "bg-tw-primary/10 hover:bg-tw-primary/10"
+              ? "bg-primary/10 hover:bg-primary/10"
               : "hover:bg-gray-50 dark:hover:bg-neutral-800/50"
           }`}
             key={`${keyName}-${index}`}
@@ -95,7 +95,8 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
                 )}
                 {!isDeleted && (
                   <button
-                    className="p-1 rounded text-tw-primary hover:bg-tw-primary/20"
+                    aria-label = "Copy key name"
+                    className="p-1 rounded text-primary hover:bg-primary/20"
                     onClick={(e) => handleCopyKey(keyName, e)}
                   >
                     <Copy size={14} />
