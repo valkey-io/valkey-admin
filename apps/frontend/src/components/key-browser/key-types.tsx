@@ -310,7 +310,7 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
         <Label htmlFor="json-value">JSON Value *</Label>
 
         {/* JSON Module Indicator */}
-        <div className={`flex gap-2 px-3 py-2 rounded bg-tw-primary/20 ${
+        <div className={`flex gap-2 px-3 py-2 rounded bg-primary/20 ${
           jsonModuleAvailable
             ? "text-teal-500"
             : "text-red-400"

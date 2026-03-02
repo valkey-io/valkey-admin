@@ -52,7 +52,7 @@ export function ConnectionModal({
                   <Typography variant="subheading">{title}</Typography>
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <Button className="hover:text-tw-primary h-auto p-0" variant="ghost">
+                  <Button className="hover:text-primary h-auto p-0" variant="ghost">
                     <X size={20} />
                   </Button>
                 </Dialog.Close>
@@ -62,7 +62,7 @@ export function ConnectionModal({
               </Dialog.Description>
 
               {errorMessage && (
-                <div className="mt-4 p-1 bg-tw-primary/20 border rounded">
+                <div className="mt-4 p-1 bg-primary/20 border rounded">
                   <Typography className="text-red-500" variant="bodySm">{errorMessage}</Typography>
                 </div>
               )}

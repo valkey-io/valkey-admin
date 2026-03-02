@@ -98,7 +98,7 @@ export default function KeyDetailsJson(
           {!jsonModuleAvailable && (
             <tr>
               <td className="px-4 pt-3" colSpan={2}>
-                <div className="flex items-center gap-2 px-3 py-2 rounded bg-tw-primary/20">
+                <div className="flex items-center gap-2 px-3 py-2 rounded bg-primary/20">
                   <TriangleAlert size={14} />
                   <Typography variant="bodyXs">
                     JSON module is not loaded on this Valkey instance. Editing is disabled.
@@ -112,6 +112,7 @@ export default function KeyDetailsJson(
               {isEditable ? (
                 <div>
                   <Textarea
+                    aria-label="Edit JSON value"
                     autoFocus
                     className="min-h-[400px] font-mono text-sm"
                     onChange={(e) => setEditedValue(e.target.value)}

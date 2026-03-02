@@ -258,7 +258,7 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                   <Typography variant="subheading">Add Key</Typography>
                 </Dialog.Title>
                 <Dialog.Close asChild>
-                  <Button className="hover:text-tw-primary h-auto p-0" variant="ghost">
+                  <Button className="hover:text-primary h-auto p-0" variant="ghost">
                     <X size={20} />
                   </Button>
                 </Dialog.Close>

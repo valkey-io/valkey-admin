@@ -152,12 +152,14 @@ export default function KeyDetailsSet(
                 {isEditable ? (
                   <div className="flex gap-2 relative">
                     <Input
+                      aria-label="Edit set value"
                       onChange={(e) => handleSetFieldChange(index, e.target.value)}
                       type="text"
                       value={editedSetValues[index] || ""}
                     />
                     <CustomTooltip content="Delete element">
                       <Button
+                        aria-label="Delete set element"
                         onClick={() => handleDeleteElement(element)}
                         variant={"destructiveGhost"}
                       >
@@ -192,6 +194,7 @@ export default function KeyDetailsSet(
                 />
                 <CustomTooltip content="Remove item">
                   <Button
+                    aria-label="Remove new set element"
                     onClick={() => handleRemoveNewItem(newItem.tempId)}
                     variant={"destructiveGhost"}
                   >
