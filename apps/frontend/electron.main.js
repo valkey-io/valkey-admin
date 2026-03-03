@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor } = require("electron")
 const path = require("path")
 const { fork } = require("child_process")
+const { createApplicationMenu } = require("./menu")
 
 let serverProcess
 const metricsProcesses = new Map()
@@ -153,6 +154,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  createApplicationMenu()
   startServer()
   if (serverProcess) {
     serverProcess.on("message", (message) => {

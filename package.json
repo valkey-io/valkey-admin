@@ -55,6 +55,7 @@
     "files": [
       "apps/frontend/electron.main.js",
       "apps/frontend/preload.js",
+      "apps/frontend/menu.js",
       "apps/frontend/dist/**/*",
       "package.json"
     ],
