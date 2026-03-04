@@ -1,32 +1,337 @@
+version: "3.9"
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  valkey-7001:
+  valkey-7002:
+  valkey-7003:
+  valkey-7004:
+  valkey-7005:
+  valkey-7006:
+
 services:
+
+  # ---------------- Valkey Cluster Nodes ----------------
+  valkey-7001:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7001
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7001
+      --cluster-announce-bus-port 17001
+      --cluster-announce-hostname valkey-7001
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7001
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7001", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7001:7001", "17001:17001"]
+    volumes:
+      - valkey-7001:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  valkey-7002:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7002
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7002
+      --cluster-announce-bus-port 17002
+      --cluster-announce-hostname valkey-7002
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7002
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7002", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7002:7002", "17002:17002"]
+    volumes:
+      - valkey-7002:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  valkey-7003:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7003
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7003
+      --cluster-announce-bus-port 17003
+      --cluster-announce-hostname valkey-7003
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7003
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7003", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7003:7003", "17003:17003"]
+    volumes:
+      - valkey-7003:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  valkey-7004:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7004
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7004
+      --cluster-announce-bus-port 17004
+      --cluster-announce-hostname valkey-7004
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7004
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7004", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7004:7004", "17004:17004"]
+    volumes:
+      - valkey-7004:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  valkey-7005:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7005
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7005
+      --cluster-announce-bus-port 17005
+      --cluster-announce-hostname valkey-7005
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7005
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7005", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7005:7005", "17005:17005"]
+    volumes:
+      - valkey-7005:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  valkey-7006:
+    image: valkey/valkey-bundle:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 7006
+      --bind 0.0.0.0
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --cluster-announce-port 7006
+      --cluster-announce-bus-port 17006
+      --cluster-announce-hostname valkey-7006
+      --cluster-preferred-endpoint-type hostname
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    environment:
+      - ANNOUNCE_HOST=valkey-7006
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "7006", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["7006:7006", "17006:17006"]
+    volumes:
+      - valkey-7006:/data
+      - ../tools/valkey-cluster/rejson.so:/opt/modules/rejson.so:ro
+    networks:
+      - appnet
+
+  # ---------------- Cluster Initialization ----------------
+  cluster-init:
+    image: valkey/valkey:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    depends_on:
+      valkey-7001: { condition: service_healthy }
+      valkey-7002: { condition: service_healthy }
+      valkey-7003: { condition: service_healthy }
+      valkey-7004: { condition: service_healthy }
+      valkey-7005: { condition: service_healthy }
+      valkey-7006: { condition: service_healthy }
+    networks:
+      - appnet
+    volumes:
+      - ../tools/valkey-cluster/scripts/cluster_init.sh:/usr/local/bin/cluster_init.sh:ro
+    entrypoint: ["/usr/local/bin/cluster_init.sh"]
+    restart: "no"
+
+  populate:
+    image: node:20
+    depends_on:
+      cluster-init:
+        condition: service_completed_successfully
+    working_dir: /app
+    volumes:
+      - ../tools/valkey-cluster/populate.mjs:/app/populate.mjs:ro
+    environment:
+      VALKEY_START_NODE: "valkey-7001:7001"
+    networks:
+      - appnet
+    command: >
+      sh -c "
+        npm -s install @valkey/client >/dev/null 2>&1 &&
+        npm -s install ramda >/dev/null 2>&1 &&
+        node populate.mjs
+      "
+
+  # ---------------- Metrics Servers (per primary node) ----------------
+  metrics-7001:
+    build:
+      context: ../apps/metrics
+      dockerfile: ./Dockerfile
+    environment:
+      CONFIG_PATH: "/app/config.yml"
+      PORT: "3000"
+      DATA_DIR: "/app/data"
+      VALKEY_HOST: valkey-7001
+      VALKEY_PORT: "7001"
+      BATCH_MS: "1000"
+      BATCH_MAX: "50"
+      DEBUG_METRICS: "1"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "pretty"
+    volumes:
+      - ../apps/metrics/config.yml:/app/config.yml:ro
+      - ../apps/metrics/data/node-1:/app/data
+    ports:
+      - "3001:3000"
+    networks:
+      - appnet
+    depends_on:
+      - valkey-7001
+
+  metrics-7002:
+    build:
+      context: ../apps/metrics
+      dockerfile: ./Dockerfile
+    environment:
+      CONFIG_PATH: "/app/config.yml"
+      PORT: "3000"
+      DATA_DIR: "/app/data"
+      VALKEY_HOST: valkey-7002
+      VALKEY_PORT: "7002"
+      BATCH_MS: "1000"
+      BATCH_MAX: "50"
+      DEBUG_METRICS: "1"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "pretty"
+    volumes:
+      - ../apps/metrics/config.yml:/app/config.yml:ro
+      - ../apps/metrics/data/node-2:/app/data
+    ports:
+      - "3002:3000"
+    networks:
+      - appnet
+    depends_on:
+      - valkey-7002
+
+  metrics-7003:
+    build:
+      context: ../apps/metrics
+      dockerfile: ./Dockerfile
+    environment:
+      CONFIG_PATH: "/app/config.yml"
+      PORT: "3000"
+      DATA_DIR: "/app/data"
+      VALKEY_HOST: valkey-7003
+      VALKEY_PORT: "7003"
+      BATCH_MS: "1000"
+      BATCH_MAX: "50"
+      DEBUG_METRICS: "1"
+      LOG_LEVEL: "debug"
+      LOG_FORMAT: "pretty"
+    volumes:
+      - ../apps/metrics/config.yml:/app/config.yml:ro
+      - ../apps/metrics/data/node-3:/app/data
+    ports:
+      - "3003:3000"
+    networks:
+      - appnet
+    depends_on:
+      - valkey-7003
+
+  # ---------------- App (frontend + backend) ----------------
   app:
     build:
       context: ../
       dockerfile: ./docker/Dockerfile.app
-    ports:
-      - "8080:8080"
     environment:
       NODE_ENV: production
-
-    metrics:
-      build: .
-      container_name: valkey-metrics
-      environment:
-          CONFIG_PATH: "/app/config.yml"
-          PORT: "3000"
-          DATA_DIR: "/app/data"
-          VALKEY_HOST: host.docker.internal
-          VALKEY_PORT: "7001"
-          BATCH_MS: "1000"
-          BATCH_MAX: "50"
-          DEBUG_METRICS: "1"
-          LOG_LEVEL: "debug" # or info/warn/error/silent
-          LOG_FORMAT: "pretty" # or json
-      volumes:
-          - ./config.yml:/app/config.yml:ro
-          - ./data:/app/data
-      ports:
-          - "8080:3000"
-      extra_hosts:
-          - "host.docker.internal:host-gateway"
-      restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - appnet
+    depends_on:
+      - metrics-7001
+      - metrics-7002
+      - metrics-7003
+      - valkey-7001
+      - valkey-7002
+      - valkey-7003
+      - valkey-7004
+      - valkey-7005
+      - valkey-7006

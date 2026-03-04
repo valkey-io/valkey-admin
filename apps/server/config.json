@@ -1,0 +1,7 @@
+{
+  "metrics_server_uris": {
+    "valkey-7001-7001": "metrics-7001:3000",
+    "valkey-7002-7002": "metrics-7002:3000",
+    "valkey-7003-7003": "metrics-7003:3000"
+  }
+}
