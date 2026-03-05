@@ -52,7 +52,7 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
         monitorClient.disconnect(),
         (async () => { overflow$.complete() })(),
       ])
-      console.info(`Monitor run complete (${monitorCompletionReason}).`)
+      console.debug(`Monitor run complete (${monitorCompletionReason}).`)
     }
 
     if (rows.length > 0) await onLogs(rows)
