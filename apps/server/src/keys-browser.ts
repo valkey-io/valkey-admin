@@ -34,6 +34,8 @@ async function getScanKeyInfo(
     const isHash = keyInfo.type.toLowerCase() === "hash"
     let cursor = "0"
     
+    // This Promise.all 1) gets the Key's collection size, and 2) fills the result set with the collection's values.
+    // The side-effect promise is used result set is filled with a SCAN style command (requiring repeated queries with the cursor).
     const [collectionSize] = await Promise.all([
       client.customCommand([commands.sizeCmd, keyInfo.name]),
       (async () => {
@@ -42,6 +44,8 @@ async function getScanKeyInfo(
           const [newCursor, elements] = await client.customCommand([...commands.elementsCmd, cursor]) as [string, any[]]
 
           if (isHash) {
+            // Hash key types require constructing an object from a flat array.
+            // i.e. converting [key1, value1...] to [{key: key1, value}]
             for (let i = 0; i < elements.length; i += 2){
               results.add({ key: elements[i], value: elements[i + 1] })
             }
@@ -70,20 +74,19 @@ async function getFullKeyInfo(
   commands: { sizeCmd: string; elementsCmd: string[] },
 ): Promise<EnrichedKeyInfo>{
   try {
-    const promises = []
+    const promises = [client.customCommand(commands.elementsCmd)]
 
     if (commands.sizeCmd) {
       promises.push(client.customCommand([commands.sizeCmd, keyInfo.name]))
     }
-    promises.push(client.customCommand(commands.elementsCmd))
 
     const results = await Promise.all(promises)
 
     if (commands.sizeCmd) {
       return {
         ...keyInfo,
-        collectionSize: results[0] as number,
-        elements: results[1],
+        collectionSize: results[1] as number,
+        elements: results[0],
       }
     } else {
       // in case of string with no collectionSize

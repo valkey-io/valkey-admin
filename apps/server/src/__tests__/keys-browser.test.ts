@@ -67,7 +67,7 @@ describe("getKeyInfo", () => {
         TTL: -1,
         MEMORY: 200,
         HLEN: 3,
-        HGETALL: ["field1", "value1", "field2", "value2"],
+        HSCAN: ["0", ["field1", "value1", "field2", "value2"]],
       })
 
       const result = await getKeyInfo(mockClient as any, "myhash")
@@ -77,7 +77,10 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.ttl, -1)
       assert.strictEqual(result.size, 200)
       assert.strictEqual(result.collectionSize, 3)
-      assert.deepStrictEqual(result.elements, ["field1", "value1", "field2", "value2"])
+      assert.deepStrictEqual(result.elements, [
+        { key: "field1", value: "value1" }, 
+        { key: "field2", value: "value2" },
+      ])
     })
   })
 
