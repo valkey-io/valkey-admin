@@ -13,7 +13,7 @@ import pLimit from "p-limit"
 import { VALKEY, VALKEY_CLIENT } from "../../../common/src/constants.ts"
 import { buildScanCommandArgs } from "./valkey-client-commands.ts"
 import { formatBytes } from "../../../common/src/bytes-conversion.ts"
-import { getHumanReadableElement } from "./utils.ts"
+import { getHumanReadableElement, getHumanReadableString } from "./utils.ts"
 
 interface EnrichedKeyInfo {
   name: string;
@@ -47,10 +47,13 @@ async function getScanKeyInfo(
             // Hash key types require constructing an object from a flat array.
             // i.e. converting [key1, value1...] to [{key: key1, value}]
             for (let i = 0; i < elements.length; i += 2){
-              results.add({ key: getHumanReadableElement(elements[i]), value: getHumanReadableElement(elements[i + 1]) })
+              results.add({ 
+                key: getHumanReadableString(elements[i] as string), 
+                value: getHumanReadableString(elements[i + 1] as string)
+              })
             }
           } else {
-            elements.forEach((element) => results.add(getHumanReadableElement(element)))
+            elements.forEach((element) => results.add(getHumanReadableString(element as string)))
           }
           cursor = newCursor
         } while (cursor !== "0")

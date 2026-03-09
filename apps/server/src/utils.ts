@@ -175,9 +175,21 @@ export const isHumanReadable = (data: GlideReturnType): boolean => {
    && getPrintableRatio(data) >= VALKEY_CLIENT.HUMAN_READABLE.ACCEPTABLE_PRINTABLE_RATIO;
 }
 
-export const getHumanReadableElement = (element: GlideReturnType): string => {
-  if (typeof element !== "string" || !isHumanReadable(element)){
-    return VALKEY_CLIENT.HUMAN_READABLE.NOT_READABLE_MESSAGE;
+export const getHumanReadableString = (str: string): string => {
+  return !isHumanReadable(str)
+   ? VALKEY_CLIENT.HUMAN_READABLE.NOT_READABLE_MESSAGE 
+   : str;
+}
+
+export type HumanReadableResult = string | HumanReadableResult[];
+
+export const getHumanReadableElement = (element: GlideReturnType): HumanReadableResult => {
+  if (Array.isArray(element)) {
+    return element.map((item) => getHumanReadableElement(item));
+  } else if (typeof element === "string") {
+    return getHumanReadableString(element);
   }
-  return element as string;
+  
+  // For non-string, non-array types
+  return VALKEY_CLIENT.HUMAN_READABLE.NOT_READABLE_MESSAGE;
 }
