@@ -132,6 +132,12 @@ export function AutocompleteDropdown({
     return null
   }
 
+  const statusMessage = isLoading
+    ? "Loading suggestions..."
+    : suggestions.length === 0
+      ? "No commands found"
+      : null
+
   return (
     <div
       aria-activedescendant={activeDescendantId}
@@ -149,13 +155,13 @@ export function AutocompleteDropdown({
         marginBottom: "0.25rem",
       }}
     >
-      {isLoading || suggestions.length === 0 ? (
+      {statusMessage ? (
         <div
           aria-live="polite"
           className="px-3 py-2 text-sm text-muted-foreground"
           role="status"
         >
-          {isLoading ? "Loading suggestions..." : "No commands found"}
+          {statusMessage}
         </div>
       ) : (
         suggestions.map((matchResult, index) => (

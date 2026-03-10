@@ -107,30 +107,3 @@ export function matchCommands(query: string, maxResults: number = 10, adminMode:
 
   return results.slice(0, maxResults)
 }
-
-/**
- * Get commands filtered by admin mode
- * @param options - Filter options
- * @param options.adminMode - Whether to include admin-tier commands (default: false)
- * @returns Filtered list of commands
- */
-export function getCommands(options: { adminMode?: boolean } = {}): ValkeyCommand[] {
-  const { adminMode = false } = options
-  return adminMode ? ALL_COMMANDS : NON_ADMIN_COMMANDS
-}
-
-/**
- * Search commands with fuzzy matching
- * @param query - Search query
- * @param options - Search options
- * @param options.adminMode - Whether to include admin-tier commands
- * @param options.maxResults - Maximum number of results
- * @returns Array of match results
- */
-export function searchCommands(
-  query: string,
-  options: { adminMode?: boolean; maxResults?: number } = {},
-): MatchResult[] {
-  const { adminMode = false, maxResults = 10 } = options
-  return matchCommands(query, maxResults, adminMode)
-}
