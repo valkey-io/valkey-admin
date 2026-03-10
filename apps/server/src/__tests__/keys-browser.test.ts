@@ -270,7 +270,7 @@ describe("getKeyInfo", () => {
         TTL: -1,
         MEMORY: 200,
         ZCARD: 2,
-        ZRANGE: [{key: "member1", value: "1.5"}, {key: "member2", value: "2.5"}],
+        ZRANGE: [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }],
       })
 
       const result = await getKeyInfo(mockClient as any, "myzset")
@@ -280,7 +280,7 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.collectionSize, 2)
       assert.ok(Array.isArray(result.elements))
       // RESP3 ZRANGE with WITHSCORES returns [{key: member, value: score}, ...]
-      assert.deepStrictEqual(result.elements, [{key: "member1", value: 1.5}, {key: "member2", value: 2.5}])
+      assert.deepStrictEqual(result.elements, [{ key: "member1", value: 1.5 }, { key: "member2", value: 2.5 }])
     })
 
     it("should filter binary data in zset members", async () => {
@@ -290,7 +290,7 @@ describe("getKeyInfo", () => {
         TTL: -1,
         MEMORY: 200,
         ZCARD: 3,
-        ZRANGE: [{key: "readable", value: "1.0"}, {key: binaryMember, value: "2.0"}, {key: "alsoreadable", value: "3.0"}],
+        ZRANGE: [{ key: "readable", value: "1.0" }, { key: binaryMember, value: "2.0" }, { key: "alsoreadable", value: "3.0" }],
       })
 
       const result = await getKeyInfo(mockClient as any, "myzset")
@@ -300,9 +300,9 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.collectionSize, 3)
       assert.ok(Array.isArray(result.elements))
       const elements = result.elements as any[]
-      assert.deepStrictEqual(elements[0], {key: "readable", value: 1.0})
-      assert.deepStrictEqual(elements[1], {key: "Not human readable", value: 2.0})
-      assert.deepStrictEqual(elements[2], {key: "alsoreadable", value: 3.0})
+      assert.deepStrictEqual(elements[0], { key: "readable", value: 1.0 })
+      assert.deepStrictEqual(elements[1], { key: "Not human readable", value: 2.0 })
+      assert.deepStrictEqual(elements[2], { key: "alsoreadable", value: 3.0 })
     })
   })
 
@@ -372,7 +372,7 @@ describe("getKeyInfo", () => {
 
   describe("json keys", () => {
     it("should get json key info with readable JSON string", async () => {
-      const jsonValue = '{"name":"test","value":123}'
+      const jsonValue = "{\"name\":\"test\",\"value\":123}"
       const mockClient = createMockClient({
         TYPE: "rejson-rl",
         TTL: -1,
@@ -388,7 +388,7 @@ describe("getKeyInfo", () => {
     })
 
     it("should return 'Not human readable' for JSON with binary data", async () => {
-      const binaryJson = '{"name":"test\x00\x01\x02\x03\x04\x05","value":123}'
+      const binaryJson = "{\"name\":\"test\x00\x01\x02\x03\x04\x05\",\"value\":123}"
       const mockClient = createMockClient({
         TYPE: "rejson-rl",
         TTL: -1,

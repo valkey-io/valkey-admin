@@ -237,10 +237,43 @@ describe("isHumanReadable", () => {
   })
 
   it("should return true for mixed Unicode and ASCII readable", () => {
-    // Note: Unicode characters outside ASCII range are not counted as printable
-    // So this needs to be mostly ASCII to pass the 90% threshold
-    const mixedString = "Hello World! Test 123"
+    const mixedString = "Hello 你好 World!"
     const result = (isHumanReadable as any)(mixedString)
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for Chinese characters", () => {
+    const result = (isHumanReadable as any)("你好世界")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for Japanese characters", () => {
+    const result = (isHumanReadable as any)("こんにちは")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for Korean characters", () => {
+    const result = (isHumanReadable as any)("안녕하세요")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for Cyrillic characters", () => {
+    const result = (isHumanReadable as any)("Привет мир")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for Arabic characters", () => {
+    const result = (isHumanReadable as any)("مرحبا بالعالم")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for accented Latin characters", () => {
+    const result = (isHumanReadable as any)("café résumé naïve")
+    assert.strictEqual(result, true)
+  })
+
+  it("should return true for emoji", () => {
+    const result = (isHumanReadable as any)("Hello 🌍🎉👋")
     assert.strictEqual(result, true)
   })
 

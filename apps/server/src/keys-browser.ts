@@ -49,7 +49,7 @@ async function getScanKeyInfo(
             for (let i = 0; i < elements.length; i += 2){
               results.add({ 
                 key: getHumanReadableString(elements[i] as string), 
-                value: getHumanReadableString(elements[i + 1] as string)
+                value: getHumanReadableString(elements[i + 1] as string),
               })
             }
           } else {
