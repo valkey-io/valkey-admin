@@ -6,7 +6,8 @@ import {
   RouteOption, 
   ConnectionError, 
   TimeoutError, 
-  ClosingError 
+  ClosingError, 
+  GlideReturnType
 } from "@valkey/valkey-glide"
 import pLimit from "p-limit"
 import { VALKEY, VALKEY_CLIENT } from "../../../common/src/constants.ts"
@@ -21,6 +22,7 @@ interface EnrichedKeyInfo {
   collectionSize?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements?: any; // this can be array, object, or string depending on the key type.
+  elementsWarning?: string; // alternative for elements when they cannot be displayed.
 }
 
 async function getScanKeyInfo(
@@ -29,8 +31,7 @@ async function getScanKeyInfo(
   commands: { sizeCmd: string; elementsCmd: string[] },
 ): Promise<EnrichedKeyInfo> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results = new Set<any>()
+    const results = new Set<string | { key: string; value: string }>()
     const isHash = keyInfo.type.toLowerCase() === "hash"
     let cursor = "0"
     
@@ -40,17 +41,19 @@ async function getScanKeyInfo(
       client.customCommand([commands.sizeCmd, keyInfo.name]),
       (async () => {
         do {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const [newCursor, elements] = await client.customCommand([...commands.elementsCmd, cursor]) as [string, any[]]
+          const [newCursor, elements] = await client.customCommand([...commands.elementsCmd, cursor]) as [string, GlideReturnType[]]
 
           if (isHash) {
             // Hash key types require constructing an object from a flat array.
             // i.e. converting [key1, value1...] to [{key: key1, value}]
             for (let i = 0; i < elements.length; i += 2){
-              results.add({ key: elements[i], value: elements[i + 1] })
+              results.add({ 
+                key: elements[i] as string, 
+                value: elements[i + 1] as string,
+              })
             }
           } else {
-            elements.forEach((element) => results.add(element))
+            elements.forEach((element) => results.add(element as string))
           }
           cursor = newCursor
         } while (cursor !== "0")
@@ -64,7 +67,10 @@ async function getScanKeyInfo(
     }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
-    return keyInfo
+    return {
+      ...keyInfo,
+      elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE,
+    }
   }
 }
 
@@ -97,6 +103,10 @@ async function getFullKeyInfo(
     }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
+    // Valkey client uses String decoder, which throws this error when it encounters non-UTF-8 bytes
+    if (err instanceof Error && err.message.includes("Decoding error")) {
+      return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+    }
     return keyInfo
   }
 }
@@ -147,7 +157,7 @@ export async function getKeyInfo(
       if (commands.sizeCmd){
         keyInfo.collectionSize = await (client.customCommand([commands.sizeCmd, key])) as number
       }
-      keyInfo.elements = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT)}.`
+      keyInfo.elementsWarning = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT)}.`
 
       return keyInfo
     }

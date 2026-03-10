@@ -155,7 +155,7 @@ export function KeyBrowser() {
             className="flex-1"
             label="Total Keys"
             tooltip={
-              <TooltipIcon description="Total number of keys in the database" size={14} />
+              <TooltipIcon description="Total number of keys sampled" size={14} />
             }
             value={totalKeys}
           />
@@ -163,7 +163,7 @@ export function KeyBrowser() {
             className="flex-1"
             label="Memory Usage"
             tooltip={
-              <TooltipIcon description="Memory used by all keys in the database" size={14} />
+              <TooltipIcon description="Memory used by keys sampled" size={14} />
             }
             value={formatBytes(totalMemoryUsage)}
           />
@@ -206,7 +206,7 @@ export function KeyBrowser() {
             disabled={loading}
             onChange={(e) => setSearchPattern(e.target.value)}
             onClear={handleClearSearch}
-            placeholder="Search keys (use * to search patterns like user:*)"
+            placeholder="Search keys (use * to search patterns like user:* and press Enter)"
             value={searchPattern}
           />
         </form>

@@ -1,4 +1,5 @@
 import { Trash, Check, TriangleAlert } from "lucide-react"
+import { Alert, AlertDescription } from "../ui/alert"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
@@ -310,18 +311,14 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
         <Label htmlFor="json-value">JSON Value *</Label>
 
         {/* JSON Module Indicator */}
-        <div className={`flex gap-2 px-3 py-2 rounded bg-primary/20 ${
-          jsonModuleAvailable
-            ? "text-teal-500"
-            : "text-red-400"
-        }`}>
-          {jsonModuleAvailable ? <Check size={14} /> : <TriangleAlert size={14} />}
-          <Typography variant="bodyXs">
+        <Alert variant={jsonModuleAvailable ? "success" : "warning"}>
+          {jsonModuleAvailable ? <Check className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
+          <AlertDescription>
             {jsonModuleAvailable
               ? "JSON module is available"
               : "JSON module is not loaded on this Valkey instance"}
-          </Typography>
-        </div>
+          </AlertDescription>
+        </Alert>
 
         <Textarea
           className="min-h-[150px] font-mono text-sm"

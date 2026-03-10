@@ -1,7 +1,8 @@
-import { Loader2, X } from "lucide-react"
+import { AlertTriangle, Loader2, X } from "lucide-react"
 import { type FormEvent } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
 import { Typography } from "./typography.tsx"
@@ -62,9 +63,9 @@ export function ConnectionModal({
               </Dialog.Description>
 
               {errorMessage && (
-                <div className="mt-4 p-1 bg-primary/20 border rounded">
-                  <Typography className="text-red-500" variant="bodySm">{errorMessage}</Typography>
-                </div>
+                <Alert className="mt-4" variant="destructive">
+                  <AlertDescription>{errorMessage}</AlertDescription>
+                </Alert>
               )}
 
               <form className="space-y-4 mt-4" onSubmit={onSubmit}>
@@ -183,12 +184,13 @@ export function ConnectionModal({
                 )}
 
                 {showConnectionLimitWarning && (
-                  <div className="mt-4 p-2 bg-yellow-100 border rounded">
-                    <Typography variant="bodyXs">
+                  <Alert className="mt-4" variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
                       You've reached the maximum of {MAX_CONNECTIONS} active connections.
                       Please disconnect one before connecting to another.
-                    </Typography>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 <div className="pt-2 text-sm">

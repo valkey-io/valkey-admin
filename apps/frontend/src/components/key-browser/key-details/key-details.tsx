@@ -1,4 +1,4 @@
-import { Key, Trash, X } from "lucide-react"
+import { Key, Trash, TriangleAlert, X } from "lucide-react"
 import { useState } from "react"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
@@ -17,12 +17,14 @@ import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { CustomTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface BaseKeyInfo {
   name: string;
   ttl: number;
   size: number;
   collectionSize?: number;
+  elementsWarning?: string;
 }
 
 interface ElementInfo {
@@ -155,68 +157,78 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
               </div>
             </div>
 
-            {/* show different key types */}
-            {selectedKeyInfo.type === "string" && (
-              <KeyDetailsString
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+            {selectedKeyInfo.elementsWarning ? (
+              <Alert variant="warning">
+                <TriangleAlert className="w-4 h-4" />
+                <AlertDescription>{selectedKeyInfo.elementsWarning}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {/* show different key types */}
+                {selectedKeyInfo.type === "string" && (
+                  <KeyDetailsString
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "hash" && (
-              <KeyDetailsHash
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "hash" && (
+                  <KeyDetailsHash
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "list" && (
-              <KeyDetailsList
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "list" && (
+                  <KeyDetailsList
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "set" && (
-              <KeyDetailsSet
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "set" && (
+                  <KeyDetailsSet
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "zset" && (
-              <KeyDetailsZSet
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "zset" && (
+                  <KeyDetailsZSet
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "stream" && (
-              <KeyDetailsStream
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "stream" && (
+                  <KeyDetailsStream
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "ReJSON-RL" && (
-              <KeyDetailsJson
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
+                {selectedKeyInfo.type === "ReJSON-RL" && (
+                  <KeyDetailsJson
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
+              </>
             )}
           </div>
         ) : (
