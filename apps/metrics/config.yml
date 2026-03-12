@@ -11,7 +11,7 @@ collector:
   batch_max: 500
 
 storage:
-  retention_days: 30
+  retention_days: 5
 
 epics:
   - name: "memory"

@@ -5,19 +5,16 @@ vi.mock("node:fs", () => ({
   default: {
     promises: {
       readdir: vi.fn(),
+      stat: vi.fn(),
       unlink: vi.fn(),
     },
   },
 }))
 
-vi.mock("../utils/logger.js", () => ({
-  createLogger: () => ({
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-  }),
-}))
+vi.mock("../utils/logger.js", () => {
+  const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }
+  return { createLogger: () => logger }
+})
 
 describe("ndjson-cleaner", () => {
   let fs
@@ -31,6 +28,7 @@ describe("ndjson-cleaner", () => {
     fs = (await import("node:fs")).default
 
     fs.promises.readdir.mockResolvedValue([])
+    fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-06-15") })
     fs.promises.unlink.mockResolvedValue(undefined)
 
     cfg = {
@@ -48,11 +46,15 @@ describe("ndjson-cleaner", () => {
   describe("retention policy", () => {
     it("deletes only expired .ndjson files", async () => {
       // 2025-06-15 now, 30-day retention → cutoff = 2025-05-16
-      // 20250501 is expired (May 1), 20250610 is recent (June 10)
+      // memory has old birthtime (expired), cpu has recent birthtime (kept)
       fs.promises.readdir.mockResolvedValue([
         "memory_20250501.ndjson",
         "cpu_20250610.ndjson",
       ])
+      fs.promises.stat.mockImplementation((filePath) => {
+        if (filePath.endsWith("memory_20250501.ndjson")) return Promise.resolve({ birthtime: new Date("2025-05-01") })
+        return Promise.resolve({ birthtime: new Date("2025-06-10") })
+      })
 
       const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
       setupNdjsonCleaner(cfg)
@@ -71,6 +73,7 @@ describe("ndjson-cleaner", () => {
         "data.json",
         "memory_20250101.ndjson",
       ])
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-01-01") })
 
       const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
       setupNdjsonCleaner(cfg)
@@ -84,11 +87,12 @@ describe("ndjson-cleaner", () => {
       stopNdjsonCleaner()
     })
 
-    it("ignores ndjson files without a date pattern", async () => {
+    it("keeps .ndjson files with recent birthtime", async () => {
       fs.promises.readdir.mockResolvedValue([
         "notes.ndjson",
         "backup.ndjson",
       ])
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-06-14") })
 
       const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
       setupNdjsonCleaner(cfg)
@@ -114,21 +118,27 @@ describe("ndjson-cleaner", () => {
     })
 
     it("keeps file exactly at cutoff date", async () => {
-      // now = 2025-06-15, retention_days = 30 → cutoff = 2025-05-16
-      // A file dated 20250516 is exactly at the cutoff boundary and should be kept
+      // now = 2025-06-15T12:00:00.000Z, retention_days = 30 → cutoff = 2025-05-16T12:00:00.000Z
+      // File with birthtime at cutoff should be kept, file before cutoff should be deleted
       fs.promises.readdir.mockResolvedValue([
-        "memory_20250516.ndjson",
-        "memory_20250515.ndjson",
+        "at_cutoff.ndjson",
+        "before_cutoff.ndjson",
       ])
+      fs.promises.stat.mockImplementation((filePath) => {
+        if (filePath.endsWith("at_cutoff.ndjson")) {
+          return Promise.resolve({ birthtime: new Date("2025-05-16T12:00:00.000Z") })
+        }
+        return Promise.resolve({ birthtime: new Date("2025-05-16T11:59:59.999Z") })
+      })
 
       const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
       setupNdjsonCleaner(cfg)
 
       await vi.advanceTimersByTimeAsync(0)
 
-      // Only 20250515 should be deleted (< cutoff), 20250516 should be kept (== cutoff, not < cutoff)
+      // Only before_cutoff should be deleted (< cutoff), at_cutoff should be kept (== cutoff)
       expect(fs.promises.unlink).toHaveBeenCalledTimes(1)
-      expect(fs.promises.unlink).toHaveBeenCalledWith("/app/data/memory_20250515.ndjson")
+      expect(fs.promises.unlink).toHaveBeenCalledWith("/app/data/before_cutoff.ndjson")
 
       stopNdjsonCleaner()
     })
@@ -215,6 +225,7 @@ describe("ndjson-cleaner", () => {
       fs.promises.readdir
         .mockRejectedValueOnce(new Error("EACCES: permission denied"))
         .mockResolvedValueOnce(["memory_20250101.ndjson"])
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-01-01") })
 
       const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
       setupNdjsonCleaner(cfg)
@@ -230,6 +241,30 @@ describe("ndjson-cleaner", () => {
 
       expect(fs.promises.readdir).toHaveBeenCalledTimes(2)
       expect(fs.promises.unlink).toHaveBeenCalledTimes(1)
+
+      stopNdjsonCleaner()
+    })
+
+    it("logs error when individual unlink fails", async () => {
+      fs.promises.readdir.mockResolvedValue([
+        "old_a.ndjson",
+        "old_b.ndjson",
+      ])
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-01-01") })
+      fs.promises.unlink
+        .mockRejectedValueOnce(new Error("EACCES"))
+        .mockResolvedValueOnce(undefined)
+
+      const { createLogger } = await import("../utils/logger.js")
+      const log = createLogger()
+
+      const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
+      setupNdjsonCleaner(cfg)
+
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(fs.promises.unlink).toHaveBeenCalledTimes(2)
+      expect(log.error).toHaveBeenCalledTimes(1)
 
       stopNdjsonCleaner()
     })

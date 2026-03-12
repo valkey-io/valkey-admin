@@ -13,7 +13,8 @@ export const setupNdjsonCleaner = ( cfg ) => {
   const pipeline$ = timer(0, METRICS_EVICTION_POLICY.INTERVAL).pipe(
     exhaustMap(() => 
       scanDir(cfg.server.data_dir)
-        .then((files) => applyRetentionPolicy(files, cfg.storage.retention_days))
+        .then((fileNames) => getFileStats(cfg.server.data_dir, fileNames))
+        .then((filesWithStats) => applyRetentionPolicy(filesWithStats, cfg.storage.retention_days))
         .then((expired) => deleteFiles(cfg.server.data_dir, expired))
         .catch((err) => { log.error(err) }),
     ),
@@ -37,23 +38,23 @@ const scanDir = async (dir) => {
   return fileNames
 }
 
-const applyRetentionPolicy = (fileNames, retentionDays) => {
-  // Calculate cutoff date in UTC, aligning cutoff to midnight.
-  const now = Date.now()
-  const todayUTC = now - (now % MILLISECONDS_IN_A_DAY)
-  const cutoff = todayUTC - retentionDays * MILLISECONDS_IN_A_DAY
+const getFileStats = async (dir, fileNames) => {
+  // fileNames are populated with readdir, only failure modes for stat are if the file is deleted & permissions changed between readdir and stat
+  // Therefore using all instead of allSettled
+  return Promise.all(fileNames.map(async (fileName) => [fileName, await fs.promises.stat(path.join(dir, fileName))]))
+}
 
-  const expired = fileNames.filter((fileName) => {
+const applyRetentionPolicy = (filesWithStats, retentionDays) => {
+  const expired = filesWithStats.filter(([fileName, stats]) => {
     if (!fileName.endsWith(".ndjson")) return false
-    const match = fileName.match(/_(\d{8})\.ndjson$/)
-    if (!match) return false
-    const [y, m, d] = [match[1].slice(0, 4), match[1].slice(4, 6), match[1].slice(6, 8)]
-    // Month uses month index instead of month number
-    return Date.UTC(y, m - 1, d) < cutoff
+    return stats.birthtime < Date.now() - retentionDays * MILLISECONDS_IN_A_DAY
   })
   return expired
 }
 
-const deleteFiles = async (dir, fileNames) => {
-  await Promise.all(fileNames.map((fileName) => fs.promises.unlink(path.join(dir, fileName))))
+const deleteFiles = async (dir, expiredFilesWithStats) => {
+  (await Promise.allSettled(expiredFilesWithStats.map(([fileName]) => fs.promises.unlink(path.join(dir, fileName)))))
+    .forEach((result, i) => {
+      if (result.status === "rejected") log.error(result.reason, `Failed to delete: ${expiredFilesWithStats[i][0]}`)
+    })
 }
