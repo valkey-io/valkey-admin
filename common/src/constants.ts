@@ -173,3 +173,10 @@ export const KEY_TYPES = {
   STREAM: "Stream",
   JSON: "JSON",
 }
+
+export const MILLISECONDS_IN_A_DAY = 86_400_000
+
+export const METRICS_EVICTION_POLICY = {
+  INTERVAL: 1 * MILLISECONDS_IN_A_DAY,
+}
+
