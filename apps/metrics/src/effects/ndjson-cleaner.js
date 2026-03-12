@@ -14,7 +14,8 @@ export const setupNdjsonCleaner = ( cfg ) => {
     exhaustMap(() => 
       scanDir(cfg.server.data_dir)
         .then((files) => applyRetentionPolicy(files, cfg.storage.retention_days))
-        .then((expired) => deleteFiles(cfg.server.data_dir, expired)),
+        .then((expired) => deleteFiles(cfg.server.data_dir, expired))
+        .catch((err) => { log.error(err) }),
     ),
   )
   
@@ -37,14 +38,18 @@ const scanDir = async (dir) => {
 }
 
 const applyRetentionPolicy = (fileNames, retentionDays) => {
-  const cutoff = Date.now() - retentionDays * MILLISECONDS_IN_A_DAY
+  // Calculate cutoff date in UTC, aligning cutoff to midnight.
+  const now = Date.now()
+  const todayUTC = now - (now % MILLISECONDS_IN_A_DAY)
+  const cutoff = todayUTC - retentionDays * MILLISECONDS_IN_A_DAY
+
   const expired = fileNames.filter((fileName) => {
     if (!fileName.endsWith(".ndjson")) return false
     const match = fileName.match(/_(\d{8})\.ndjson$/)
     if (!match) return false
     const [y, m, d] = [match[1].slice(0, 4), match[1].slice(4, 6), match[1].slice(6, 8)]
     // Month uses month index instead of month number
-    return new Date(y, m - 1, d).getTime() < cutoff
+    return Date.UTC(y, m - 1, d) < cutoff
   })
   return expired
 }
