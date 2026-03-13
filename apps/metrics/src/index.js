@@ -12,6 +12,7 @@ import cpuFold from "./analyzers/calculate-cpu-usage.js"
 import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
+import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 
 async function main() {
   const cfg = getConfig()
@@ -47,6 +48,7 @@ async function main() {
     clientName: "test_client",
   })
 
+  await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
 
   const app = express()
@@ -149,6 +151,7 @@ async function main() {
   const shutdown = async () => {
     console.debug("shutting down")
     try {
+      await stopNdjsonCleaner()
       await stopCollectors()
       if (client) {
         client.close()

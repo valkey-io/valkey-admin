@@ -10,6 +10,9 @@ collector:
   batch_ms: 60000
   batch_max: 500
 
+storage:
+  retention_days: 5
+
 epics:
   - name: "memory"
     type: "memory_stats"
