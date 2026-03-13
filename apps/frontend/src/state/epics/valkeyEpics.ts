@@ -295,10 +295,11 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {
+          const savedPassword = currentConnections[connectionId].connectionDetails?.password
           const connectionDetails = connection.connectionDetails.password
             ? R.assoc(
               "password",
-              await secureStorage.encrypt(connection.connectionDetails.password),
+              savedPassword || await secureStorage.encrypt(connection.connectionDetails.password),
               connection.connectionDetails,
             )
             : connection.connectionDetails
