@@ -1,4 +1,4 @@
-import { Key, Trash, X } from "lucide-react"
+import { Key, Trash, TriangleAlert, X } from "lucide-react"
 import { useState } from "react"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
@@ -16,12 +16,15 @@ import KeyDetailsJson from "./key-details-json"
 import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { CustomTooltip } from "@/components/ui/tooltip"
+import { Typography } from "@/components/ui/typography"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface BaseKeyInfo {
   name: string;
   ttl: number;
   size: number;
   collectionSize?: number;
+  elementsWarning?: string;
 }
 
 interface ElementInfo {
@@ -96,10 +99,10 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
           <div className="h-full p-4 text-sm font-light overflow-y-auto">
             {/* Header Section */}
             <div className="flex justify-between items-center mb-2 border-b pb-4 border-tw-dark-border">
-              <span className="font-semibold flex items-center gap-2">
+              <Typography className="flex items-center gap-2" variant="label">
                 <Key size={16} />
                 {selectedKey}
-              </span>
+              </Typography>
               <div className="space-x-2 flex items-center relative">
 
                 {!readOnly && (
@@ -123,7 +126,8 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 )}
                 {readOnly && (
                   <button
-                    className="text-tw-primary hover:text-tw-primary/60 border-2 border-tw-primary rounded-full transition-colors"
+                    aria-label="Close key details"
+                    className="text-primary hover:text-primary/60 border-2 border-primary rounded-full transition-colors"
                     onClick={() => setSelectedKey(null)}
                   >
                     <X size={18} />
@@ -133,6 +137,7 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 {!readOnly && (
                   <CustomTooltip content="Delete">
                     <Button
+                      aria-label="Delete key"
                       className="mr-0.5"
                       onClick={handleDeleteModal}
                       variant={"destructiveGhost"}
@@ -152,73 +157,85 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
               </div>
             </div>
 
-            {/* show different key types */}
-            {selectedKeyInfo.type === "string" && (
-              <KeyDetailsString
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+            {selectedKeyInfo.elementsWarning ? (
+              <Alert variant="warning">
+                <TriangleAlert className="w-4 h-4" />
+                <AlertDescription>{selectedKeyInfo.elementsWarning}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {/* show different key types */}
+                {selectedKeyInfo.type === "string" && (
+                  <KeyDetailsString
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "hash" && (
-              <KeyDetailsHash
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "hash" && (
+                  <KeyDetailsHash
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "list" && (
-              <KeyDetailsList
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "list" && (
+                  <KeyDetailsList
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "set" && (
-              <KeyDetailsSet
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "set" && (
+                  <KeyDetailsSet
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "zset" && (
-              <KeyDetailsZSet
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "zset" && (
+                  <KeyDetailsZSet
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "stream" && (
-              <KeyDetailsStream
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
-            )}
+                {selectedKeyInfo.type === "stream" && (
+                  <KeyDetailsStream
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
 
-            {selectedKeyInfo.type === "ReJSON-RL" && (
-              <KeyDetailsJson
-                connectionId={connectionId}
-                readOnly={readOnly}
-                selectedKey={selectedKey}
-                selectedKeyInfo={selectedKeyInfo}
-              />
+                {selectedKeyInfo.type === "ReJSON-RL" && (
+                  <KeyDetailsJson
+                    connectionId={connectionId}
+                    readOnly={readOnly}
+                    selectedKey={selectedKey}
+                    selectedKeyInfo={selectedKeyInfo}
+                  />
+                )}
+              </>
             )}
           </div>
         ) : (
-          <div className="h-full p-4 text-sm font-light flex items-center justify-center text-gray-500">
-            Select a key to see details
+          <div className="h-full p-4 flex items-center justify-center">
+            <Typography variant="bodySm">
+              Select a key to see details
+            </Typography>
           </div>
         )}
       </Panel>

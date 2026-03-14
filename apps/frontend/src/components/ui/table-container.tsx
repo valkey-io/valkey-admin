@@ -16,7 +16,12 @@ export function TableContainer({ header, children, className }: TableContainerPr
       </div>
 
       {/* Contents */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        aria-label="Table content"
+        className="flex-1 overflow-y-auto"
+        role="region"
+        tabIndex={0}
+      >
         <table className="w-full">
           <tbody>{children}</tbody>
         </table>

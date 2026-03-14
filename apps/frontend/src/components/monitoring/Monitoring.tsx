@@ -12,7 +12,6 @@ import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
 import { Button } from "../ui/button"
-import { Panel } from "../ui/panel"
 import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -44,7 +43,6 @@ export const Monitoring = () => {
   const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
   const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REPLY)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
-  console.log("Hot keys data: ", hotKeysData)
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
   const hotKeysErrorMessage = useSelector((state:RootState) => selectHotKeysError(id!)(state))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
@@ -124,7 +122,7 @@ export const Monitoring = () => {
             size={"sm"}
             variant={"outline"}
           >
-            Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
+            Refresh <RefreshCcw className="hover:text-primary" size={15} />
           </Button>
         )}
 
@@ -143,7 +141,7 @@ export const Monitoring = () => {
               size={"sm"}
               variant={"outline"}
             >
-              Refresh <RefreshCcw className="hover:text-tw-primary" size={15} />
+              Refresh <RefreshCcw className="hover:text-primary" size={15} />
             </Button>
           </div>
         )}
@@ -151,10 +149,10 @@ export const Monitoring = () => {
 
       {/* Tab Content */}
       {activeTab === "hot-keys" ? (
-        <div className="flex flex-1">
+        <div className="flex flex-1 h-full overflow-hidden gap-2">
           {/* Hot Keys List */}
-          <div className={selectedKey ? "w-2/3 pr-2" : "w-full"}>
-            <Panel >
+          <div className={selectedKey ? "w-2/3 h-full" : "w-full h-full"}>
+            <div className="flex-1 h-full border border-input rounded-md shadow-xs">
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
@@ -162,23 +160,25 @@ export const Monitoring = () => {
                 selectedKey={selectedKey}
                 status={hotKeysStatus}
               />
-            </Panel>
+            </div>
           </div>
           {/* Key Details Panel */}
           {selectedKey && (
-            <KeyDetails
-              connectionId={id!}
-              readOnly={true}
-              selectedKey={selectedKey}
-              selectedKeyInfo={selectedKeyInfo}
-              setSelectedKey={setSelectedKey}
-            />
+            <div className="w-1/3 h-full">
+              <KeyDetails
+                connectionId={id!}
+                readOnly={true}
+                selectedKey={selectedKey}
+                selectedKeyInfo={selectedKeyInfo}
+                setSelectedKey={setSelectedKey}
+              />
+            </div>
           )}
         </div>
       ) : (
-        <Panel>
+        <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
           <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} />
-        </Panel>
+        </div>
       )}
     </RouteContainer>
 

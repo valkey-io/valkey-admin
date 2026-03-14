@@ -4,6 +4,7 @@ import { useParams } from "react-router"
 import { useSelector } from "react-redux"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
+import { Typography } from "./typography"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 import { getKeysRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
@@ -79,10 +80,10 @@ export default function DonutChart() {
       const data = payload[0].payload
       return (
         <div className="bg-white p-3 border border-tw-dark-border rounded shadow-lg">
-          <p className="font-semibold text-gray-800">{data.name}</p>
-          <p className="text-sm text-gray-600">Count: {data.count}</p>
-          <p className="text-sm text-gray-600">Percentage: {data.percentage}%</p>
-          <p className="text-sm text-gray-600">Total Memory: {formatBytes(data.totalSize)}</p>
+          <Typography className="text-gray-800" variant="label">{data.name}</Typography>
+          <Typography className="text-gray-600" variant="bodySm">Count: {data.count}</Typography>
+          <Typography className="text-gray-600" variant="bodySm">Percentage: {data.percentage}%</Typography>
+          <Typography className="text-gray-600" variant="bodySm">Total Memory: {formatBytes(data.totalSize)}</Typography>
         </div>
       )
     }
@@ -91,12 +92,12 @@ export default function DonutChart() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-bold text-center mb-2 text-black dark:text-white">
+      <Typography className="text-center mb-2" variant="subheading">
         Key Type Distribution
-      </h1>
-      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mb-4">
+      </Typography>
+      <Typography className="text-center mb-4" variant="bodySm">
         Total Memory: {formatBytes(totalMemory)}
-      </div>
+      </Typography>
       <ResponsiveContainer className="text-sm" height={500} width="100%">
         <PieChart>
           <Pie

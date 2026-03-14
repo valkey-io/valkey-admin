@@ -4,6 +4,7 @@ import { KEY_TYPES } from "@common/src/constants"
 import { useSelector } from "react-redux"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Textarea } from "../../ui/textarea"
+import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectJsonModuleAvailable } from "@/state/valkey-features/connection/connectionSelectors"
@@ -78,8 +79,8 @@ export default function KeyDetailsJson(
       <table className="table-auto w-full overflow-hidden">
         <thead className={cn("bg-muted/60 text-foreground")}>
           <tr>
-            <th className="w-full py-3 px-4 text-left font-semibold">
-              JSON Value
+            <th className="w-full py-3 px-4 text-left">
+              <Typography variant="label">JSON Value</Typography>
             </th>
             <th className="">
               <EditActionButtons
@@ -97,20 +98,21 @@ export default function KeyDetailsJson(
           {!jsonModuleAvailable && (
             <tr>
               <td className="px-4 pt-3" colSpan={2}>
-                <div className="flex items-center gap-2 px-3 py-2 rounded text-sm bg-tw-primary/20 text-red-400">
+                <div className="flex items-center gap-2 px-3 py-2 rounded bg-primary/20">
                   <TriangleAlert size={14} />
-                  <span>
+                  <Typography variant="bodyXs">
                     JSON module is not loaded on this Valkey instance. Editing is disabled.
-                  </span>
+                  </Typography>
                 </div>
               </td>
             </tr>
           )}
           <tr>
-            <td className={cn("py-3 px-4 font-light text-foreground")} colSpan={2}>
+            <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
               {isEditable ? (
                 <div>
                   <Textarea
+                    aria-label="Edit JSON value"
                     autoFocus
                     className="min-h-[400px] font-mono text-sm"
                     onChange={(e) => setEditedValue(e.target.value)}
@@ -123,9 +125,9 @@ export default function KeyDetailsJson(
                   )}
                 </div>
               ) : (
-                <pre className="font-mono text-sm overflow-x-auto whitespace-pre-wrap break-words">
+                <Typography className="overflow-x-auto whitespace-pre-wrap break-words" variant="code">
                   {formattedJson}
-                </pre>
+                </Typography>
               )}
             </td>
           </tr>

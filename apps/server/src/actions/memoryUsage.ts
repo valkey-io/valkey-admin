@@ -37,7 +37,7 @@ const sendMemoryUsageError = (
   connectionId: string,
   error: unknown,
 ) => {
-  console.log(error)
+  console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.MEMORY.memoryUsageError,

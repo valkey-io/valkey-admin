@@ -1,3 +1,4 @@
+import { Typography } from "../../ui/typography"
 import { cn } from "@/lib/utils"
 
 interface KeyDetailsStreamProps {
@@ -24,28 +25,29 @@ export default function KeyDetailsStream(
     <div className="flex flex-col w-full p-4 space-y-4">
       {selectedKeyInfo?.elements.map((entry, index: number) => (
         <div className="overflow-hidden" key={index}>
-          <div className={cn("bg-muted/60 text-foreground py-2 px-4 font-semibold")}>
-            Entry ID: {entry.key} <span className="text-xs font-light">({new Date(Number(entry.key.split("-")[0])).toLocaleString()})</span>
+          <div className={cn("bg-muted/60 text-foreground py-2 px-4")}>
+            <Typography variant="label">Entry ID: {entry.key}</Typography> 
+            <Typography variant="bodySm">({new Date(Number(entry.key.split("-")[0])).toLocaleString()})</Typography>
           </div>
           <table className="table-auto w-full">
             <thead className={cn("bg-muted/50 text-foreground")}>
               <tr>
-                <th className="w-1/2 py-3 px-4 text-left font-semibold">
-                  Field
+                <th className="w-1/2 py-3 px-4 text-left">
+                  <Typography variant="label">Field</Typography>
                 </th>
-                <th className="w-1/2 py-3 px-4 text-left font-semibold">
-                  Value
+                <th className="w-1/2 py-3 px-4 text-left">
+                  <Typography variant="label">Value</Typography>
                 </th>
               </tr>
             </thead>
             <tbody>
               {entry.value.map(([field, value], fieldIndex: number) => (
                 <tr key={fieldIndex}>
-                  <td className={cn("py-3 px-4 border-b border-border font-light text-foreground")}>
-                    {field}
+                  <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
+                    <Typography variant="code">{field}</Typography>
                   </td>
-                  <td className={cn("py-3 px-4 border-b border-border font-light text-foreground")}>
-                    {value}
+                  <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
+                    <Typography variant="code">{value}</Typography>
                   </td>
                 </tr>
               ))}

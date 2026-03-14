@@ -178,3 +178,4 @@ valkey_version:8.0.0`,
     assert.throws(() => parseClusterInfo(123 as any))
   })
 })
+

@@ -7,6 +7,7 @@ import { Toaster } from "./components/ui/sonner"
 import { DarkModeProvider } from "./contexts/DarkModeContext"
 import { useWebSocketNavigation } from "./hooks/useWebSocketNavigation"
 import { useValkeyConnectionNavigation } from "./hooks/useValkeyConnectionNavigation"
+import { useShortcutNavigation } from "./hooks/useShortcutNavigation"
 import { connectPending } from "@/state/wsconnection/wsConnectionSlice"
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
 
   useWebSocketNavigation()
   useValkeyConnectionNavigation()
+  useShortcutNavigation()
 
   useEffect(() => {
     dispatch(connectPending())

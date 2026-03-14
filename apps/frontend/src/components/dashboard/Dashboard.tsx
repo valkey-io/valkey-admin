@@ -15,6 +15,7 @@ import { Panel } from "../ui/panel"
 import { Input } from "../ui/input"
 import { StatCard } from "../ui/stat-card"
 import RouteContainer from "../ui/route-container"
+import { Typography } from "../ui/typography"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
@@ -30,7 +31,9 @@ export function Dashboard() {
           title="Dashboard"
         />
         <div className="flex flex-1 items-center justify-center">
-          <span className="text-gray-500">Loading metrics…</span>
+          <Typography className="text-gray-500" variant="body">
+            Loading metrics…
+          </Typography>
         </div>
       </div>
     )
@@ -112,14 +115,14 @@ export function Dashboard() {
         <div className="flex mb-4">
           <div className="w-1/2 pr-2">
             <StatCard
-              icon={<Database className="text-tw-primary" size={24} />}
+              icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
               value={formatBytes(memoryUsageMetrics.total_system_memory || 0)}
             />
           </div>
           <div className="w-1/2 pl-2">
             <StatCard
-              icon={<Database className="text-tw-primary" size={24} />}
+              icon={<Database className="text-primary" size={24} />}
               label="Used Memory"
               value={formatBytes(memoryUsageMetrics.used_memory || 0)}
             />

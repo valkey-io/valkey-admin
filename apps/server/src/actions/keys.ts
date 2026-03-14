@@ -37,13 +37,13 @@ export const getKeyTypeRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
-    console.log("Handling getKeyTypeRequested for key:", key)
+    console.debug("Handling getKeyTypeRequested for key:", key)
     const connection = clients.get(connectionId)
 
     if (connection) {
       await getKeyInfoSingle(connection.client, ws, action.payload as unknown as KeyPayload)
     } else {
-      console.log("No client found for connectionId:", connectionId)
+      console.warn("No client found for connectionId:", connectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.KEYS.getKeyTypeFailed,
@@ -62,13 +62,13 @@ export const deleteKeyRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
-    console.log("Handling deleteKeyRequested for key:", key)
+    console.debug("Handling deleteKeyRequested for key:", key)
     const connection = clients.get(connectionId)
 
     if (connection) {
       await deleteKey(connection.client, ws, action.payload as unknown as KeyPayload)
     } else {
-      console.log("No client found for connectionId:", connectionId)
+      console.warn("No client found for connectionId:", connectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.KEYS.deleteKeyFailed,
@@ -100,12 +100,12 @@ export const addKeyRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
-    console.log("Handling addKeyRequested for key:", key)
+    console.debug("Handling addKeyRequested for key:", key)
     const connection = clients.get(connectionId)
     if (connection) {
       await addKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {
-      console.log("No client found for connectionId:", connectionId)
+      console.error("No client found for connectionId:", connectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.KEYS.addKeyFailed,
@@ -124,12 +124,12 @@ export const updateKeyRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
-    console.log("Handling updateKeyRequested for key:", key)
+    console.debug("Handling updateKeyRequested for key:", key)
     const connection = clients.get(connectionId)
     if (connection) {
       await updateKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {
-      console.log("No client found for connectionId:", connectionId)
+      console.error("No client found for connectionId:", connectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.KEYS.addKeyFailed,

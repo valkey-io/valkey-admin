@@ -1,8 +1,10 @@
 import { Trash, Check, TriangleAlert } from "lucide-react"
+import { Alert, AlertDescription } from "../ui/alert"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
+import { Typography } from "../ui/typography"
 
 interface StringFieldsProps {
   value: string
@@ -309,18 +311,14 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
         <Label htmlFor="json-value">JSON Value *</Label>
 
         {/* JSON Module Indicator */}
-        <div className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
-          jsonModuleAvailable
-            ? "bg-tw-primary/20 text-teal-500"
-            : "bg-tw-primary/20 text-red-400"
-        }`}>
-          <span className="font-semibold">{jsonModuleAvailable ? <Check size={14} /> : <TriangleAlert size={14} />}</span>
-          <span>
+        <Alert variant={jsonModuleAvailable ? "success" : "warning"}>
+          {jsonModuleAvailable ? <Check className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
+          <AlertDescription>
             {jsonModuleAvailable
               ? "JSON module is available"
               : "JSON module is not loaded on this Valkey instance"}
-          </span>
-        </div>
+          </AlertDescription>
+        </Alert>
 
         <Textarea
           className="min-h-[150px] font-mono text-sm"
@@ -330,7 +328,7 @@ export function JsonFields({ value, setValue, jsonModuleAvailable = false }: Jso
           required
           value={value}
         />
-        <p className="text-xs text-muted-foreground">Enter valid JSON data</p>
+        <Typography variant="bodyXs">Enter valid JSON data</Typography>
       </div>
     </div>
   )

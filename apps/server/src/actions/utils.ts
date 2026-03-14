@@ -36,5 +36,5 @@ export type Handler = (deps: Deps) => (action: ReduxAction) => Promise<void>
 
 export const unknownHandler: Handler = () =>
   async (action: { type: string }) => {
-    console.log("Unknown action type:", action.type)
+    console.warn("Unknown action type:", action.type)
   }

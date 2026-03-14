@@ -147,7 +147,7 @@ wss.on("connection", (ws: WebSocket) => {
       action = JSON.parse(message.toString())
       connectionId = action!.payload.connectionId
     } catch (e) {
-      console.log("Failed to parse the message", message.toString(), e)
+      console.error("Failed to parse the message", message.toString(), e)
     }
 
     const handler = handlers[action!.type] ?? unknownHandler

@@ -17,7 +17,7 @@ export const keyBrowserEpic = () =>
       select(getKeysRequested),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending getKeys request to server...")
+        console.debug("Sending getKeys request to server...")
         socket.next(action)
       }),
     ),
@@ -27,7 +27,7 @@ export const keyBrowserEpic = () =>
       select(getKeyTypeRequested),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending getKeyType request to server...")
+        console.debug("Sending getKeyType request to server...")
         socket.next(action)
       }),
     ),
@@ -37,7 +37,7 @@ export const keyBrowserEpic = () =>
       select(deleteKeyRequested),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending deleteKey request to server...")
+        console.debug("Sending deleteKey request to server...")
         socket.next(action)
       }),
     ),
@@ -47,7 +47,7 @@ export const keyBrowserEpic = () =>
       select(addKeyRequested),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending addKey request to server...")
+        console.debug("Sending addKey request to server...")
         socket.next(action)
       }),
     ),
@@ -57,7 +57,7 @@ export const keyBrowserEpic = () =>
       select(updateKeyRequested),
       tap((action) => {
         const socket = getSocket()
-        console.log("Sending updateKey request to server...")
+        console.debug("Sending updateKey request to server...")
         socket.next(action)
       }),
     ),

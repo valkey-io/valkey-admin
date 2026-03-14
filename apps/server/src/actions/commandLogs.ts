@@ -63,7 +63,7 @@ const sendCommandLogsError = (
   connectionId: string,
   error: unknown,
 ) => {
-  console.log(error)
+  console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.COMMANDLOGS.commandLogsError,
@@ -85,7 +85,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
       try {
         const url = `${metricsServerURI}/commandlog?type=${commandLogType}`
-        console.log(`[Command Logs ${commandLogType}] Fetching from:`, url)
+        console.debug(`[Command Logs ${commandLogType}] Fetching from:`, url)
 
         const initialResponse = await fetch(url)
         const initialParsedResponse: CommandLogResponse = await initialResponse.json() as CommandLogResponse

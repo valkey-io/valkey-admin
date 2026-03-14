@@ -99,7 +99,7 @@ export async function connectToValkey(
     return standaloneClient
 
   } catch (err) {
-    console.log("Error connecting to Valkey", err)
+    console.error("Error connecting to Valkey", err)
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,

@@ -1,3 +1,4 @@
+import { Typography } from "./typography"
 import type { ReactNode } from "react"
 
 interface ChartSectionProps {
@@ -31,11 +32,15 @@ export function ChartSection({
       {/* Header */}
       {(title || subtitle) && (
         <div className="flex flex-col items-center mb-6">
-          {title && <h3 className="text-lg font-bold mb-2 text-center">{title}</h3>}
+          {title && (
+            <Typography className="mb-2 text-center" variant="subheading">
+              {title}
+            </Typography>
+          )}
           {subtitle && (
-            <span className="text-center text-sm text-gray-600 dark:text-gray-400">
+            <Typography className="text-center" variant="bodySm">
               {subtitle}
-            </span>
+            </Typography>
           )}
         </div>
       )}
@@ -44,9 +49,9 @@ export function ChartSection({
       {isEmpty ? (
         <div className="flex items-center justify-center h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
           <div className="text-center">
-            <p className="text-gray-500 dark:text-gray-400">
+            <Typography className="text-gray-500 dark:text-gray-400" variant="body">
               {emptyMessage}
-            </p>
+            </Typography>
           </div>
         </div>
       ) : (

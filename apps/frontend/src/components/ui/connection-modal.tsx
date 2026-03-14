@@ -1,10 +1,13 @@
-import { Loader2, X } from "lucide-react"
+import { AlertTriangle, Loader2, X } from "lucide-react"
 import { type FormEvent } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
+import { Typography } from "./typography.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
+import { Label } from "@/components/ui/label"
 
 interface ConnectionModalProps {
   open: boolean
@@ -46,28 +49,30 @@ export function ConnectionModal({
           <div className="fixed inset-0 z-40 flex items-center justify-center">
             <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border">
               <div className="flex justify-between">
-                <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
+                <Dialog.Title asChild>
+                  <Typography variant="subheading">{title}</Typography>
+                </Dialog.Title>
                 <Dialog.Close asChild>
-                  <Button className="hover:text-tw-primary h-auto p-0" variant="ghost">
+                  <Button className="hover:text-primary h-auto p-0" variant="ghost">
                     <X size={20} />
                   </Button>
                 </Dialog.Close>
               </div>
-              <Dialog.Description className="text-sm font-light">
-                {description}
+              <Dialog.Description asChild>
+                <Typography variant="bodySm">{description}</Typography>
               </Dialog.Description>
 
               {errorMessage && (
-                <div className="mt-4 p-1 text-sm bg-tw-primary/20 text-red-500 border rounded">
-                  {errorMessage}
-                </div>
+                <Alert className="mt-4" variant="destructive">
+                  <AlertDescription>{errorMessage}</AlertDescription>
+                </Alert>
               )}
 
               <form className="space-y-4 mt-4" onSubmit={onSubmit}>
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="host">
+                  <Label className="block mb-1" htmlFor="host">
                     Host
-                  </label>
+                  </Label>
                   <Input
                     id="host"
                     onChange={(e) =>
@@ -81,9 +86,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="port">
+                  <Label className="block mb-1" htmlFor="port">
                     Port
-                  </label>
+                  </Label>
                   <Input
                     id="port"
                     onChange={(e) =>
@@ -97,9 +102,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="alias">
+                  <Label className="block mb-1" htmlFor="alias">
                     Alias
-                  </label>
+                  </Label>
                   <Input
                     className="placeholder:text-xs"
                     id="alias"
@@ -113,9 +118,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="username">
+                  <Label className="block mb-1" htmlFor="username">
                     Username
-                  </label>
+                  </Label>
                   <Input
                     id="username"
                     onChange={(e) =>
@@ -127,9 +132,9 @@ export function ConnectionModal({
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm" htmlFor="password">
+                  <Label className="block mb-1" htmlFor="password">
                     Password
-                  </label>
+                  </Label>
                   <Input
                     id="password"
                     onChange={(e) =>
@@ -153,9 +158,9 @@ export function ConnectionModal({
                     }
                     type="checkbox"
                   />
-                  <label className="text-sm select-none" htmlFor="tls">
+                  <Label className="select-none" htmlFor="tls">
                     {showVerifyTlsCertificate ? "Use TLS" : "TLS"}
-                  </label>
+                  </Label>
                 </div>
 
                 {showVerifyTlsCertificate && (
@@ -172,17 +177,20 @@ export function ConnectionModal({
                       }
                       type="checkbox"
                     />
-                    <label className="text-sm select-none" htmlFor="verifycert">
+                    <Label className="select-none" htmlFor="verifycert">
                       Verify TLS Certificate
-                    </label>
+                    </Label>
                   </div>
                 )}
 
                 {showConnectionLimitWarning && (
-                  <div className="mt-4 p-2 text-sm bg-yellow-100 text-yellow-800 border rounded">
-                    You've reached the maximum of {MAX_CONNECTIONS} active connections.
-                    Please disconnect one before connecting to another.
-                  </div>
+                  <Alert className="mt-4" variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      You've reached the maximum of {MAX_CONNECTIONS} active connections.
+                      Please disconnect one before connecting to another.
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 <div className="pt-2 text-sm">

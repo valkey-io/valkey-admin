@@ -149,7 +149,7 @@ export const valkeyRetryEpic = (store: Store) =>
       const connection = state.valkeyConnection?.connections?.[connectionId]
 
       if (!connection) {
-        console.log(`No connection found for ${connectionId}, skipping retry`)
+        console.warn(`No connection found for ${connectionId}, skipping retry`)
         return EMPTY
       }
 
@@ -162,7 +162,7 @@ export const valkeyRetryEpic = (store: Store) =>
       const wasPreviouslyConnected = savedConnections[connectionId] !== undefined
 
       if (!wasPreviouslyConnected) {
-        console.log(`First-time connection failed for ${connectionId}, not retrying`)
+        console.debug(`First-time connection failed for ${connectionId}, not retrying`)
         return EMPTY
       }
 
@@ -170,7 +170,7 @@ export const valkeyRetryEpic = (store: Store) =>
 
       // to see if we should retry
       if (currentAttempt > RETRY_CONFIG.MAX_RETRIES) {
-        console.log(`Max retries reached for ${connectionId}`)
+        console.warn(`Max retries reached for ${connectionId}`)
         store.dispatch(stopRetry({ connectionId }))
         toast.error("Unable to reconnect to Valkey instance")
         return EMPTY
@@ -185,7 +185,7 @@ export const valkeyRetryEpic = (store: Store) =>
         nextRetryDelay: nextDelay,
       }))
 
-      console.log(`Retrying connection ${connectionId} (attempt ${currentAttempt}/${RETRY_CONFIG.MAX_RETRIES}) in ${nextDelay}ms`)
+      console.debug(`Retrying connection ${connectionId} (attempt ${currentAttempt}/${RETRY_CONFIG.MAX_RETRIES}) in ${nextDelay}ms`)
 
       return timer(nextDelay).pipe(
         tap(() => {

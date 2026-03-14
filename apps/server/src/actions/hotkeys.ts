@@ -30,7 +30,7 @@ const sendHotKeysError = (
   connectionId: string,
   error: unknown,
 ) => {
-  console.log(error)
+  console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.HOTKEYS.hotKeysError,

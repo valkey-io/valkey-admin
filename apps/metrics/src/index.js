@@ -12,6 +12,7 @@ import cpuFold from "./analyzers/calculate-cpu-usage.js"
 import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
+import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 
 async function main() {
   const cfg = getConfig()
@@ -49,6 +50,7 @@ async function main() {
   })
   const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
 
+  await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
 
   const app = express()
@@ -63,7 +65,7 @@ async function main() {
       const series = await Streamer.memory_stats(memoryFold({ maxPoints, since, until }))
       res.json(series)
     } catch (e) {
-      console.log(e)
+      console.error(e)
       res.status(500).json({ error: e.message })
     }
   })
@@ -132,7 +134,6 @@ async function main() {
       })
       setImmediate(shutdown)
     } catch (err) {
-      console.log("Error is ", err)
       return res.status(500).json({
         ok: false,
         err,
@@ -146,7 +147,7 @@ async function main() {
   const backendServerPort = process.env.SERVER_PORT ?? "8080"
   const server = app.listen(port, async () => {
     const assignedPort = server.address().port
-    console.log(`listening on http://0.0.0.0:${assignedPort}`)
+    console.debug(`listening on http://0.0.0.0:${assignedPort}`)
     try {
       const registerURI = `http://${backendServerHost}:${backendServerPort}/orchestrator/register`
       console.debug("Sending Register request to ", registerURI)
@@ -195,8 +196,9 @@ async function main() {
   })
 
   const shutdown = async () => {
-    console.log("shutting down")
+    console.debug("shutting down")
     try {
+      await stopNdjsonCleaner()
       await stopCollectors()
       if (client) {
         client.close()
