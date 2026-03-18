@@ -9,23 +9,28 @@ const __dirname = path.dirname(__filename)
 const cfgPath = process.env.CONFIG_PATH || path.join(__dirname, "..", "config.yml")
 
 let config = null
+
+const DEFAULTS = {
+  valkey: {},
+  server: { port: 3000, data_dir: "/app/data" },
+  collector: { batch_ms: 60000, batch_max: 500 },
+  storage: { retention_days: 30, retention_size_mb: 50 },
+  epics: [],
+}
+
 const loadConfig = () => {
   const text = fs.readFileSync(cfgPath, "utf8")
   const parsed = YAML.parse(text) || {}
 
-  const cfg = {
-    valkey: {},
-    server: { port: 3000, data_dir: "/app/data" },
-    collector: { batch_ms: 60000, batch_max: 500 },
-    epics: [],
-    ...parsed,
-  }
+  const cfg = mergeDeepLeft(parsed, DEFAULTS)
 
-  cfg.valkey = cfg.valkey && typeof cfg.valkey === "object" ? cfg.valkey : {}
-  cfg.server = cfg.server && typeof cfg.server === "object" ? cfg.server : { port: 3000, data_dir: "/app/data" }
-  cfg.collector = cfg.collector && typeof cfg.collector === "object" ? cfg.collector : { batch_ms: 60000, batch_max: 500 }
-  cfg.storage = cfg.storage && typeof cfg.storage === "object" ? cfg.storage : { retention_days: 30 }
-  cfg.epics = Array.isArray(cfg.epics) ? cfg.epics : []
+  // Type guards
+  for (const key of ["valkey", "server", "collector", "storage"]) {
+    if (typeof cfg[key] !== "object" || Array.isArray(cfg[key])) {
+      cfg[key] = DEFAULTS[key]
+    }
+  }
+  if (!Array.isArray(cfg.epics)) cfg.epics = []
 
   if (process.env.VALKEY_URL) cfg.valkey.url = process.env.VALKEY_URL
   if (process.env.PORT) cfg.server.port = Number(process.env.PORT)
