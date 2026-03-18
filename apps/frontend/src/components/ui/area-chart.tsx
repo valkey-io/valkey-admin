@@ -1,7 +1,7 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Typography } from "./typography"
 
-interface LineChartComponentProps {
+interface AreaChartComponentProps {
   data: Array<{ timestamp: number; value: number }>;
   label?: string;
   color?: string;
@@ -12,7 +12,7 @@ interface LineChartComponentProps {
 }
 
 // could be resued for memory usage or cpu usage
-export default function LineChartComponent({
+export default function AreaChartComponent({
   data,
   label = "Usage",
   color = "var(--chart-1)",
@@ -20,7 +20,9 @@ export default function LineChartComponent({
   subtitle,
   unit,
   valueFormatter,
-}: LineChartComponentProps) {
+}: AreaChartComponentProps) {
+  const gradientId = `areaGradient-${label.replace(/\s+/g, "-")}`
+
   return (
     <div className="w-full">
       {title && (
@@ -34,7 +36,7 @@ export default function LineChartComponent({
         </Typography>
       )}
       <ResponsiveContainer height={300} width="100%">
-        <LineChart
+        <AreaChart
           data={data}
           margin={{
             top: 5,
@@ -43,6 +45,12 @@ export default function LineChartComponent({
             bottom: 5,
           }}
         >
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
           <CartesianGrid className="stroke-gray-300 dark:stroke-gray-600" strokeDasharray="3 3" />
           <XAxis
             angle={-45}
@@ -73,16 +81,18 @@ export default function LineChartComponent({
             labelFormatter={(ts) => ts ? new Date(ts).toLocaleTimeString() : ""}
             labelStyle={{ color: "#666" }}
           />
-          <Line
+          <Area
             activeDot={{ r: 6 }}
             dataKey="value"
             dot={{ r: 3 }}
+            fill={`url(#${gradientId})`}
+            fillOpacity={1}
             name={label}
             stroke={color}
             strokeWidth={2}
             type="monotone"
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   )
