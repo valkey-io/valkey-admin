@@ -1,4 +1,4 @@
-import { ChartNoAxesCombined, Maximize2 } from "lucide-react"
+import { Maximize2 } from "lucide-react"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { Card } from "./card"
 import { Button } from "./button"
@@ -37,20 +37,15 @@ export function ChartTile({
       >
         <Maximize2 size={16} />
       </Button>
-      <div className="flex flex-col gap-3 p-4">
-        <div className="flex items-start gap-3">
-          <ChartNoAxesCombined className="text-primary mt-1" size={20} />
-          <div className="flex-1 min-w-0 pr-8">
-            <Typography variant={"label"}>
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant={"bodyXs"}>
-                {subtitle}
-              </Typography>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-col p-4 gap-2">
+        <Typography variant={"label"}>
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant={"bodyXs"}>
+            {subtitle}
+          </Typography>
+        )}
       </div>
       {chartData && chartData.length > 0 && (
         <div className="h-16 w-full opacity-70 group-hover:opacity-100 transition-opacity px-4 pb-4">
