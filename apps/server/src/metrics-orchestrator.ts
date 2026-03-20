@@ -231,9 +231,6 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
 
   const data_dir = process.env.DATA_DIR ?? "/app/data"
 
- 
- 
-
   console.log("Starting metrics server for: ", nodeId)
   const proc: ChildProcess = spawn(process.execPath, [metricsServerPath], {
     env: {

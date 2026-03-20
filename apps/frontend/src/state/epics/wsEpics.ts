@@ -26,7 +26,7 @@ import {
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
-const isBrowser = typeof window !== "undefined";
+const isBrowser = typeof window !== "undefined"
 
 const backendHost =
   process.env.SERVER_HOST ||
