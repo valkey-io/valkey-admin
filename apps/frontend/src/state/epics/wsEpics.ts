@@ -28,15 +28,11 @@ let socket$: WebSocketSubject<PayloadAction> | null = null
 
 const isBrowser = typeof window !== "undefined"
 
-const backendHost =
-  process.env.SERVER_HOST ||
-  (isBrowser ? window.location.hostname : null) ||
-  "localhost"
-
-const backendPort =
-  process.env.SERVER_PORT ||
-  (isBrowser ? window.location.port : null) ||
-  "8080"
+const url =
+  process.env.WS_URL ||
+  (isBrowser
+    ? `ws://${window.location.hostname}:${window.location.port || "8080"}`
+    : "ws://localhost:8080")
 
 const connect = (store: Store) =>
   action$.pipe(
@@ -48,7 +44,7 @@ const connect = (store: Store) =>
       }
       const createSocket = () => {
         socket$ = webSocket({
-          url: `ws://${backendHost}:${backendPort}`,
+          url,
           deserializer: (message) => JSON.parse(message.data),
           serializer: (message) => JSON.stringify(message),
           openObserver: {

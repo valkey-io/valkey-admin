@@ -18,7 +18,6 @@ async function main() {
   const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
-
   const addresses = [
     {
       host: process.env.VALKEY_HOST,
@@ -143,9 +142,7 @@ async function main() {
 
   // Setting port to 0 means Express will dynamically find a port
   const port = Number(cfg.server.port || 0)
-  const isBrowser = typeof window !== "undefined"
-
-  const backendServerHost =process.env.SERVER_HOST || "localhost"
+  const backendServerHost = process.env.SERVER_HOST || "localhost"
   const backendServerPort = process.env.SERVER_PORT || "8080"
   const metricsServerHost = process.env.METRICS_HOST ?? "127.0.0.1"
   const server = app.listen(port, async () => {
