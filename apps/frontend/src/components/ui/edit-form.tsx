@@ -45,7 +45,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         host: currentConnection.host,
         port: currentConnection.port,
         username: currentConnection.username ?? "",
-        password: "",
+        password: currentConnection.password ?? "",
         alias: currentConnection.alias ?? "",
         tls: currentConnection.tls ?? false,
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
