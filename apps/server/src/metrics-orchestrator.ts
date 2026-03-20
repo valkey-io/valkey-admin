@@ -231,6 +231,9 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
 
   const data_dir = process.env.DATA_DIR ?? "/app/data"
 
+ 
+ 
+
   console.log("Starting metrics server for: ", nodeId)
   const proc: ChildProcess = spawn(process.execPath, [metricsServerPath], {
     env: {
@@ -242,6 +245,8 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
       VALKEY_PASSWORD: nodeToStart.password,
       VALKEY_TLS: String(nodeToStart.tls),
       VALKEY_VERIFY_CERT: String(nodeToStart.verifyTlsCertificate),
+      SERVER_HOST: process.env.SERVER_HOST ?? "localhost",
+      SERVER_PORT: process.env.SERVER_PORT ?? "8080",
       DATA_DIR: `${data_dir}/${nodeId}`,
       CONFIG_PATH: configPath,
     },

@@ -143,8 +143,17 @@ async function main() {
 
   // Setting port to 0 means Express will dynamically find a port
   const port = Number(cfg.server.port || 0)
-  const backendServerHost = process.env.SERVER_HOST ?? "localhost"
-  const backendServerPort = process.env.SERVER_PORT ?? "8080"
+  const isBrowser = typeof window !== "undefined";
+
+  const backendServerHost =
+    process.env.SERVER_HOST ||
+    (isBrowser ? window.location.hostname : null) ||
+    "localhost";
+
+  const backendServerPort =
+    process.env.SERVER_PORT ||
+    (isBrowser && window.location.port ? window.location.port : null) ||
+    "8080";
   const metricsServerHost = process.env.METRICS_HOST ?? "127.0.0.1"
   const server = app.listen(port, async () => {
     const assignedPort = server.address().port

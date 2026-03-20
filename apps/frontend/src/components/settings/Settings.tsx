@@ -55,9 +55,13 @@ export default function Settings() {
           <TooltipProvider>
             <Typography className="flex items-center gap-2 border-b pb-1" variant="label">
               Hot Keys
-              <TooltipIcon description="Enables monitoring to collect hotkeys. Requires key eviction policy not
-               set to LFU* and cluster slot stats to be enabled." size={16}>
-              </TooltipIcon>
+              <TooltipIcon
+                description={
+                  "Alternative method that enables monitoring to collect hotkeys. " +
+                  "Use if you cannot change your eviction policy to LFU* and if you cannot enable cluster slot stats."
+                }
+                size={16}
+              ></TooltipIcon>
             </Typography>
             <div className="flex  items-center justify-between mt-4">
               <div className="flex items-center gap-2">
