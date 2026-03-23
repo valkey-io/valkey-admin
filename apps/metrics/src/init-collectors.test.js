@@ -123,15 +123,13 @@ describe("init-collectors", () => {
 
       await setupCollectors(client, config)
 
-      expect(makeNdjsonWriter).toHaveBeenCalledWith({
-        dataDir: "/test/data",
-        filePrefix: "cpu",
-      })
+      expect(makeNdjsonWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ dataDir: "/test/data", filePrefix: "cpu" }),
+      )
 
-      expect(makeNdjsonWriter).toHaveBeenCalledWith({
-        dataDir: "/test/data",
-        filePrefix: "memory",
-      })
+      expect(makeNdjsonWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ dataDir: "/test/data", filePrefix: "memory" }),
+      )
     })
 
     it("should update collector metadata on initialization", async () => {

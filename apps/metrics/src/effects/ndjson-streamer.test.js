@@ -6,6 +6,9 @@ vi.mock("node:fs", () => ({
   default: {
     existsSync: vi.fn(),
     createReadStream: vi.fn(),
+    promises: {
+      readdir: vi.fn(),
+    },
   },
 }))
 
@@ -28,16 +31,28 @@ describe("ndjson-streamer", () => {
     // Default mocks - only today's file exists
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "")
 
+    fs.promises.readdir.mockResolvedValue([
+      `test_${today}_0.ndjson`,
+      `test_prefix_${today}_0.ndjson`,
+      `memory_${today}_0.ndjson`,
+      `cpu_${today}_0.ndjson`,
+      `slowlog_len_${today}_0.ndjson`,
+      `commandlog_slow_${today}_0.ndjson`,
+      `commandlog_large_reply_${today}_0.ndjson`,
+      `commandlog_large_request_${today}_0.ndjson`,
+      `monitor_${today}_0.ndjson`,
+    ])
+
     fs.existsSync.mockImplementation((file) => {
-      if (!file.includes(`_${today}.ndjson`)) {
+      if (!file.includes(`_${today}`)) {
         return false
       }
       return true
     })
 
-    fs.createReadStream.mockImplementation((path) => {
+    fs.createReadStream.mockImplementation((filePath) => {
       // Yesterday's file throws ENOENT
-      if (!path.includes(`_${today}.ndjson`)) {
+      if (!filePath.includes(`_${today}`)) {
         const err = new Error("ENOENT: no such file or directory")
         err.code = "ENOENT"
         throw err
@@ -204,21 +219,27 @@ describe("ndjson-streamer", () => {
       expect(result).toHaveLength(3)
     })
 
-    it("should correctly construct file paths with YYYYMMDD format", async () => {
+    it("should correctly construct file paths with YYYYMMDD_SEQ format", async () => {
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "")
+      fs.promises.readdir.mockResolvedValue([`my_metric_${today}_0.ndjson`])
+
       const lines = createNdjsonLines(1)
       readline.createInterface.mockReturnValue(createAsyncIterator(lines))
 
       const { streamNdjson } = await import("./ndjson-streamer.js")
       await streamNdjson("my_metric")
 
-      // Check that files follow the pattern: my_metric_YYYYMMDD.ndjson
+      // Check that files follow the pattern: my_metric_YYYYMMDD_SEQ.ndjson
       const file1 = fs.createReadStream.mock.calls[0][0]
 
-      expect(file1).toMatch(/my_metric_\d{8}\.ndjson$/)
+      expect(file1).toMatch(/my_metric_\d{8}_\d+\.ndjson$/)
     })
 
     it("should use DATA_DIR environment variable", async () => {
       cleanupEnv = mockEnv({ DATA_DIR: "/custom/data/dir" })
+
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "")
+      fs.promises.readdir.mockResolvedValue([`test_${today}_0.ndjson`])
 
       const lines = createNdjsonLines(1)
       readline.createInterface.mockReturnValue(createAsyncIterator(lines))

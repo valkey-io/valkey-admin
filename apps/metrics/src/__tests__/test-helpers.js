@@ -26,6 +26,7 @@ export const createMockMonitor = () => ({
 export const createMockConfig = (overrides = {}) => ({
   valkey: { url: "valkey://localhost:6379" },
   server: { port: 3000, data_dir: "/test/data" },
+  storage: { retention_days: 30, retention_size_mb: 50 },
   collector: { batch_ms: 1000, batch_max: 100 },
   epics: [],
   ...overrides,
