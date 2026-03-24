@@ -35,18 +35,19 @@
     "vitest": "^4.0.15"
   },
   "scripts": {
-    "dev": "concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
+    "prestart": "[ -f .prebuild ] \u0026\u0026 sh .prebuild || true",
+    "dev": "concurrently \u0022npm --workspace apps/frontend run dev\u0022 \u0022npm --workspace apps/server run dev\u0022",
     "build:server": "npm --workspace apps/server run build",
     "build:vite:server": "npm --workspace apps/server run build:vite",
     "build:frontend": "npm --workspace apps/frontend run build",
     "build:metrics": "npm --workspace apps/metrics run build",
     "build:common": "npm --workspace common run build",
     "build:all": "npm run build --workspaces",
-    "build:electron": "npm run build:common && npm run build:vite:server && npm run build:frontend && npm run build:metrics",
-    "package:mac": "npm run build:electron && npx electron-builder --mac --arm64",
-    "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
-    "package:linux": "npm run build:all && npx electron-builder --linux --x64",
-    "package:linux:nosign": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
+    "build:electron": "npm run build:common \u0026\u0026 npm run build:vite:server \u0026\u0026 npm run build:frontend \u0026\u0026 npm run build:metrics",
+    "package:mac": "npm run build:electron \u0026\u0026 npx electron-builder --mac --arm64",
+    "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false \u0026\u0026 npm run package:mac",
+    "package:linux": "npm run build:all \u0026\u0026 npx electron-builder --linux --x64",
+    "package:linux:nosign": "set CSC_IDENTITY_AUTO_DISCOVERY=false \u0026\u0026 npm run package:linux",
     "lint": "eslint ."
   },
   "build": {
