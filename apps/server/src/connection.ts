@@ -260,7 +260,7 @@ async function connectToCluster(
     await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "SLOTSRANGE", "0", "0"])
     clusterSlotStatsEnabled = true
   } catch {
-    // Command not available or not enabled
+    console.warn("Cluster slot-stats is not enabled.")
   }
 
   const clusterConnectionInfo = {
