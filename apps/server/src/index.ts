@@ -113,7 +113,7 @@ const interval = setInterval(() => {
     aliveSocket.isAlive = false
     ws.ping()
   })
-})
+}, 30000)
 wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
   ws.isAlive = true
