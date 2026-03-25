@@ -9,43 +9,59 @@ collector:
   batch_ms: 60000
   batch_max: 500
 
-storage:
-  retention_days: 5
-
+# Each epic controls its own storage retention:
+#   data_retention_mb   – max disk space (MB) for this epic's .ndjson files.
+#                         Oldest files are evicted when the budget is exceeded.
+#   data_retention_days – files older than this (by birthtime) are deleted
+#                         during the daily cleanup sweep.
 epics:
   - name: "memory"
     type: "memory_stats"
     poll_ms: 5000
     file_prefix: "memory"
+    data_retention_mb: 15
+    data_retention_days: 5
 
   - name: "cpu"
     type: "info_cpu"
     poll_ms: 5000
     file_prefix: "cpu"
+    data_retention_mb: 5
+    data_retention_days: 5
 
   - name: "commandlog_large_reply"
     type: "commandlog_large_reply"
     poll_ms: 10000
     file_prefix: "commandlog_large_reply"
+    data_retention_mb: 5
+    data_retention_days: 5
 
   - name: "commandlog_large_request"
     type: "commandlog_large_request"
     poll_ms: 10000
     file_prefix: "commandlog_large_request"
+    data_retention_mb: 5
+    data_retention_days: 5
 
   - name: "commandlog_slow"
     type: "commandlog_slow"
     poll_ms: 10000
     file_prefix: "commandlog_slow"
+    data_retention_mb: 5
+    data_retention_days: 5
 
   - name: "slowlog_len"
     type: "slowlog_len"
     poll_ms: 60000
     file_prefix: "slowlog_len"
-  
+    data_retention_mb: 3
+    data_retention_days: 5
+
   - name: "monitor"
     type: "monitor"
     monitoringDuration: 10000
     monitoringInterval: 10000
     maxCommandsPerRun: 1000000
     file_prefix: "monitor"
+    data_retention_mb: 12
+    data_retention_days: 5

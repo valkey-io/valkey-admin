@@ -18,17 +18,17 @@ import {
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
-import { updateConfig, enableClusterSlotStats } from "./actions/config"
+import { updateConfig } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
-import { 
-  createMetricsOrchestratorRouter, 
-  reconcileClusterMetricsServers, 
-  metricsServerMap, 
-  clusterNodesRegistry, 
+import {
+  createMetricsOrchestratorRouter,
+  reconcileClusterMetricsServers,
+  metricsServerMap,
+  clusterNodesRegistry,
   initialConnectionDetails,
-  cleanupOrchestratorResources, 
+  cleanupOrchestratorResources,
   clients,
   getInitialClient
 } from "./metrics-orchestrator"
@@ -75,13 +75,18 @@ const wss = new WebSocketServer({ server })
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function runReconcileLoop() {
-  const initialClient = await getInitialClient()
+  let initialClient
   while (true) {
     try {
-      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails, initialClient) 
-      await delay(5000) 
+      // get initial client if we do not have one yet. moved initialClient inside the try/catch to avoid failure on startup
+      if (!initialClient) {
+        initialClient = await getInitialClient()
+      }
+      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails, initialClient)
+      await delay(5000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)
+      initialClient = undefined
       await delay(10000)
     }
   }
@@ -101,12 +106,12 @@ wss.on("connection", (ws: WebSocket) => {
   console.log("Client connected.")
   // This is a simplified cluster node map that stores clusterIds and their corresponding nodeIds
   const clusterNodesMap: Map<string, string[]> = new Map()
-  
+
   const handlers: Record<string, Handler> = {
     [VALKEY.CONNECTION.connectPending]: connectPending,
     [VALKEY.CONNECTION.resetConnection]: resetConnection,
     [VALKEY.CONNECTION.closeConnection]: closeConnection,
-    [VALKEY.CONFIG.updateConfig]: updateConfig, 
+    [VALKEY.CONFIG.updateConfig]: updateConfig,
     [VALKEY.CLUSTER.setClusterData]: setClusterData,
     [VALKEY.COMMAND.sendRequested]: sendRequested,
     [VALKEY.STATS.setData]: setData,
@@ -117,13 +122,13 @@ wss.on("connection", (ws: WebSocket) => {
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
     [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
     [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
-    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats, 
+    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
   }
 
-  process.on("message", (message: MetricsServerMessage ) => {
-    if (message?.type === "system-suspended"){
+  process.on("message", (message: MetricsServerMessage) => {
+    if (message?.type === "system-suspended") {
       ws.send(
         JSON.stringify({
           type: "websocket/pauseRetries",
@@ -131,7 +136,7 @@ wss.on("connection", (ws: WebSocket) => {
         }),
       )
     }
-    if (message?.type === "system-resumed"){
+    if (message?.type === "system-resumed") {
       ws.send(
         JSON.stringify({
           type: "websocket/resumeRetries",
@@ -147,13 +152,24 @@ wss.on("connection", (ws: WebSocket) => {
 
     try {
       action = JSON.parse(message.toString())
-      connectionId = action!.payload.connectionId
+      connectionId = action?.payload?.connectionId
     } catch (e) {
       console.error("Failed to parse the message", message.toString(), e)
+      return
     }
 
-    const handler = handlers[action!.type] ?? unknownHandler
-    await handler({ ws, clients, connectionId: connectionId!, metricsServerMap, clusterNodesMap })(action as ReduxAction)
+    // validate action or type before processing
+    if (!action || !action.type) {
+      console.error("Invalid action received", action)
+      return
+    }
+
+    try {
+      const handler = handlers[action.type] ?? unknownHandler
+      await handler({ ws, clients, connectionId: connectionId!, metricsServerMap, clusterNodesMap })(action as ReduxAction)
+    } catch (error) {
+      console.error(`Error handling action ${action.type}:`, error)
+    }
   })
   ws.on("error", (err) => {
     console.error("WebSocket error:", err)
@@ -162,7 +178,13 @@ wss.on("connection", (ws: WebSocket) => {
     clusterNodesMap.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
     // Close all Valkey connections
-    clients.forEach((connection) => connection.client.close())
+    clients.forEach((connection, connectionId) => {
+      try {
+        connection.client.close()
+      } catch (error) {
+        console.error(`Error closing connection ${connectionId}:`, error)
+      }
+    })
     clients.clear()
   })
 })
@@ -171,13 +193,21 @@ function shutdown() {
   console.log("Shutdown signal received")
 
   // Close websocket clients
-  wss.clients.forEach((ws) => ws.close())
+  wss.clients.forEach((ws) => {
+    try {
+      ws.close()
+    } catch (err) {
+      console.error("Error closing WebSocket client", err)
+    }
+  })
 
   server.close(() => {
     console.log("HTTP server closed")
-
-    cleanupOrchestratorResources()
-
+    try {
+      cleanupOrchestratorResources()
+    } catch (err) {
+      console.error("Error during orchestrator resource cleanup", err)
+    }
     process.exit(0)
   })
 }

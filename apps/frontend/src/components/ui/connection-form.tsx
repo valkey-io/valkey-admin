@@ -6,6 +6,7 @@ import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { secureStorage } from "@/utils/secureStorage.ts"
 
 interface ConnectionFormProps {
   onClose: () => void
@@ -39,12 +40,15 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     }
   }, [connectionState?.status, onClose])
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (isAtConnectionLimit) return
     const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
     setConnectionId(newConnectionId)
-    dispatch(connectPending({ connectionId: newConnectionId, connectionDetails }))
+    const encryptedDetails = connectionDetails.password
+      ? { ...connectionDetails, password: await secureStorage.encrypt(connectionDetails.password) }
+      : connectionDetails
+    dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: encryptedDetails }))
   }
 
   return (

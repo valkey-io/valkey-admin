@@ -69,7 +69,7 @@ export const connectionEpic = (store: Store) =>
           type === standaloneConnectFulfilled.type ||
           type === clusterConnectFulfilled.type,
       ),
-      tap(async ({ payload }) => {
+      tap(({ payload }) => {
         try {
           const currentConnections = getCurrentConnections()
 
@@ -80,13 +80,7 @@ export const connectionEpic = (store: Store) =>
             connection?.connectionDetails ?? payload.connectionDetails
 
           const connectionToSave = {
-            connectionDetails: R.isNil(R.path(["password"], baseConnectionDetails))
-              ? baseConnectionDetails
-              : R.assoc(
-                "password",
-                await secureStorage.encrypt(baseConnectionDetails.password),
-                baseConnectionDetails,
-              ),
+            connectionDetails: baseConnectionDetails,
             status: NOT_CONNECTED,
             connectionHistory: connection?.connectionHistory ?? [],
           }
@@ -287,7 +281,7 @@ export const deleteConnectionEpic = () =>
 export const updateConnectionDetailsEpic = (store: Store) =>
   action$.pipe(
     select(updateConnectionDetails),
-    tap(async ({ payload: { connectionId } }) => {
+    tap(({ payload: { connectionId } }) => {
       try {
         const currentConnections = getCurrentConnections()
 
@@ -295,15 +289,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {
-          const connectionDetails = connection.connectionDetails.password
-            ? R.assoc(
-              "password",
-              await secureStorage.encrypt(connection.connectionDetails.password),
-              connection.connectionDetails,
-            )
-            : connection.connectionDetails
-          
-          currentConnections[connectionId].connectionDetails = connectionDetails
+          currentConnections[connectionId].connectionDetails = connection.connectionDetails
           currentConnections[connectionId].connectionHistory = connection.connectionHistory || []
           localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
         }

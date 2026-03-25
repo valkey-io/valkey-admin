@@ -1,6 +1,6 @@
 import { type WebSocket } from "ws"
 import { VALKEY } from "valkey-common"
-import { withDeps, Deps } from "./utils"
+import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 interface MemoryMetric {
   description: string
@@ -50,7 +50,7 @@ const sendMemoryUsageError = (
 }
 
 type RequestPayload = {
-  connectionId: string, 
+  connectionId: string,
   clusterId: string,
   timeRange?: string
 }
@@ -61,6 +61,12 @@ export const memoryUsageRequested = withDeps<Deps, void>(
     const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+
+      if (!metricsServerURI) {
+        sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        return
+      }
+
       try {
         const hoursInMs = {
           "1h": 1 * 60 * 60 * 1000,
@@ -71,7 +77,7 @@ export const memoryUsageRequested = withDeps<Deps, void>(
 
         const url = `${metricsServerURI}/memory?since=${since}&maxPoints=60`
 
-        const response = await fetch(url)
+        const response = await fetchWithTimeout(url)
         const parsedResponse: MemoryUsageResponse = await response.json() as MemoryUsageResponse
 
         sendMemoryUsageFulfilled(ws, connectionId, parsedResponse)

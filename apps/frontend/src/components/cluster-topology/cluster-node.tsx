@@ -12,6 +12,7 @@ import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluste
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
 interface ClusterNodeProps {
@@ -37,14 +38,14 @@ export function ClusterNode({
   const isConnected = connectionStatus === CONNECTED
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
-  const handleNodeConnect = () => {
+  const handleNodeConnect = async () => {
     if (!isConnected) {
       const connectionDetails: ConnectionDetails = {
         host: primary.host,
         port: primary.port.toString(),
         ...(primary.username && primary.password && {
           username: primary.username,
-          password: primary.password,
+          password: await secureStorage.encrypt(primary.password),
         }),
         tls: primary.tls,
         verifyTlsCertificate: primary.verifyTlsCertificate,

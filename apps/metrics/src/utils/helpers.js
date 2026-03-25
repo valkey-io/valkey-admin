@@ -1,11 +1,11 @@
 import * as R from "ramda"
 import { COMMANDLOG_TYPE } from "../utils/constants.js"
 
-export const ymd = (d) => {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}${m}${day}` // "20250924"
+export const dayStr = (d) => new Date(d).toISOString().slice(0, 10).replace(/-/g, "")
+
+export const parseSeq = (fileName) => {
+  const match = fileName.match(/_(\d+)\.ndjson$/)
+  return match ? Number(match[1]) : 0
 }
 
 export const parseCommandLogs = (entries, commandLogType) =>

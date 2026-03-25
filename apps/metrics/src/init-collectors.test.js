@@ -53,12 +53,14 @@ describe("init-collectors", () => {
           type: "info_cpu",
           poll_ms: 1000,
           file_prefix: "cpu",
+          data_retention_mb: 5,
         },
         {
           name: "memory",
           type: "memory_stats",
           poll_ms: 2000,
           file_prefix: "memory",
+          data_retention_mb: 10,
         },
       ],
     })
@@ -96,8 +98,8 @@ describe("init-collectors", () => {
     it("should skip epics without matching fetcher type", async () => {
       const configWithUnknown = createMockConfig({
         epics: [
-          { name: "cpu", type: "info_cpu", poll_ms: 1000 },
-          { name: "unknown", type: "unknown_type", poll_ms: 1000 },
+          { name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 },
+          { name: "unknown", type: "unknown_type", poll_ms: 1000, data_retention_mb: 5 },
         ],
       })
 
@@ -123,15 +125,13 @@ describe("init-collectors", () => {
 
       await setupCollectors(client, config)
 
-      expect(makeNdjsonWriter).toHaveBeenCalledWith({
-        dataDir: "/test/data",
-        filePrefix: "cpu",
-      })
+      expect(makeNdjsonWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ dataDir: "/test/data", filePrefix: "cpu" }),
+      )
 
-      expect(makeNdjsonWriter).toHaveBeenCalledWith({
-        dataDir: "/test/data",
-        filePrefix: "memory",
-      })
+      expect(makeNdjsonWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ dataDir: "/test/data", filePrefix: "memory" }),
+      )
     })
 
     it("should update collector metadata on initialization", async () => {
@@ -153,7 +153,7 @@ describe("init-collectors", () => {
       makeFetcher.mockReturnValue(mockFetcher)
 
       const configWithOneCpu = createMockConfig({
-        epics: [{ name: "cpu", type: "info_cpu", poll_ms: 1000 }],
+        epics: [{ name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors } = await import("./init-collectors.js")
@@ -171,8 +171,8 @@ describe("init-collectors", () => {
     it("should filter out monitor epic", async () => {
       const configWithMonitor = createMockConfig({
         epics: [
-          { name: "cpu", type: "info_cpu", poll_ms: 1000 },
-          { name: "monitor", type: "monitor_stream", poll_ms: 1000 },
+          { name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 },
+          { name: "monitor", type: "monitor_stream", poll_ms: 1000, data_retention_mb: 10 },
         ],
       })
 
@@ -207,7 +207,7 @@ describe("init-collectors", () => {
       makeFetcher.mockReturnValue(mockFetcher)
 
       const testConfig = createMockConfig({
-        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000 }],
+        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors } = await import("./init-collectors.js")
@@ -227,7 +227,7 @@ describe("init-collectors", () => {
       makeFetcher.mockReturnValue(mockFetcher)
 
       const testConfig = createMockConfig({
-        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000 }],
+        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors, getCollectorMeta } = await import("./init-collectors.js")
@@ -261,6 +261,7 @@ describe("init-collectors", () => {
             type: "monitor",
             monitoringDuration: 5000,
             monitoringInterval: 10000,
+            data_retention_mb: 10,
           },
         ],
       })
@@ -277,7 +278,7 @@ describe("init-collectors", () => {
     it("should update metadata when monitor starts", async () => {
       const monitorConfig = createMockConfig({
         epics: [
-          { name: "monitor", monitoringDuration: 5000 },
+          { name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 },
         ],
       })
 
@@ -295,7 +296,7 @@ describe("init-collectors", () => {
       makeMonitorStream.mockReturnValue(mockSubject)
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
@@ -313,7 +314,7 @@ describe("init-collectors", () => {
       makeMonitorStream.mockReturnValue(mockSubject)
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
@@ -334,7 +335,7 @@ describe("init-collectors", () => {
       makeMonitorStream.mockReturnValue(mockSubject)
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
@@ -369,7 +370,7 @@ describe("init-collectors", () => {
       makeNdjsonWriter.mockReturnValue(mockWriter)
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor, stopMonitor } = await import("./init-collectors.js")
@@ -400,7 +401,7 @@ describe("init-collectors", () => {
       })
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor } = await import("./init-collectors.js")
@@ -425,7 +426,7 @@ describe("init-collectors", () => {
       makeNdjsonWriter.mockReturnValue(mockWriter)
 
       const monitorConfig = createMockConfig({
-        epics: [{ name: "monitor", monitoringDuration: 5000 }],
+        epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
       const { startMonitor, stopMonitor, getCollectorMeta } = await import("./init-collectors.js")

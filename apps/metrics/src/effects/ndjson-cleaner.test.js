@@ -33,7 +33,10 @@ describe("ndjson-cleaner", () => {
 
     cfg = {
       server: { data_dir: "/app/data" },
-      storage: { retention_days: 30 },
+      epics: [
+        { name: "memory", file_prefix: "memory", data_retention_days: 30 },
+        { name: "cpu", file_prefix: "cpu", data_retention_days: 30 },
+      ],
     }
   })
 
@@ -69,8 +72,8 @@ describe("ndjson-cleaner", () => {
 
     it("keeps .ndjson files with recent birthtime", async () => {
       fs.promises.readdir.mockResolvedValue([
-        "notes.ndjson",
-        "backup.ndjson",
+        "memory_20250614.ndjson",
+        "cpu_20250614.ndjson",
       ])
       fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-06-14") })
 
@@ -101,11 +104,11 @@ describe("ndjson-cleaner", () => {
       // now = 2025-06-15T12:00:00.000Z, retention_days = 30 → cutoff = 2025-05-16T12:00:00.000Z
       // File with birthtime at cutoff should be kept, file before cutoff should be deleted
       fs.promises.readdir.mockResolvedValue([
-        "at_cutoff.ndjson",
-        "before_cutoff.ndjson",
+        "memory_20250516.ndjson",
+        "memory_20250516_1.ndjson",
       ])
       fs.promises.stat.mockImplementation((filePath) => {
-        if (filePath.endsWith("at_cutoff.ndjson")) {
+        if (filePath.endsWith("memory_20250516.ndjson")) {
           return Promise.resolve({ birthtime: new Date("2025-05-16T12:00:00.000Z") })
         }
         return Promise.resolve({ birthtime: new Date("2025-05-16T11:59:59.999Z") })
@@ -116,9 +119,25 @@ describe("ndjson-cleaner", () => {
 
       await vi.advanceTimersByTimeAsync(0)
 
-      // Only before_cutoff should be deleted (< cutoff), at_cutoff should be kept (== cutoff)
+      // Only the file before cutoff should be deleted (< cutoff), the one at cutoff should be kept (== cutoff)
       expect(fs.promises.unlink).toHaveBeenCalledTimes(1)
-      expect(fs.promises.unlink).toHaveBeenCalledWith("/app/data/before_cutoff.ndjson")
+      expect(fs.promises.unlink).toHaveBeenCalledWith("/app/data/memory_20250516_1.ndjson")
+
+      stopNdjsonCleaner()
+    })
+
+    it("skips files with no matching epic prefix", async () => {
+      fs.promises.readdir.mockResolvedValue([
+        "unknown_20250101.ndjson",
+      ])
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-01-01") })
+
+      const { setupNdjsonCleaner, stopNdjsonCleaner } = await import("./ndjson-cleaner.js")
+      setupNdjsonCleaner(cfg)
+
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(fs.promises.unlink).not.toHaveBeenCalled()
 
       stopNdjsonCleaner()
     })
@@ -227,8 +246,8 @@ describe("ndjson-cleaner", () => {
 
     it("logs error when individual unlink fails", async () => {
       fs.promises.readdir.mockResolvedValue([
-        "old_a.ndjson",
-        "old_b.ndjson",
+        "memory_20250101.ndjson",
+        "cpu_20250101.ndjson",
       ])
       fs.promises.stat.mockResolvedValue({ birthtime: new Date("2025-01-01") })
       fs.promises.unlink

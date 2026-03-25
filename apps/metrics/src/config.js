@@ -9,28 +9,41 @@ const __dirname = path.dirname(__filename)
 const cfgPath = process.env.CONFIG_PATH || path.join(__dirname, "..", "config.yml")
 
 let config = null
+
+/**
+ * Per-epic retention defaults, applied to any epic missing these fields.
+ * @property {number} data_retention_mb   – max disk budget (MB) per epic. Oldest files evicted when exceeded.
+ * @property {number} data_retention_days – files older than this (by birthtime) are deleted in the daily cleanup.
+ */
+const EPIC_DEFAULTS = { data_retention_mb: 10, data_retention_days: 30 }
+
+const DEFAULTS = {
+  backend: { ping_interval: 10000 },
+  valkey: {},
+  server: { port: 3000, data_dir: "/app/data" },
+  collector: { batch_ms: 60000, batch_max: 500 },
+  epics: [],
+}
+
 const loadConfig = () => {
   const text = fs.readFileSync(cfgPath, "utf8")
   const parsed = YAML.parse(text) || {}
 
-  const cfg = {
-    server: { port: 3000, data_dir: "/app/data" },
-    collector: { batch_ms: 60000, batch_max: 500 },
-    epics: [],
-    ...parsed,
+  const cfg = mergeDeepLeft(parsed, DEFAULTS)
+
+  // Type guards
+  for (const key of ["backend", "valkey", "server", "collector"]) {
+    if (typeof cfg[key] !== "object" || Array.isArray(cfg[key])) {
+      cfg[key] = DEFAULTS[key]
+    }
   }
-  cfg.backend = cfg.backend && typeof cfg.backend === "object" ? cfg.backend : { ping_interval: 10000 }
-  cfg.valkey = cfg.valkey && typeof cfg.valkey === "object" ? cfg.valkey : {}
-  cfg.server = cfg.server && typeof cfg.server === "object" ? cfg.server : { port: 3000, data_dir: "/app/data" }
-  cfg.collector = cfg.collector && typeof cfg.collector === "object" ? cfg.collector : { batch_ms: 60000, batch_max: 500 }
-  cfg.storage = cfg.storage && typeof cfg.storage === "object" ? cfg.storage : { retention_days: 30 }
-  cfg.epics = Array.isArray(cfg.epics) ? cfg.epics : []
+  if (!Array.isArray(cfg.epics)) cfg.epics = []
+  cfg.epics = cfg.epics.map((e) => ({ ...EPIC_DEFAULTS, ...e }))
 
   if (process.env.PORT) cfg.server.port = Number(process.env.PORT)
   if (process.env.DATA_DIR) cfg.server.data_dir = process.env.DATA_DIR
   if (process.env.BATCH_MS) cfg.collector.batch_ms = Number(process.env.BATCH_MS)
   if (process.env.BATCH_MAX) cfg.collector.batch_max = Number(process.env.BATCH_MAX)
-  if (process.env.RETENTION_DAYS) cfg.storage.retention_days = Number(process.env.RETENTION_DAYS)
 
   if (cfg.logging && typeof cfg.logging === "object") {
     if (!process.env.LOG_LEVEL && cfg.logging.level) process.env.LOG_LEVEL = String(cfg.logging.level)

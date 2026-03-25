@@ -1,4 +1,4 @@
-import { type FormEvent, useState, useEffect } from "react"
+import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
 import { sanitizeUrl } from "@common/src/url-utils.ts"
 import { CONNECTED } from "@common/src/constants"
@@ -16,6 +16,7 @@ import {
   selectIsAtConnectionLimit
 } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
+import { secureStorage } from "@/utils/secureStorage.ts"
 
 interface EditFormProps {
   onClose: () => void
@@ -38,6 +39,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     verifyTlsCertificate: false,
     alias: "",
   })
+  const [passwordDirty, setPasswordDirty] = useState(false)
 
   useEffect(() => {
     if (currentConnection) {
@@ -45,22 +47,43 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         host: currentConnection.host,
         port: currentConnection.port,
         username: currentConnection.username ?? "",
-        password: "",
+        password: currentConnection.password ?? "",
         alias: currentConnection.alias ?? "",
         tls: currentConnection.tls ?? false,
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
         //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
       })
+      setPasswordDirty(false)
     }
   }, [currentConnection])
 
+  const handleConnectionDetailsChange = useCallback(
+    (updated: ConnectionDetails) => {
+      setConnectionDetails((prev) => {
+        if (updated.password !== prev.password) {
+          setPasswordDirty(true)
+        }
+        return updated
+      })
+    },
+    [],
+  )
+
   const hasCoreChanges = () => {
     if (!currentConnection) return false
-    return connectionDetails !== currentConnection
+    return (
+      connectionDetails.host !== currentConnection.host ||
+      connectionDetails.port !== currentConnection.port ||
+      connectionDetails.username !== (currentConnection.username ?? "") ||
+      connectionDetails.tls !== (currentConnection.tls ?? false) ||
+      connectionDetails.verifyTlsCertificate !== (currentConnection.verifyTlsCertificate ?? false) ||
+      connectionDetails.caCertPath !== (currentConnection.caCertPath ?? "") ||
+      passwordDirty
+    )
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     if (!connectionId || !currentConnection) return
@@ -77,10 +100,15 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       // Always delete the old connection when making core changes
       dispatch(deleteConnection({ connectionId, silent: true }))
 
+      // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
+      const detailsToDispatch = passwordDirty && connectionDetails.password
+        ? { ...connectionDetails, password: await secureStorage.encrypt(connectionDetails.password) }
+        : connectionDetails
+
       dispatch(
         connectPending({
           connectionId: newConnectionId,
-          connectionDetails,
+          connectionDetails: detailsToDispatch,
           isEdit: true,
           preservedHistory: connectionHistory,
         }),
@@ -89,7 +117,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       dispatch(
         updateConnectionDetails({
           connectionId,
-          alias: connectionDetails.alias || undefined,
+          ...connectionDetails,
         }),
       )
     }
@@ -110,7 +138,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         shouldShowConnectionLimitWarning
       }
       onClose={onClose}
-      onConnectionDetailsChange={setConnectionDetails}
+      onConnectionDetailsChange={handleConnectionDetailsChange}
       onSubmit={handleSubmit}
       open
       showConnectionLimitWarning={shouldShowConnectionLimitWarning}

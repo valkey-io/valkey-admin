@@ -1,6 +1,6 @@
 import { type WebSocket } from "ws"
 import { VALKEY } from "valkey-common"
-import { withDeps, Deps } from "./utils"
+import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 type CpuUsageResponse = Array<{
   timestamp: number
@@ -55,6 +55,12 @@ export const cpuUsageRequested = withDeps<Deps, void>(
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+
+      if (!metricsServerURI) {
+        sendCpuUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        return
+      }
+
       try {
         const hoursInMs = {
           "1h": 1 * 60 * 60 * 1000,
@@ -65,7 +71,7 @@ export const cpuUsageRequested = withDeps<Deps, void>(
 
         const url = `${metricsServerURI}/cpu?since=${since}&maxPoints=120`
 
-        const response = await fetch(url)
+        const response = await fetchWithTimeout(url)
         const parsedResponse: CpuUsageResponse = await response.json() as CpuUsageResponse
 
         sendCpuUsageFulfilled(ws, connectionId, parsedResponse)

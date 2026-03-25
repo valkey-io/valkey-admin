@@ -3,6 +3,7 @@ import { makeMonitorStream } from "./effects/monitor-stream.js"
 import { makeNdjsonWriter } from "./effects/ndjson-writer.js"
 import { startCollector } from "./epics/collector-rx.js"
 import { MONITOR } from "./utils/constants.js"
+
 /*
   State per collector with shape:
   {
@@ -20,6 +21,17 @@ const updateCollectorMeta = (name, patch) => {
   return next
 }
 
+const MIN_FILE_SIZE = 256 * 1024         // 256 KB
+const MAX_FILE_SIZE = 10 * 1024 * 1024  // 10 MB
+const MIN_FILES = 4
+
+const computeCapacity = (retentionMb) => {
+  const capacityBytes = retentionMb * 1024 * 1024
+  const maxFileSize = Math.min(MAX_FILE_SIZE, Math.max(MIN_FILE_SIZE, Math.floor(capacityBytes / MIN_FILES)))
+  const maxFiles = Math.max(MIN_FILES, Math.floor(capacityBytes / maxFileSize))
+  return { maxFiles, maxFileSize }
+}
+
 // Use it in endpoints to return metadata to server then to UI
 //  to show when the data was collected and will be refreshed
 export const getCollectorMeta = (name) => collectorsState[name]
@@ -30,12 +42,14 @@ updateCollectorMeta(MONITOR, {
   isRunning: false,
 })
 const startMonitor = (cfg) => {
+  const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
+  const { maxFiles, maxFileSize } = computeCapacity(monitorEpic.data_retention_mb)
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
-    filePrefix: MONITOR,
+    filePrefix: monitorEpic.file_prefix || MONITOR,
+    maxFiles,
+    maxFileSize,
   })
-
-  const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
 
   const sink = {
     appendRows: async (rows) => {
@@ -100,9 +114,13 @@ const setupCollectors = async (client, cfg) => {
     .filter((f) => f.name !== MONITOR && fetcher[f.type])
     .map(async (f) => {
       const fn = fetcher[f.type]
+      const prefix = f.file_prefix || f.name
+      const { maxFiles, maxFileSize } = computeCapacity(f.data_retention_mb)
       const nd = makeNdjsonWriter({
         dataDir: cfg.server.data_dir,
-        filePrefix: f.file_prefix || f.name,
+        filePrefix: prefix,
+        maxFiles,
+        maxFileSize,
       })
 
       updateCollectorMeta(f.name, {
@@ -114,7 +132,7 @@ const setupCollectors = async (client, cfg) => {
 
       const sink = {
         appendRows: async (rows) => {
-          nd.appendRows(rows)
+          await nd.appendRows(rows)
           updateCollectorMeta(f.name, {
             nextCycleAt: Date.now() + f.poll_ms,
             lastUpdatedAt: Date.now(),

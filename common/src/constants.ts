@@ -106,6 +106,8 @@ export const MAX_CONNECTIONS = process.env.MAX_CONNECTIONS
 export const PENDING = "Pending"
 export const FULFILLED = "Fulfilled"
 
+export const FETCH_TIMEOUT_MS = 10000
+
 export const LOCAL_STORAGE = {
   VALKEY_CONNECTIONS: "VALKEY_CONNECTIONS",
 }

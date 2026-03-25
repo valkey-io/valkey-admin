@@ -224,10 +224,10 @@ const connectionSlice = createSlice({
       state.connections[connectionId].errorMessage = errorMessage
     },
     updateConnectionDetails: (state, action) => {
-      const { connectionId } = action.payload
+      const { connectionId, ...details } = action.payload
       state.connections[connectionId].connectionDetails = {
         ...state.connections[connectionId].connectionDetails,
-        ...action.payload,
+        ...details,
       }
     },
     deleteConnection: (state, { payload: { connectionId } }) => {
