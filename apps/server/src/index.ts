@@ -122,7 +122,7 @@ wss.on("connection", (ws: WebSocket) => {
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
     [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
     [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
-    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
+    // [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
   }
