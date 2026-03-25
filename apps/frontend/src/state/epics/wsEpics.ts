@@ -26,8 +26,14 @@ import {
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
+const isElectron = window.location.protocol === "file:"
+const isHttps = window.location.protocol === "https:"
+
 const url =
-  process.env.VALKEY_ADMIN_WS_URL || `ws://${window.location.hostname || "localhost"}:${window.location.port || "8080"}`
+  process.env.VALKEY_ADMIN_WS_URL ||
+  (isElectron
+    ? "ws://localhost:8080"
+    : `${isHttps ? "wss" : "ws"}://${window.location.host}`)
 
 const connect = (store: Store) =>
   action$.pipe(
