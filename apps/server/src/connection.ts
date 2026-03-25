@@ -67,7 +67,10 @@ export async function connectToValkey(
         ["CONFIG", "GET", "maxmemory-policy"],
       ) as [{key: string, value: string}]
 
-      keyEvictionPolicy = evictionPolicyResponse[0].value.toLowerCase() as KeyEvictionPolicy
+      keyEvictionPolicy = R.pipe(
+        R.pathOr("noeviction", [0, "value"]),
+        R.toLower,
+      )(evictionPolicyResponse) as KeyEvictionPolicy
     } catch {
       console.warn("Command \"CONFIG\" not available. Trying \"INFO SERVER\" instead")
       const infoResponse = await standaloneClient.info([InfoOptions.Server])
@@ -198,8 +201,6 @@ async function connectToCluster(
   jsonModuleAvailable: boolean,
   clusterNodesMap: Map<string, string[]>,
 ) {
-  // ElastiCache disables CONFIG operations. Not sure if this is required.
-  //await standaloneClient.customCommand(["CONFIG", "SET", "cluster-announce-hostname", addresses[0].host])
   const { clusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
   if (R.isEmpty(clusterNodes)) {
     throw new Error("No cluster nodes discovered")

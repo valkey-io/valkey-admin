@@ -59,18 +59,18 @@ export const updateConfig = withDeps<Deps, void>(
 )
 
 // TODO: Add frontend component to dispatch this
-// export const enableClusterSlotStats = withDeps<Deps, void>(
-//   async ({ clients, action, clusterNodesMap }) => {
-//     const { connectionId, clusterId } = action.payload
-//     const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+export const enableClusterSlotStats = withDeps<Deps, void>(
+  async ({ clients, action, clusterNodesMap }) => {
+    const { connectionId, clusterId } = action.payload
+    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
     
-//     const promises = connectionIds.map(async (connectionId: string) => {
-//       const connection = clients.get(connectionId)
-//       await connection?.client?.customCommand(["CONFIG", "SET", "cluster-slot-stats-enabled", "yes"])
-//     })
-//     await Promise.all(promises)
-//   },
-// )
+    const promises = connectionIds.map(async (connectionId: string) => {
+      const connection = clients.get(connectionId)
+      await connection?.client?.customCommand(["CONFIG", "SET", "cluster-slot-stats-enabled", "yes"])
+    })
+    await Promise.all(promises)
+  },
+)
 
 const sendUpdateFulfilled = (
   ws: WebSocket,

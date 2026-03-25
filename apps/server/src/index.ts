@@ -18,7 +18,7 @@ import {
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
-import { updateConfig } from "./actions/config"
+import { updateConfig, enableClusterSlotStats } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
@@ -136,7 +136,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
     [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
     [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
-    // [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
+    [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
   }
