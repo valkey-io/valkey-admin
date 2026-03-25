@@ -34,6 +34,10 @@ import {
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
+interface AliveWebSocket extends WebSocket {
+  isAlive: boolean
+}
+
 interface MetricsServerMessage {
   type: string
   payload: {
@@ -102,8 +106,18 @@ server.listen(port, () => {
   }
 })
 
-wss.on("connection", (ws: WebSocket) => {
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    const aliveSocket = ws as AliveWebSocket
+    if (aliveSocket.isAlive === false) return ws.terminate()
+    aliveSocket.isAlive = false
+    ws.ping()
+  })
+})
+wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
+  ws.isAlive = true
+  ws.on("pong", () => {ws.isAlive = true})
   // This is a simplified cluster node map that stores clusterIds and their corresponding nodeIds
   const clusterNodesMap: Map<string, string[]> = new Map()
 
@@ -191,7 +205,7 @@ wss.on("connection", (ws: WebSocket) => {
 
 function shutdown() {
   console.log("Shutdown signal received")
-
+  clearInterval(interval)
   // Close websocket clients
   wss.clients.forEach((ws) => {
     try {

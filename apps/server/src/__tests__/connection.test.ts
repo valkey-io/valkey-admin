@@ -144,7 +144,10 @@ describe("connectToValkey", () => {
         ) {
           return [{ key: "maxmemory-policy", value: "allkeys-lfu" }]
         }
-
+        else if (  
+          Array.isArray(args) &&
+          args[0] === "JSON.TYPE"
+        ) throw Error
         // default response for other commands
         return []
       }),
@@ -301,9 +304,7 @@ describe("connectToValkey", () => {
 
   it("should return false when JSON module is not present", async () => {
     const mockClient = {
-      customCommand: mock.fn(async () => [
-        [{ key: "name", value: "search" }],
-      ]),
+      customCommand: mock.fn(async () => { throw Error }),
     }
 
     const result = await checkJsonModuleAvailability(mockClient as any)
