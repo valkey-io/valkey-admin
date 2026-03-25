@@ -31,7 +31,7 @@ const isBrowser = typeof window !== "undefined"
 const url =
   process.env.WS_URL ||
   (isBrowser
-    ? `ws://${window.location.hostname}:${window.location.port || "8080"}`
+    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
     : "ws://localhost:8080")
 
 const connect = (store: Store) =>
