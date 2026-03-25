@@ -29,7 +29,7 @@ let socket$: WebSocketSubject<PayloadAction> | null = null
 const isBrowser = typeof window !== "undefined"
 
 const url =
-  process.env.WS_URL ||
+  process.env.VALKEY_ADMIN_WS_URL ||
   (isBrowser
     ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
     : "ws://localhost:8080")
