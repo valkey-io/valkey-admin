@@ -61,8 +61,21 @@ export async function connectToValkey(
     // Only start metrics server if it hasn't been started before
     if (!metricsServerMap.has(payload.connectionId)) await startMetricsServer(payload.connectionDetails, payload.connectionId)
 
-    const evictionPolicyResponse = await standaloneClient.customCommand(["CONFIG", "GET", "maxmemory-policy"]) as [{key: string, value: string}]
-    const keyEvictionPolicy: KeyEvictionPolicy = evictionPolicyResponse[0].value.toLowerCase() as KeyEvictionPolicy
+    let keyEvictionPolicy: KeyEvictionPolicy = "noeviction"
+    try {
+      const evictionPolicyResponse = await standaloneClient.customCommand(
+        ["CONFIG", "GET", "maxmemory-policy"],
+      ) as [{key: string, value: string}]
+
+      keyEvictionPolicy = evictionPolicyResponse[0].value.toLowerCase() as KeyEvictionPolicy
+    } catch {
+      console.warn("Command \"CONFIG\" not available. Trying \"INFO SERVER\" instead")
+      const infoResponse = await standaloneClient.info([InfoOptions.Server])
+      const parsed = parseInfo(infoResponse)
+      if (parsed["maxmemory_policy"]) {
+        keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy
+      }
+    }
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (await belongsToCluster(standaloneClient)) {
@@ -185,7 +198,8 @@ async function connectToCluster(
   jsonModuleAvailable: boolean,
   clusterNodesMap: Map<string, string[]>,
 ) {
-  await standaloneClient.customCommand(["CONFIG", "SET", "cluster-announce-hostname", addresses[0].host])
+  // ElastiCache disables CONFIG operations. Not sure if this is required.
+  //await standaloneClient.customCommand(["CONFIG", "SET", "cluster-announce-hostname", addresses[0].host])
   const { clusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
   if (R.isEmpty(clusterNodes)) {
     throw new Error("No cluster nodes discovered")
@@ -241,10 +255,13 @@ async function connectToCluster(
     clusterNodesMap.set(clusterId, [payload.connectionId])
   }
 
-  const clusterSlotStatsResponse = await clusterClient.customCommand(
-    ["CONFIG", "GET", "cluster-slot-stats-enabled"],
-  ) as [Record<string, string>]
-  const clusterSlotStatsEnabled = clusterSlotStatsResponse[0].value === "yes" 
+  let clusterSlotStatsEnabled = false
+  try {
+    await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "SLOTSRANGE", "0", "0"])
+    clusterSlotStatsEnabled = true
+  } catch {
+    // Command not available or not enabled
+  }
 
   const clusterConnectionInfo = {
     type: VALKEY.CONNECTION.clusterConnectFulfilled,

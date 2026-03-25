@@ -357,7 +357,7 @@ export const getHotKeysEpic = (store: Store) =>
       const state = store.getState()
       const connection = state.valkeyConnection.connections[connectionId]
       const monitorEnabled = state.config[connectionId].monitoring.monitorEnabled
-      const lfuEnabled = connection.connectionDetails.keyEvictionPolicy.includes("lfu") ?? false
+      const lfuEnabled = connection.connectionDetails.keyEvictionPolicy?.includes("lfu") ?? false
       const clusterSlotStatsEnabled = connection.connectionDetails.clusterSlotStatsEnabled ?? false
 
       socket.next({
