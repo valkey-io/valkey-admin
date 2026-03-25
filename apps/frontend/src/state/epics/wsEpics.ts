@@ -27,7 +27,7 @@ import {
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
 const url =
-  process.env.WS_URL || `ws://${window.location.hostname || "localhost"}:${window.location.port || "8080"}`
+  process.env.VALKEY_ADMIN_WS_URL || `ws://${window.location.hostname || "localhost"}:${window.location.port || "8080"}`
 
 const connect = (store: Store) =>
   action$.pipe(
