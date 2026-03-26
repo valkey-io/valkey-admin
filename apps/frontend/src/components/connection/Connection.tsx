@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
 import ConnectionForm from "../ui/connection-form.tsx"
@@ -7,15 +7,24 @@ import RouteContainer from "../ui/route-container.tsx"
 import { Button } from "../ui/button.tsx"
 import { EmptyState } from "../ui/empty-state.tsx"
 import { Typography } from "../ui/typography.tsx"
+import { SearchInput } from "../ui/search-input.tsx"
 import type { ConnectionState } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
 import { ClusterConnectionGroup } from "@/components/connection/ClusterConnectionGroup.tsx"
 
+const matchesSearch = (q: string, connectionId: string, connection: ConnectionState) => {
+  const { host, port, username, alias } = connection.connectionDetails
+  return [connectionId, host, port, username, alias]
+    .filter(Boolean)
+    .some((v) => v!.toLowerCase().includes(q))
+}
+
 export function Connection() {
   const [showConnectionForm, setShowConnectionForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingConnectionId, setEditingConnectionId] = useState<string | undefined>(undefined)
+  const [searchQuery, setSearchQuery] = useState("")
   const connections = useSelector(selectConnections)
 
   const handleEditConnection = (connectionId: string) => {
@@ -51,9 +60,26 @@ export function Connection() {
     { clusterGroups: {}, standaloneConnections: [] },
   )
 
-  const hasClusterGroups = Object.keys(clusterGroups).length > 0
-  const hasStandaloneConnections = standaloneConnections.length > 0
   const hasConnectionsWithHistory = connectionsWithHistory.length > 0
+
+  // Filter by search query
+  const q = searchQuery.toLowerCase()
+  const { filteredClusterGroups, filteredStandaloneConnections } = useMemo(() => {
+    if (!q) return { filteredClusterGroups: clusterGroups, filteredStandaloneConnections: standaloneConnections }
+    const fcg: typeof clusterGroups = {}
+    for (const [clusterId, conns] of Object.entries(clusterGroups)) {
+      const matched = conns.filter(({ connectionId, connection }) => matchesSearch(q, connectionId, connection))
+      if (matched.length > 0) fcg[clusterId] = matched
+    }
+    return {
+      filteredClusterGroups: fcg,
+      filteredStandaloneConnections: standaloneConnections.filter(({ connectionId, connection }) => matchesSearch(q, connectionId, connection)),
+    }
+  }, [q, clusterGroups, standaloneConnections])
+
+  const hasFilteredClusters = Object.keys(filteredClusterGroups).length > 0
+  const hasFilteredStandalone = filteredStandaloneConnections.length > 0
+  const hasAnyResults = hasFilteredClusters || hasFilteredStandalone
 
   return (
     <RouteContainer title="connection">
@@ -92,38 +118,56 @@ export function Connection() {
         />
       ) : (
         <div className="flex-1">
-          {/* for clusters */}
-          {hasClusterGroups && (
-            <div className="mb-8">
-              <Typography className="mb-2" variant="bodyLg">Clusters</Typography>
-              <div>
-                {Object.entries(clusterGroups).map(([clusterId, clusterConnections]) => (
-                  <ClusterConnectionGroup
-                    clusterId={clusterId}
-                    connections={clusterConnections}
-                    key={clusterId}
-                    onEdit={handleEditConnection}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Search */}
+          <div className="mb-4">
+            <SearchInput
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery("")}
+              placeholder="Search connections by host, port, or alias..."
+              value={searchQuery}
+            />
+          </div>
 
-          {/* for standalone instances */}
-          {hasStandaloneConnections && (
-            <div>
-              <Typography className="mb-2" variant="bodyLg">Instances</Typography>
-              <div>
-                {standaloneConnections.map(({ connectionId, connection }) => (
-                  <ConnectionEntry
-                    connection={connection}
-                    connectionId={connectionId}
-                    key={connectionId}
-                    onEdit={handleEditConnection}
-                  />
-                ))}
-              </div>
+          {!hasAnyResults && q ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No connections match "{searchQuery}"
             </div>
+          ) : (
+            <>
+              {/* for clusters */}
+              {hasFilteredClusters && (
+                <div className="mb-8">
+                  <Typography className="mb-2" variant="bodyLg">Clusters</Typography>
+                  <div>
+                    {Object.entries(filteredClusterGroups).map(([clusterId, clusterConnections]) => (
+                      <ClusterConnectionGroup
+                        clusterId={clusterId}
+                        connections={clusterConnections}
+                        key={clusterId}
+                        onEdit={handleEditConnection}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* for standalone instances */}
+              {hasFilteredStandalone && (
+                <div>
+                  <Typography className="mb-2" variant="bodyLg">Instances</Typography>
+                  <div>
+                    {filteredStandaloneConnections.map(({ connectionId, connection }) => (
+                      <ConnectionEntry
+                        connection={connection}
+                        connectionId={connectionId}
+                        key={connectionId}
+                        onEdit={handleEditConnection}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

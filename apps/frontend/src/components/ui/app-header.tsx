@@ -25,8 +25,8 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
-  const connectionDetails = useSelector(selectConnectionDetails(id!)) ?? {} as Partial<ReturnType<ReturnType<typeof selectConnectionDetails>>>
-  const { host, port, username, alias } = connectionDetails as { host?: string; port?: string; username?: string; alias?: string }
+  const connectionDetails = useSelector(selectConnectionDetails(id!))
+  const { host, port, username, alias } = connectionDetails ?? {}
   const clusterData = useSelector(selectCluster(clusterId!))
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
 
@@ -68,8 +68,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     const q = nodeSearch.toLowerCase()
     return entries.filter(([key, primary]) =>
       key.includes(q) ||
-      `${primary.host}:${primary.port}`.toLowerCase().includes(q) ||
-      primary.replicas?.some((r) => `${r.host}:${r.port}`.toLowerCase().includes(q)),
+      `${primary.host}:${primary.port}`.toLowerCase().includes(q),
     )
   }, [clusterData?.clusterNodes, nodeSearch])
 
