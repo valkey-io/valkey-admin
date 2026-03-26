@@ -153,7 +153,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                     value={nodeSearch}
                   />
                 </div>
-                <ul className="overflow-y-auto max-h-72 p-2 space-y-1">
+                <ul className="overflow-y-auto h-72 p-2 space-y-1">
                   {filteredNodes.length === 0 ? (
                     <li className="text-center py-4 text-muted-foreground">No nodes match "{nodeSearch}"</li>
                   ) : (

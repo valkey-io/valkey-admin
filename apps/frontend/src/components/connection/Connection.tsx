@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
 import ConnectionForm from "../ui/connection-form.tsx"
@@ -64,22 +64,21 @@ export function Connection() {
 
   // Filter by search query
   const q = searchQuery.toLowerCase()
-  const { filteredClusterGroups, filteredStandaloneConnections } = useMemo(() => {
-    if (!q) return { filteredClusterGroups: clusterGroups, filteredStandaloneConnections: standaloneConnections }
-    const fcg: typeof clusterGroups = {}
+  const filteredClusterGroups: typeof clusterGroups = {}
+  if (q) {
     for (const [clusterId, conns] of Object.entries(clusterGroups)) {
       const matched = conns.filter(({ connectionId, connection }) => matchesSearch(q, connectionId, connection))
-      if (matched.length > 0) fcg[clusterId] = matched
+      if (matched.length > 0) filteredClusterGroups[clusterId] = matched
     }
-    return {
-      filteredClusterGroups: fcg,
-      filteredStandaloneConnections: standaloneConnections.filter(({ connectionId, connection }) => matchesSearch(q, connectionId, connection)),
-    }
-  }, [q, clusterGroups, standaloneConnections])
+  }
+  const filteredStandaloneConnections = q
+    ? standaloneConnections.filter(({ connectionId, connection }) => matchesSearch(q, connectionId, connection))
+    : standaloneConnections
 
-  const hasFilteredClusters = Object.keys(filteredClusterGroups).length > 0
-  const hasFilteredStandalone = filteredStandaloneConnections.length > 0
+  const hasFilteredClusters = q ? Object.keys(filteredClusterGroups).length > 0 : Object.keys(clusterGroups).length > 0
+  const hasFilteredStandalone = q ? filteredStandaloneConnections.length > 0 : standaloneConnections.length > 0
   const hasAnyResults = hasFilteredClusters || hasFilteredStandalone
+  const displayClusterGroups = q ? filteredClusterGroups : clusterGroups
 
   return (
     <RouteContainer title="connection">
@@ -139,7 +138,7 @@ export function Connection() {
                 <div className="mb-8">
                   <Typography className="mb-2" variant="bodyLg">Clusters</Typography>
                   <div>
-                    {Object.entries(filteredClusterGroups).map(([clusterId, clusterConnections]) => (
+                    {Object.entries(displayClusterGroups).map(([clusterId, clusterConnections]) => (
                       <ClusterConnectionGroup
                         clusterId={clusterId}
                         connections={clusterConnections}
