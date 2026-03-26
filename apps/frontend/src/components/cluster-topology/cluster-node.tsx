@@ -43,8 +43,8 @@ export function ClusterNode({
       const connectionDetails: ConnectionDetails = {
         host: primary.host,
         port: primary.port.toString(),
-        ...(primary.username && primary.password && {
-          username: primary.username,
+        ...(primary.password && {
+          username: primary.username ?? "",
           password: await secureStorage.encrypt(primary.password),
         }),
         tls: primary.tls,
