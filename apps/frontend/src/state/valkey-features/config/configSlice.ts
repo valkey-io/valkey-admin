@@ -9,15 +9,10 @@ export const selectConfig = (id: string) => (state: RootState) =>
   R.path([VALKEY.CONFIG.name, id], state)
 
 interface MonitorConfig {
-  monitorEnabled: boolean, 
   // How long to monitor before stopping (ms)
   monitorDuration: number,
-
-  // TODO: expose monitorInterval and continuousMonitoring
   // How long to wait before monitoring again when using continuous mode (ms)
-  monitorInterval?: number,
-  // Default is one cycle and then turn off monitoring
-  continuousMonitoring?: boolean,
+  monitorInterval: number,
 }
 interface ConfigState {
   [connectionId: string]: {
@@ -35,7 +30,7 @@ const initialState: ConfigState = {}
 const defaultConfig = (partial?: Partial<ConfigState[string]>): ConfigState[string] => ({
   darkMode: false,
   pollingInterval: 5000,
-  monitoring: { monitorEnabled: false, monitorDuration: 10000 },
+  monitoring: { monitorDuration: 10000, monitorInterval: 10000 },
   status: "updated",
   errorMessage: null,
   ...partial, // merge any passed-in values
@@ -72,6 +67,9 @@ const configSlice = createSlice({
       }
       if (response.data?.epic?.monitoringDuration !== undefined) {
         state[connectionId].monitoring.monitorDuration = response.data.epic.monitoringDuration
+      }
+      if (response.data?.epic?.monitoringInterval !== undefined) {
+        state[connectionId].monitoring.monitorInterval = response.data.epic.monitoringInterval
       }
       state[connectionId].status = "updated"
       state[connectionId].errorMessage = null

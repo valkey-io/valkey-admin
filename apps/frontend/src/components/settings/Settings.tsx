@@ -19,24 +19,25 @@ export default function Settings() {
   console.debug(config)
   const dispatch = useAppDispatch()
 
-  const [monitorEnabled, setMonitorEnabled] = useState(config?.monitoring?.monitorEnabled ?? false)
+  const [monitorEnabled, setMonitorEnabled] = useState(false)
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitorDuration ?? 10000)
+  const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitorInterval ?? 10000)
 
   useEffect(() => {
     if (config?.monitoring) {
-      setMonitorEnabled(config.monitoring.monitorEnabled)
       setMonitorDuration(config.monitoring.monitorDuration)
+      setMonitorInterval(config.monitoring.monitorInterval)
     }
-  }, [config?.monitoring?.monitorEnabled, config?.monitoring?.monitorDuration])
+  }, [config?.monitoring?.monitorDuration, config?.monitoring?.monitorInterval])
 
   const hasChanges =
     config?.monitoring &&
-    (monitorEnabled !== config.monitoring.monitorEnabled ||
-      monitorDuration !== config.monitoring.monitorDuration)
+    (monitorDuration !== config.monitoring.monitorDuration ||
+      monitorInterval !== config.monitoring.monitorInterval)
 
   const handleSave = () => {
     dispatch(updateConfig({ connectionId: id!, clusterId, config:
-       { epic: { name: "monitor", monitoringDuration: monitorDuration } },
+       { epic: { name: "monitor", monitoringDuration: monitorDuration, monitoringInterval: monitorInterval } },
     }))
   }
   return (
@@ -106,6 +107,22 @@ export default function Settings() {
                 style={{ width: "100px" }}
                 type="number"
                 value={monitorDuration}
+              />
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center gap-2">
+                <Typography variant="bodySm">Monitor Interval (ms)</Typography>
+                <TooltipIcon description="Delay in milliseconds between consecutive monitoring cycles." size={16}>
+                </TooltipIcon>
+              </div>
+              <Input
+                aria-label = "Monitor Interval"
+                onChange={(e) => setMonitorInterval(Number(e.target.value))}
+                step="1000"
+                style={{ width: "100px" }}
+                type="number"
+                value={monitorInterval}
               />
             </div>
 
