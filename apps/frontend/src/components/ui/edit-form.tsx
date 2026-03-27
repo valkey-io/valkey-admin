@@ -35,8 +35,8 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     port: "6379",
     username: "",
     password: "",
-    tls: false,
-    verifyTlsCertificate: false,
+    tls: true,
+    verifyTlsCertificate: true,
     alias: "",
   })
   const [passwordDirty, setPasswordDirty] = useState(false)
@@ -49,7 +49,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         username: currentConnection.username ?? "",
         password: currentConnection.password ?? "",
         alias: currentConnection.alias ?? "",
-        tls: currentConnection.tls ?? false,
+        tls: currentConnection.tls ?? true,
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
         //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
@@ -142,7 +142,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       onSubmit={handleSubmit}
       open
       showConnectionLimitWarning={shouldShowConnectionLimitWarning}
-      showVerifyTlsCertificate={false}
+      showVerifyTlsCertificate={true}
       submitButtonText="Apply Changes"
       title="Edit Connection"
     />

@@ -19,8 +19,8 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     port: "6379",
     username: "",
     password: "",
-    tls: false,
-    verifyTlsCertificate: false,
+    tls: true,
+    verifyTlsCertificate: true,
     alias: "",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
