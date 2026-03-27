@@ -120,13 +120,13 @@ async function main() {
   app.post("/connection/close", async (req, res) => {
     try {
       const { connectionId } = req.body
-      client.close()
       if (connectionId !== ownConnectionId) {
         return res.status(400).json({
           ok: false,
           error: "Invalid connectionId",
         })
       }
+      client.close()
       res.status(200).json({
         ok: true,
         connectionId,
