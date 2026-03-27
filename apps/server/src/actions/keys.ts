@@ -1,6 +1,7 @@
 import { VALKEY } from "valkey-common"
 import { addKey, deleteKey, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser"
 import { type Deps, withDeps } from "./utils"
+import { resolveClient } from "../utils"
 
 type GetKeysPayload = {
   connectionId: string;
@@ -9,8 +10,8 @@ type GetKeysPayload = {
 }
 
 export const getKeysRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, action }) => {
-    const connection = clients.get(connectionId)
+  async ({ ws, clients, connectionId, clusterNodesMap, action }) => {
+    const connection = resolveClient(connectionId, clients, clusterNodesMap)
 
     if (connection) {
       await getKeys(connection.client, ws, action.payload as GetKeysPayload)
@@ -34,11 +35,11 @@ interface KeyPayload {
 }
 
 export const getKeyTypeRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, action }) => {
+  async ({ ws, clients, connectionId, clusterNodesMap, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
     console.debug("Handling getKeyTypeRequested for key:", key)
-    const connection = clients.get(connectionId)
+    const connection = resolveClient(connectionId, clients, clusterNodesMap)
 
     if (connection) {
       await getKeyInfoSingle(connection.client, ws, action.payload as unknown as KeyPayload)
@@ -59,11 +60,11 @@ export const getKeyTypeRequested = withDeps<Deps, void>(
 )
 
 export const deleteKeyRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, action }) => {
+  async ({ ws, clients, connectionId, clusterNodesMap, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
     console.debug("Handling deleteKeyRequested for key:", key)
-    const connection = clients.get(connectionId)
+    const connection = resolveClient(connectionId, clients, clusterNodesMap)
 
     if (connection) {
       await deleteKey(connection.client, ws, action.payload as unknown as KeyPayload)
@@ -97,11 +98,11 @@ interface AddKeyRequestedPayload extends KeyPayload {
 }
 
 export const addKeyRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, action }) => {
+  async ({ ws, clients, connectionId, clusterNodesMap, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
     console.debug("Handling addKeyRequested for key:", key)
-    const connection = clients.get(connectionId)
+    const connection = resolveClient(connectionId, clients, clusterNodesMap)
     if (connection) {
       await addKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {
@@ -121,11 +122,11 @@ export const addKeyRequested = withDeps<Deps, void>(
 )
 
 export const updateKeyRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, action }) => {
+  async ({ ws, clients, connectionId, clusterNodesMap, action }) => {
     const { key } = action.payload as unknown as KeyPayload
 
     console.debug("Handling updateKeyRequested for key:", key)
-    const connection = clients.get(connectionId)
+    const connection = resolveClient(connectionId, clients, clusterNodesMap)
     if (connection) {
       await updateKey(connection.client, ws, action.payload as unknown as AddKeyRequestedPayload)
     } else {

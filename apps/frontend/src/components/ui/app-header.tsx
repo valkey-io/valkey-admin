@@ -19,9 +19,11 @@ type AppHeaderProps = {
 function AppHeader({ title, icon, className }: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const badgeRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
-  const { host, port, username, alias } = useSelector(selectConnectionDetails(id!))
+  const connectionDetails = useSelector(selectConnectionDetails(id!)) ?? {} as Partial<ReturnType<ReturnType<typeof selectConnectionDetails>>>
+  const { host, port, username, alias } = connectionDetails as { host?: string; port?: string; username?: string; alias?: string }
   const clusterData = useSelector(selectCluster(clusterId!))
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
 
@@ -34,6 +36,14 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     state.valkeyConnection?.connections,
   )
 
+  // For cluster mode, consider connected if any node in the cluster is connected
+  const isClusterConnected = clusterId
+    ? Object.values(allConnections ?? {}).some(
+      (conn) => conn.connectionDetails.clusterId === clusterId && conn.status === CONNECTED,
+    )
+    : isConnected
+  const effectiveConnected = isConnected || isClusterConnected
+
   const handleNavigate = (primaryKey: string) => {
     navigate(`/${clusterId}/${primaryKey}/dashboard`)
     setIsOpen(false)
@@ -42,7 +52,10 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   // for closing the dropdown when we click anywhere in screen
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+        badgeRef.current && !badgeRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false)
       }
     }
@@ -75,7 +88,12 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
           </Typography>
           <div>
             <Badge
-              className="h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between cursor-pointer"
+              className={cn(
+                "h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between",
+                effectiveConnected ? "cursor-pointer" : "cursor-not-allowed",
+              )}
+              onClick={() => effectiveConnected && setIsOpen(!isOpen)}
+              ref={badgeRef}
               variant="default"
             >
               <div className="flex flex-col gap-1">
@@ -83,33 +101,30 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                   className="flex items-center"
                   variant="bodySm"
                 >
-                  <Dot className={isConnected ? "text-green-500" : "text-gray-400"} size={45} />
+                  <Dot className={effectiveConnected ? "text-green-500" : "text-gray-400"} size={45} />
                   {id}
                 </Typography>
               </div>
-              <button aria-label="Toggle dropdown" disabled={!isConnected} onClick={() => isConnected && setIsOpen(!isOpen)}>
-                <ToggleIcon
-                  className={isConnected
-                    ? "text-primary cursor-pointer hover:text-primary/80"
-                    : "text-gray-400 cursor-not-allowed"
-                  }
-                  size={18}
-                />
-              </button>
+              <ToggleIcon
+                className={effectiveConnected
+                  ? "text-primary hover:text-primary/80"
+                  : "text-gray-400"
+                }
+                size={18}
+              />
             </Badge>
             {isOpen && (
               <div className="p-4 w-auto text-nowrap py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
                 rounded z-100 absolute top-10 right-0" ref={dropdownRef}>
                 <ul className="space-y-2">
                   {Object.entries(clusterData.clusterNodes).map(([primaryKey, primary]) => {
-                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
+                    const isCurrentNode = primaryKey === id
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
-                        <button className="flex items-center cursor-pointer hover:bg-primary/20"
-                          disabled={!nodeIsConnected}
+                        <button className={`flex items-center cursor-pointer hover:bg-primary/20 ${isCurrentNode ? "bg-primary/10" : ""}`}
                           onClick={() => handleNavigate(primaryKey)}>
-                          <Dot className={nodeIsConnected ? "text-green-500" : "text-gray-400"} size={45} />
+                          <Dot className={isCurrentNode ? "text-green-500" : "text-primary"} size={45} />
                           <Typography variant="bodySm">
                             {`${primary.host}:${primary.port}`}
                           </Typography>

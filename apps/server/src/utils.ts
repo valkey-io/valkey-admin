@@ -141,3 +141,29 @@ export async function isLastConnectedClusterNode(
   const currentClusterId = connection?.clusterId
   return clusterNodesMap.get(currentClusterId!)?.length === 1
 }
+
+/**
+ * Resolve the Glide client for a connectionId. Falls back to the cluster client
+ * when the requested node wasn't individually connected (e.g. switching shards
+ * in the header dropdown).
+ */
+export function resolveClient(
+  connectionId: string,
+  clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>,
+  clusterNodesMap: Map<string, string[]>,
+): { client: GlideClient | GlideClusterClient; clusterId?: string } | undefined {
+  const direct = clients.get(connectionId)
+  if (direct) return direct
+
+  // Find a cluster that contains a connected node sharing the same cluster
+  for (const [clusterId, nodeIds] of clusterNodesMap.entries()) {
+    const connectedPeer = nodeIds.find((nid) => clients.has(nid))
+    if (connectedPeer) {
+      const peer = clients.get(connectedPeer)!
+      if (peer.client instanceof GlideClusterClient) {
+        return { client: peer.client, clusterId }
+      }
+    }
+  }
+  return undefined
+}
