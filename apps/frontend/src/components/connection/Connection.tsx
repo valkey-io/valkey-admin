@@ -128,7 +128,7 @@ export function Connection() {
           </div>
 
           {!hasAnyResults && q ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground min-h-40">
               No connections match "{searchQuery}"
             </div>
           ) : (
