@@ -270,7 +270,7 @@ async function connectToCluster(
       connectionId: payload.connectionId,
       clusterNodes,
       clusterId: existingConnection ? existingConnection.clusterId : clusterId,
-      address: addresses[0],
+      address: { host: Object.values(clusterNodes)[0].host, port: Object.values(clusterNodes)[0].port },
       credentials,
       keyEvictionPolicy,
       clusterSlotStatsEnabled,
