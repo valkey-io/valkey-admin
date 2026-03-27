@@ -162,25 +162,42 @@ export function ConnectionModal({
                     {showVerifyTlsCertificate ? "Use TLS" : "TLS"}
                   </Label>
                 </div>
-
+                {!connectionDetails.tls && (
+                  <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Disabling TLS means your connection will not be encrypted.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 {showVerifyTlsCertificate && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      checked={connectionDetails.verifyTlsCertificate}
-                      className="h-4 w-4"
-                      id="verifycert"
-                      onChange={(e) =>
-                        onConnectionDetailsChange({
-                          ...connectionDetails,
-                          verifyTlsCertificate: e.target.checked,
-                        })
-                      }
-                      type="checkbox"
-                    />
-                    <Label className="select-none" htmlFor="verifycert">
-                      Verify TLS Certificate
-                    </Label>
-                  </div>
+                  <>
+                    <div className="flex items-center gap-2">
+                      <input
+                        checked={connectionDetails.verifyTlsCertificate}
+                        className="h-4 w-4"
+                        id="verifycert"
+                        onChange={(e) =>
+                          onConnectionDetailsChange({
+                            ...connectionDetails,
+                            verifyTlsCertificate: e.target.checked,
+                          })
+                        }
+                        type="checkbox"
+                      />
+                      <Label className="select-none" htmlFor="verifycert">
+                        Verify TLS Certificate
+                      </Label>
+                    </div>
+                    {connectionDetails.tls && !connectionDetails.verifyTlsCertificate && (
+                      <Alert variant="warning">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          Disabling certificate verification makes the connection vulnerable to man-in-the-middle attacks.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
                 )}
 
                 {showConnectionLimitWarning && (
