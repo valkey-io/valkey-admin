@@ -16,6 +16,9 @@ RUN npm run build:all
 # -------- Production Runtime --------
 FROM node:22-bookworm-slim
 
+# Install CA certificates for TLS connections to ElastiCache
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV NODE_ENV=production
