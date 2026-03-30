@@ -22,10 +22,12 @@ import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Button } from "@/components/ui/button.tsx"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
 import { Typography } from "@/components/ui/typography.tsx"
+import { HighlightSearchMatch } from "@/components/ui/highlight-search-match.tsx"
 
 interface ClusterConnectionGroupProps {
   clusterId: string
   connections: Array<{ connectionId: string; connection: ConnectionState }>
+  highlight?: string
   onEdit?: (connectionId: string) => void
 }
 
@@ -39,7 +41,7 @@ const getLatestTimestamp = R.pipe(
 // storage key for persisting open/closed state of cluster groups
 const getStorageKey = (clusterId: string) => `cluster-group-open-${clusterId}`
 
-export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: ClusterConnectionGroupProps) => {
+export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "", onEdit }: ClusterConnectionGroupProps) => {
   const dispatch = useAppDispatch()
   const [isOpen, setIsOpen] = useState(() => {
     const stored = localStorage.getItem(getStorageKey(clusterId))
@@ -147,7 +149,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                               title={firstNodeAlias || clusterId}
                               to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
                             >
-                              {firstNodeAlias || clusterId}
+                              <HighlightSearchMatch query={highlight} text={firstNodeAlias || clusterId} />
                             </Link>
                           </Typography>
                         </div>
@@ -164,7 +166,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                         title={firstNodeAlias || clusterId}
                         variant="code"
                       >
-                        {firstNodeAlias || clusterId}
+                        <HighlightSearchMatch query={highlight} text={firstNodeAlias || clusterId} />
                       </Typography>
                     </div>
                   )}
@@ -236,6 +238,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                 connection={connection}
                 connectionId={connectionId}
                 hideOpenButton={true}
+                highlight={highlight}
                 isNested={true}
                 key={connectionId}
                 onEdit={onEdit}
