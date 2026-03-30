@@ -13,7 +13,7 @@ import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
-import { MONITOR } from "./utils/constants.js"
+import { ACTION, MONITOR } from "./utils/constants.js"
 
 async function main() {
   const cfg = getConfig()
@@ -106,15 +106,12 @@ async function main() {
 
   app.post("/update-config", async (req, res) => {
     try {
-      const originalConfig = getConfig()
       const result = updateConfig(req.body)
 
       if (result.success && result.data.epic?.name === MONITOR) {
         const { isRunning } = readMonitorMetadata()
         if (isRunning) {
-          console.log(`Start Monitor, ${originalConfig}`)
           await monitorHandler(ACTION.STOP, getConfig())
-          console.log(`Start Monitor, ${getConfig()}`)
           await monitorHandler(ACTION.START, getConfig())
         }
       }
