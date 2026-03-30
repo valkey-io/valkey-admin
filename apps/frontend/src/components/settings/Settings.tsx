@@ -30,7 +30,7 @@ export default function Settings() {
     }
   }, [config?.monitoring?.monitoringDuration, config?.monitoring?.monitoringInterval])
 
-  const hasChanges =
+  const hasConfigChanges =
     config?.monitoring &&
     (monitorDuration !== config.monitoring.monitoringDuration ||
       monitorInterval !== config.monitoring.monitoringInterval)
@@ -129,7 +129,7 @@ export default function Settings() {
             {/* save button */}
             <div className="flex justify-end mt-6">
               <Button
-                disabled={!hasChanges}
+                disabled={!hasConfigChanges}
                 onClick={handleSave}
                 size={"sm"}
                 type="button"
