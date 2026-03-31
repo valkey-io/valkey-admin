@@ -60,7 +60,7 @@ export const monitorHandler = async (action, cfg) => {
         return { error: "Invalid action. Use ?action=start|stop|status" }
     }
   } catch (e) {
-    console.error(`[monitor] ${action} error:`, e)
+    console.error("[monitor] %s error:", e)
     return { error: e.message }
   }
 }
