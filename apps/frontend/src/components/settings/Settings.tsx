@@ -1,8 +1,9 @@
 import { Cog, Save, AlertTriangle } from "lucide-react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { MONITOR_ACTION, type MonitorAction } from "@common/src/constants"
 import ThemeToggle from "../ui/theme-toggle"
 import { ButtonGroup } from "../ui/button-group"
 import RouteContainer from "../ui/route-container"
@@ -12,6 +13,7 @@ import { Button } from "../ui/button"
 import { Typography } from "../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig, updateConfig } from "@/state/valkey-features/config/configSlice"
+import { monitorRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 
 export default function Settings() {
   const { id, clusterId } = useParams()
@@ -19,9 +21,20 @@ export default function Settings() {
   console.debug(config)
   const dispatch = useAppDispatch()
 
-  const [monitorEnabled, setMonitorEnabled] = useState(false)
+  const monitorRunning = useSelector(selectMonitorRunning(id!))
+  const [localMonitorEnabled, setLocalMonitorEnabled] = useState(monitorRunning)
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
   const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitoringInterval ?? 10000)
+  const [pendingMonitorAction, setPendingMonitorAction] = useState<MonitorAction | null>(null)
+  const prevConfigStatus = useRef(config?.status)
+
+  useEffect(() => {
+    dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: MONITOR_ACTION.STATUS }))
+  }, [dispatch, id, clusterId])
+
+  useEffect(() => {
+    setLocalMonitorEnabled(monitorRunning)
+  }, [monitorRunning])
 
   useEffect(() => {
     if (config?.monitoring) {
@@ -30,15 +43,38 @@ export default function Settings() {
     }
   }, [config?.monitoring?.monitoringDuration, config?.monitoring?.monitoringInterval])
 
+  useEffect(() => {
+    if (prevConfigStatus.current === "updating" && config?.status === "updated" && pendingMonitorAction) {
+      dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: pendingMonitorAction }))
+      setPendingMonitorAction(null)
+    }
+    prevConfigStatus.current = config?.status
+  }, [config?.status, pendingMonitorAction, dispatch, id, clusterId])
+
   const hasConfigChanges =
     config?.monitoring &&
     (monitorDuration !== config.monitoring.monitoringDuration ||
       monitorInterval !== config.monitoring.monitoringInterval)
 
+  const hasMonitorToggleChanged = localMonitorEnabled !== monitorRunning
+
   const handleSave = () => {
-    dispatch(updateConfig({ connectionId: id!, clusterId, config:
-       { epic: { name: "monitor", monitoringDuration: monitorDuration, monitoringInterval: monitorInterval } },
-    }))
+    const nextMonitorAction = hasMonitorToggleChanged
+      ? (localMonitorEnabled ? MONITOR_ACTION.START : MONITOR_ACTION.STOP)
+      : null
+
+    if (hasConfigChanges) {
+      dispatch(updateConfig({ connectionId: id!, clusterId, config:
+         { epic: { name: "monitor", monitoringDuration: monitorDuration, monitoringInterval: monitorInterval } },
+      }))
+      // Defer monitor action until config update completes
+      if (nextMonitorAction) {
+        setPendingMonitorAction(nextMonitorAction)
+      }
+    } else if (nextMonitorAction) {
+      // No config changes — dispatch monitor action directly
+      dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: nextMonitorAction }))
+    }
   }
   return (
     <RouteContainer className="p-4 relative min-h-screen flex flex-col">
@@ -73,16 +109,16 @@ export default function Settings() {
                 </TooltipIcon>
               </div>
               <ButtonGroup
-                onChange={(value) => setMonitorEnabled(value === "on")}
+                onChange={(value) => setLocalMonitorEnabled(value === "on")}
                 options={[
                   { value: "on", label: "On" },
                   { value: "off", label: "Off" },
                 ]}
-                value={monitorEnabled ? "on" : "off"}
+                value={localMonitorEnabled ? "on" : "off"}
               />
             </div>
 
-            {monitorEnabled && (
+            {localMonitorEnabled && (
               <div className="mt-3 flex items-center gap-2 p-2 bg-primary/20 border border-primary/50 rounded">
                 <AlertTriangle className="text-amber-600 shrink-0" size={18} />
                 <Typography variant="bodySm">
@@ -129,7 +165,7 @@ export default function Settings() {
             {/* save button */}
             <div className="flex justify-end mt-6">
               <Button
-                disabled={!hasConfigChanges}
+                disabled={!hasConfigChanges && !hasMonitorToggleChanged}
                 onClick={handleSave}
                 size={"sm"}
                 type="button"

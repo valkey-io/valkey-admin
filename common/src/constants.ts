@@ -90,6 +90,11 @@ export const VALKEY = {
     memoryUsageFulfilled: "memoryUsageFulfilled",
     memoryUsageError: "memoryUsageError",
   }),
+  MONITOR: makeNamespace("monitor", {
+    monitorRequested: "monitorRequested",
+    monitorFulfilled: "monitorFulfilled",
+    monitorError: "monitorError",
+  }),
 } as const
 
 export const CONNECTED = "Connected"
@@ -139,6 +144,14 @@ export const VALKEY_CLIENT = {
     NOT_READABLE: "Not human readable.",
   },
 }
+export const MONITOR_ACTION = {
+  START: "start",
+  STOP: "stop",
+  STATUS: "status",
+} as const
+
+export type MonitorAction = typeof MONITOR_ACTION[keyof typeof MONITOR_ACTION]
+
 export const COMMANDLOG_TYPE = {
   SLOW: "slow",
   LARGE_REQUEST: "large-request",
