@@ -1,8 +1,10 @@
-import { ClusterResponse, GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { ClusterResponse, GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
-import { sanitizeUrl } from "valkey-common"
-
+import { KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
+import { VALKEY } from "common/dist"
+import WebSocket from "ws"
+import { ClusterNodeMap } from "./metrics-orchestrator"
 export const dns = {
   lookup,
   reverse,
@@ -140,4 +142,82 @@ export async function isLastConnectedClusterNode(
   const connection = clients.get(connectionId)
   const currentClusterId = connection?.clusterId
   return clusterNodesMap.get(currentClusterId!)?.length === 1
+}
+
+function isClusterClientEntry(
+  entry: { client: GlideClient | GlideClusterClient; clusterId?: string } | undefined,
+): entry is { client: GlideClusterClient; clusterId?: string } {
+  return !!entry && entry.client instanceof GlideClusterClient
+}
+
+export async function clusterClientExists(
+  clusterNodes: ClusterNodeMap, 
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+) {
+  // Check if we've already connected to this cluster before 
+  const existingKey = Object.keys(clusterNodes).find(
+    (key) => isClusterClientEntry(clients.get(key)),
+  )
+
+  const existingConnection = existingKey
+    ? clients.get(existingKey) as { client: GlideClusterClient; clusterId?: string }
+    : undefined
+
+  return existingConnection
+}
+
+export async function returnExistingClusterClient(
+  existingClusterConnection: {client: GlideClusterClient, clusterId?: string},
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+  connectionId: string,
+  clusterNodesMap: Map<string, string[]>,
+  ws: WebSocket,
+  clusterNodes: ClusterNodeMap,
+) {
+  const { client: existingClusterClient, clusterId: existingClusterId } = existingClusterConnection
+  clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
+      
+  clusterNodesMap.get(existingClusterId!)?.push(connectionId)
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.CLUSTER.updateClusterInfo,
+      payload: { existingClusterId, clusterNodes },
+    }),
+  )
+  return existingClusterClient
+}
+
+export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {
+  let keyEvictionPolicy: KeyEvictionPolicy = "noeviction"
+  try {
+    const evictionPolicyResponse = await client.customCommand(
+      ["CONFIG", "GET", "maxmemory-policy"],
+    ) as [{key: string, value: string}]
+  
+    keyEvictionPolicy = R.pipe(
+      R.pathOr("noeviction", [0, "value"]),
+      R.toLower,
+    )(evictionPolicyResponse) as KeyEvictionPolicy
+  } catch {
+    console.warn("Command \"CONFIG\" not available. Trying \"INFO MEMORY\" instead")
+    const infoResponse = await client.info([InfoOptions.Memory])
+    // Get the info response on any node in the cluster, since eviction policy is the same across all nodes
+    const anyNode = Object.values(infoResponse)[0]
+    const parsed = parseInfo(anyNode)
+    if (parsed["maxmemory_policy"]) {
+      keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy
+    }
+  } 
+  return keyEvictionPolicy
+}
+
+export async function getClusterSlotStatsEnabled(clusterClient: GlideClusterClient) {
+  let clusterSlotStatsEnabled = false
+  try {
+    await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "SLOTSRANGE", "0", "0"])
+    clusterSlotStatsEnabled = true
+  } catch {
+    console.warn("Cluster slot-stats is not enabled.")
+  }
+  return clusterSlotStatsEnabled
 }

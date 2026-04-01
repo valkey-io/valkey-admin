@@ -2,8 +2,14 @@ import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials } from 
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { sanitizeUrl, type KeyEvictionPolicy } from "valkey-common"
-import { parseInfo, resolveHostnameOrIpAddress } from "./utils"
+import { sanitizeUrl } from "valkey-common"
+import { 
+  clusterClientExists, 
+  getClusterSlotStatsEnabled, 
+  getKeyEvictionPolicy, 
+  parseInfo, 
+  resolveHostnameOrIpAddress, 
+  returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
@@ -18,17 +24,19 @@ export async function connectToValkey(
   clusterNodesMap: Map<string, string[]>,
   metricsServerMap: MetricsServerMap,
 ) {
-
+  
+  const { host, port, username, password, tls: useTLS, verifyTlsCertificate, endpointType } = payload.connectionDetails
+  const { connectionId } = payload
   const addresses = [
     {
-      host: payload.connectionDetails.host,
-      port: Number(payload.connectionDetails.port),
+      host,
+      port: Number(port),
     },
   ]
   const credentials: ServerCredentials | undefined = 
-    payload.connectionDetails.password ? {
-      username: payload.connectionDetails.username,
-      password: payload.connectionDetails.password,
+    password ? {
+      username,
+      password,
     } : undefined
 
   try {
@@ -36,17 +44,28 @@ export async function connectToValkey(
     if (await isDuplicateConnection(payload, clients)) {
       return ws.send(
         JSON.stringify({
-          type: VALKEY.CONNECTION.standaloneConnectFulfilled,
-          payload: { connectionId: payload.connectionId },
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: { connectionId, errorMessage: "This is a duplicate connection, please use a new endpoint." },
         }),
       )
     }
-    const useTLS = payload.connectionDetails.tls
+
+    if (endpointType === "cluster-endpoint") {
+      return connectToCluster(
+        ws, 
+        clients, 
+        payload, 
+        addresses, 
+        credentials, 
+        clusterNodesMap,
+      )
+    }
+
     const standaloneClient = await GlideClient.createClient({
       addresses,
       credentials,
       useTLS,
-      ...(useTLS && payload.connectionDetails.verifyTlsCertificate === false && {
+      ...(useTLS && verifyTlsCertificate === false && {
         advancedConfiguration: {
           tlsAdvancedConfiguration: {
             insecure: true,
@@ -57,40 +76,20 @@ export async function connectToValkey(
       requestTimeout: 5000,
       clientName: "test_client",
     })
-    clients.set(payload.connectionId, { client: standaloneClient })
+    clients.set(connectionId, { client: standaloneClient })
     // Only start metrics server if it hasn't been started before
-    if (!metricsServerMap.has(payload.connectionId)) await startMetricsServer(payload.connectionDetails, payload.connectionId)
+    if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
 
-    let keyEvictionPolicy: KeyEvictionPolicy = "noeviction"
-    try {
-      const evictionPolicyResponse = await standaloneClient.customCommand(
-        ["CONFIG", "GET", "maxmemory-policy"],
-      ) as [{key: string, value: string}]
-
-      keyEvictionPolicy = R.pipe(
-        R.pathOr("noeviction", [0, "value"]),
-        R.toLower,
-      )(evictionPolicyResponse) as KeyEvictionPolicy
-    } catch {
-      console.warn("Command \"CONFIG\" not available. Trying \"INFO SERVER\" instead")
-      const infoResponse = await standaloneClient.info([InfoOptions.Server])
-      const parsed = parseInfo(infoResponse)
-      if (parsed["maxmemory_policy"]) {
-        keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy
-      }
-    }
+    const keyEvictionPolicy = await getKeyEvictionPolicy(standaloneClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (await belongsToCluster(standaloneClient)) {
       return connectToCluster(
-        standaloneClient, 
         ws, 
         clients, 
         payload, 
         addresses, 
         credentials, 
-        keyEvictionPolicy, 
-        jsonModuleAvailable, 
         clusterNodesMap,
       )
     }
@@ -98,7 +97,7 @@ export async function connectToValkey(
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
       payload: {
-        connectionId: payload.connectionId,
+        connectionId,
         connectionDetails: {
           ...payload.connectionDetails,
           keyEvictionPolicy,
@@ -115,12 +114,13 @@ export async function connectToValkey(
 
   } catch (err) {
     console.error("Error connecting to Valkey", err)
+    const errorMessage = err instanceof Error ? err.message : String(err)
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,
         payload: {
-          err,
-          connectionId: payload.connectionId,
+          errorMessage,
+          connectionId,
         },
       }),
     )
@@ -134,7 +134,7 @@ export async function belongsToCluster(client: GlideClient): Promise<boolean> {
   return parsed["cluster_enabled"] === "1"
 }
 
-export async function discoverCluster(client: GlideClient, payload: {
+export async function discoverCluster(client: GlideClient | GlideClusterClient, payload: {
   connectionDetails: ConnectionDetails
   connectionId?: string;
 })  {
@@ -191,45 +191,47 @@ export async function discoverCluster(client: GlideClient, payload: {
 }
 
 async function connectToCluster(
-  standaloneClient: GlideClient,
   ws: WebSocket,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   payload: { connectionDetails: ConnectionDetails, connectionId: string;},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
-  keyEvictionPolicy: KeyEvictionPolicy,
-  jsonModuleAvailable: boolean,
   clusterNodesMap: Map<string, string[]>,
 ) {
-  const { clusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
+  const { connectionId } = payload
+  const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
+
+  let clusterClient = await GlideClusterClient.createClient({
+    addresses,
+    credentials,
+    useTLS,
+    ...(useTLS && verifyTlsCertificate === false && {
+      advancedConfiguration: {
+        tlsAdvancedConfiguration: {
+          insecure: true,
+        },
+      },
+    }),
+    requestTimeout: 5000,
+    clientName: "valkey-admin-server",
+  })
+  const { clusterNodes, clusterId } = await discoverCluster(clusterClient, payload)
   if (R.isEmpty(clusterNodes)) {
     throw new Error("No cluster nodes discovered")
   }
-  const useTLS = payload.connectionDetails.tls
 
-  let clusterClient 
-  standaloneClient.close()
-
-  // Check if we've already connected to this cluster before 
-  const existingKey = Object.keys(clusterNodes).find(
-    (key) => clients.get(key) instanceof GlideClusterClient,
-  )
-
-  const existingConnection = existingKey
-    ? clients.get(existingKey)
-    : undefined
-
-  if (existingConnection) {
-    const { client: existingClient, clusterId: existingClusterId } = existingConnection
-    clusterClient = existingClient
-    clients.set(payload.connectionId, { client: existingClient, clusterId: existingClusterId })
-    clusterNodesMap.get(existingClusterId!)?.push(payload.connectionId)
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CLUSTER.updateClusterInfo,
-        payload: { existingClusterId, clusterNodes },
-      }),
-    )
+  const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
+  if (existingClusterConnection) {
+    clusterClient.close()
+    clusterClient = 
+      await returnExistingClusterClient(
+        existingClusterConnection,
+        clients,
+        payload.connectionId, 
+        clusterNodesMap, 
+        ws,
+        clusterNodes,
+      )
   } 
   else {
     ws.send(
@@ -238,48 +240,30 @@ async function connectToCluster(
         payload: { clusterId, clusterNodes },
       }),
     )
-    clusterClient = await GlideClusterClient.createClient({
-      addresses,
-      credentials,
-      useTLS,
-      ...(useTLS && payload.connectionDetails.verifyTlsCertificate === false && {
-        advancedConfiguration: {
-          tlsAdvancedConfiguration: {
-            insecure: true,
-          },
-        },
-      }),
-      requestTimeout: 5000,
-      clientName: "cluster_client",
-    })
-    clients.set(payload.connectionId, { client: clusterClient, clusterId })
-    clusterNodesMap.set(clusterId, [payload.connectionId])
+    clients.set(connectionId, { client: clusterClient, clusterId })
+    clusterNodesMap.set(clusterId, [connectionId])
   }
 
-  let clusterSlotStatsEnabled = false
-  try {
-    await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "SLOTSRANGE", "0", "0"])
-    clusterSlotStatsEnabled = true
-  } catch {
-    console.warn("Cluster slot-stats is not enabled.")
-  }
-
-  const clusterConnectionInfo = {
-    type: VALKEY.CONNECTION.clusterConnectFulfilled,
-    payload: {
-      connectionId: payload.connectionId,
-      clusterNodes,
-      clusterId: existingConnection ? existingConnection.clusterId : clusterId,
-      address: { host: Object.values(clusterNodes)[0].host, port: Object.values(clusterNodes)[0].port },
-      credentials,
-      keyEvictionPolicy,
-      clusterSlotStatsEnabled,
-      jsonModuleAvailable,
-    },
-  }
+  const clusterSlotStatsEnabled = getClusterSlotStatsEnabled(clusterClient)
+  const keyEvictionPolicy = getKeyEvictionPolicy(clusterClient)
+  const jsonModuleAvailable = checkJsonModuleAvailability(clusterClient)
 
   ws.send(
-    JSON.stringify(clusterConnectionInfo),
+    JSON.stringify({
+      type: VALKEY.CONNECTION.clusterConnectFulfilled,
+      payload: {
+        connectionId: payload.connectionId,
+        clusterNodes,
+        clusterId: existingClusterConnection
+          ? existingClusterConnection.clusterId
+          : clusterId,
+        address: addresses[0],
+        credentials,
+        keyEvictionPolicy,
+        clusterSlotStatsEnabled,
+        jsonModuleAvailable,
+      },
+    }),
   )
   return clusterClient
 }

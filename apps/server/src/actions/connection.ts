@@ -4,6 +4,8 @@ import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
 import { isLastConnectedClusterNode } from "../utils"
 
+export type EndpointType = "node" | "cluster-endpoint"
+
 export interface ConnectionDetails {
   host: string;
   port: string;
@@ -13,6 +15,7 @@ export interface ConnectionDetails {
   verifyTlsCertificate: boolean;
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string;
+  endpointType: EndpointType;
 }
 
 type ConnectPayload = {
