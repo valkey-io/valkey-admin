@@ -10,6 +10,7 @@ const kvPairsToRows = R.curry((ts, pairs) =>
 const log = createLogger("fetchers")
 const debugMetrics = process.env.DEBUG_METRICS === "1"
 
+// Cluster responses may be keyed by node address; this builds the expected key for the local Valkey node.
 const getPreferredNodeKey = () => {
   const host = process.env.VALKEY_HOST
   const port = process.env.VALKEY_PORT
