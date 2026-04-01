@@ -16,6 +16,7 @@ const getPreferredNodeKey = () => {
   return host && port ? `${host}:${port}` : null
 }
 
+// Cluster clients may return a per-node map; pick the entry for this sidecar's local Valkey node.
 const normalizeNodeScopedResponse = (result) => {
   if (Array.isArray(result) || typeof result === "string" || result == null) {
     return result
@@ -27,33 +28,12 @@ const normalizeNodeScopedResponse = (result) => {
       return result[preferredNodeKey]
     }
 
+    // If the local node key is missing, keep going with the first node entry instead of pushing the map downstream.
     const firstValue = Object.values(result)[0]
     return firstValue ?? result
   }
 
   return result
-}
-
-const normalizeMemoryStatsEntries = (result) => {
-  if (result && typeof result === "object" && !Array.isArray(result)) {
-    return Object.entries(result)
-  }
-
-  if (!Array.isArray(result)) return []
-
-  // Some clients return [{ key, value }, ...]
-  if (result.every((entry) => entry && typeof entry === "object" && "key" in entry && "value" in entry)) {
-    return result.map(({ key, value }) => [key, value])
-  }
-
-  // Some clients may already return [[key, value], ...]
-  if (result.every((entry) => Array.isArray(entry) && entry.length >= 2)) {
-    return result.map(([key, value]) => [key, value])
-  }
-
-  // Valkey MEMORY STATS commonly returns [key1, value1, key2, value2, ...]
-  return R.splitEvery(2, result)
-    .map(([key, value]) => [key, value])
 }
 
 const parseInfoToPairs = (raw) =>
@@ -71,6 +51,7 @@ const parseInfoToPairs = (raw) =>
     ),
   )(raw)
 
+// INFO KEYSPACE reports per-database stats like `db0:keys=...`; this app reads the default database only.
 const parseKeyCount = R.pipe(
   parseInfoToPairs,
   R.find(([key]) => key === "db0"),
