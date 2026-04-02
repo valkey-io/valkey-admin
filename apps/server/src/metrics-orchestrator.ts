@@ -242,6 +242,7 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
       SERVER_PORT: process.env.SERVER_PORT ?? "8080",
       DATA_DIR: `${data_dir}/${nodeId}`,
       CONFIG_PATH: configPath,
+      CONNECTION_ID: nodeId,
     },
     stdio: ["ignore", "ignore", "pipe"], // only capture stderr
   })

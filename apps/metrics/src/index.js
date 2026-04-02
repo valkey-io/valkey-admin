@@ -47,7 +47,7 @@ async function main() {
     requestTimeout: 5000,
     clientName: "test_client",
   })
-  const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
+  const ownConnectionId = process.env.CONNECTION_ID || sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
 
   await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
