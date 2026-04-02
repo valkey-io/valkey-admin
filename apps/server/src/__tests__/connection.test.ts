@@ -238,7 +238,16 @@ describe("connectToValkey", () => {
     }
 
     const originalCreateClient = GlideClient.createClient
-    GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
+    GlideClient.createClient = mock.fn(async (config: any) => {
+      assert.ok(config)
+      assert.deepStrictEqual(config.addresses, [{
+        host: alternate_payload.connectionDetails.host,
+        port: Number(alternate_payload.connectionDetails.port),
+      }])
+      assert.strictEqual(config.requestTimeout, 5000)
+      assert.strictEqual(config.clientName, "valkey_server_standalone_client")
+      return mockStandaloneClient as any
+    })
 
     const alternate_payload = {
       connectionDetails: {
@@ -264,7 +273,7 @@ describe("connectToValkey", () => {
         port: Number(alternate_payload.connectionDetails.port),
       }])
       assert.strictEqual(config.requestTimeout, 5000)
-      assert.strictEqual(config.clientName, "test_client")
+      assert.strictEqual(config.clientName, "valkey_server_standalone_client")
     } finally {
       GlideClient.createClient = originalCreateClient
     }

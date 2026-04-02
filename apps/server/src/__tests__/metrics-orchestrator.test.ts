@@ -7,13 +7,14 @@ import {
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
   clients,
+  clusterNodesRegistry,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
 } from "../metrics-orchestrator"
 import type { ConnectionDetails } from "../actions/connection"
 
-const clusterNodesRegistry = {
+const mockClusterNodesRegistry = {
   "cluster-1": {
     node1: {
       host: "127.0.0.1",
@@ -95,6 +96,65 @@ describe("metrics-orchestrator", () => {
       assert.strictEqual(nodesToRemove.includes("node1"), false)
       assert.strictEqual(Object.keys(nodesToAdd).length, 0)
     })
+
+    it("should keep replica metrics servers because replicas belong to the cluster map", async () => {
+      const now = Date.now()
+      const clusterNodes: ClusterNodeMap = {
+        "valkey-0-valkey-headless-valkey-svc-cluster-local-6379": {
+          host: "valkey-0.valkey-headless.valkey.svc.cluster.local",
+          port: "6379",
+          tls: false,
+          verifyTlsCertificate: false,
+          replicas: [
+            {
+              id: "replica-raw-id",
+              host: "valkey-5.valkey-headless.valkey.svc.cluster.local",
+              port: 6379,
+            },
+          ],
+        },
+      }
+      const metricsMap: MetricsServerMap = new Map([
+        ["valkey-5-valkey-headless-valkey-svc-cluster-local-6379", { metricsURI: "uri", pid: 123, lastSeen: now }],
+      ])
+
+      const { nodesToAdd, nodesToRemove } = await __test__.findDiff(metricsMap, clusterNodes)
+
+      assert.strictEqual(nodesToRemove.length, 0)
+      assert.strictEqual(Object.keys(nodesToAdd).includes("valkey-5-valkey-headless-valkey-svc-cluster-local-6379"), false)
+    })
+  })
+
+  describe("isKnownClusterNode", () => {
+    afterEach(() => {
+      mock.restoreAll()
+      for (const key in clusterNodesRegistry) {
+        delete clusterNodesRegistry[key]
+      }
+    })
+
+    it("should recognize replica node ids by sanitized host-port", () => {
+      clusterNodesRegistry["cluster-1"] = {
+        "valkey-0-valkey-headless-valkey-svc-cluster-local-6379": {
+          host: "valkey-0.valkey-headless.valkey.svc.cluster.local",
+          port: 6379,
+          tls: false,
+          verifyTlsCertificate: false,
+          replicas: [
+            {
+              id: "raw-replica-node-id",
+              host: "valkey-5.valkey-headless.valkey.svc.cluster.local",
+              port: 6379,
+            },
+          ],
+        },
+      }
+
+      assert.strictEqual(
+        __test__.isKnownClusterNode("valkey-5-valkey-headless-valkey-svc-cluster-local-6379"),
+        true,
+      )
+    })
   })
 
   describe("startMetricsServer / stopMetricsServer", () => {
@@ -169,7 +229,7 @@ describe("metrics-orchestrator", () => {
         },
         clusterId: "cluster-1",
       }))
-      mock.method(__test__, "updateClusterNodeRegistry", async () => clusterNodesRegistry)
+      mock.method(__test__, "updateClusterNodeRegistry", async () => mockClusterNodesRegistry)
       mock.method(__test__, "updateMetricsServers", async () => {})
       mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
     })
@@ -179,27 +239,27 @@ describe("metrics-orchestrator", () => {
 
     it("should discover cluster if registry is empty", async () => {
       await reconcileClusterMetricsServers(
-        clusterNodesRegistry,metricsServerMap, connectionDetails, client)
-      assert.ok(clusterNodesRegistry["cluster-1"])
+        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
+      assert.ok(mockClusterNodesRegistry["cluster-1"])
     })
 
     it("should call updateClusterNodeRegistry for existing clusters", async () => {
-      clusterNodesRegistry["cluster-1"] = {
+      mockClusterNodesRegistry["cluster-1"] = {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       }
       await reconcileClusterMetricsServers(
-        clusterNodesRegistry,metricsServerMap, connectionDetails, client)
+        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
       // Nothing should throw; mocks handle all calls
     })
 
     it("should early return if nothing changed", async () => {
       // findDiff mock returns empty changes
       mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
-      clusterNodesRegistry["cluster-1"] = {
+      mockClusterNodesRegistry["cluster-1"] = {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       }
       await reconcileClusterMetricsServers(
-        clusterNodesRegistry,metricsServerMap, connectionDetails, client)
+        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
       // updateMetricsServers should not be called because nothing changed
     })
   })

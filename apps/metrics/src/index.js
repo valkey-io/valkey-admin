@@ -1,6 +1,5 @@
 import fs from "node:fs"
 import express from "express"
-import { GlideClient } from "@valkey/valkey-glide"
 import { getConfig, updateConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors, stopCollectors } from "./init-collectors.js"
@@ -13,41 +12,20 @@ import memoryFold from "./analyzers/memory-metrics.js"
 import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
+import { createValkeyClient } from "./valkey-client.js"
 import { ACTION, MONITOR } from "./utils/constants.js"
 
 async function main() {
   const cfg = getConfig()
   const ensureDir = (dir) => { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
   ensureDir(cfg.server.data_dir)
-  const addresses = [
-    {
-      host: process.env.VALKEY_HOST,
-      port: Number(process.env.VALKEY_PORT),
-    },
-  ]
-  const credentials =
-    process.env.VALKEY_PASSWORD ? {
-      username: process.env.VALKEY_USERNAME,
-      password: process.env.VALKEY_PASSWORD,
-    } : undefined
-
-  const useTLS = process.env.VALKEY_TLS === "true"
-
-  const client = await GlideClient.createClient({
-    addresses,
-    credentials,
-    useTLS,
-    ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
-      advancedConfiguration: {
-        tlsAdvancedConfiguration: {
-          insecure: true,
-        },
-      },
-    }),
-
-    requestTimeout: 5000,
-    clientName: "test_client",
-  })
+  if (process.env.DEBUG_METRICS === "1") {
+    console.log("Metrics config loaded:", JSON.stringify({
+      data_dir: cfg.server.data_dir,
+      epics: cfg.epics?.map(({ name, type, file_prefix }) => ({ name, type, file_prefix })),
+    }))
+  }
+  const client = await createValkeyClient(cfg)
   const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
 
   await setupNdjsonCleaner(cfg)
@@ -155,35 +133,54 @@ async function main() {
   const port = Number(cfg.server.port || 0)
   const backendServerHost = process.env.SERVER_HOST || "localhost"
   const backendServerPort = process.env.SERVER_PORT || "8080"
-  const metricsServerHost = process.env.METRICS_HOST ?? "127.0.0.1"
-  const server = app.listen(port, async () => {
+  const metricsBindHost = process.env.METRICS_BIND_HOST ?? "0.0.0.0"
+  const metricsAdvertiseHost = process.env.METRICS_ADVERTISE_HOST ?? process.env.METRICS_HOST ?? "127.0.0.1"
+  const server = app.listen(port, metricsBindHost, async () => {
     const assignedPort = server.address().port
-    console.debug(`listening on http://${metricsServerHost}:${assignedPort}`)
-    try {
-      const registerURI = `http://${backendServerHost}:${backendServerPort}/orchestrator/register`
-      console.debug("Sending Register request to ", registerURI)
-      const response = await fetch(registerURI,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            metricsServerUri: `http://${metricsServerHost}:${assignedPort}`,
-            pid: process.pid,
-            nodeId: ownConnectionId,
-          }),
-        },
-      )
+    const metricsAdvertisePort = Number(process.env.METRICS_ADVERTISE_PORT || assignedPort)
+    const registerURI = `http://${backendServerHost}:${backendServerPort}/orchestrator/register`
+    let registerInFlight = null
 
-      const text = await response.text()
+    const registerWithServer = async () => {
+      if (registerInFlight) return registerInFlight
 
-      if (!response.ok) {
-        console.error("Register failed:", response.status, text)
-      } else {
-        console.log("Register success:", text)
-      }
-    } catch (err) {
-      console.error("Register request failed:", err)
+      registerInFlight = (async () => {
+        try {
+          console.debug("Sending Register request to ", registerURI)
+          const response = await fetch(registerURI,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                metricsServerUri: `http://${metricsAdvertiseHost}:${metricsAdvertisePort}`,
+                pid: process.pid,
+                nodeId: ownConnectionId,
+              }),
+            },
+          )
+
+          const text = await response.text()
+
+          if (!response.ok) {
+            console.error("Register failed:", response.status, text)
+            return false
+          }
+
+          console.log("Register success:", text)
+          return true
+        } catch (err) {
+          console.error("Register request failed:", err)
+          return false
+        } finally {
+          registerInFlight = null
+        }
+      })()
+
+      return registerInFlight
     }
+
+    console.debug(`listening on http://${metricsBindHost}:${assignedPort}`)
+    await registerWithServer()
     // Base interval ±10% jitter
     const pingIntervalMs = cfg.backend.ping_interval * (1 + (Math.random() * 2 - 1) * 0.1)
     setInterval(async () => {
@@ -197,6 +194,9 @@ async function main() {
         if (!response.ok) {
           const text = await response.text()
           console.debug("Ping failed:", response.status, text)
+          if (response.status === 404) {
+            await registerWithServer()
+          }
         } else {
           console.debug(`Ping successful for node: ${ownConnectionId}`)
         }
