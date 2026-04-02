@@ -259,11 +259,6 @@ export async function connectToCluster(
           payload: { clusterId, clusterNodes },
         }),
       )
-      // If configEndpointId is available, we need to get the first node's ID for tracking
-      if (configEndpointId) {
-        const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
-        clients.set(nodeConnectionId, { client: clusterClient, clusterId })
-      }
       clients.set(connectionId, { client: clusterClient, clusterId })
       clusterNodesMap.set(clusterId, [connectionId])
     }
@@ -272,13 +267,34 @@ export async function connectToCluster(
     const keyEvictionPolicy = await getKeyEvictionPolicy(clusterClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(clusterClient)
 
+    // If configEndpointId is available, we need to get the first node's ID for tracking
+    if (configEndpointId) {
+      const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
+      clients.set(nodeConnectionId, { client: clusterClient, clusterId })
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.clusterConnectFulfilled,
+          payload: {
+            connectionId: nodeConnectionId,
+            clusterNodes,
+            clusterId: existingClusterConnection?.clusterId ?? clusterId,
+            address: addresses[0],
+            credentials,
+            keyEvictionPolicy,
+            clusterSlotStatsEnabled,
+            jsonModuleAvailable,
+          },
+        }),
+      )
+    }
+
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.clusterConnectFulfilled,
         payload: {
           connectionId: payload.connectionId,
           clusterNodes,
-          clusterId: configEndpointId ?? existingClusterConnection?.clusterId ?? clusterId,
+          clusterId: existingClusterConnection?.clusterId ?? clusterId,
           address: addresses[0],
           credentials,
           keyEvictionPolicy,
