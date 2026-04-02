@@ -240,7 +240,7 @@ describe("metrics-orchestrator", () => {
     it("should discover cluster if registry is empty", async () => {
       await reconcileClusterMetricsServers(
         mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
-      assert.ok(clusterNodesRegistry["cluster-1"])
+      assert.ok(mockClusterNodesRegistry["cluster-1"])
     })
 
     it("should call updateClusterNodeRegistry for existing clusters", async () => {
