@@ -17,5 +17,7 @@ export const selectIsAtConnectionLimit = (state: RootState) => selectConnectionC
 export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
   atId(id, state)?.connectionDetails?.jsonModuleAvailable ?? false
 export const selectEndpointType = (id: string) => (state: RootState) => atId(id, state)?.connectionDetails.endpointType ?? "node"
-export const selectConfigEndpointNode = (id: string) => (state: RootState) => 
-  state.valkeyConnection.connections[id]?.connectedNode
+export const selectConfigEndpointNode = (clusterId: string) => (state: RootState) =>
+  Object.values(state.valkeyConnection.connections).find(
+    (c) => c.connectionDetails?.clusterId === clusterId && c.connectedNode,
+  )?.connectedNode
