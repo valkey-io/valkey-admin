@@ -15,7 +15,7 @@ interface ConnectionFormProps {
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
   const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails>({
-    host: "localhost",
+    host: "",
     port: "6379",
     username: "",
     password: "",

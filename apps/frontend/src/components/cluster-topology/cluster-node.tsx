@@ -30,7 +30,7 @@ export function ClusterNode({
 }: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { clusterIdFromParams } = useParams()
+  const { clusterId: clusterIdFromParams } = useParams()
   const connectedNode = useSelector(selectConfigEndpointNode(clusterIdFromParams ?? ""))
   const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
