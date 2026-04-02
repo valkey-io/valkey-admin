@@ -35,7 +35,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   )
 
   const handleNavigate = (primaryKey: string) => {
-    navigate(`/${clusterId}/${primaryKey}/dashboard`)
+    navigate(`/${clusterId}/${primaryKey}/cluster-topology`)
     setIsOpen(false)
   }
 

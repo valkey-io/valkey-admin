@@ -16,3 +16,4 @@ export const selectConnectionCount = (state: RootState) =>
 export const selectIsAtConnectionLimit = (state: RootState) => selectConnectionCount(state) >= MAX_CONNECTIONS
 export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
   atId(id, state)?.connectionDetails?.jsonModuleAvailable ?? false
+export const selectEndpointType = (id: string) => (state: RootState) => atId(id, state)?.connectionDetails.endpointType ?? "node"

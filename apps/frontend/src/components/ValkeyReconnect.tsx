@@ -21,7 +21,7 @@ export function ValkeyReconnect() {
   useEffect(() => {
     // Redirect to dashboard or previous location on successful connection
     if (status === CONNECTED) {
-      const redirectTo = clusterId ? (`${clusterId}/${id}/dashboard`) : sessionStorage.getItem(`valkey-previous-${id}`) || (`/${id}/dashboard`)
+      const redirectTo = clusterId ? (`${clusterId}/${id}/cluster-topology`) : sessionStorage.getItem(`valkey-previous-${id}`) || (`/${id}/dashboard`)
       sessionStorage.removeItem(`valkey-previous-${id}`)
       navigate(redirectTo, { replace: true })
     }

@@ -72,7 +72,7 @@ export const ConnectionEntry = ({
                   className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto truncate")}
                   variant="link"
                 >
-                  <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                  <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/cluster-topology` : `/${connectionId}/dashboard`}>
                     {label}
                   </Link>
                 </Button>

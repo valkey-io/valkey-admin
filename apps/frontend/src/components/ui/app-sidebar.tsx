@@ -13,15 +13,19 @@ import {
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
+import { useSelector } from "react-redux"
 import logo from "../../../assets/img/logo.png"
 import useIsConnected from "@/hooks/useIsConnected.ts"
 import { cn } from "@/lib/utils.ts"
+import { selectEndpointType } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function AppSidebar() {
   const isConnected = useIsConnected()
   const location = useLocation()
   const { id, clusterId } = useParams()
   const [isExpanded, setIsExpanded] = useState(false)
+
+  const endPointType = useSelector(selectEndpointType(id ?? ""))
 
   const getNavItemClasses = (path: string) => {
     return location.pathname.endsWith(path)
@@ -58,11 +62,11 @@ export function AppSidebar() {
                   { to: (clusterId ? `/${clusterId}/${id}/connect` : `${id}/connect`), 
                     title: "Connections", 
                     icon: HousePlug },
-                  {
+                  ...(endPointType !== "cluster-endpoint" ? [{
                     to: (clusterId ? `/${clusterId}/${id}/dashboard` : `${id}/dashboard`),
                     title: "Dashboard",
                     icon: LayoutDashboard,
-                  },
+                  }] : []),
                   {
                     to: (clusterId ? `/${clusterId}/${id}/browse` : `/${id}/browse`),
                     title: "Key Browser",
