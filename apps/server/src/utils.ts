@@ -9,7 +9,7 @@ import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
 import WebSocket from "ws"
-import { ClusterNodeMap } from "./metrics-orchestrator"
+import { ClusterNodeMap, metricsServerMap } from "./metrics-orchestrator"
 import { connectToCluster } from "./connection"
 import type { ConnectionDetails } from "./actions/connection"
 export const dns = {
@@ -232,6 +232,7 @@ export async function connectToFirstNode(
     newAddresses,
     newCredentials,
     clusterNodesMap,
+    metricsServerMap,
     payload.connectionId,
   )
 }

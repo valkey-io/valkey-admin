@@ -59,6 +59,7 @@ export async function connectToValkey(
         addresses, 
         credentials, 
         clusterNodesMap,
+        metricsServerMap,
       )
     }
 
@@ -93,6 +94,7 @@ export async function connectToValkey(
         addresses, 
         credentials, 
         clusterNodesMap,
+        metricsServerMap,
       )
     }
     // Need to repeat connection info for metrics server
@@ -199,6 +201,7 @@ export async function connectToCluster(
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
   clusterNodesMap: Map<string, string[]>,
+  metricsServerMap: MetricsServerMap,
   configEndpointId?: string,
 ): Promise<GlideClusterClient | undefined> {
   const { connectionId } = payload
@@ -273,11 +276,13 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
+      if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, nodeConnectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.clusterConnectFulfilled,
           payload: {
             connectionId: nodeConnectionId,
+            connectionDetails: payload.connectionDetails,
             clusterNodes,
             clusterId: existingClusterConnection?.clusterId ?? clusterId,
             address: addresses[0],
@@ -288,6 +293,7 @@ export async function connectToCluster(
           },
         }),
       )
+      return clusterClient
     }
 
     ws.send(
