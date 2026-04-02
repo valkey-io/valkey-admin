@@ -113,7 +113,7 @@ export const ConnectionEntry = ({
                 className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto mb-1 truncate")}
                 variant="link"
               >
-                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/cluster-topology` : `/${connectionId}/dashboard`}>
                   {aliasLabel}
                 </Link>
               </Button>
@@ -138,7 +138,7 @@ export const ConnectionEntry = ({
           {isConnected && !hideOpenButton && (
             <Button
               className="flex items-center gap-1 hover:border-primary"
-              onClick={() => history.navigate(clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`)}
+              onClick={() => history.navigate(clusterId ? `/${clusterId}/${connectionId}/cluster-topology` : `/${connectionId}/dashboard`)}
               size="sm"
               variant="outline"
             >

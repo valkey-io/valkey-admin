@@ -5,6 +5,7 @@ import { VALKEY } from "valkey-common"
 import { sanitizeUrl } from "valkey-common"
 import { 
   clusterClientExists, 
+  connectToFirstNode, 
   getClusterSlotStatsEnabled, 
   getKeyEvictionPolicy, 
   parseInfo, 
@@ -190,17 +191,17 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
   }
 }
 
-async function connectToCluster(
+export async function connectToCluster(
   ws: WebSocket,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   payload: { connectionDetails: ConnectionDetails, connectionId: string;},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
   clusterNodesMap: Map<string, string[]>,
-) {
+  configEndpointId?: string,
+): Promise<GlideClusterClient | undefined> {
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
-
   try {
     let clusterClient = await GlideClusterClient.createClient({
       addresses,
@@ -216,9 +217,23 @@ async function connectToCluster(
       requestTimeout: 5000,
       clientName: "valkey-admin-server",
     })
+    
+    // TODO: Optimize to not call discoverCluster when configEndpointId is available
+    // It implies we already discovered cluster nodes once
     const { clusterNodes, clusterId } = await discoverCluster(clusterClient, payload)
     if (R.isEmpty(clusterNodes)) {
       throw new Error("No cluster nodes discovered")
+    }
+    // Reconnect using a real node address instead of the clustercfg endpoint
+    if (payload.connectionDetails.endpointType === "cluster-endpoint") {
+      return await connectToFirstNode(
+        clusterClient,
+        clusterNodes,
+        ws,
+        clients,
+        clusterNodesMap,
+        payload,
+      )
     }
 
     const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
@@ -255,9 +270,7 @@ async function connectToCluster(
         payload: {
           connectionId: payload.connectionId,
           clusterNodes,
-          clusterId: existingClusterConnection
-            ? existingClusterConnection.clusterId
-            : clusterId,
+          clusterId: configEndpointId ?? existingClusterConnection?.clusterId ?? clusterId,
           address: addresses[0],
           credentials,
           keyEvictionPolicy,

@@ -91,7 +91,7 @@ export async function setClusterDashboardData(
           type: VALKEY.CONNECTION.connectRejected,
           payload: {
             connectionId,
-            errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
+            errorMessage: `Failed to fetch dashboard data: ${err.message}`,
           },
         }),
       )

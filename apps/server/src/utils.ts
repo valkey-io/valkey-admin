@@ -1,9 +1,17 @@
-import { ClusterResponse, GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
+import { 
+  ClusterResponse, 
+  GlideClient, 
+  GlideClusterClient, 
+  InfoOptions,
+  type ServerCredentials
+} from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
 import WebSocket from "ws"
 import { ClusterNodeMap } from "./metrics-orchestrator"
+import { connectToCluster } from "./connection"
+import type { ConnectionDetails } from "./actions/connection"
 export const dns = {
   lookup,
   reverse,
@@ -186,6 +194,48 @@ export async function returnExistingClusterClient(
   return existingClusterClient
 }
 
+export async function connectToFirstNode(
+  clusterClient: GlideClusterClient, 
+  clusterNodes: ClusterNodeMap, 
+  ws: WebSocket, 
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+  clusterNodesMap: Map<string, string[]>,
+  payload: { connectionDetails: ConnectionDetails, connectionId: string;},
+) {
+  clusterClient.close()
+  const firstNode = Object.values(clusterNodes)[0]
+  const { replicas, ...connectionDetails } = firstNode
+  const newPayload = {
+    connectionId: sanitizeUrl(`${firstNode.host}-${firstNode.port}`),
+    connectionDetails: {
+      ...connectionDetails,
+      port: firstNode.port.toString(), //Convert to string to match ConnectionDetails type
+      endpointType: "node",
+    } as ConnectionDetails,
+  }
+  const newAddresses = [
+    {
+      host: firstNode.host,
+      port: Number(firstNode.port),
+    },
+  ]
+  const newCredentials: ServerCredentials | undefined = 
+    firstNode.password ? {
+      username: firstNode.username,
+      password: firstNode.password,
+    } : undefined
+        
+  return await connectToCluster(
+    ws,
+    clients,
+    newPayload,
+    newAddresses,
+    newCredentials,
+    clusterNodesMap,
+    payload.connectionId,
+  )
+}
+
 export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {
   let keyEvictionPolicy: KeyEvictionPolicy = KEY_EVICTION_POLICY.NO_EVICTION
   try {
@@ -212,3 +262,4 @@ export async function getClusterSlotStatsEnabled(clusterClient: GlideClusterClie
   }
   return clusterSlotStatsEnabled
 }
+
