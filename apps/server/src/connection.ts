@@ -302,6 +302,7 @@ export async function connectToCluster(
         type: VALKEY.CONNECTION.clusterConnectFulfilled,
         payload: {
           connectionId: payload.connectionId,
+          connectionDetails: payload.connectionDetails,
           clusterNodes,
           clusterId: existingClusterConnection?.clusterId ?? clusterId,
           address: addresses[0],
