@@ -290,7 +290,7 @@ export async function connectToCluster(
             keyEvictionPolicy,
             clusterSlotStatsEnabled,
             jsonModuleAvailable,
-            connectedNode: nodeConnectionId,
+            connectedNode: addresses[0],
           },
         }),
       )
