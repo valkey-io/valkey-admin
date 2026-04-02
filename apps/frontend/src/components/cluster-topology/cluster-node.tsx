@@ -52,6 +52,7 @@ export function ClusterNode({
         ...(primary.caCertPath && {
           caCertPath: primary.caCertPath,
         }),
+        endpointType: "node",
       }
       dispatch(connectPending({
         connectionId,

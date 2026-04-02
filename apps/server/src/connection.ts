@@ -85,6 +85,7 @@ export async function connectToValkey(
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (await belongsToCluster(standaloneClient)) {
+      standaloneClient.close()
       return connectToCluster(
         ws, 
         clients, 
@@ -228,6 +229,7 @@ export async function connectToCluster(
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
     if (useClusterEndpoint) {
+      clusterClient.close()
       return await connectToFirstNode(
         clusterClient,
         clusterNodes,

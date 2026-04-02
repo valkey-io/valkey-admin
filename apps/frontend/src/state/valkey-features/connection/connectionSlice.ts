@@ -135,39 +135,28 @@ const connectionSlice = createSlice({
         delete connectionState.wasEdit
       }
     },
-    clusterConnectFulfilled: (
-      state,
-      action: PayloadAction<{
-        connectionId: string;
-        clusterNodes: Record<string, ConnectionDetails>;
-        clusterId: string;
-        keyEvictionPolicy: KeyEvictionPolicy;
-        clusterSlotStatsEnabled: boolean;
-        jsonModuleAvailable: boolean;
-      }>,
-    ) => {
+    clusterConnectFulfilled: (state, action) => {
       const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = action.payload
-      const connectionState = state.connections[connectionId]
-      if (connectionState) {
-        connectionState.status = CONNECTED
-        connectionState.errorMessage = null
-        connectionState.connectionDetails.clusterId = clusterId
-        connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
-        connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
-        connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
 
-        // Clear retry state on successful connection
-        delete connectionState.reconnect
-
-        // keep track of connection history
-        connectionState.connectionHistory ??= []
-        connectionState.connectionHistory.push({
-          timestamp: Date.now(),
-          event: CONNECTED,
-        })
-        // Clear the wasEdit flag after successful connection
-        delete connectionState.wasEdit
+      if (!state.connections[connectionId]) {
+        state.connections[connectionId] = {
+          status: CONNECTING,
+          errorMessage: null,
+          connectionDetails: action.payload.connectionDetails ?? {} as ConnectionDetails,
+        }
       }
+
+      const connectionState = state.connections[connectionId]
+      connectionState.status = CONNECTED
+      connectionState.errorMessage = null
+      connectionState.connectionDetails.clusterId = clusterId
+      connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
+      connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
+      connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
+      delete connectionState.reconnect
+      connectionState.connectionHistory ??= []
+      connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })
+      delete connectionState.wasEdit
     },
     connectRejected: (state, action) => {
       const { connectionId, errorMessage } = action.payload
