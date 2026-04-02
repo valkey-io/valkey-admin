@@ -6,7 +6,7 @@ import { CONNECTED } from "@common/src/constants.ts"
 import { Badge } from "./badge"
 import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
-import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors.ts"
+import { selectConnectionDetails, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { cn } from "@/lib/utils.ts"
 
@@ -33,6 +33,8 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const allConnections = useSelector((state: RootState) =>
     state.valkeyConnection?.connections,
   )
+  
+  const connectedNode = useSelector(selectConfigEndpointNode(clusterId ?? ""))
 
   const handleNavigate = (primaryKey: string) => {
     navigate(`/${clusterId}/${primaryKey}/cluster-topology`)
@@ -102,7 +104,8 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                 rounded z-100 absolute top-10 right-0" ref={dropdownRef}>
                 <ul className="space-y-2">
                   {Object.entries(clusterData.clusterNodes).map(([primaryKey, primary]) => {
-                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
+                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED 
+                    || (connectedNode?.host === primary.host && connectedNode?.port === primary.port)
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
