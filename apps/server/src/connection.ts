@@ -276,7 +276,6 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
-      console.log("Starting metrics with host:", payload.connectionDetails.host, "port:", payload.connectionDetails.port)
       if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
       ws.send(
         JSON.stringify({
@@ -286,8 +285,6 @@ export async function connectToCluster(
             connectionDetails: payload.connectionDetails,
             clusterNodes,
             clusterId: existingClusterConnection?.clusterId ?? clusterId,
-            address: addresses[0],
-            credentials,
             keyEvictionPolicy,
             clusterSlotStatsEnabled,
             jsonModuleAvailable,
@@ -305,8 +302,6 @@ export async function connectToCluster(
           connectionDetails: payload.connectionDetails,
           clusterNodes,
           clusterId: existingClusterConnection?.clusterId ?? clusterId,
-          address: addresses[0],
-          credentials,
           keyEvictionPolicy,
           clusterSlotStatsEnabled,
           jsonModuleAvailable,
