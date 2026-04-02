@@ -276,7 +276,7 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
-      if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, nodeConnectionId)
+      if (!metricsServerMap.has(nodeConnectionId)) await startMetricsServer(payload.connectionDetails, nodeConnectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.clusterConnectFulfilled,
@@ -295,7 +295,7 @@ export async function connectToCluster(
       )
       return clusterClient
     }
-
+    if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.clusterConnectFulfilled,
