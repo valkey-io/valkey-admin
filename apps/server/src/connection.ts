@@ -276,12 +276,12 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
-      if (!metricsServerMap.has(nodeConnectionId)) await startMetricsServer(payload.connectionDetails, nodeConnectionId)
+      if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.clusterConnectFulfilled,
           payload: {
-            connectionId: nodeConnectionId,
+            connectionId,
             connectionDetails: payload.connectionDetails,
             clusterNodes,
             clusterId: existingClusterConnection?.clusterId ?? clusterId,
@@ -290,12 +290,12 @@ export async function connectToCluster(
             keyEvictionPolicy,
             clusterSlotStatsEnabled,
             jsonModuleAvailable,
+            connectedNode: nodeConnectionId,
           },
         }),
       )
       return clusterClient
     }
-    if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.clusterConnectFulfilled,

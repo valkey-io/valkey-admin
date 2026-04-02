@@ -55,6 +55,7 @@ export interface ConnectionState {
   reconnect?: ReconnectState;
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
+  connectedNode?: {host: string; port: number} // Added to check which node the config endpoint connected to
 }
 
 export interface ValkeyConnectionsState {
@@ -136,7 +137,7 @@ const connectionSlice = createSlice({
       }
     },
     clusterConnectFulfilled: (state, action) => {
-      const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = action.payload
+      const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable, connectedNode } = action.payload
 
       if (!state.connections[connectionId]) {
         state.connections[connectionId] = {
@@ -153,6 +154,7 @@ const connectionSlice = createSlice({
       connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
       connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
       connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
+      if (connectedNode) connectionState.connectedNode = connectedNode
       delete connectionState.reconnect
       connectionState.connectionHistory ??= []
       connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })

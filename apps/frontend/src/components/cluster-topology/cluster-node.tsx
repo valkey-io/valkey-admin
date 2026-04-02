@@ -1,5 +1,5 @@
 import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
-import { useNavigate } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
@@ -11,7 +11,7 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectIsAtConnectionLimit, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors"
 import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
@@ -30,12 +30,13 @@ export function ClusterNode({
 }: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-
+  const { id } = useParams()
+  const connectedNode = useSelector(selectConfigEndpointNode(id ?? ""))
   const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnected = connectionStatus === CONNECTED
+  const isConnected = connectionStatus === CONNECTED || (connectedNode?.host === primary.host && connectedNode?.port === primary.port)
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
   const handleNodeConnect = async () => {
