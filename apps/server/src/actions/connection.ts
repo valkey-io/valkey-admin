@@ -1,10 +1,9 @@
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { EndpointType } from "valkey-common"
 import { closeClient, closeMetricsServer, connectToValkey } from "../connection"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
 import { isLastConnectedClusterNode } from "../utils"
-
-export type EndpointType = "node" | "cluster-endpoint"
 
 export interface ConnectionDetails {
   host: string;

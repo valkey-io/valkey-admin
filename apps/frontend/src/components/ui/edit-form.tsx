@@ -38,6 +38,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     tls: true,
     verifyTlsCertificate: true,
     alias: "",
+    endpointType: "node" as const,
   })
   const [passwordDirty, setPasswordDirty] = useState(false)
 
@@ -53,6 +54,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
         //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
+        endpointType: currentConnection.endpointType ?? "node",
       })
       setPasswordDirty(false)
     }

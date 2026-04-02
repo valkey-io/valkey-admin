@@ -8,7 +8,8 @@ import {
   LOCAL_STORAGE,
   NOT_CONNECTED,
   VALKEY,
-  type KeyEvictionPolicy
+  type KeyEvictionPolicy,
+  type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
 
@@ -32,6 +33,7 @@ export interface ConnectionDetails {
   clusterSlotStatsEnabled?: boolean
   // JSON module availability check
   jsonModuleAvailable?: boolean;
+  endpointType: EndpointType
 }
 
 interface ReconnectState {

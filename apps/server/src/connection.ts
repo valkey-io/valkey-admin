@@ -201,71 +201,87 @@ async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
 
-  let clusterClient = await GlideClusterClient.createClient({
-    addresses,
-    credentials,
-    useTLS,
-    ...(useTLS && verifyTlsCertificate === false && {
-      advancedConfiguration: {
-        tlsAdvancedConfiguration: {
-          insecure: true,
+  try {
+    let clusterClient = await GlideClusterClient.createClient({
+      addresses,
+      credentials,
+      useTLS,
+      ...(useTLS && verifyTlsCertificate === false && {
+        advancedConfiguration: {
+          tlsAdvancedConfiguration: {
+            insecure: true,
+          },
         },
-      },
-    }),
-    requestTimeout: 5000,
-    clientName: "valkey-admin-server",
-  })
-  const { clusterNodes, clusterId } = await discoverCluster(clusterClient, payload)
-  if (R.isEmpty(clusterNodes)) {
-    throw new Error("No cluster nodes discovered")
-  }
+      }),
+      requestTimeout: 5000,
+      clientName: "valkey-admin-server",
+    })
+    const { clusterNodes, clusterId } = await discoverCluster(clusterClient, payload)
+    if (R.isEmpty(clusterNodes)) {
+      throw new Error("No cluster nodes discovered")
+    }
 
-  const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
-  if (existingClusterConnection) {
-    clusterClient.close()
-    clusterClient = 
-      await returnExistingClusterClient(
-        existingClusterConnection,
-        clients,
-        payload.connectionId, 
-        clusterNodesMap, 
-        ws,
-        clusterNodes,
+    const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
+    if (existingClusterConnection) {
+      clusterClient.close()
+      clusterClient = 
+        await returnExistingClusterClient(
+          existingClusterConnection,
+          clients,
+          payload.connectionId, 
+          clusterNodesMap, 
+          ws,
+          clusterNodes,
+        )
+    } 
+    else {
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CLUSTER.addCluster,
+          payload: { clusterId, clusterNodes },
+        }),
       )
-  } 
-  else {
+      clients.set(connectionId, { client: clusterClient, clusterId })
+      clusterNodesMap.set(clusterId, [connectionId])
+    }
+
+    const clusterSlotStatsEnabled = await getClusterSlotStatsEnabled(clusterClient)
+    const keyEvictionPolicy = await getKeyEvictionPolicy(clusterClient)
+    const jsonModuleAvailable = await checkJsonModuleAvailability(clusterClient)
+
     ws.send(
       JSON.stringify({
-        type: VALKEY.CLUSTER.addCluster,
-        payload: { clusterId, clusterNodes },
+        type: VALKEY.CONNECTION.clusterConnectFulfilled,
+        payload: {
+          connectionId: payload.connectionId,
+          clusterNodes,
+          clusterId: existingClusterConnection
+            ? existingClusterConnection.clusterId
+            : clusterId,
+          address: addresses[0],
+          credentials,
+          keyEvictionPolicy,
+          clusterSlotStatsEnabled,
+          jsonModuleAvailable,
+        },
       }),
     )
-    clients.set(connectionId, { client: clusterClient, clusterId })
-    clusterNodesMap.set(clusterId, [connectionId])
+    return clusterClient
+  } catch (err) {
+    console.error("Error connecting to Valkey", err)
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: {
+          errorMessage,
+          connectionId,
+        },
+      }),
+    )
+    return undefined
   }
-
-  const clusterSlotStatsEnabled = getClusterSlotStatsEnabled(clusterClient)
-  const keyEvictionPolicy = getKeyEvictionPolicy(clusterClient)
-  const jsonModuleAvailable = checkJsonModuleAvailability(clusterClient)
-
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CONNECTION.clusterConnectFulfilled,
-      payload: {
-        connectionId: payload.connectionId,
-        clusterNodes,
-        clusterId: existingClusterConnection
-          ? existingClusterConnection.clusterId
-          : clusterId,
-        address: addresses[0],
-        credentials,
-        keyEvictionPolicy,
-        clusterSlotStatsEnabled,
-        jsonModuleAvailable,
-      },
-    }),
-  )
-  return clusterClient
+  
 }
 
 export async function isDuplicateConnection(

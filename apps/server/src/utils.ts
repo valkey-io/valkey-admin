@@ -1,8 +1,7 @@
 import { ClusterResponse, GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
-import { KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
-import { VALKEY } from "common/dist"
+import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
 import WebSocket from "ws"
 import { ClusterNodeMap } from "./metrics-orchestrator"
 export const dns = {
@@ -188,18 +187,8 @@ export async function returnExistingClusterClient(
 }
 
 export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {
-  let keyEvictionPolicy: KeyEvictionPolicy = "noeviction"
+  let keyEvictionPolicy: KeyEvictionPolicy = KEY_EVICTION_POLICY.NO_EVICTION
   try {
-    const evictionPolicyResponse = await client.customCommand(
-      ["CONFIG", "GET", "maxmemory-policy"],
-    ) as [{key: string, value: string}]
-  
-    keyEvictionPolicy = R.pipe(
-      R.pathOr("noeviction", [0, "value"]),
-      R.toLower,
-    )(evictionPolicyResponse) as KeyEvictionPolicy
-  } catch {
-    console.warn("Command \"CONFIG\" not available. Trying \"INFO MEMORY\" instead")
     const infoResponse = await client.info([InfoOptions.Memory])
     // Get the info response on any node in the cluster, since eviction policy is the same across all nodes
     const anyNode = Object.values(infoResponse)[0]
@@ -207,7 +196,9 @@ export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterCli
     if (parsed["maxmemory_policy"]) {
       keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy
     }
-  } 
+  } catch (err) {
+    console.warn("Unable to get key eviction policy: ", err)
+  }
   return keyEvictionPolicy
 }
 

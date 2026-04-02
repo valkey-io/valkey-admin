@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
 import { Typography } from "./typography.tsx"
+import { TabGroup } from "./tab-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { Label } from "@/components/ui/label"
 
@@ -69,14 +70,41 @@ export function ConnectionModal({
               )}
 
               <form className="space-y-4 mt-4" onSubmit={onSubmit}>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Endpoint Type</Label>
+                  <div className="flex gap-2">
+                    <TabGroup
+                      activeTab={connectionDetails.endpointType}
+                      className="flex gap-2"
+                      onChange={(tabId) =>
+                        onConnectionDetailsChange({
+                          ...connectionDetails,
+                          endpointType: tabId,
+                        })
+                      }
+                      tabs={[
+                        { id: "node", label: "Node" },
+                        { id: "cluster-endpoint", label: "Cluster Endpoint" },
+                      ]}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <Label className="block mb-1" htmlFor="host">
                     Host
                   </Label>
                   <Input
                     id="host"
-                    onChange={(e) =>
-                      onConnectionDetailsChange({ ...connectionDetails, host: e.target.value })
+                    onChange={(e) => {
+                      const host = e.target.value
+                      onConnectionDetailsChange({ 
+                        ...connectionDetails, 
+                        host,
+                        endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
+                      })
+                    }
                     }
                     placeholder="localhost"
                     required
@@ -100,7 +128,6 @@ export function ConnectionModal({
                     value={connectionDetails.port}
                   />
                 </div>
-
                 <div>
                   <Label className="block mb-1" htmlFor="alias">
                     Alias
