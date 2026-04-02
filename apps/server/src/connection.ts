@@ -220,12 +220,14 @@ export async function connectToCluster(
     
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once
-    const { clusterNodes, clusterId } = await discoverCluster(clusterClient, payload)
+    const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(clusterClient, payload)
+    let clusterId = initialClusterId
     if (R.isEmpty(clusterNodes)) {
       throw new Error("No cluster nodes discovered")
     }
+    const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
-    if (payload.connectionDetails.endpointType === "cluster-endpoint") {
+    if (useClusterEndpoint) {
       return await connectToFirstNode(
         clusterClient,
         clusterNodes,
@@ -250,12 +252,18 @@ export async function connectToCluster(
         )
     } 
     else {
+      clusterId = configEndpointId ?? clusterId
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
           payload: { clusterId, clusterNodes },
         }),
       )
+      // If configEndpointId is available, we need to get the first node's ID for tracking
+      if (configEndpointId) {
+        const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
+        clients.set(nodeConnectionId, { client: clusterClient, clusterId })
+      }
       clients.set(connectionId, { client: clusterClient, clusterId })
       clusterNodesMap.set(clusterId, [connectionId])
     }

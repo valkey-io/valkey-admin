@@ -206,7 +206,7 @@ export async function connectToFirstNode(
   const firstNode = Object.values(clusterNodes)[0]
   const { replicas, ...connectionDetails } = firstNode
   const newPayload = {
-    connectionId: sanitizeUrl(`${firstNode.host}-${firstNode.port}`),
+    connectionId: payload.connectionId,
     connectionDetails: {
       ...connectionDetails,
       port: firstNode.port.toString(), //Convert to string to match ConnectionDetails type
