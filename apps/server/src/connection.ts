@@ -246,6 +246,7 @@ export async function connectToCluster(
     const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
     if (existingClusterConnection) {
       clusterClient.close()
+      clusterId = existingClusterConnection.clusterId
       clusterClient = 
         await returnExistingClusterClient(
           existingClusterConnection,
@@ -276,6 +277,7 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
+      if (!clusterNodesMap.get(clusterId)?.includes(nodeConnectionId)) clusterNodesMap.get(clusterId)?.push(nodeConnectionId)
       if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
       ws.send(
         JSON.stringify({

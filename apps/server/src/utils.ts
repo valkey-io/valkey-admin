@@ -184,11 +184,11 @@ export async function returnExistingClusterClient(
   const { client: existingClusterClient, clusterId: existingClusterId } = existingClusterConnection
   clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
       
-  clusterNodesMap.get(existingClusterId!)?.push(connectionId)
+  if (!clusterNodesMap.get(existingClusterId!)?.includes(connectionId)) clusterNodesMap.get(existingClusterId!)?.push(connectionId)
   ws.send(
     JSON.stringify({
       type: VALKEY.CLUSTER.updateClusterInfo,
-      payload: { existingClusterId, clusterNodes },
+      payload: { clusterId: existingClusterId, clusterNodes },
     }),
   )
   return existingClusterClient
