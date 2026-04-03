@@ -265,7 +265,7 @@ export const deleteConnectionEpic = (store: Store) =>
         if (connection?.connectionDetails?.endpointType === "cluster-endpoint" && clusterId) {
           Object.entries(state.valkeyConnection.connections as ValkeyConnectionsState)
             .filter(([id, c]) => id !== connectionId && c.connectionDetails?.clusterId === clusterId)
-            .forEach(([id]) => socket.next({ type: deleteConnection.type, payload: { connectionId: id, silent: true } }))
+            .forEach(([id]) => store.dispatch(deleteConnection({ connectionId: id, silent: true })))
         }
 
         socket.next(action)
