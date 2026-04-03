@@ -79,18 +79,31 @@ const wss = new WebSocketServer({ server })
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function runReconcileLoop() {
+  if (!initialConnectionDetails.host || !initialConnectionDetails.port) {
+    console.error("USE_CLUSTER_ORCHESTRATOR is enabled but VALKEY_HOST and VALKEY_PORT are not set. Orchestrator will not start.")
+    return
+  }
+
   let initialClient
+  let consecutiveFailures = 0
+  const MAX_FAILURES = 5
+
   while (true) {
     try {
-      // get initial client if we do not have one yet. moved initialClient inside the try/catch to avoid failure on startup
       if (!initialClient) {
         initialClient = await getInitialClient()
       }
       await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails, initialClient)
+      consecutiveFailures = 0
       await delay(5000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)
       initialClient = undefined
+      consecutiveFailures++
+      if (consecutiveFailures >= MAX_FAILURES) {
+        console.error(`Orchestrator failed ${MAX_FAILURES} consecutive times. Stopping reconcile loop.`)
+        return
+      }
       await delay(10000)
     }
   }
