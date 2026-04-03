@@ -36,12 +36,11 @@ export function ClusterNode({
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnected = connectionStatus === CONNECTED ||
-    (
-      configEndpointConnectedNode?.status === CONNECTED && 
-      configEndpointConnectedNode?.host === primary.host && 
-      configEndpointConnectedNode?.port === primary.port
-    )
+  const isConnectedViaConfigEndpoint = configEndpointConnectedNode?.status === CONNECTED &&
+    configEndpointConnectedNode?.host === primary.host &&
+    configEndpointConnectedNode?.port === primary.port
+  const isConnected = connectionStatus === CONNECTED || isConnectedViaConfigEndpoint
+  const activeConnectionId = isConnectedViaConfigEndpoint ? configEndpointConnectedNode!.connectionId : connectionId
 
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
@@ -143,7 +142,7 @@ export function ClusterNode({
                   aria-label="Dashboard"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
+                  onClick={() => navigate(`/${clusterId}/${activeConnectionId}/dashboard`)}
                   size="sm"
                   variant="ghost"
                 >
@@ -155,7 +154,7 @@ export function ClusterNode({
                   aria-label="Command"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/sendcommand`)}
+                  onClick={() => navigate(`/${clusterId}/${activeConnectionId}/sendcommand`)}
                   size="sm"
                   variant="ghost"
                 >

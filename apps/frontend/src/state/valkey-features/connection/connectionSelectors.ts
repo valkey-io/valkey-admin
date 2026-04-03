@@ -19,8 +19,10 @@ export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
 export const selectEndpointType = (id: string) => (state: RootState) => atId(id, state)?.connectionDetails.endpointType ?? "node"
 
 export const selectConfigEndpointNode = (clusterId: string) => (state: RootState) => {
-  const conn = Object.values(state.valkeyConnection.connections).find((c) => 
+  const entry = Object.entries(state.valkeyConnection.connections).find(([, c]) =>
     c.connectionDetails?.clusterId === clusterId && c.connectedNode)
-  return conn ? { ...conn.connectedNode, status: conn.status } : undefined
+  if (!entry) return undefined
+  const [connectionId, conn] = entry
+  return { ...conn.connectedNode, status: conn.status, connectionId }
 }
 
