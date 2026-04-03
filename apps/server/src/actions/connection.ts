@@ -46,7 +46,7 @@ export const closeConnection = withDeps<Deps, void>(
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId
     const nodes = clusterNodesMap.get(clusterId!)
-    if (process.env.USE_ORCHESTRATOR !== "true") {
+    if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
       closeMetricsServer(connectionId, metricsServerMap)
     }
     if (connection && await canSafelyDisconnect(connectionId, connection, clients, clusterNodesMap)){
