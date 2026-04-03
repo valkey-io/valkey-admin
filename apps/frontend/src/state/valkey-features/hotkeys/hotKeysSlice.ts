@@ -49,6 +49,15 @@ const hotKeysSlice = createSlice({
     hotKeysFulfilled: (state, action) => {
       const { hotKeys, monitorRunning, checkAt, nodeId } = action.payload.parsedResponse
       const connectionId = action.payload.connectionId
+      if (!state[connectionId]) {
+        state[connectionId] = {
+          hotKeys: [],
+          checkAt: null,
+          monitorRunning: false,
+          nodeId: null,
+          status: PENDING,
+        }
+      }
       state[connectionId] = {
         hotKeys,
         checkAt,
