@@ -103,9 +103,9 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
               <div className="p-4 w-auto text-nowrap py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
                 rounded z-100 absolute top-10 right-0" ref={dropdownRef}>
                 <ul className="space-y-2">
-                  {Object.entries(clusterData.clusterNodes).map(([primaryKey, primary]) => {
+                  {Object.entries(clusterData?.clusterNodes ?? {}).map(([primaryKey, primary]) => {
                     const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED 
-                    || (connectedNode?.host === primary.host && connectedNode?.port === primary.port)
+                    || (connectedNode?.status === CONNECTED && connectedNode?.host === primary.host && connectedNode?.port === primary.port)
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
