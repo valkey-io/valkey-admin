@@ -31,12 +31,18 @@ export function ClusterNode({
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const { clusterId: clusterIdFromParams } = useParams()
-  const connectedNode = useSelector(selectConfigEndpointNode(clusterIdFromParams ?? ""))
+  const configEndpointConnectedNode = useSelector(selectConfigEndpointNode(clusterIdFromParams ?? ""))
   const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnected = connectionStatus === CONNECTED || (connectedNode?.host === primary.host && connectedNode?.port === primary.port)
+  const isConnected = connectionStatus === CONNECTED ||
+    (
+      configEndpointConnectedNode?.status === CONNECTED && 
+      configEndpointConnectedNode?.host === primary.host && 
+      configEndpointConnectedNode?.port === primary.port
+    )
+
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
   const handleNodeConnect = async () => {
