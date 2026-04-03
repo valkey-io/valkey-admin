@@ -262,7 +262,7 @@ export async function connectToCluster(
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes },
+          payload: { clusterId, clusterNodes }, //TODO: strip credentials (this will impact connecting from Cluster Topology)
         }),
       )
       clients.set(connectionId, { client: clusterClient, clusterId })
@@ -273,7 +273,7 @@ export async function connectToCluster(
     const keyEvictionPolicy = await getKeyEvictionPolicy(clusterClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(clusterClient)
 
-    // If configEndpointId is available, we need to get the first node's ID for tracking
+    // If configEndpointId is available, it means user is connecting using discovery endpoint
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
@@ -284,9 +284,14 @@ export async function connectToCluster(
           type: VALKEY.CONNECTION.clusterConnectFulfilled,
           payload: {
             connectionId,
-            connectionDetails: payload.connectionDetails,
+            connectionDetails: {
+              ...payload.connectionDetails,
+              //TODO: This will impact reconnects
+              password: undefined,
+              username: undefined,
+            },
             clusterNodes,
-            clusterId: existingClusterConnection?.clusterId ?? clusterId,
+            clusterId,
             address: addresses[0],
             keyEvictionPolicy,
             clusterSlotStatsEnabled,
@@ -302,9 +307,13 @@ export async function connectToCluster(
         type: VALKEY.CONNECTION.clusterConnectFulfilled,
         payload: {
           connectionId: payload.connectionId,
-          connectionDetails: payload.connectionDetails,
+          connectionDetails: {
+            ...payload.connectionDetails,
+            password: undefined,
+            username: undefined,
+          },
           clusterNodes,
-          clusterId: existingClusterConnection?.clusterId ?? clusterId,
+          clusterId,
           address: addresses[0],
           keyEvictionPolicy,
           clusterSlotStatsEnabled,
