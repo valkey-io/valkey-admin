@@ -143,7 +143,7 @@ export function ClusterNode({
                   aria-label="Dashboard"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/cluster-topology`)}
+                  onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
                   size="sm"
                   variant="ghost"
                 >
