@@ -69,7 +69,7 @@ export async function connectToValkey(
       addresses,
       credentials,
       useTLS,
-      verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
+      verifyTlsCertificate,
     })
     clients.set(connectionId, { client: standaloneClient })
     
@@ -208,7 +208,7 @@ export async function connectToCluster(
       addresses,
       credentials,
       useTLS,
-      verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
+      verifyTlsCertificate,
     })
     
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
