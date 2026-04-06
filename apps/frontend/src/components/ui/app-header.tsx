@@ -142,7 +142,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                       </Typography>
                     </li>
                   )}
-
+                  {/* TODO: Remove extra defensiveness */}
                   {nodesToRender.map(([primaryKey, primary]) => {
                     const nodeIsConnected =
                       allConnections?.[primaryKey]?.status === CONNECTED ||

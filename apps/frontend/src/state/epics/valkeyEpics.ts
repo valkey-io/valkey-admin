@@ -144,6 +144,7 @@ export const valkeyRetryEpic = (store: Store) =>
     select(connectRejected),
     switchMap(({ payload: { connectionId } }) => {
       const state = store.getState()
+      // TODO: remove extra defensivenesss
       const connection = state.valkeyConnection?.connections?.[connectionId]
 
       if (!connection) {
@@ -302,6 +303,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const currentConnections = getCurrentConnections()
 
         const state = store.getState()
+        // TODO: remove extra defensivenesss
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {

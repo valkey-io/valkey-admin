@@ -55,10 +55,10 @@ export const closeConnection = withDeps<Deps, void>(
       payload: { connectionId },
     }))
 
-    const nodes = clusterNodesMap.get(clusterId!)
-    if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
-      closeMetricsServer(connectionId, metricsServerMap)
+    if (getWatcherCount(connectionId) > 0) {
+      return
     }
+    const nodes = clusterNodesMap.get(clusterId!)
     // Remove node from cluster map accordingly
     if (clusterId && nodes) {
       if (nodes.length === 1) {
@@ -69,10 +69,6 @@ export const closeConnection = withDeps<Deps, void>(
           nodes.splice(index, 1)
         }
       }
-    }
-
-    if (getWatcherCount(connectionId) > 0) {
-      return
     }
     teardownConnection(connectionId, clients, metricsServerMap)
   },
