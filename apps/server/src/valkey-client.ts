@@ -50,7 +50,7 @@ export const createClusterValkeyClient = ({
 export const createOrchestratorValkeyClient = ({
   ...options
 }: ClientOptions) =>
-  GlideClient.createClient({
+  GlideClusterClient.createClient({
     ...buildSharedOptions(options),
     clientName: "valkey_server_orchestrator_client",
   })
