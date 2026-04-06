@@ -214,6 +214,11 @@ wss.on("connection", (ws: AliveWebSocket) => {
     for (const connectionId of removedIds) {
       if (getWatcherCount(connectionId) === 0) teardownConnection(connectionId, clients, metricsServerMap)
     }
+
+    // Clean up any side-entries (e.g., node entries from config endpoint connections)
+    for (const [id] of clients) {
+      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap)
+    }
   })
 })
 

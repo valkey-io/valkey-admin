@@ -21,7 +21,7 @@ export function Cluster() {
     state.valkeyConnection?.connections || {},
   )
 
-  if (!clusterData.clusterNodes || !clusterData.data) {
+  if (clusterData?.clusterNodes || clusterData?.data) {
     return (
       <div className="p-4 h-full flex flex-col">
         <AppHeader icon={<Server size={20} />} title="Cluster Topology" />
