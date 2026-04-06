@@ -3,8 +3,10 @@ import { ChildProcess, spawn } from "child_process"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
+import { sanitizeUrl } from "valkey-common"
 import { discoverCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
+import { createOrchestratorValkeyClient } from "./valkey-client"
 
 // Assumes nodeId is unique among all clusters
 export type MetricsServerMap = Map<string,
@@ -52,13 +54,43 @@ export const initialConnectionDetails: ConnectionDetails = {
 
 const ttl = Number(process.env.TTL) || 20000
 
+function isKnownClusterNode(nodeId: string) {
+  return Object.values(clusterNodesRegistry).some((clusterNodes) =>
+    Object.entries(clusterNodes).some(([primaryNodeId, primaryNode]) =>
+      primaryNodeId === nodeId ||
+      primaryNode.replicas?.some((replica) => sanitizeUrl(`${replica.host}-${replica.port}`) === nodeId),
+    ),
+  )
+}
+
+// Reconciliation works on flat node ids, but cluster discovery stores replicas under their primary.
+function flattenClusterNodeMap(clusterNodeMap: ClusterNodeMap): ClusterNodeMap {
+  return Object.entries(clusterNodeMap).reduce((acc, [primaryNodeId, primaryNode]) => {
+    acc[primaryNodeId] = primaryNode
+
+    primaryNode.replicas?.forEach((replica) => {
+      const replicaNodeId = sanitizeUrl(`${replica.host}-${replica.port}`)
+      acc[replicaNodeId] = {
+        host: replica.host,
+        port: replica.port,
+        username: primaryNode.username,
+        password: primaryNode.password,
+        tls: primaryNode.tls,
+        verifyTlsCertificate: primaryNode.verifyTlsCertificate,
+      }
+    })
+
+    return acc
+  }, {} as ClusterNodeMap)
+}
+
 export function createMetricsOrchestratorRouter() {
   const router = Router()
 
   router.post("/register", (req: Request, res: Response) => {
     const { metricsServerUri, nodeId, pid } = req.body
 
-    const nodeBelongsToCluster = Object.values(clusterNodesRegistry).some((clusterNodes) => nodeId in clusterNodes)
+    const nodeBelongsToCluster = isKnownClusterNode(nodeId)
     const nodeConnected = clients.has(nodeId)
 
     if (nodeBelongsToCluster || nodeConnected)  {
@@ -120,19 +152,11 @@ async function createClusterClient(connectionDetails: ConnectionDetails) {
       password,
     } : undefined
 
-  const client = await GlideClusterClient.createClient({
+  const client = await createOrchestratorValkeyClient({
     addresses,
     credentials,
     useTLS: tls,
-    ...(tls && !verifyTlsCertificate && {
-      advancedConfiguration: {
-        tlsAdvancedConfiguration: {
-          insecure: true,
-        },
-      },
-    }),
-    requestTimeout: 5000,
-    clientName: "test_client",
+    verifyTlsCertificate,
   })
 
   return client
@@ -161,17 +185,18 @@ async function updateClusterNodeRegistry(client: GlideClusterClient | null) {
 }
 
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
+  const expandedClusterNodeMap = flattenClusterNodeMap(clusterNodeMap)
   // These are nodes that are in the clusterMap but not metricsMap
   // TODO: Could use R.pickBy instead
   const nodesToAdd: ClusterNodeMap = Object.fromEntries(
-    Object.entries(clusterNodeMap)
+    Object.entries(expandedClusterNodeMap)
       .filter(([key]) => !metricsServerMap.has(key)),
   )
   const now = Date.now()
   // These are nodes that are in the metricsMap but not in clusterMap and clientsMap or stale nodes
   const nodesToRemove: string[] = Array.from(metricsServerMap.entries())
     .filter(([key, value]) => {
-      return (!clusterNodeMap[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
+      return (!expandedClusterNodeMap[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
     })
     .map(([key]) => key)
 
@@ -179,7 +204,9 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
 }
 
 async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: string[]) {
-  await startMetricsServers(nodesToAdd)
+  if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
+    await startMetricsServers(nodesToAdd)
+  }
   await stopMetricsServers(nodesToRemove)
 }
 
@@ -204,9 +231,10 @@ async function stopMetricsServers(nodesToStop: string[]) {
 }
 
 export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
+  const useClusterOrchestrator = process.env.USE_CLUSTER_ORCHESTRATOR === "true"
   metricsMap.forEach((metricsServer, nodeId) => {
     try {
-      if (metricsServer.pid)
+      if (!useClusterOrchestrator && metricsServer.pid)
         process.kill(metricsServer.pid)
     } catch (e) {
       console.warn(`Failed to kill metrics server ${nodeId}:`, e)
@@ -279,6 +307,10 @@ async function stopMetricsServer(nodeToStop: string) {
   try {
     console.log("Killing metrics server for ", nodeToStop)
     const entry = metricsServerMap.get(nodeToStop)
+    if (process.env.USE_CLUSTER_ORCHESTRATOR === "true") {
+      metricsServerMap.delete(nodeToStop)
+      return
+    }
     if (entry?.pid) {
       process?.kill(entry.pid,"SIGTERM")
       metricsServerMap.delete(nodeToStop)
@@ -340,6 +372,8 @@ const internals =  {
   getClusterTopology,
   updateClusterNodeRegistry,
   findDiff,
+  isKnownClusterNode,
+  flattenClusterNodeMap,
   updateMetricsServers,
   stopMetricsServers,
   stopMetricsServer,

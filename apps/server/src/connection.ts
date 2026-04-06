@@ -15,6 +15,7 @@ import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
+import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
 export async function connectToValkey(
   ws: WebSocket,
@@ -64,24 +65,18 @@ export async function connectToValkey(
       )
     }
 
-    const standaloneClient = await GlideClient.createClient({
+    const standaloneClient = await createStandaloneValkeyClient({
       addresses,
       credentials,
       useTLS,
-      ...(useTLS && verifyTlsCertificate === false && {
-        advancedConfiguration: {
-          tlsAdvancedConfiguration: {
-            insecure: true,
-          },
-        },
-      }),
-
-      requestTimeout: 5000,
-      clientName: "test_client",
+      verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
     })
     clients.set(connectionId, { client: standaloneClient })
-    // Only start metrics server if it hasn't been started before
-    if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
+    
+    // In cluster-orchestrator mode, metrics sidecars register themselves.
+    if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
+      await startMetricsServer(payload.connectionDetails, payload.connectionId)
+    }
 
     const keyEvictionPolicy = await getKeyEvictionPolicy(standaloneClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
@@ -209,19 +204,11 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    let clusterClient = await GlideClusterClient.createClient({
+    let clusterClient = await createClusterValkeyClient({
       addresses,
       credentials,
       useTLS,
-      ...(useTLS && verifyTlsCertificate === false && {
-        advancedConfiguration: {
-          tlsAdvancedConfiguration: {
-            insecure: true,
-          },
-        },
-      }),
-      requestTimeout: 5000,
-      clientName: "valkey-admin-server",
+      verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
     })
     
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
@@ -377,7 +364,7 @@ export function teardownConnection(
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   metricsServerMap: MetricsServerMap,
 ) {
-  if (process.env.USE_ORCHESTRATOR !== "true") {
+  if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
     closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
       console.error(`Error closing metrics server for ${connectionId}:`, err),
     )

@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-headless
+spec:
+  clusterIP: None
+  selector:
+    app: valkey
+  ports:
+    - name: client
+      port: 6379
+      targetPort: client
+    - name: cluster-bus
+      port: 16379
+      targetPort: cluster-bus
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+spec:
+  serviceName: valkey-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:latest
+          args:
+            - valkey-server
+            - --port
+            - "6379"
+            - --bind
+            - 0.0.0.0
+            - --cluster-enabled
+            - "yes"
+            - --cluster-config-file
+            - /data/nodes.conf
+            - --cluster-node-timeout
+            - "5000"
+            - --cluster-announce-port
+            - "6379"
+            - --cluster-announce-bus-port
+            - "16379"
+            - --cluster-announce-hostname
+            - $(POD_NAME).valkey-headless.$(POD_NAMESPACE).svc.cluster.local
+            - --cluster-preferred-endpoint-type
+            - hostname
+            - --appendonly
+            - "no"
+            - --protected-mode
+            - "no"
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 6379
+              name: client
+            - containerPort: 16379
+              name: cluster-bus
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        - name: metrics
+          image: valkey-admin-metrics:test
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PORT
+              value: "3000"
+            - name: CONFIG_PATH
+              value: /app/config/config.yml
+            - name: VALKEY_HOST
+              value: $(POD_NAME).valkey-headless.$(POD_NAMESPACE).svc.cluster.local
+            - name: VALKEY_PORT
+              value: "6379"
+            - name: VALKEY_MODE
+              value: cluster
+            - name: SERVER_HOST
+              value: valkey-admin-app
+            - name: SERVER_PORT
+              value: "8080"
+            - name: METRICS_ADVERTISE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: METRICS_ADVERTISE_PORT
+              value: "3000"
+          ports:
+            - containerPort: 3000
+              name: metrics
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: metrics-config
+              mountPath: /app/config
+              readOnly: true
+            - name: metrics-data
+              mountPath: /app/data
+      volumes:
+        - name: metrics-config
+          configMap:
+            name: valkey-admin-metrics-config
+        - name: metrics-data
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

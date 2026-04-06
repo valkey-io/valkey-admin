@@ -35,7 +35,7 @@ export const store = configureStore({
       thunk: false,
     }).concat(rxjsMiddleware)
   },
-  devTools: process.env.NODE_ENV !== "production",
+  devTools: true,
 })
 
 registerEpics(store)

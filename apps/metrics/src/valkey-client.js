@@ -1,0 +1,54 @@
+import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+
+const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
+
+export const getValkeyMode = (cfg = {}) => {
+  const configuredMode = process.env.VALKEY_MODE ?? cfg?.valkey?.mode ?? "standalone"
+  const normalizedMode = String(configuredMode).trim().toLowerCase()
+
+  if (!SUPPORTED_VALKEY_MODES.has(normalizedMode)) {
+    throw new Error(`Unsupported VALKEY_MODE: ${configuredMode}`)
+  }
+
+  return normalizedMode
+}
+
+export const createValkeyClient = async (cfg = {}) => {
+  const addresses = [
+    {
+      host: process.env.VALKEY_HOST,
+      port: Number(process.env.VALKEY_PORT),
+    },
+  ]
+  const credentials =
+    process.env.VALKEY_PASSWORD ? {
+      username: process.env.VALKEY_USERNAME,
+      password: process.env.VALKEY_PASSWORD,
+    } : undefined
+
+  const useTLS = process.env.VALKEY_TLS === "true"
+  const sharedOptions = {
+    addresses,
+    credentials,
+    useTLS,
+    ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
+      advancedConfiguration: {
+        tlsAdvancedConfiguration: {
+          insecure: true,
+        },
+      },
+    }),
+    requestTimeout: 5000,
+  }
+
+  const mode = getValkeyMode(cfg)
+  return mode === "cluster"
+    ? GlideClusterClient.createClient({
+      ...sharedOptions,
+      clientName: "valkey_admin_metrics_cluster_client",
+    })
+    : GlideClient.createClient({
+      ...sharedOptions,
+      clientName: "valkey_admin_metrics_standalone_client",
+    })
+}
