@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useSelector } from "react-redux"
 import { Server, CheckCircle2 } from "lucide-react"
 import { useParams } from "react-router"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
 import { StatCard } from "../ui/stat-card"
@@ -62,6 +62,8 @@ export function Cluster() {
     })
   })
 
+  const highlight = searchQuery && filteredEntries.length < MAX_CONNECTIONS ? searchQuery : ""
+
   return (
     <RouteContainer className="overflow-y-hidden" title="Cluster Topology">
       <AppHeader icon={<Server size={20} />} title="Cluster Topology" />
@@ -110,6 +112,7 @@ export function Cluster() {
             return (
               <ClusterNode
                 clusterId={clusterId!}
+                highlight={highlight}
                 key={primaryKey}
                 primary={primary}
                 primaryData={primaryData}

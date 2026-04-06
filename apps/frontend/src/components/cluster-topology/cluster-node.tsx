@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge"
 import { CustomTooltip } from "../ui/tooltip"
 import { Button } from "../ui/button"
 import { Typography } from "../ui/typography"
+import { HighlightSearchMatch } from "../ui/highlight-search-match"
 import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
@@ -20,6 +21,7 @@ interface ClusterNodeProps {
   primary: PrimaryNode
   primaryData: ParsedNodeInfo
   clusterId: string
+  highlight?: string
 }
 
 export function ClusterNode({
@@ -27,6 +29,7 @@ export function ClusterNode({
   primary,
   primaryData,
   clusterId,
+  highlight = "",
 }: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -90,12 +93,14 @@ export function ClusterNode({
               <Server className="text-primary shrink-0" size={18} />
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Typography variant={"label"}>{primaryData?.server_name || primaryKey}</Typography>
+                  <Typography variant={"label"}>
+                    <HighlightSearchMatch query={highlight} text={primaryData?.server_name || primaryKey} />
+                  </Typography>
                   <Badge className="text-xs px-2 py-0" variant={isConnected ? "success" : "secondary"}>
                     PRIMARY
                   </Badge>
                 </div>
-                <Typography variant="bodyXs">{`${primary.host}:${primary.port}`}</Typography>
+                <Typography variant="bodyXs"><HighlightSearchMatch query={highlight} text={`${primary.host}:${primary.port}`} /></Typography>
                 <NodeDetails nodeData={primaryData} />
               </div>
             </div>
@@ -116,7 +121,9 @@ export function ClusterNode({
                   return (
                     <div className="flex items-center mb-2 gap-1" key={replicaKey}>
                       <Server className="text-primary shrink-0" size={16} />
-                      <Typography className="underline" variant="bodyXs">{replicaKey}</Typography>
+                      <Typography className="underline" variant="bodyXs">
+                        <HighlightSearchMatch query={highlight} text={replicaKey} />
+                      </Typography>
                     </div>
                   )
                 })}

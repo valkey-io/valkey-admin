@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button.tsx"
 import { ConnectionStatusBadge } from "@/components/ui/connection-status-badge"
 import { ConnectionActionButtons } from "@/components/ui/connection-action-buttons.tsx"
 import { Typography } from "@/components/ui/typography.tsx"
+import { HighlightSearchMatch } from "@/components/ui/highlight-search-match"
 import { cn } from "@/lib/utils.ts"
 import history from "@/history.ts"
 import { useAppDispatch } from "@/hooks/hooks.ts"
@@ -21,6 +22,7 @@ interface ConnectionEntryProps {
   clusterId?: string
   hideOpenButton?: boolean
   isNested?: boolean
+  highlight?: string
   onEdit?: (connectionId: string) => void
 }
 
@@ -30,6 +32,7 @@ export const ConnectionEntry = ({
   clusterId,
   hideOpenButton = false,
   isNested = false,
+  highlight = "",
   onEdit,
 }: ConnectionEntryProps) => {
   const dispatch = useAppDispatch()
@@ -75,7 +78,7 @@ export const ConnectionEntry = ({
                   variant="link"
                 >
                   <Link title={label} to={clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`}>
-                    {label}
+                    <HighlightSearchMatch query={highlight} text={label} />
                   </Link>
                 </Button>
               </Typography>
@@ -116,7 +119,7 @@ export const ConnectionEntry = ({
                 variant="link"
               >
                 <Link title={aliasLabel} to={clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`}>
-                  {aliasLabel}
+                  <HighlightSearchMatch query={highlight} text={aliasLabel}/>
                 </Link>
               </Button>
             </Typography>

@@ -1,9 +1,10 @@
 import { useNavigate, useParams } from "react-router"
 import { useSelector } from "react-redux"
 import { useState, useRef, useEffect, type ReactNode } from "react"
-import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight } from "lucide-react"
+import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight, Search } from "lucide-react"
 import { CONNECTED } from "@common/src/constants.ts"
 import { Badge } from "./badge"
+import { Input } from "./input"
 import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
 import { selectConnectionDetails, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors.ts"
@@ -18,6 +19,7 @@ type AppHeaderProps = {
 
 function AppHeader({ title, icon, className }: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
@@ -39,7 +41,13 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const handleNavigate = (primaryKey: string) => {
     navigate(`/${clusterId}/${primaryKey}/cluster-topology`)
     setIsOpen(false)
+    setSearch("")
   }
+
+  const filteredNodes = Object.entries(clusterData?.clusterNodes ?? {}).filter(([, primary]) => {
+    const term = search.toLowerCase()
+    return `${primary.host}:${primary.port}`.toLowerCase().includes(term)
+  })
 
   // for closing the dropdown when we click anywhere in screen
   useEffect(() => {
@@ -75,9 +83,13 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
             {icon}
             {title}
           </Typography>
-          <div>
+          <div ref={dropdownRef}>
             <Badge
-              className="h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between cursor-pointer"
+              className={cn(
+                "h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between",
+                isConnected ? "cursor-pointer" : "cursor-default",
+              )}
+              onClick={() => isConnected && setIsOpen(!isOpen)}
               variant="default"
             >
               <div className="flex flex-col gap-1">
@@ -89,22 +101,39 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                   {id}
                 </Typography>
               </div>
-              <button aria-label="Toggle dropdown" disabled={!isConnected} onClick={() => isConnected && setIsOpen(!isOpen)}>
-                <ToggleIcon
-                  className={isConnected
-                    ? "text-primary cursor-pointer hover:text-primary/80"
-                    : "text-gray-400 cursor-not-allowed"
-                  }
-                  size={18}
-                />
-              </button>
+              <ToggleIcon
+                aria-label="Toggle dropdown"
+                className={isConnected
+                  ? "text-primary hover:text-primary/80"
+                  : "text-gray-400"
+                }
+                size={18}
+              />
             </Badge>
             {isOpen && (
               <div className="p-4 w-auto text-nowrap py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
-                rounded z-100 absolute top-10 right-0" ref={dropdownRef}>
+                rounded z-100 absolute top-10 right-0">
+                <div className="relative mb-3">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                  <Input
+                    autoFocus
+                    className="pl-7 h-7 text-xs"
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by host or port"
+                    value={search}
+                  />
+                </div>
                 <ul className="space-y-2">
                   {Object.entries(clusterData?.clusterNodes ?? {}).map(([primaryKey, primary]) => {
                     const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED 
+                    || (connectedNode?.status === CONNECTED && connectedNode?.host === primary.host && connectedNode?.port === primary.port)
+                  {filteredNodes.length === 0 && (
+                    <li>
+                      <Typography className="text-muted-foreground" variant="caption">No nodes found</Typography>
+                    </li>
+                  )}
+                  {filteredNodes.map(([primaryKey, primary]) => {
+                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
                     || (connectedNode?.status === CONNECTED && connectedNode?.host === primary.host && connectedNode?.port === primary.port)
 
                     return (

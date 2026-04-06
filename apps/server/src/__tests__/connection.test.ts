@@ -3,11 +3,12 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
-import { connectToValkey, isDuplicateConnection } from "../connection"
+import { connectToValkey, isDuplicateConnection, teardownConnection } from "../connection"
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
+import { _reset as resetNodeWatchers } from "../node-watchers"
 
 const DEFAULT_PAYLOAD = {
   connectionDetails: {
@@ -50,6 +51,7 @@ describe("connectToValkey", () => {
     mock.restoreAll()
     clients.clear()
     clusterNodesMap.clear()
+    resetNodeWatchers()
   })
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {
@@ -236,13 +238,7 @@ describe("connectToValkey", () => {
     }
 
     const originalCreateClient = GlideClient.createClient
-    GlideClient.createClient = mock.fn(async (config: any) => {
-      assert.ok(config)
-      assert.deepStrictEqual(config.addresses, [{ host: DEFAULT_PAYLOAD.connectionDetails.host, port: DEFAULT_PAYLOAD.connectionDetails.port }])
-      assert.strictEqual(config.requestTimeout, 5000)
-      assert.strictEqual(config.clientName, "test_client")
-      return mockStandaloneClient as any
-    })
+    GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
 
     const alternate_payload = {
       connectionDetails: {
@@ -260,6 +256,15 @@ describe("connectToValkey", () => {
     try {
       await connectToValkey(mockWs, alternate_payload, clients, clusterNodesMap, metricsServerMap)
       assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 1)
+
+      const config = (GlideClient.createClient as any).mock.calls[0].arguments[0]
+      assert.ok(config)
+      assert.deepStrictEqual(config.addresses, [{
+        host: alternate_payload.connectionDetails.host,
+        port: Number(alternate_payload.connectionDetails.port),
+      }])
+      assert.strictEqual(config.requestTimeout, 5000)
+      assert.strictEqual(config.clientName, "test_client")
     } finally {
       GlideClient.createClient = originalCreateClient
     }
@@ -395,5 +400,56 @@ describe("returnIfDuplicateConnection", () => {
     )
 
     assert.strictEqual(result, false)
+  })
+})
+
+describe("teardownConnection", () => {
+  it("should close client when no other entry shares it", () => {
+    const mockClient = { close: mock.fn() }
+    const clients: Map<string, any> = new Map()
+    clients.set("conn-1", { client: mockClient })
+    const metricsServerMap: MetricsServerMap = new Map()
+
+    teardownConnection("conn-1", clients, metricsServerMap)
+
+    assert.strictEqual(clients.has("conn-1"), false)
+    assert.strictEqual(mockClient.close.mock.calls.length, 1)
+  })
+
+  it("should NOT close client when another entry still shares it", () => {
+    const sharedClient = { close: mock.fn() }
+    const clients: Map<string, any> = new Map()
+    clients.set("node-1", { client: sharedClient, clusterId: "c1" })
+    clients.set("node-2", { client: sharedClient, clusterId: "c1" })
+    const metricsServerMap: MetricsServerMap = new Map()
+
+    teardownConnection("node-1", clients, metricsServerMap)
+
+    assert.strictEqual(clients.has("node-1"), false)
+    assert.strictEqual(clients.has("node-2"), true)
+    assert.strictEqual(sharedClient.close.mock.calls.length, 0)
+  })
+
+  it("should close client when last shared entry is torn down", () => {
+    const sharedClient = { close: mock.fn() }
+    const clients: Map<string, any> = new Map()
+    clients.set("node-1", { client: sharedClient, clusterId: "c1" })
+    clients.set("node-2", { client: sharedClient, clusterId: "c1" })
+    const metricsServerMap: MetricsServerMap = new Map()
+
+    teardownConnection("node-1", clients, metricsServerMap)
+    teardownConnection("node-2", clients, metricsServerMap)
+
+    assert.strictEqual(clients.size, 0)
+    assert.strictEqual(sharedClient.close.mock.calls.length, 1)
+  })
+
+  it("should be a no-op when connectionId is not in clients", () => {
+    const clients: Map<string, any> = new Map()
+    const metricsServerMap: MetricsServerMap = new Map()
+
+    assert.doesNotThrow(() => {
+      teardownConnection("unknown", clients, metricsServerMap)
+    })
   })
 })

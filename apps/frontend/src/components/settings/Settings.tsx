@@ -3,6 +3,7 @@ import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { useEffect, useState } from "react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { MONITOR_ACTION } from "@common/src/constants"
 import ThemeToggle from "../ui/theme-toggle"
 import { ButtonGroup } from "../ui/button-group"
 import RouteContainer from "../ui/route-container"
@@ -11,7 +12,8 @@ import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Typography } from "../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
-import { selectConfig, updateConfig } from "@/state/valkey-features/config/configSlice"
+import { selectConfig } from "@/state/valkey-features/config/configSlice"
+import { monitorRequested, saveMonitorSettingsRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 
 export default function Settings() {
   const { id, clusterId } = useParams()
@@ -19,23 +21,42 @@ export default function Settings() {
   console.debug(config)
   const dispatch = useAppDispatch()
 
-  const [monitorEnabled, setMonitorEnabled] = useState(config?.monitoring?.monitorEnabled ?? false)
-  const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitorDuration ?? 6000)
+  const monitorRunning = useSelector(selectMonitorRunning(id!))
+  const [localMonitorEnabled, setLocalMonitorEnabled] = useState(monitorRunning)
+  const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
+  const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitoringInterval ?? 10000)
+  useEffect(() => {
+    dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: MONITOR_ACTION.STATUS }))
+  }, [dispatch, id, clusterId])
+
+  useEffect(() => {
+    setLocalMonitorEnabled(monitorRunning)
+  }, [monitorRunning])
 
   useEffect(() => {
     if (config?.monitoring) {
-      setMonitorEnabled(config.monitoring.monitorEnabled)
-      setMonitorDuration(config.monitoring.monitorDuration)
+      setMonitorDuration(config.monitoring.monitoringDuration)
+      setMonitorInterval(config.monitoring.monitoringInterval)
     }
-  }, [config?.monitoring?.monitorEnabled, config?.monitoring?.monitorDuration])
+  }, [config?.monitoring?.monitoringDuration, config?.monitoring?.monitoringInterval])
 
-  const hasChanges =
+  const hasConfigChanges =
     config?.monitoring &&
-    (monitorEnabled !== config.monitoring.monitorEnabled ||
-      monitorDuration !== config.monitoring.monitorDuration)
+    (monitorDuration !== config.monitoring.monitoringDuration ||
+      monitorInterval !== config.monitoring.monitoringInterval)
+
+  const hasMonitorToggleChanged = localMonitorEnabled !== monitorRunning
 
   const handleSave = () => {
-    dispatch(updateConfig({ connectionId: id!, clusterId, config: { monitoring: { monitorEnabled, monitorDuration } } }))
+    const monitorAction = hasMonitorToggleChanged
+      ? (localMonitorEnabled ? MONITOR_ACTION.START : MONITOR_ACTION.STOP)
+      : undefined
+
+    const configPayload = hasConfigChanges
+      ? { epic: { name: "monitor", monitoringDuration: monitorDuration, monitoringInterval: monitorInterval } }
+      : undefined
+
+    dispatch(saveMonitorSettingsRequested({ connectionId: id!, clusterId, config: configPayload, monitorAction }))
   }
   return (
     <RouteContainer className="p-4 relative min-h-screen flex flex-col">
@@ -70,16 +91,16 @@ export default function Settings() {
                 </TooltipIcon>
               </div>
               <ButtonGroup
-                onChange={(value) => setMonitorEnabled(value === "on")}
+                onChange={(value) => setLocalMonitorEnabled(value === "on")}
                 options={[
                   { value: "on", label: "On" },
                   { value: "off", label: "Off" },
                 ]}
-                value={monitorEnabled ? "on" : "off"}
+                value={localMonitorEnabled ? "on" : "off"}
               />
             </div>
 
-            {monitorEnabled && (
+            {localMonitorEnabled && (
               <div className="mt-3 flex items-center gap-2 p-2 bg-primary/20 border border-primary/50 rounded">
                 <AlertTriangle className="text-amber-600 shrink-0" size={18} />
                 <Typography variant="bodySm">
@@ -107,10 +128,26 @@ export default function Settings() {
               />
             </div>
 
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center gap-2">
+                <Typography variant="bodySm">Monitor Interval (ms)</Typography>
+                <TooltipIcon description="Delay in milliseconds between consecutive monitoring cycles." size={16}>
+                </TooltipIcon>
+              </div>
+              <Input
+                aria-label = "Monitor Interval"
+                onChange={(e) => setMonitorInterval(Number(e.target.value))}
+                step="1000"
+                style={{ width: "100px" }}
+                type="number"
+                value={monitorInterval}
+              />
+            </div>
+
             {/* save button */}
             <div className="flex justify-end mt-6">
               <Button
-                disabled={!hasChanges}
+                disabled={!hasConfigChanges && !hasMonitorToggleChanged}
                 onClick={handleSave}
                 size={"sm"}
                 type="button"

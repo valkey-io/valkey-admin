@@ -96,7 +96,7 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
                     {formatKey(key)}
                   </Typography>
                   {singleMetricDescriptions[key] && (
-                    <TooltipIcon description={`${singleMetricDescriptions[key].description} ${singleMetricDescriptions[key].unit}` } size={13} />
+                    <TooltipIcon description={singleMetricDescriptions[key].description} size={13} />
                   )}
                 </div>
                 <Typography variant="bodySm">{formatMetricValue(key, value, valueType)}</Typography>

@@ -21,6 +21,9 @@ import { commandLogsRequested } from "./actions/commandLogs"
 import { updateConfig, enableClusterSlotStats } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
+import { monitorRequested, saveMonitorSettingsRequested } from "./actions/monitorAction"
+import { unsubscribeAll, getWatcherCount } from "./node-watchers"
+import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
@@ -152,6 +155,8 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
+    [VALKEY.MONITOR.monitorRequested]: monitorRequested,
+    [VALKEY.MONITOR.saveMonitorSettingsRequested]: saveMonitorSettingsRequested,
   }
 
   process.on("message", (message: MetricsServerMessage) => {
@@ -202,17 +207,13 @@ wss.on("connection", (ws: AliveWebSocket) => {
     console.error("WebSocket error:", err)
   })
   ws.on("close", (code, reason) => {
+    const removedIds = unsubscribeAll(ws)
     clusterNodesMap.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
-    // Close all Valkey connections
-    clients.forEach((connection, connectionId) => {
-      try {
-        connection.client.close()
-      } catch (error) {
-        console.error(`Error closing connection ${connectionId}:`, error)
-      }
-    })
-    clients.clear()
+
+    for (const connectionId of removedIds) {
+      if (getWatcherCount(connectionId) === 0) teardownConnection(connectionId, clients, metricsServerMap)
+    }
   })
 })
 

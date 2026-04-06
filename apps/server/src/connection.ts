@@ -14,6 +14,7 @@ import {
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
+import { subscribe } from "./node-watchers"
 
 export async function connectToValkey(
   ws: WebSocket,
@@ -43,6 +44,7 @@ export async function connectToValkey(
   try {
     // If we've connected to the same host using IP addr or vice versa, return
     if (await isDuplicateConnection(payload, clients)) {
+      subscribe(payload.connectionId, ws)
       return ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.connectRejected,
@@ -111,6 +113,7 @@ export async function connectToValkey(
     }
     console.log("Connected to standalone")
 
+    subscribe(payload.connectionId, ws)
     ws.send(
       JSON.stringify(connectionInfo),
     )
@@ -267,6 +270,7 @@ export async function connectToCluster(
       )
       clients.set(connectionId, { client: clusterClient, clusterId })
       clusterNodesMap.set(clusterId, [connectionId])
+      subscribe(payload.connectionId, ws)
     }
 
     const clusterSlotStatsEnabled = await getClusterSlotStatsEnabled(clusterClient)
@@ -369,28 +373,25 @@ export async function closeMetricsServer(connectionId: string, metricsServerMap:
   }
 }
 
-export async function closeClient(
+export function teardownConnection(
   connectionId: string,
-  client: GlideClient | GlideClusterClient | undefined,
-  ws: WebSocket,
-)  {
-  if (client) {
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+  metricsServerMap: MetricsServerMap,
+) {
+  if (process.env.USE_ORCHESTRATOR !== "true") {
+    closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
+      console.error(`Error closing metrics server for ${connectionId}:`, err),
+    )
+  }
+
+  const connection = clients.get(connectionId)
+  clients.delete(connectionId)
+
+  if (connection && ![...clients.values()].some((c) => c.client === connection.client)) {
     try {
-      client.close()
-      return ws.send(
-        JSON.stringify({
-          type: VALKEY.CONNECTION.closeConnectionFulfilled,
-          payload: { connectionId },
-        }),
-      )
-    } catch (err) {
-      return ws.send(
-        JSON.stringify({
-          type: VALKEY.CONNECTION.closeConnectionFailed,
-          payload: { connectionId, errorMessage: err instanceof Error ? err.message : String(err) },
-        }),
-      )
+      connection.client.close()
+    } catch (error) {
+      console.error(`Error closing connection ${connectionId}:`, error)
     }
   }
- 
 }

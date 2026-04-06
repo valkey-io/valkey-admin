@@ -1,9 +1,10 @@
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { EndpointType } from "valkey-common"
-import { closeClient, closeMetricsServer, connectToValkey } from "../connection"
+import { closeClient, closeMetricsServer, connectToValkey, teardownConnection  } from "../connection"
+import { VALKEY } from "valkey-common"
+import { unsubscribe, getWatcherCount } from "../node-watchers"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
-import { isLastConnectedClusterNode } from "../utils"
 
 export interface ConnectionDetails {
   host: string;
@@ -42,9 +43,18 @@ export const resetConnection = withDeps<Deps, void>(
 
 export const closeConnection = withDeps<Deps, void>(
   async ({ ws, clients, action, metricsServerMap, clusterNodesMap }) => {
-    const { connectionId } = action.payload 
+    const { connectionId } = action.payload
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId
+
+    unsubscribe(connectionId, ws)
+
+    // Always ack the requesting client — UI needs confirmation
+    ws.send(JSON.stringify({
+      type: VALKEY.CONNECTION.closeConnectionFulfilled,
+      payload: { connectionId },
+    }))
+
     const nodes = clusterNodesMap.get(clusterId!)
     if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
       closeMetricsServer(connectionId, metricsServerMap)
@@ -54,30 +64,19 @@ export const closeConnection = withDeps<Deps, void>(
     }
     // Remove node from cluster map accordingly
     if (clusterId && nodes) {
-      if (nodes.length === 1){
+      if (nodes.length === 1) {
         clusterNodesMap.delete(clusterId)
-      } 
-      else  {
-        const index = nodes!.indexOf(connectionId)
+      } else {
+        const index = nodes.indexOf(connectionId)
         if (index !== -1) {
-          nodes!.splice(index, 1)
+          nodes.splice(index, 1)
         }
       }
     }
-    clients.delete(connectionId)
+
+    if (getWatcherCount(connectionId) > 0) {
+      return
+    }
+    teardownConnection(connectionId, clients, metricsServerMap)
   },
 )
-
-const canSafelyDisconnect = async (
-  connectionId: string,
-  connection: { client: GlideClient | GlideClusterClient } | undefined,
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
-  clusterNodesMap: Map<string, string[]>,
-) => {
-  if (connection?.client instanceof GlideClient) return true
-
-  if (connection?.client instanceof GlideClusterClient)
-    return isLastConnectedClusterNode(connectionId, clients, clusterNodesMap)
-
-  return false
-}

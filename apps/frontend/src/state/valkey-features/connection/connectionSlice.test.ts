@@ -48,13 +48,15 @@ describe("connectionSlice", () => {
           port: "6379",
           username: "admin",
           password: "secret",
-          tls: false, 
+          tls: false,
           verifyTlsCertificate: false,
           alias: "Test",
           clusterSlotStatsEnabled: false,
           jsonModuleAvailable: false,
         },
+        searchableText: "conn-1 localhost 6379 admin test",
         wasEdit: false,
+        connectionHistory: undefined,
       })
     })
 
