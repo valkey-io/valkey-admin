@@ -59,6 +59,7 @@ export const closeConnection = withDeps<Deps, void>(
       return
     }
     const nodes = clusterNodesMap.get(clusterId!)
+
     // Remove node from cluster map accordingly
     if (clusterId && nodes) {
       if (nodes.length === 1) {
