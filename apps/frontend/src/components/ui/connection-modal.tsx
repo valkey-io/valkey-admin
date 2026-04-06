@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
 import { Typography } from "./typography.tsx"
-import { TabGroup } from "./tab-group.tsx"
+import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { Label } from "@/components/ui/label"
 
@@ -73,22 +73,21 @@ export function ConnectionModal({
 
                 <div className="flex flex-col gap-2">
                   <Label>Endpoint Type</Label>
-                  <div className="flex gap-2">
-                    <TabGroup
-                      activeTab={connectionDetails.endpointType}
-                      className="flex gap-2"
-                      onChange={(tabId) =>
-                        onConnectionDetailsChange({
-                          ...connectionDetails,
-                          endpointType: tabId,
-                        })
-                      }
-                      tabs={[
-                        { id: "node", label: "Node" },
-                        { id: "cluster-endpoint", label: "Cluster Endpoint" },
-                      ]}
-                    />
-                  </div>
+                  <RadioGroup
+                    value={connectionDetails.endpointType}
+                    onValueChange={(value) =>
+                      onConnectionDetailsChange({ ...connectionDetails, endpointType: value as ConnectionDetails["endpointType"] })
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="endpoint-node" value="node" />
+                      <Label htmlFor="endpoint-node">Node</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="endpoint-cluster" value="cluster-endpoint" />
+                      <Label htmlFor="endpoint-cluster">Cluster Endpoint</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
 
                 <div>
