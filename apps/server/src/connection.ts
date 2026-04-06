@@ -44,7 +44,6 @@ export async function connectToValkey(
   try {
     // If we've connected to the same host using IP addr or vice versa, return
     if (await isDuplicateConnection(payload, clients)) {
-      subscribe(payload.connectionId, ws)
       return ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.connectRejected,

@@ -76,6 +76,7 @@ export const connectionEpic = (store: Store) =>
           const currentConnections = getCurrentConnections()
 
           const state = store.getState()
+          // TODO: remove extra defensiveness
           const connection = state.valkeyConnection?.connections?.[payload.connectionId]
 
           const baseConnectionDetails =
@@ -261,6 +262,7 @@ export const deleteConnectionEpic = (store: Store) =>
         const socket = getSocket()
         const { connectionId } = action.payload
         const state = store.getState()
+        // TODO: remove extra defensiveness
         const connection = state.valkeyConnection?.connections?.[connectionId]
         const clusterId = connection?.connectionDetails?.clusterId
 
