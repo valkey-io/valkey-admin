@@ -1,7 +1,7 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
 import { EndpointType } from "valkey-common"
 import { VALKEY } from "valkey-common"
-import { closeMetricsServer, connectToValkey, teardownConnection  } from "../connection"
+import { connectToValkey, teardownConnection  } from "../connection"
 import { unsubscribe, getWatcherCount } from "../node-watchers"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"

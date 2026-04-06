@@ -360,7 +360,7 @@ export async function closeMetricsServer(connectionId: string, metricsServerMap:
   const metricsServerUri = metricsServerMap.get(connectionId)?.metricsURI
   if (metricsServerUri) {
     const res = await fetch(`${metricsServerUri}/connection/close`, 
-      { method: "POST", 
+      { method: "POST",
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ connectionId }), 
       })
