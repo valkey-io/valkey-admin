@@ -155,7 +155,7 @@ describe("connectToValkey", () => {
       info: mock.fn(async (sections: string[]) =>
         sections?.includes("memory")
           ? { node1: "maxmemory_policy:allkeys-lfu" }
-          : "cluster_enabled:0"
+          : "cluster_enabled:0",
       ),
       customCommand: mock.fn(async (args: string[]) => {
         if (

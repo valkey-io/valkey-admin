@@ -74,10 +74,10 @@ export function ConnectionModal({
                 <div className="flex flex-col gap-2">
                   <Label>Endpoint Type</Label>
                   <RadioGroup
-                    value={connectionDetails.endpointType}
                     onValueChange={(value) =>
                       onConnectionDetailsChange({ ...connectionDetails, endpointType: value as ConnectionDetails["endpointType"] })
                     }
+                    value={connectionDetails.endpointType}
                   >
                     <div className="flex items-center gap-2">
                       <RadioGroupItem id="endpoint-node" value="node" />
