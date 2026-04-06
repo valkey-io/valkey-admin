@@ -11,6 +11,7 @@ import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "val
 import WebSocket from "ws"
 import { ClusterNodeMap, metricsServerMap } from "./metrics-orchestrator"
 import { connectToCluster } from "./connection"
+import { subscribe } from "./node-watchers"
 import type { ConnectionDetails } from "./actions/connection"
 export const dns = {
   lookup,
@@ -185,7 +186,7 @@ export async function returnExistingClusterClient(
   clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
       
   if (!clusterNodesMap.get(existingClusterId!)?.includes(connectionId)) clusterNodesMap.get(existingClusterId!)?.push(connectionId)
-  subscribe(payload.connectionId, ws)
+  subscribe(connectionId, ws)
   ws.send(
     JSON.stringify({
       type: VALKEY.CLUSTER.updateClusterInfo,
@@ -205,6 +206,7 @@ export async function connectToFirstNode(
 ) {
   clusterClient.close()
   const firstNode = Object.values(clusterNodes)[0]
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { replicas, ...connectionDetails } = firstNode
   const newPayload = {
     connectionId: payload.connectionId,

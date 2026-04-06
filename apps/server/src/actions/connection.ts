@@ -1,7 +1,7 @@
-import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { GlideClusterClient } from "@valkey/valkey-glide"
 import { EndpointType } from "valkey-common"
-import { closeClient, closeMetricsServer, connectToValkey, teardownConnection  } from "../connection"
 import { VALKEY } from "valkey-common"
+import { closeMetricsServer, connectToValkey, teardownConnection  } from "../connection"
 import { unsubscribe, getWatcherCount } from "../node-watchers"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
@@ -58,9 +58,6 @@ export const closeConnection = withDeps<Deps, void>(
     const nodes = clusterNodesMap.get(clusterId!)
     if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
       closeMetricsServer(connectionId, metricsServerMap)
-    }
-    if (connection && await canSafelyDisconnect(connectionId, connection, clients, clusterNodesMap)){
-      await closeClient(connectionId, connection.client, ws)
     }
     // Remove node from cluster map accordingly
     if (clusterId && nodes) {

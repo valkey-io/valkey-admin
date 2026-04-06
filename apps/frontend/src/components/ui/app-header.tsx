@@ -35,7 +35,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const allConnections = useSelector((state: RootState) =>
     state.valkeyConnection?.connections,
   )
-  
+
   const connectedNode = useSelector(selectConfigEndpointNode(clusterId ?? ""))
 
   const handleNavigate = (primaryKey: string) => {
@@ -48,6 +48,11 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     const term = search.toLowerCase()
     return `${primary.host}:${primary.port}`.toLowerCase().includes(term)
   })
+
+  const nodesToRender =
+    search.trim().length > 0
+      ? filteredNodes
+      : Object.entries(clusterData?.clusterNodes ?? {})
 
   // for closing the dropdown when we click anywhere in screen
   useEffect(() => {
@@ -93,26 +98,31 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
               variant="default"
             >
               <div className="flex flex-col gap-1">
-                <Typography
-                  className="flex items-center"
-                  variant="bodySm"
-                >
+                <Typography className="flex items-center" variant="bodySm">
                   <Dot className={isConnected ? "text-green-500" : "text-gray-400"} size={45} />
                   {id}
                 </Typography>
               </div>
               <ToggleIcon
                 aria-label="Toggle dropdown"
-                className={isConnected
-                  ? "text-primary hover:text-primary/80"
-                  : "text-gray-400"
+                className={
+                  isConnected
+                    ? "text-primary hover:text-primary/80"
+                    : "text-gray-400"
                 }
                 size={18}
               />
             </Badge>
+
             {isOpen && (
-              <div className="p-4 w-auto text-nowrap py-3 border bg-gray-50 dark:bg-gray-800 text-sm dark:border-tw-dark-border
-                rounded z-100 absolute top-10 right-0">
+              <div
+                className={cn(
+                  "p-4 w-auto text-nowrap py-3 border",
+                  "bg-gray-50 dark:bg-gray-800",
+                  "text-sm dark:border-tw-dark-border",
+                  "rounded z-100 absolute top-10 right-0",
+                )}
+              >
                 <div className="relative mb-3">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                   <Input
@@ -123,29 +133,39 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                     value={search}
                   />
                 </div>
+
                 <ul className="space-y-2">
-                  {Object.entries(clusterData?.clusterNodes ?? {}).map(([primaryKey, primary]) => {
-                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED 
-                    || (connectedNode?.status === CONNECTED && connectedNode?.host === primary.host && connectedNode?.port === primary.port)
-                  {filteredNodes.length === 0 && (
+                  {nodesToRender.length === 0 && (
                     <li>
-                      <Typography className="text-muted-foreground" variant="caption">No nodes found</Typography>
+                      <Typography className="text-muted-foreground" variant="caption">
+                        No nodes found
+                      </Typography>
                     </li>
                   )}
-                  {filteredNodes.map(([primaryKey, primary]) => {
-                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
-                    || (connectedNode?.status === CONNECTED && connectedNode?.host === primary.host && connectedNode?.port === primary.port)
+
+                  {nodesToRender.map(([primaryKey, primary]) => {
+                    const nodeIsConnected =
+                      allConnections?.[primaryKey]?.status === CONNECTED ||
+                      (connectedNode?.status === CONNECTED &&
+                        connectedNode?.host === primary.host &&
+                        connectedNode?.port === primary.port)
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
-                        <button className="flex items-center cursor-pointer hover:bg-primary/20"
+                        <button
+                          className="flex items-center cursor-pointer hover:bg-primary/20"
                           disabled={!nodeIsConnected}
-                          onClick={() => handleNavigate(primaryKey)}>
-                          <Dot className={nodeIsConnected ? "text-green-500" : "text-gray-400"} size={45} />
+                          onClick={() => handleNavigate(primaryKey)}
+                        >
+                          <Dot
+                            className={nodeIsConnected ? "text-green-500" : "text-gray-400"}
+                            size={45}
+                          />
                           <Typography variant="bodySm">
                             {`${primary.host}:${primary.port}`}
                           </Typography>
                         </button>
+
                         {primary.replicas?.map((replica) => (
                           <div className="flex items-center ml-4" key={replica.id}>
                             <CornerDownRight className="text-tw-dark-border" size={20} />
@@ -166,7 +186,6 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
           </div>
         </div>
       )}
-
     </>
   )
 }
