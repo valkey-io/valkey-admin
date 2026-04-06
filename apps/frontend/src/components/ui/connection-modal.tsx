@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
 import { Typography } from "./typography.tsx"
+import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { Label } from "@/components/ui/label"
 
@@ -69,14 +70,40 @@ export function ConnectionModal({
               )}
 
               <form className="space-y-4 mt-4" onSubmit={onSubmit}>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Endpoint Type</Label>
+                  <RadioGroup
+                    onValueChange={(value) =>
+                      onConnectionDetailsChange({ ...connectionDetails, endpointType: value as ConnectionDetails["endpointType"] })
+                    }
+                    value={connectionDetails.endpointType}
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="endpoint-node" value="node" />
+                      <Label htmlFor="endpoint-node">Node</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="endpoint-cluster" value="cluster-endpoint" />
+                      <Label htmlFor="endpoint-cluster">Cluster Endpoint</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div>
                   <Label className="block mb-1" htmlFor="host">
                     Host
                   </Label>
                   <Input
                     id="host"
-                    onChange={(e) =>
-                      onConnectionDetailsChange({ ...connectionDetails, host: e.target.value })
+                    onChange={(e) => {
+                      const host = e.target.value
+                      onConnectionDetailsChange({ 
+                        ...connectionDetails, 
+                        host,
+                        endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
+                      })
+                    }
                     }
                     placeholder="localhost"
                     required
@@ -100,7 +127,6 @@ export function ConnectionModal({
                     value={connectionDetails.port}
                   />
                 </div>
-
                 <div>
                   <Label className="block mb-1" htmlFor="alias">
                     Alias

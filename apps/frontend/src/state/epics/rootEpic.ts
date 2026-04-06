@@ -25,7 +25,7 @@ export const registerEpics = (store: Store) => {
     connectionEpic(store),
     autoReconnectEpic(store),
     valkeyRetryEpic(store),
-    deleteConnectionEpic(),
+    deleteConnectionEpic(store),
     updateConnectionDetailsEpic(store),
     sendRequestEpic(),
     setDataEpic(store),

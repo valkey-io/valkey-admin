@@ -105,7 +105,7 @@ export const NOT_CONNECTED = "Not Connected"
 export const DISCONNECTED = "Disconnected"
 export const RECONNECTING = "Reconnecting"
 export const DISCONNECTING = "Disconnecting"
-export const MAX_CONNECTIONS = process.env.MAX_CONNECTIONS
+export const MAX_CONNECTIONS = process?.env?.MAX_CONNECTIONS
   ? Number(process.env.MAX_CONNECTIONS)
   : Infinity
 
@@ -198,3 +198,4 @@ export const METRICS_EVICTION_POLICY = {
   INTERVAL: 1 * MILLISECONDS_IN_A_DAY,
 }
 
+export type EndpointType = "node" | "cluster-endpoint"

@@ -60,6 +60,8 @@ export const ConnectionEntry = ({
   const lastConnectionTime = connection.connectionHistory?.at(-1) ?? null
 
   const statusType = isConnected ? "connected" : isError ? "error" : "disconnected"
+  const clusterPath = (id: string) =>
+    `/${clusterId}/${id}/${connection.connectionDetails.endpointType === "cluster-endpoint" ? "cluster-topology" : "dashboard"}`
 
   // for cluster instances
   if (isNested) {
@@ -75,7 +77,7 @@ export const ConnectionEntry = ({
                   className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto truncate")}
                   variant="link"
                 >
-                  <Link title={label} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                  <Link title={label} to={clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`}>
                     <HighlightSearchMatch query={highlight} text={label} />
                   </Link>
                 </Button>
@@ -116,7 +118,7 @@ export const ConnectionEntry = ({
                 className={cn(!isConnected && "pointer-events-none opacity-60", "justify-start p-0 h-auto mb-1 truncate")}
                 variant="link"
               >
-                <Link title={aliasLabel} to={clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`}>
+                <Link title={aliasLabel} to={clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`}>
                   <HighlightSearchMatch query={highlight} text={aliasLabel}/>
                 </Link>
               </Button>
@@ -141,7 +143,7 @@ export const ConnectionEntry = ({
           {isConnected && !hideOpenButton && (
             <Button
               className="flex items-center gap-1 hover:border-primary"
-              onClick={() => history.navigate(clusterId ? `/${clusterId}/${connectionId}/dashboard` : `/${connectionId}/dashboard`)}
+              onClick={() => history.navigate(clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`)}
               size="sm"
               variant="outline"
             >

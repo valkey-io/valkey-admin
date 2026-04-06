@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
 import { sanitizeUrl } from "valkey-common"
-import { discoverCluster, belongsToCluster } from "./connection"
+import { discoverCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
 
@@ -39,6 +39,9 @@ export const clusterNodesRegistry: ClusterRegistry = {}
 
 export const metricsServerMap: MetricsServerMap = new Map()
 
+// Validate env variable so it matches EndpointType
+const endpointType = process.env.VALKEY_ENDPOINT_TYPE === "node" ? "node" : "cluster-endpoint"
+
 export const initialConnectionDetails: ConnectionDetails = {
   host: process.env.VALKEY_HOST ?? "",
   port: process.env.VALKEY_PORT ?? "",
@@ -46,6 +49,7 @@ export const initialConnectionDetails: ConnectionDetails = {
   password: process.env.VALKEY_PASSWORD,
   tls: process.env.VALKEY_TLS === "true",
   verifyTlsCertificate: process.env.VALKEY_VERIFY_CERT === "true",
+  endpointType,
 }
 
 const ttl = Number(process.env.TTL) || 20000
@@ -99,7 +103,7 @@ export function createMetricsOrchestratorRouter() {
         entry.lastSeen = now
         res.send("Registered node")
       }
-      // If the metrics process was spawned using Electron
+      // If the metrics process was spawned using connection epic
       else {
         metricsServerMap.set(nodeId, {
           metricsURI: metricsServerUri,
@@ -128,16 +132,16 @@ export function createMetricsOrchestratorRouter() {
   return router
 }
 
-let initialClient: GlideClient | null = null
+let initialClient: GlideClusterClient | null = null
 
 export async function getInitialClient() {
   if (!initialClient) {
-    initialClient = await connectToInitialValkeyNode(initialConnectionDetails)
+    initialClient = await createClusterClient(initialConnectionDetails)
   }
   return initialClient
 }
 
-async function connectToInitialValkeyNode(connectionDetails: ConnectionDetails) {
+async function createClusterClient(connectionDetails: ConnectionDetails) {
   const { host, port, username, password, tls, verifyTlsCertificate } = connectionDetails
   const addresses = [
     { host, port: Number(port) },
@@ -158,32 +162,24 @@ async function connectToInitialValkeyNode(connectionDetails: ConnectionDetails) 
   return client
 }
 
-async function getClusterTopology(client: GlideClient | null, node: ConnectionDetails) {
-  if (!client) client = await connectToInitialValkeyNode(node)
+async function getClusterTopology(client: GlideClusterClient | null, node: ConnectionDetails) {
+  if (!client) client = await createClusterClient(node)
 
-  let clusterNodes, clusterId
-
-  if (await belongsToCluster(client)) {
-    ({ clusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node }))
-  }
+  const { clusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
 
   return { clusterNodes, clusterId }
 }
 
-async function updateClusterNodeRegistry(clusterId: string, client: GlideClient | null) {
-  for (const node of Object.values(clusterNodesRegistry[clusterId])) {
-    const nodeConnectionDetails = { ...node, port: String(node.port) }
-    try {
-      const { clusterNodes, clusterId } = await getClusterTopology(client, nodeConnectionDetails)
-      if (clusterId && clusterNodes) clusterNodesRegistry[clusterId] = clusterNodes 
+async function updateClusterNodeRegistry(client: GlideClusterClient | null) {
+  try {
+    const { clusterNodes, clusterId } = await getClusterTopology(client, initialConnectionDetails)
+    if (clusterId && clusterNodes) clusterNodesRegistry[clusterId] = clusterNodes 
+  }
+  catch (err) {
+    if (err instanceof ConnectionError) {
+      console.warn("There was an error discovering cluster nodes")
     }
-    catch (err) {
-      if (err instanceof ConnectionError) {
-        console.warn("There was an error discovering cluster nodes. Attempting to connect to another node")
-        continue
-      }
-      console.error(err)
-    }
+    console.error(err)
   }
   return clusterNodesRegistry
 }
@@ -275,6 +271,7 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
       SERVER_PORT: process.env.SERVER_PORT ?? "8080",
       DATA_DIR: `${data_dir}/${nodeId}`,
       CONFIG_PATH: configPath,
+      CONNECTION_ID: nodeId,
     },
     stdio: ["ignore", "ignore", "pipe"], // only capture stderr
   })
@@ -328,7 +325,7 @@ export async function reconcileClusterMetricsServers(
   clusterNodesRegistry: ClusterRegistry, 
   metricsServerMap: MetricsServerMap, 
   connectionDetails: ConnectionDetails, 
-  client: GlideClient | null,
+  client: GlideClusterClient | null,
 ) {
   let clusterIds = Object.keys(clusterNodesRegistry) 
   if (clusterIds.length === 0) {
@@ -343,7 +340,7 @@ export async function reconcileClusterMetricsServers(
   await Promise.all(
     clusterIds.map(async (clusterId) => {
       try {
-        const updatedClusterNodeRegistry = await internals.updateClusterNodeRegistry(clusterId, client)
+        const updatedClusterNodeRegistry = await internals.updateClusterNodeRegistry(client)
         const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, updatedClusterNodeRegistry[clusterId])
         // Early return if nothing has changed
         if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
@@ -371,7 +368,7 @@ export function cleanupOrchestratorResources() {
 // To help mock internal methods in tests
 const internals =  {
   startMetricsServers,
-  connectToInitialValkeyNode,
+  createClusterClient,
   getClusterTopology,
   updateClusterNodeRegistry,
   findDiff,

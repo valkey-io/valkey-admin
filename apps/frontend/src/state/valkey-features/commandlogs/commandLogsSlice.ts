@@ -78,7 +78,17 @@ const commandLogsSlice = createSlice({
       const { connectionId, parsedResponse } = action.payload
       const commandLogType : CommandLogType = action.payload.commandLogType
       const { rows, count } = parsedResponse
-
+      if (!state[connectionId]) {
+        state[connectionId] = {
+          logs: {
+            slow: [],
+            [COMMANDLOG_TYPE.LARGE_REQUEST]: [],
+            [COMMANDLOG_TYPE.LARGE_REPLY]: [],
+          },
+          count: 50,
+          loading: false,
+        }
+      }
       state[connectionId].logs[commandLogType] = rows
       state[connectionId].count = count
       state[connectionId].loading = false

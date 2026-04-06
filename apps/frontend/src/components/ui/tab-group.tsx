@@ -28,6 +28,7 @@ export function TabGroup<T extends string = string>({
             key={tab.id}
             onClick={() => onChange(tab.id)}
             size={"sm"}
+            type="button"
             variant={isActive ? "default" : "outline"}
           >
             {tab.label}

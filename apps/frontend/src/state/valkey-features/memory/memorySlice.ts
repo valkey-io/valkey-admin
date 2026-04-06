@@ -47,7 +47,12 @@ const memorySlice = createSlice({
     },
     memoryUsageFulfilled: (state, action) => {
       const { connectionId, parsedResponse } = action.payload
-
+      if (!state[connectionId]) {
+        state[connectionId] = {
+          data: null,
+          loading: false,
+        }
+      }
       // validating that parsedResponse is an object (not an array, not null)
       if (parsedResponse && typeof parsedResponse === "object" && !Array.isArray(parsedResponse)) {
         state[connectionId].data = parsedResponse

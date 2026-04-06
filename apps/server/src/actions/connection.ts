@@ -1,6 +1,7 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
+import { EndpointType } from "valkey-common"
 import { VALKEY } from "valkey-common"
-import { connectToValkey, teardownConnection } from "../connection"
+import { connectToValkey, teardownConnection  } from "../connection"
 import { unsubscribe, getWatcherCount } from "../node-watchers"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
@@ -14,6 +15,7 @@ export interface ConnectionDetails {
   verifyTlsCertificate: boolean;
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string;
+  endpointType: EndpointType;
 }
 
 type ConnectPayload = {
@@ -53,6 +55,9 @@ export const closeConnection = withDeps<Deps, void>(
       payload: { connectionId },
     }))
 
+    if (getWatcherCount(connectionId) > 0) {
+      return
+    }
     const nodes = clusterNodesMap.get(clusterId!)
 
     // Remove node from cluster map accordingly
@@ -65,10 +70,6 @@ export const closeConnection = withDeps<Deps, void>(
           nodes.splice(index, 1)
         }
       }
-    }
-
-    if (getWatcherCount(connectionId) > 0) {
-      return
     }
     teardownConnection(connectionId, clients, metricsServerMap)
   },

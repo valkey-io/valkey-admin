@@ -17,7 +17,8 @@ import {
   type ConnectionState,
   closeConnectionFulfilled,
   closeConnectionFailed,
-  closeConnection
+  closeConnection,
+  type ValkeyConnectionsState
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
@@ -75,6 +76,7 @@ export const connectionEpic = (store: Store) =>
           const currentConnections = getCurrentConnections()
 
           const state = store.getState()
+          // TODO: remove extra defensiveness
           const connection = state.valkeyConnection?.connections?.[payload.connectionId]
 
           const baseConnectionDetails =
@@ -142,6 +144,7 @@ export const valkeyRetryEpic = (store: Store) =>
     select(connectRejected),
     switchMap(({ payload: { connectionId } }) => {
       const state = store.getState()
+      // TODO: remove extra defensivenesss
       const connection = state.valkeyConnection?.connections?.[connectionId]
 
       if (!connection) {
@@ -231,7 +234,7 @@ export const autoReconnectEpic = (store: Store) =>
     ignoreElements(),
   )
 
-export const deleteConnectionEpic = () =>
+export const deleteConnectionEpic = (store: Store) =>
   merge (
     action$.pipe(
       select(deleteConnection),
@@ -258,6 +261,18 @@ export const deleteConnectionEpic = () =>
       select(closeConnection),
       tap((action) => {
         const socket = getSocket()
+        const { connectionId } = action.payload
+        const state = store.getState()
+        // TODO: remove extra defensiveness
+        const connection = state.valkeyConnection?.connections?.[connectionId]
+        const clusterId = connection?.connectionDetails?.clusterId
+
+        if (connection?.connectionDetails?.endpointType === "cluster-endpoint" && clusterId) {
+          Object.entries(state.valkeyConnection.connections as ValkeyConnectionsState)
+            .filter(([id, c]) => id !== connectionId && c.connectionDetails?.clusterId === clusterId)
+            .forEach(([id]) => store.dispatch(deleteConnection({ connectionId: id, silent: true })))
+        }
+
         socket.next(action)
       }),
     ),
@@ -288,6 +303,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
         const currentConnections = getCurrentConnections()
 
         const state = store.getState()
+        // TODO: remove extra defensivenesss
         const connection = state.valkeyConnection?.connections?.[connectionId]
 
         if (connection && currentConnections[connectionId]) {
@@ -329,11 +345,13 @@ export const setDataEpic = (store: Store) =>
       }
 
       socket.next({ type: setData.type, payload: action.payload })
-      const dashboardPath = clusterId
-        ? `/${clusterId}/${connectionId}/dashboard`
+      const state = store.getState()
+      const endpointType = state.valkeyConnection?.connections?.[connectionId]?.connectionDetails?.endpointType
+      const redirectPath = clusterId
+        ? `/${clusterId}/${connectionId}/${endpointType === "cluster-endpoint" ? "cluster-topology" : "dashboard"}`
         : `/${connectionId}/dashboard`
 
-      history.navigate(dashboardPath)
+      history.navigate(redirectPath)
     }),
   )
 

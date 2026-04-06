@@ -1,5 +1,5 @@
 import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
-import { useNavigate } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
@@ -12,7 +12,7 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectIsAtConnectionLimit, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors"
 import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
@@ -33,12 +33,30 @@ export function ClusterNode({
 }: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-
+  const { clusterId: clusterIdFromParams } = useParams()
+  const configEndpointConnectedNode = useSelector(selectConfigEndpointNode(clusterIdFromParams ?? ""))
   const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnected = connectionStatus === CONNECTED
+  const {
+    status: configStatus,
+    host: configHost,
+    port: configPort,
+    connectionId: configConnectionId,
+  } = configEndpointConnectedNode ?? {}
+
+  const isConnectedViaConfigEndpoint =
+    configStatus === CONNECTED &&
+  configHost === primary.host &&
+  configPort === primary.port
+
+  const isConnected =
+    connectionStatus === CONNECTED || isConnectedViaConfigEndpoint
+
+  const activeConnectionId =
+    isConnectedViaConfigEndpoint ? configConnectionId : connectionId
+
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
   const handleNodeConnect = async () => {
@@ -55,6 +73,7 @@ export function ClusterNode({
         ...(primary.caCertPath && {
           caCertPath: primary.caCertPath,
         }),
+        endpointType: "node",
       }
       dispatch(connectPending({
         connectionId,
@@ -142,7 +161,7 @@ export function ClusterNode({
                   aria-label="Dashboard"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
+                  onClick={() => navigate(`/${clusterId}/${activeConnectionId}/dashboard`)}
                   size="sm"
                   variant="ghost"
                 >
@@ -154,7 +173,7 @@ export function ClusterNode({
                   aria-label="Command"
                   className="h-8 w-8 p-0"
                   disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/sendcommand`)}
+                  onClick={() => navigate(`/${clusterId}/${activeConnectionId}/sendcommand`)}
                   size="sm"
                   variant="ghost"
                 >

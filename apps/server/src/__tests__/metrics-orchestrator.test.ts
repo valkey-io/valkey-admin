@@ -1,7 +1,7 @@
  
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import {
   metricsServerMap,
   stopAllMetricsServers,
@@ -214,15 +214,15 @@ describe("metrics-orchestrator", () => {
 
   describe("reconcileClusterMetricsServers", () => {
     let connectionDetails: ConnectionDetails
-    let client: GlideClient
+    let client: GlideClusterClient
 
     beforeEach(() => {
       metricsServerMap.clear()
-      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false }
-      client = {} as GlideClient
+      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node" }
+      client = {} as GlideClusterClient
 
       // Mock all side-effectful internal functions
-      mock.method(__test__, "connectToInitialValkeyNode", async () => ({}))
+      mock.method(__test__, "createClusterClient", async () => ({}))
       mock.method(__test__, "getClusterTopology", async () => ({
         clusterNodes: {
           node1: { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false },

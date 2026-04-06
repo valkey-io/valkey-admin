@@ -15,13 +15,14 @@ interface ConnectionFormProps {
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
   const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails>({
-    host: "localhost",
+    host: "",
     port: "6379",
     username: "",
     password: "",
     tls: true,
     verifyTlsCertificate: true,
     alias: "",
+    endpointType: "node" as const,
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
