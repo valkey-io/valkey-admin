@@ -245,7 +245,7 @@ export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterCli
   try {
     const infoResponse = await client.info([InfoOptions.Memory])
     // Get the info response on any node in the cluster, since eviction policy is the same across all nodes
-    const anyNode = Object.values(infoResponse)[0]
+    const anyNode = typeof infoResponse === "string" ? infoResponse : Object.values(infoResponse)[0]
     const parsed = parseInfo(anyNode)
     if (parsed["maxmemory_policy"]) {
       keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy

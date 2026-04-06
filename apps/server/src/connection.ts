@@ -235,7 +235,6 @@ export async function connectToCluster(
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
     if (useClusterEndpoint) {
-      clusterClient.close()
       return await connectToFirstNode(
         clusterClient,
         clusterNodes,

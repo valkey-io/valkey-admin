@@ -39,11 +39,23 @@ export function ClusterNode({
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnectedViaConfigEndpoint = configEndpointConnectedNode?.status === CONNECTED &&
-    configEndpointConnectedNode?.host === primary.host &&
-    configEndpointConnectedNode?.port === primary.port
-  const isConnected = connectionStatus === CONNECTED || isConnectedViaConfigEndpoint
-  const activeConnectionId = isConnectedViaConfigEndpoint ? configEndpointConnectedNode!.connectionId : connectionId
+  const {
+    status: configStatus,
+    host: configHost,
+    port: configPort,
+    connectionId: configConnectionId,
+  } = configEndpointConnectedNode ?? {}
+
+  const isConnectedViaConfigEndpoint =
+    configStatus === CONNECTED &&
+  configHost === primary.host &&
+  configPort === primary.port
+
+  const isConnected =
+    connectionStatus === CONNECTED || isConnectedViaConfigEndpoint
+
+  const activeConnectionId =
+    isConnectedViaConfigEndpoint ? configConnectionId : connectionId
 
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
