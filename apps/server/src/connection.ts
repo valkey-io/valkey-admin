@@ -283,6 +283,29 @@ export async function connectToCluster(
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
       if (!clusterNodesMap.get(clusterId)?.includes(nodeConnectionId)) clusterNodesMap.get(clusterId)?.push(nodeConnectionId)
       if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
+      // Add connectedNode to payload 
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.clusterConnectFulfilled,
+          payload: {
+            connectionId,
+            connectionDetails: {
+              ...payload.connectionDetails,
+              //TODO: This will impact reconnects
+              password: undefined,
+              username: undefined,
+            },
+            clusterNodes,
+            clusterId,
+            address: addresses[0],
+            keyEvictionPolicy,
+            clusterSlotStatsEnabled,
+            jsonModuleAvailable,
+            connectedNode: addresses[0],
+          },
+        }),
+      )
+      return clusterClient
     }
     ws.send(
       JSON.stringify({
