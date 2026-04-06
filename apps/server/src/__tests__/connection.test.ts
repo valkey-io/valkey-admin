@@ -18,6 +18,7 @@ const DEFAULT_PAYLOAD = {
     password: "helloWorld123!",
     tls: false,
     verifyTlsCertificate: false,
+    endpointType: "node",
   } as ConnectionDetails,
   connectionId: "",
 }
@@ -56,7 +57,7 @@ describe("connectToValkey", () => {
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {
     const mockStandaloneClient = {
-      info: mock.fn(async () => "cluster_enabled:1"),
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
       customCommand: mock.fn(async (args: string[]) => {
         if (args[0] === "MODULE" && args[1] === "LIST") {
           return [[{ key: "name", value: "rejson" }]]
@@ -91,7 +92,22 @@ describe("connectToValkey", () => {
     }
 
     const mockClusterClient = {
-      customCommand: mock.fn(async () => [{ key: "", value: "" }]),
+      info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [
+              0,
+              5460,
+              ["192.168.1.1", 6379, "node-1"],
+              ["192.168.1.2", 6379, "replica-1"],
+            ],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
       close: mock.fn(),
     }
 
@@ -136,21 +152,16 @@ describe("connectToValkey", () => {
     payloadOverrides: Partial<any> = {},
   ) {
     const mockStandaloneClient = {
-      info: mock.fn(async () => "cluster_enabled:0"),
+      info: mock.fn(async (sections: string[]) =>
+        sections?.includes("memory")
+          ? { node1: "maxmemory_policy:allkeys-lfu" }
+          : "cluster_enabled:0"
+      ),
       customCommand: mock.fn(async (args: string[]) => {
         if (
           Array.isArray(args) &&
-          args[0] === "CONFIG" &&
-          args[1] === "GET" &&
-          args[2] === "maxmemory-policy"
-        ) {
-          return [{ key: "maxmemory-policy", value: "allkeys-lfu" }]
-        }
-        else if (  
-          Array.isArray(args) &&
           args[0] === "JSON.TYPE"
         ) throw Error
-        // default response for other commands
         return []
       }),
       close: mock.fn(),
@@ -183,8 +194,9 @@ describe("connectToValkey", () => {
         port: payload.connectionDetails.port,
         keyEvictionPolicy: KEY_EVICTION_POLICY.ALLKEYS_LFU,
         jsonModuleAvailable: false,
-        tls: false, 
+        tls: false,
         verifyTlsCertificate: false,
+        endpointType: payload.connectionDetails.endpointType,
       }
 
       expectedDetails.username = payload.connectionDetails.username
@@ -213,6 +225,7 @@ describe("connectToValkey", () => {
     GlideClient.createClient = mock.fn(async () => {
       throw error
     })
+    mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
       const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients, clusterNodesMap, metricsServerMap)
@@ -224,7 +237,7 @@ describe("connectToValkey", () => {
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.CONNECTION.connectRejected)
       assert.strictEqual(sentMessage.payload.connectionId, DEFAULT_PAYLOAD.connectionId)
-      assert.ok(sentMessage.payload.err)
+      assert.ok(sentMessage.payload.errorMessage)
     } finally {
       GlideClient.createClient = originalCreateClient
     }
