@@ -82,12 +82,18 @@ export const ConnectionEntry = ({
                   </Link>
                 </Button>
               </Typography>
-            </div>{lastConnectionTime && lastConnectionTime.event === CONNECTED && (
+            </div>
+            {lastConnectionTime && lastConnectionTime.event === CONNECTED && (
               <Typography variant="bodyXs">
                 Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
               </Typography>
-            )}</div>
-
+            )}
+            {isError && connection.errorMessage && (
+              <Typography className="text-destructive text-xs">
+                {connection.errorMessage}
+              </Typography>
+            )}
+          </div>
           {/* action buttons */}
           <ConnectionActionButtons
             isConnected={isConnected}
@@ -132,6 +138,11 @@ export const ConnectionEntry = ({
               {lastConnectionTime && lastConnectionTime.event === CONNECTED && (
                 <Typography variant="bodyXs">
                   Last connected: {new Date(lastConnectionTime.timestamp).toLocaleString()}
+                </Typography>
+              )}
+              {isError && connection.errorMessage && (
+                <Typography className="text-destructive text-xs">
+                  {connection.errorMessage}
                 </Typography>
               )}
             </div>

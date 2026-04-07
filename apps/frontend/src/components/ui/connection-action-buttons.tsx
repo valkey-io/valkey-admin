@@ -1,6 +1,7 @@
 import { Plug, Unplug, PencilIcon, Trash2Icon } from "lucide-react"
 import { useSelector } from "react-redux"
 import { MAX_CONNECTIONS } from "@common/src/constants"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -52,6 +53,12 @@ function ConnectionActionButtons({
           <TooltipContent>{isAtConnectionLimit 
             ? `Disconnect one of your ${MAX_CONNECTIONS} active connections to continue` : "Connect to this Valkey instance"}</TooltipContent>
         </Tooltip>
+      )}
+      {!isConnected && isConnecting && (
+        <span className="flex items-center gap-1 px-2 text-sm text-muted-foreground">
+          <Loader2 className="animate-spin" size={16} />
+          Connecting...
+        </span>
       )}
       {onEdit && (
         <Tooltip>

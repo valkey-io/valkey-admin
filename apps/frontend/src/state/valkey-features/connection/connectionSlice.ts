@@ -144,13 +144,21 @@ const connectionSlice = createSlice({
       }
     },
     clusterConnectFulfilled: (state, action) => {
-      const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable, connectedNode } = action.payload
+      const { 
+        connectionId, 
+        clusterId, 
+        keyEvictionPolicy, 
+        clusterSlotStatsEnabled, 
+        jsonModuleAvailable, 
+        connectedNode, 
+        connectionDetails } = action.payload
 
       if (!state.connections[connectionId]) {
         state.connections[connectionId] = {
           status: CONNECTING,
           errorMessage: null,
-          connectionDetails: action.payload.connectionDetails ?? {} as ConnectionDetails,
+          connectionDetails: connectionDetails ?? {} as ConnectionDetails,
+          searchableText: buildSearchableText(connectionId, connectionDetails),
         }
       }
 
@@ -172,7 +180,6 @@ const connectionSlice = createSlice({
       if (state.connections[connectionId]) {
         const existingConnection = state.connections[connectionId]
         const isRetrying = existingConnection.reconnect?.isRetrying
-
         state.connections[connectionId].status = ERROR
         // Preserve original error message during retry attempts
         if (isRetrying && existingConnection.errorMessage) {
