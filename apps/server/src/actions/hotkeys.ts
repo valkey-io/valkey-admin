@@ -68,8 +68,13 @@ export const hotKeysRequested = withDeps<Deps, void>(
       try {
         console.debug("[Hot keys] Fetching from:", url.href)
         const initialResponse = await fetch(url)
+        if (!initialResponse.ok) {
+          const errorBody = await initialResponse.json() as { error?: string }
+          sendHotKeysError(ws, connectionId, errorBody.error ?? `HTTP ${initialResponse.status}`)
+          return
+        }
         const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
-        // Initial request starts monitoring and returns when to fetch results (`checkAt`).
+        // Reads monitor data and returns when to fetch results (`checkAt`).
         if (initialParsedResponse.checkAt) {
           const delay = initialParsedResponse.checkAt - Date.now()
           // Schedule the follow-up request for when the monitor cycle finishes
