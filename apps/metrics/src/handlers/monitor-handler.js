@@ -1,5 +1,5 @@
 import { getCollectorMeta } from "../init-collectors.js"
-import { ACTION, MONITOR, MODE } from "../utils/constants.js"
+import { ACTION, MONITOR } from "../utils/constants.js"
 import { calculateHotKeysFromMonitor } from "../analyzers/calculate-hot-keys.js"
 import { startMonitor, stopMonitor } from "../init-collectors.js"
 import { enrichHotKeys } from "../analyzers/enrich-hot-keys.js"
@@ -10,21 +10,15 @@ const toResponse = ({ isRunning, willCompleteAt }) => ({
   checkAt: willCompleteAt,
 })
 
-export const useMonitor = async (req, res, cfg, client) => {
-  let monitorResponse = {}
+export const useMonitor = async (res, client) => {
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
   try {
     if (!isRunning) {
-      monitorResponse = await monitorHandler(ACTION.START, cfg)
-      return res.json(monitorResponse)
+      return res.status(400).json({ error: "Monitor is not running" })
     }
     if (Date.now() > checkAt) {
       const hotKeys = await Streamer.monitor().then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      if (req.query.mode !== MODE.CONTINUOUS) {
-        await monitorHandler(ACTION.STOP, cfg) 
-      }
-      monitorResponse = await monitorHandler(ACTION.STATUS, cfg)
-      return res.json({ hotKeys, ...monitorResponse })
+      return res.json({ hotKeys, ...toResponse(getCollectorMeta(MONITOR)) })
     }
     return res.json({ checkAt })
   } catch (e) {
