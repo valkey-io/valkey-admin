@@ -177,15 +177,15 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
           port: primaryPort,
           ...(payload.connectionDetails.authType === "iam"
             ? {
-                username: payload.connectionDetails.username,
-                authType: "iam" as const,
-                awsRegion: payload.connectionDetails.awsRegion,
-                awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
-              }
+              username: payload.connectionDetails.username,
+              authType: "iam" as const,
+              awsRegion: payload.connectionDetails.awsRegion,
+              awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
+            }
             : payload.connectionDetails.password && {
-                username: payload.connectionDetails.username,
-                password: payload.connectionDetails.password,
-              }),
+              username: payload.connectionDetails.username,
+              password: payload.connectionDetails.password,
+            }),
           tls: payload.connectionDetails.tls,
           verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
           replicas: [],

@@ -23,17 +23,17 @@ export const createValkeyClient = async (cfg = {}) => {
   const credentials =
     process.env.VALKEY_AUTH_TYPE === "iam"
       ? {
-          username: process.env.VALKEY_USERNAME,
-          iamConfig: {
-            clusterName: process.env.VALKEY_REPLICATION_GROUP_ID,
-            service: ServiceType.Elasticache,
-            region: process.env.VALKEY_AWS_REGION,
-          },
-        }
+        username: process.env.VALKEY_USERNAME,
+        iamConfig: {
+          clusterName: process.env.VALKEY_REPLICATION_GROUP_ID,
+          service: ServiceType.Elasticache,
+          region: process.env.VALKEY_AWS_REGION,
+        },
+      }
       : process.env.VALKEY_PASSWORD ? {
-          username: process.env.VALKEY_USERNAME,
-          password: process.env.VALKEY_PASSWORD,
-        } : undefined
+        username: process.env.VALKEY_USERNAME,
+        password: process.env.VALKEY_PASSWORD,
+      } : undefined
 
   const useTLS = process.env.VALKEY_TLS === "true"
   const sharedOptions = {
