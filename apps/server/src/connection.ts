@@ -21,7 +21,8 @@ export async function connectToValkey(
   ws: WebSocket,
   payload: {
     connectionDetails: ConnectionDetails
-    connectionId: string;
+    connectionId: string
+    isRetry?: boolean
   },
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
   clusterNodesMap: Map<string, string[]>,
@@ -43,6 +44,16 @@ export async function connectToValkey(
     } : undefined
 
   try {
+    // If retrying, we need to close stale client
+    if (payload.isRetry) {
+      const existing = clients.get(connectionId)
+      if (existing && existing.client instanceof GlideClient) {
+        try { existing.client.close() } catch (error) {
+          console.error(`Error closing stale client for ${connectionId}:`, error)
+        }
+        clients.delete(connectionId)
+      }
+    }
     // If we've connected to the same host using IP addr or vice versa, return
     if (await isDuplicateConnection(payload, clients)) {
       return ws.send(
@@ -83,6 +94,7 @@ export async function connectToValkey(
     
     if (await belongsToCluster(standaloneClient)) {
       standaloneClient.close()
+      clients.delete(connectionId)
       return connectToCluster(
         ws, 
         clients, 
@@ -99,6 +111,7 @@ export async function connectToValkey(
       payload: {
         connectionId,
         connectionDetails: {
+          ...payload.connectionDetails,
           keyEvictionPolicy,
           jsonModuleAvailable,
         },
@@ -193,7 +206,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
 export async function connectToCluster(
   ws: WebSocket,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  payload: { connectionDetails: ConnectionDetails, connectionId: string;},
+  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
   clusterNodesMap: Map<string, string[]>,
@@ -214,8 +227,11 @@ export async function connectToCluster(
     // It implies we already discovered cluster nodes once
     const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(clusterClient, payload)
     let clusterId = initialClusterId
-    if (R.isEmpty(clusterNodes)) {
-      throw new Error("No cluster nodes discovered")
+    if (Object.keys(clusterNodes).length < 3) {
+      try { clusterClient.close() } catch (error) {
+        console.error(`Error closing stale client for ${connectionId}:`, error)
+      }
+      throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
@@ -232,17 +248,32 @@ export async function connectToCluster(
 
     const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
     if (existingClusterConnection) {
-      clusterClient.close()
       clusterId = existingClusterConnection.clusterId
-      clusterClient = 
-        await returnExistingClusterClient(
-          existingClusterConnection,
-          clients,
-          payload.connectionId, 
-          clusterNodesMap, 
-          ws,
-          clusterNodes,
-        )
+      if (payload.isRetry) {
+        // Find cluster nodes that share same client
+        const sharedIds = [...clients.entries()]
+          .filter(([, entry]) => entry.client === existingClusterConnection.client)
+          .map(([id]) => id)
+
+        try { existingClusterConnection.client.close() } catch (error) {
+          console.error(`Error closing stale client for ${connectionId}:`, error)
+        }
+        // Update map with new client
+        sharedIds.forEach((id) => clients.set(id, { client: clusterClient, clusterId }))
+      }
+      else {
+        // Close the client we used to discover 
+        clusterClient.close()
+        clusterClient = 
+          await returnExistingClusterClient(
+            existingClusterConnection,
+            clients,
+            payload.connectionId, 
+            clusterNodesMap, 
+            ws,
+            clusterNodes,
+          )
+      }
     } 
     else {
       clusterId = configEndpointId ?? clusterId
@@ -318,11 +349,16 @@ export async function connectToCluster(
 }
 
 export async function isDuplicateConnection(
-  payload:{connectionId: string, connectionDetails: ConnectionDetails}, 
+  payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean}, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) 
 {
   const { connectionId, connectionDetails } = payload
+  // If the frontend is retrying a broken connection, it's not a duplicate
+  if (payload.isRetry) {
+    return false
+  }
+
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
   // Prevent duplicate connections: 
   // 1) True if any resolved host:port is already connected

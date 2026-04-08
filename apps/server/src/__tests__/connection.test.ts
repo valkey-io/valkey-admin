@@ -96,12 +96,9 @@ describe("connectToValkey", () => {
       customCommand: mock.fn(async (args: string[]) => {
         if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
           return [
-            [
-              0,
-              5460,
-              ["192.168.1.1", 6379, "node-1"],
-              ["192.168.1.2", 6379, "replica-1"],
-            ],
+            [0, 5460, ["192.168.1.1", 6379, "node-1"], ["192.168.1.2", 6379, "replica-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
           ]
         }
         if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []

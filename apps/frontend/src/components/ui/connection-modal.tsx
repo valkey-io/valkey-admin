@@ -85,7 +85,7 @@ export function ConnectionModal({
                     </div>
                     <div className="flex items-center gap-2">
                       <RadioGroupItem id="endpoint-cluster" value="cluster-endpoint" />
-                      <Label htmlFor="endpoint-cluster">Cluster Endpoint</Label>
+                      <Label htmlFor="endpoint-cluster">Discovery Endpoint</Label>
                     </div>
                   </RadioGroup>
                 </div>

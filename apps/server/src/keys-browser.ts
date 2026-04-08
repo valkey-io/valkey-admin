@@ -10,9 +10,9 @@ import {
   GlideReturnType
 } from "@valkey/valkey-glide"
 import pLimit from "p-limit"
-import { VALKEY, VALKEY_CLIENT } from "../../../common/src/constants.ts"
-import { buildScanCommandArgs } from "./valkey-client-commands.ts"
-import { formatBytes } from "../../../common/src/bytes-conversion.ts"
+import { VALKEY, VALKEY_CLIENT } from "valkey-common"
+import { formatBytes } from "valkey-common"
+import { buildScanCommandArgs } from "./valkey-client-commands"
 
 interface EnrichedKeyInfo {
   name: string;
@@ -332,6 +332,7 @@ export async function getKeys(
           payload: {
             connectionId,
             errorMessage: "Error getting keys - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )
@@ -384,6 +385,7 @@ export async function getKeyInfoSingle(
           payload: {
             connectionId,
             errorMessage: "Error getting key info - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )
@@ -438,6 +440,7 @@ export async function deleteKey(
           payload: {
             connectionId,
             errorMessage: "Error deleting key - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )
@@ -661,6 +664,7 @@ export async function addKey(
           payload: {
             connectionId,
             errorMessage: "Error adding key - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )
@@ -1003,6 +1007,7 @@ export async function updateKey(
           payload: {
             connectionId,
             errorMessage: "Error updating key - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )

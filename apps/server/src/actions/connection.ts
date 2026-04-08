@@ -20,7 +20,8 @@ export interface ConnectionDetails {
 
 type ConnectPayload = {
   connectionDetails: ConnectionDetails,
-  connectionId: string
+  connectionId: string,
+  isRetry?: boolean,
 }
 
 export const connectPending = withDeps<Deps, void>(
@@ -31,7 +32,13 @@ export const connectPending = withDeps<Deps, void>(
 
 export const resetConnection = withDeps<Deps, void>(
   async ({ ws, connectionId, clients, action }) => {
-    const client = clients.get(connectionId)
+    const entry = clients.get(connectionId)
+
+    if (!entry) {
+      throw new Error("Client not found")
+    }
+
+    const { client } = entry
 
     const { clusterId } = action.payload as unknown as { clusterId: string }
 
