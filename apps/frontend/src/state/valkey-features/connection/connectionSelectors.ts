@@ -1,5 +1,5 @@
 import * as R from "ramda"
-import { VALKEY, CONNECTED } from "@common/src/constants.ts"
+import { VALKEY, CONNECTED, CONNECTING } from "@common/src/constants.ts"
 import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import type { RootState } from "@/store.ts"
 
@@ -14,6 +14,8 @@ export const selectConnectionCount = (state: RootState) =>
   ).length
 
 export const selectIsAtConnectionLimit = (state: RootState) => selectConnectionCount(state) >= MAX_CONNECTIONS
+export const selectIsAnyConnecting = (state: RootState) =>
+  Object.values(selectConnections(state)).some((c) => c.status === CONNECTING)
 export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
   atId(id, state)?.connectionDetails?.jsonModuleAvailable ?? false
 export const selectEndpointType = (id: string) => (state: RootState) => atId(id, state)?.connectionDetails.endpointType ?? "node"
