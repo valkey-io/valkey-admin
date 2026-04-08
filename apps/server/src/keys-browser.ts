@@ -332,7 +332,7 @@ export async function getKeys(
           payload: {
             connectionId,
             errorMessage: "Error getting keys - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
@@ -385,7 +385,7 @@ export async function getKeyInfoSingle(
           payload: {
             connectionId,
             errorMessage: "Error getting key info - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
@@ -440,7 +440,7 @@ export async function deleteKey(
           payload: {
             connectionId,
             errorMessage: "Error deleting key - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
@@ -664,7 +664,7 @@ export async function addKey(
           payload: {
             connectionId,
             errorMessage: "Error adding key - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
@@ -1007,7 +1007,7 @@ export async function updateKey(
           payload: {
             connectionId,
             errorMessage: "Error updating key - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )

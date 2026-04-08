@@ -56,7 +56,7 @@ export async function sendValkeyRunCommand(
           payload: {
             connectionId: payload.connectionId,
             errorMessage: "Connection to Valkey instance lost",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )

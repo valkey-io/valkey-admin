@@ -55,7 +55,7 @@ export async function setDashboardData(
           payload: {
             connectionId,
             errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
@@ -93,7 +93,7 @@ export async function setClusterDashboardData(
           payload: {
             connectionId,
             errorMessage: `Failed to fetch dashboard data: ${err.message}`,
-            isRetry: true,
+            shouldRetry: true,
           },
         }),
       )
