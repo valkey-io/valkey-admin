@@ -25,7 +25,7 @@ export const createValkeyClient = async (cfg = {}) => {
       ? {
         username: process.env.VALKEY_USERNAME,
         iamConfig: {
-          clusterName: process.env.VALKEY_REPLICATION_GROUP_ID,
+          cluster_name: process.env.VALKEY_REPLICATION_GROUP_ID,
           service: ServiceType.Elasticache,
           region: process.env.VALKEY_AWS_REGION,
         },

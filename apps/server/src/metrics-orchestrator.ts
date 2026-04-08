@@ -155,7 +155,7 @@ async function createClusterClient(connectionDetails: ConnectionDetails) {
       ? {
         username: username!,
         iamConfig: {
-          clusterName: awsReplicationGroupId!,
+          cluster_name: awsReplicationGroupId!,
           service: ServiceType.Elasticache,
           region: awsRegion!,
         },
