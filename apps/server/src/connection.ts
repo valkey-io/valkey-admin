@@ -47,19 +47,13 @@ export async function connectToValkey(
     // If retrying, we need to close stale client
     if (payload.isRetry) {
       const existing = clients.get(connectionId)
-      if (existing) {
-        // Find cluster nodes that share same client
-        const sharedIds = [...clients.entries()]
-          .filter(([, entry]) => entry.client === existing.client)
-          .map(([id]) => id)
-
+      if (existing && existing.client instanceof GlideClient) {
         try { existing.client.close() } catch (error) {
           console.error(`Error closing stale client for ${connectionId}:`, error)
         }
-        sharedIds.forEach((id) => clients.delete(id))
+        clients.delete(connectionId)
       }
     }
-
     // If we've connected to the same host using IP addr or vice versa, return
     if (await isDuplicateConnection(payload, clients)) {
       return ws.send(
@@ -100,6 +94,7 @@ export async function connectToValkey(
     
     if (await belongsToCluster(standaloneClient)) {
       standaloneClient.close()
+      clients.delete(connectionId)
       return connectToCluster(
         ws, 
         clients, 
@@ -110,23 +105,22 @@ export async function connectToValkey(
         metricsServerMap,
       )
     }
-    // Need to repeat connection info for metrics server
-    const connectionInfo = {
-      type: VALKEY.CONNECTION.standaloneConnectFulfilled,
-      payload: {
-        connectionId,
-        connectionDetails: {
-          ...payload.connectionDetails,
-          keyEvictionPolicy,
-          jsonModuleAvailable,
-        },
-      },
-    }
+
     console.log("Connected to standalone")
 
     subscribe(payload.connectionId, ws)
     ws.send(
-      JSON.stringify(connectionInfo),
+      JSON.stringify({
+        type: VALKEY.CONNECTION.standaloneConnectFulfilled,
+        payload: {
+          connectionId,
+          connectionDetails: {
+            ...payload.connectionDetails,
+            keyEvictionPolicy,
+            jsonModuleAvailable,
+          },
+        },
+      }),
     )
     return standaloneClient
 
@@ -211,7 +205,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
 export async function connectToCluster(
   ws: WebSocket,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  payload: { connectionDetails: ConnectionDetails, connectionId: string;},
+  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
   clusterNodesMap: Map<string, string[]>,
@@ -232,8 +226,8 @@ export async function connectToCluster(
     // It implies we already discovered cluster nodes once
     const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(clusterClient, payload)
     let clusterId = initialClusterId
-    if (R.isEmpty(clusterNodes)) {
-      throw new Error("No cluster nodes discovered")
+    if (Object.keys(clusterNodes).length < 3) {
+      throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
@@ -250,17 +244,32 @@ export async function connectToCluster(
 
     const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
     if (existingClusterConnection) {
-      clusterClient.close()
       clusterId = existingClusterConnection.clusterId
-      clusterClient = 
-        await returnExistingClusterClient(
-          existingClusterConnection,
-          clients,
-          payload.connectionId, 
-          clusterNodesMap, 
-          ws,
-          clusterNodes,
-        )
+      if (payload.isRetry) {
+        // Find cluster nodes that share same client
+        const sharedIds = [...clients.entries()]
+          .filter(([, entry]) => entry.client === existingClusterConnection.client)
+          .map(([id]) => id)
+
+        try { existingClusterConnection.client.close() } catch (error) {
+          console.error(`Error closing stale client for ${connectionId}:`, error)
+        }
+        // Update map with new client
+        sharedIds.forEach((id) => clients.set(id, { client: clusterClient, clusterId }))
+      }
+      else {
+        // Close the client we used to discover 
+        clusterClient.close()
+        clusterClient = 
+          await returnExistingClusterClient(
+            existingClusterConnection,
+            clients,
+            payload.connectionId, 
+            clusterNodesMap, 
+            ws,
+            clusterNodes,
+          )
+      }
     } 
     else {
       clusterId = configEndpointId ?? clusterId
