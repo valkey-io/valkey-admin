@@ -64,10 +64,17 @@ export function ClusterNode({
       const connectionDetails: ConnectionDetails = {
         host: primary.host,
         port: primary.port.toString(),
-        ...(primary.password && {
-          username: primary.username ?? "",
-          password: await secureStorage.encrypt(primary.password),
-        }),
+        ...(primary.authType === "iam"
+          ? {
+            username: primary.username ?? "",
+            authType: "iam",
+            awsRegion: primary.awsRegion,
+            awsReplicationGroupId: primary.awsReplicationGroupId,
+          }
+          : primary.password && {
+            username: primary.username ?? "",
+            password: await secureStorage.encrypt(primary.password),
+          }),
         tls: primary.tls,
         verifyTlsCertificate: primary.verifyTlsCertificate,
         ...(primary.caCertPath && {
