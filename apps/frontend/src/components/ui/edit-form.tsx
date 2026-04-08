@@ -39,6 +39,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     verifyTlsCertificate: true,
     alias: "",
     endpointType: "node" as const,
+    authType: "password",
   })
   const [passwordDirty, setPasswordDirty] = useState(false)
 
@@ -55,6 +56,9 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
         endpointType: currentConnection.endpointType ?? "node",
+        authType: currentConnection.authType ?? "password",
+        awsRegion: currentConnection.awsRegion ?? "",
+        awsReplicationGroupId: currentConnection.awsReplicationGroupId ?? "",
       })
       setPasswordDirty(false)
     }
@@ -81,6 +85,9 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       connectionDetails.tls !== (currentConnection.tls ?? false) ||
       connectionDetails.verifyTlsCertificate !== (currentConnection.verifyTlsCertificate ?? false) ||
       connectionDetails.caCertPath !== (currentConnection.caCertPath ?? "") ||
+      connectionDetails.authType !== (currentConnection.authType ?? "password") ||
+      connectionDetails.awsRegion !== (currentConnection.awsRegion ?? "") ||
+      connectionDetails.awsReplicationGroupId !== (currentConnection.awsReplicationGroupId ?? "") ||
       passwordDirty
     )
   }
