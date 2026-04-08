@@ -10,14 +10,14 @@ describe("secureStorage wrapper", () => {
   })
 
   // Outside Electron (e.g. in tests or a browser), window.secureStorage is
-  // undefined. The wrapper should pass through the input unchanged.
+  // undefined. The wrapper should return empty string to prevent unencrypted persistence.
   describe("when window.secureStorage is not available", () => {
-    it("encrypt passes through plaintext", async () => {
-      expect(await secureStorage.encrypt("password")).toBe("password")
+    it("encrypt returns empty string", async () => {
+      expect(await secureStorage.encrypt("password")).toBe("")
     })
 
-    it("decrypt passes through input", async () => {
-      expect(await secureStorage.decrypt("encrypted")).toBe("encrypted")
+    it("decrypt returns empty string", async () => {
+      expect(await secureStorage.decrypt("encrypted")).toBe("")
     })
 
     it("encrypt returns empty string for empty input", async () => {
@@ -352,49 +352,49 @@ describe("edit form hasCoreChanges with passwordDirty (edit-form.tsx)", () => {
 
 /*
  * --------------------------------------------------------------------------
- * handleConnectionDetailsChange: passwordDirty state transitions
+ * handleConnectionDetailsChange: passwordChanged state transitions
  *
- * Simulates the callback at edit-form.tsx:61-71 to verify that passwordDirty
+ * Simulates the callback at edit-form.tsx:61-71 to verify that passwordChanged
  * is set correctly for various user interaction patterns.
  * --------------------------------------------------------------------------
  */
-describe("passwordDirty state transitions (edit-form.tsx)", () => {
-  // Mirrors handleConnectionDetailsChange + setPasswordDirty interaction
+describe("passwordChanged state transitions (edit-form.tsx)", () => {
+  // Mirrors handleConnectionDetailsChange + setPasswordChanged interaction
   function simulateChanges(
     initial: { password: string },
     updates: Array<{ password: string }>,
   ): boolean {
-    let passwordDirty = false
+    let passwordChanged = false
     let prev = initial
     for (const updated of updates) {
       if (updated.password !== prev.password) {
-        passwordDirty = true
+        passwordChanged = true
       }
       prev = updated
     }
-    return passwordDirty
+    return passwordChanged
   }
 
-  it("non-password field change does not set passwordDirty", () => {
+  it("non-password field change does not set passwordChanged", () => {
     // User changes host — modal spreads same password into new object
     const initial = { password: "ENC_BASE64" }
     const updates = [{ password: "ENC_BASE64" }] // host changed, password unchanged
     expect(simulateChanges(initial, updates)).toBe(false)
   })
 
-  it("password field change sets passwordDirty", () => {
+  it("password field change sets passwordChanged", () => {
     const initial = { password: "ENC_BASE64" }
     const updates = [{ password: "newpassword" }]
     expect(simulateChanges(initial, updates)).toBe(true)
   })
 
-  it("clearing password to empty sets passwordDirty", () => {
+  it("clearing password to empty sets passwordChanged", () => {
     const initial = { password: "ENC_BASE64" }
     const updates = [{ password: "" }]
     expect(simulateChanges(initial, updates)).toBe(true)
   })
 
-  it("passwordDirty stays true even if password is reverted", () => {
+  it("passwordChanged stays true even if password is reverted", () => {
     // User types new password then changes it back — dirty flag is sticky
     // (correct: we can't know if the reverted value matches the encrypted original)
     const initial = { password: "ENC_BASE64" }
@@ -405,7 +405,7 @@ describe("passwordDirty state transitions (edit-form.tsx)", () => {
     expect(simulateChanges(initial, updates)).toBe(true)
   })
 
-  it("multiple non-password changes never trigger passwordDirty", () => {
+  it("multiple non-password changes never trigger passwordChanged", () => {
     const initial = { password: "ENC_BASE64" }
     const updates = [
       { password: "ENC_BASE64" }, // host change
@@ -416,19 +416,19 @@ describe("passwordDirty state transitions (edit-form.tsx)", () => {
     expect(simulateChanges(initial, updates)).toBe(false)
   })
 
-  // Simulates passwordDirty reset when currentConnection changes (useEffect)
-  it("passwordDirty resets when switching to a different connection", () => {
-    let passwordDirty = false
+  // Simulates passwordChanged reset when currentConnection changes (useEffect)
+  it("passwordChanged resets when switching to a different connection", () => {
+    let passwordChanged = false
 
     // User edits connection A — changes password
     const prevA = { password: "ENC_A" }
     const updateA = { password: "new-pw" }
-    if (updateA.password !== prevA.password) passwordDirty = true
-    expect(passwordDirty).toBe(true)
+    if (updateA.password !== prevA.password) passwordChanged = true
+    expect(passwordChanged).toBe(true)
 
-    // Parent switches to connection B — useEffect fires, resets dirty flag
-    passwordDirty = false // mirrors setPasswordDirty(false) in useEffect
-    expect(passwordDirty).toBe(false)
+    // Parent switches to connection B — useEffect fires, resets changed flag
+    passwordChanged = false // mirrors setPasswordChanged(false) in useEffect
+    expect(passwordChanged).toBe(false)
   })
 })
 

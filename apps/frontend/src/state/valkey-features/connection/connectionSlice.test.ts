@@ -47,7 +47,7 @@ describe("connectionSlice", () => {
           host: "localhost",
           port: "6379",
           username: "admin",
-          password: "secret",
+          password: undefined,
           tls: false,
           verifyTlsCertificate: false,
           alias: "Test",
