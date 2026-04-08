@@ -1,5 +1,6 @@
 import * as R from "ramda"
 import { useState, useMemo, useEffect } from "react"
+import { useSelector } from "react-redux"
 import {
   ChevronDown,
   ChevronRight,
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button.tsx"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
 import { Typography } from "@/components/ui/typography.tsx"
 import { HighlightSearchMatch } from "@/components/ui/highlight-search-match.tsx"
+import { selectIsAnyConnecting } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface ClusterConnectionGroupProps {
   clusterId: string
@@ -43,6 +45,7 @@ const getStorageKey = (clusterId: string) => `cluster-group-open-${clusterId}`
 
 export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "", onEdit }: ClusterConnectionGroupProps) => {
   const dispatch = useAppDispatch()
+  const isAnyConnecting = useSelector(selectIsAnyConnecting)
   const [isOpen, setIsOpen] = useState(() => {
     const stored = localStorage.getItem(getStorageKey(clusterId))
     return stored ? JSON.parse(stored) : false
@@ -213,6 +216,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
                 <TooltipTrigger asChild>
                   <Button
                     className="flex items-center gap-1 p-2 mr-4 rounded-md"
+                    disabled={isAnyConnecting}
                     onClick={handleConnectLatest}
                     variant="secondary"
                   >
