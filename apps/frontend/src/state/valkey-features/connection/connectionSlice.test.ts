@@ -291,11 +291,12 @@ describe("connectionSlice", () => {
         previousState,
         clusterConnectFulfilled({
           connectionId: "conn-1",
-          clusterNodes: {},
-          clusterId: "cluster-1",
-          keyEvictionPolicy: "allkeys-lru",
-          clusterSlotStatsEnabled: true,
-          jsonModuleAvailable: true,
+          connectionDetails: {
+            clusterId: "cluster-1",
+            keyEvictionPolicy: "allkeys-lru",
+            clusterSlotStatsEnabled: true,
+            jsonModuleAvailable: true,
+          },
         }),
       )
 
@@ -323,11 +324,12 @@ describe("connectionSlice", () => {
         previousState,
         clusterConnectFulfilled({
           connectionId: "conn-1",
-          clusterNodes: {},
-          clusterId: "cluster-1",
-          keyEvictionPolicy: "allkeys-lru",
-          clusterSlotStatsEnabled: false,
-          jsonModuleAvailable: false,
+          connectionDetails: {
+            clusterId: "cluster-1",
+            keyEvictionPolicy: "allkeys-lru",
+            clusterSlotStatsEnabled: false,
+            jsonModuleAvailable: false,
+          },
         }),
       )
 
@@ -350,11 +352,12 @@ describe("connectionSlice", () => {
         previousState,
         clusterConnectFulfilled({
           connectionId: "conn-1",
-          clusterNodes: {},
-          clusterId: "cluster-1",
-          keyEvictionPolicy: "allkeys-lru",
-          clusterSlotStatsEnabled: false,
-          jsonModuleAvailable: false,
+          connectionDetails: {
+            clusterId: "cluster-1",
+            keyEvictionPolicy: "allkeys-lru",
+            clusterSlotStatsEnabled: false,
+            jsonModuleAvailable: false,
+          },
         }),
       )
 

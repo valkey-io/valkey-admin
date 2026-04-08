@@ -93,13 +93,12 @@ export async function connectToValkey(
         metricsServerMap,
       )
     }
-    // Need to repeat connection info for metrics server
+
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
       payload: {
         connectionId,
         connectionDetails: {
-          ...payload.connectionDetails,
           keyEvictionPolicy,
           jsonModuleAvailable,
         },
@@ -274,19 +273,13 @@ export async function connectToCluster(
           type: VALKEY.CONNECTION.clusterConnectFulfilled,
           payload: {
             connectionId,
-            connectionDetails: {
-              ...payload.connectionDetails,
-              //TODO: This will impact reconnects
-              password: undefined,
-              username: undefined,
-            },
-            clusterNodes,
-            clusterId,
-            address: addresses[0],
-            keyEvictionPolicy,
-            clusterSlotStatsEnabled,
-            jsonModuleAvailable,
             connectedNode: addresses[0],
+            connectionDetails: {
+              clusterId,
+              keyEvictionPolicy,
+              clusterSlotStatsEnabled,
+              jsonModuleAvailable,
+            },
           },
         }),
       )
@@ -298,16 +291,11 @@ export async function connectToCluster(
         payload: {
           connectionId: payload.connectionId,
           connectionDetails: {
-            ...payload.connectionDetails,
-            password: undefined,
-            username: undefined,
+            clusterId,
+            keyEvictionPolicy,
+            clusterSlotStatsEnabled,
+            jsonModuleAvailable,
           },
-          clusterNodes,
-          clusterId,
-          address: addresses[0],
-          keyEvictionPolicy,
-          clusterSlotStatsEnabled,
-          jsonModuleAvailable,
         },
       }),
     )

@@ -79,8 +79,7 @@ export const connectionEpic = (store: Store) =>
           // TODO: remove extra defensiveness
           const connection = state.valkeyConnection?.connections?.[payload.connectionId]
 
-          const baseConnectionDetails =
-            connection?.connectionDetails ?? payload.connectionDetails
+          const baseConnectionDetails = connection?.connectionDetails
 
           const connectionToSave = {
             connectionDetails: baseConnectionDetails,
@@ -338,7 +337,10 @@ export const setDataEpic = (store: Store) =>
     tap((action) => {
       const socket = getSocket()
 
-      const { clusterId, connectionId } = action.payload as unknown as {clusterId:string, connectionId:string}
+      const { 
+        connectionId, 
+        connectionDetails: { clusterId },
+      } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
       store.dispatch(setConfig( action.payload))
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })

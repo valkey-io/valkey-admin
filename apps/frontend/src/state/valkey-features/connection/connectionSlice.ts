@@ -144,15 +144,11 @@ const connectionSlice = createSlice({
       }
     },
     clusterConnectFulfilled: (state, action) => {
-      const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable, connectedNode } = action.payload
-
-      if (!state.connections[connectionId]) {
-        state.connections[connectionId] = {
-          status: CONNECTING,
-          errorMessage: null,
-          connectionDetails: action.payload.connectionDetails ?? {} as ConnectionDetails,
-        }
-      }
+      const { 
+        connectionId, 
+        connectedNode, 
+        connectionDetails: { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable },
+      } = action.payload
 
       const connectionState = state.connections[connectionId]
       connectionState.status = CONNECTED

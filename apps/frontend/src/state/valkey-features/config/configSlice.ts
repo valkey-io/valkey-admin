@@ -39,7 +39,7 @@ const configSlice = createSlice({
   initialState,
   reducers: {
     setConfig: (state, action) => {
-      const { connectionId, keyEvictionPolicy, clusterSlotStatsEnabled } = action.payload
+      const { connectionId, connectionDetails: { keyEvictionPolicy, clusterSlotStatsEnabled } } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = defaultConfig({
           keyEvictionPolicy,
