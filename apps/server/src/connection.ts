@@ -46,7 +46,7 @@ export async function connectToValkey(
       ? {
         username: username!,
         iamConfig: {
-          cluster_name: awsReplicationGroupId!,
+          clusterName: awsReplicationGroupId!,
           service: ServiceType.Elasticache,
           region: awsRegion!,
         },

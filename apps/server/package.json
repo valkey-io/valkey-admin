@@ -12,7 +12,7 @@
     "test:coverage": "npx tsx --test --experimental-test-coverage src/**/*.test.ts"
   },
   "dependencies": {
-    "@valkey/valkey-glide": "^2.0.1",
+    "@valkey/valkey-glide": "^2.3.1",
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
     "p-limit": "^6.1.0",
