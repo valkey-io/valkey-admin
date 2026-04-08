@@ -142,8 +142,9 @@ export const connectionEpic = (store: Store) =>
 export const valkeyRetryEpic = (store: Store) =>
   action$.pipe(
     select(connectRejected),
-    switchMap(({ payload: { connectionId } }) => {
+    switchMap(({ payload }) => {
       const state = store.getState()
+      const { connectionId, isRetry } = payload
       // TODO: remove extra defensivenesss
       const connection = state.valkeyConnection?.connections?.[connectionId]
 
@@ -159,9 +160,9 @@ export const valkeyRetryEpic = (store: Store) =>
       )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
       const wasPreviouslyConnected = savedConnections[connectionId] !== undefined
-
-      if (!wasPreviouslyConnected) {
-        console.debug(`First-time connection failed for ${connectionId}, not retrying`)
+      const isRetrying = connection.reconnect?.isRetrying
+      if (!wasPreviouslyConnected || (!isRetry && !isRetrying)) {
+        console.debug(`Manual connection failed for ${connectionId}, not retrying`)
         return EMPTY
       }
 

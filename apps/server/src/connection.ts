@@ -21,7 +21,8 @@ export async function connectToValkey(
   ws: WebSocket,
   payload: {
     connectionDetails: ConnectionDetails
-    connectionId: string;
+    connectionId: string
+    isRetry?: boolean
   },
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
   clusterNodesMap: Map<string, string[]>,
@@ -43,6 +44,22 @@ export async function connectToValkey(
     } : undefined
 
   try {
+    // If retrying, we need to close stale client
+    if (payload.isRetry) {
+      const existing = clients.get(connectionId)
+      if (existing) {
+        // Find cluster nodes that share same client
+        const sharedIds = [...clients.entries()]
+          .filter(([, entry]) => entry.client === existing.client)
+          .map(([id]) => id)
+
+        try { existing.client.close() } catch (error) {
+          console.error(`Error closing stale client for ${connectionId}:`, error)
+        }
+        sharedIds.forEach((id) => clients.delete(id))
+      }
+    }
+
     // If we've connected to the same host using IP addr or vice versa, return
     if (await isDuplicateConnection(payload, clients)) {
       return ws.send(
@@ -330,11 +347,16 @@ export async function connectToCluster(
 }
 
 export async function isDuplicateConnection(
-  payload:{connectionId: string, connectionDetails: ConnectionDetails}, 
+  payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean}, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) 
 {
   const { connectionId, connectionDetails } = payload
+  // If the frontend is retrying a broken connection, it's not a duplicate
+  if (payload.isRetry) {
+    return false
+  }
+
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
   // Prevent duplicate connections: 
   // 1) True if any resolved host:port is already connected

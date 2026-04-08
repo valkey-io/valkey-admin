@@ -155,7 +155,7 @@ const connectionSlice = createSlice({
 
       if (!state.connections[connectionId]) {
         state.connections[connectionId] = {
-          status: CONNECTING,
+          status: CONNECTED,
           errorMessage: null,
           connectionDetails: connectionDetails ?? {} as ConnectionDetails,
           searchableText: buildSearchableText(connectionId, connectionDetails),

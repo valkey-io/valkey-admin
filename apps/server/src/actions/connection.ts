@@ -20,7 +20,8 @@ export interface ConnectionDetails {
 
 type ConnectPayload = {
   connectionDetails: ConnectionDetails,
-  connectionId: string
+  connectionId: string,
+  isRetry?: boolean,
 }
 
 export const connectPending = withDeps<Deps, void>(
