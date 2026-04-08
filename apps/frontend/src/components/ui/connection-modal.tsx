@@ -48,7 +48,7 @@ export function ConnectionModal({
         <Dialog.Overlay className="fixed inset-0 z-30 bg-black/50" />
         <Dialog.Content asChild>
           <div className="fixed inset-0 z-40 flex items-center justify-center">
-            <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border">
+            <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between">
                 <Dialog.Title asChild>
                   <Typography variant="subheading">{title}</Typography>

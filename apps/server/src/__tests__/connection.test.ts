@@ -216,6 +216,57 @@ describe("connectToValkey", () => {
     await runClusterConnectionTest()
   })
 
+  it("should use iamConfig credentials when authType is iam", async () => {
+    const originalCreateClusterClient = GlideClusterClient.createClient
+    const originalCreateClient = GlideClient.createClient
+
+    const mockStandaloneClient = {
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"], ["192.168.1.2", 6379, "replica-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
+      close: mock.fn(),
+    }
+    const mockClusterClient = { ...mockStandaloneClient }
+
+    GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
+    GlideClusterClient.createClient = mock.fn(async () => mockClusterClient as any)
+
+    const iamPayload = {
+      ...DEFAULT_PAYLOAD,
+      connectionDetails: {
+        ...DEFAULT_PAYLOAD.connectionDetails,
+        authType: "iam" as const,
+        awsRegion: "us-east-1",
+        awsReplicationGroupId: "my-cluster",
+        password: undefined,
+      },
+    }
+
+    try {
+      await connectToValkey(mockWs, iamPayload, clients, clusterNodesMap, metricsServerMap)
+
+      const calls = (GlideClusterClient.createClient as ReturnType<typeof mock.fn>).mock.calls
+      assert.ok(calls.length > 0)
+      const calledWith = calls[0].arguments[0]
+      assert.strictEqual(calledWith.credentials.iamConfig.clusterName, "my-cluster")
+      assert.strictEqual(calledWith.credentials.iamConfig.region, "us-east-1")
+      assert.strictEqual(calledWith.credentials.password, undefined)
+    } finally {
+      GlideClusterClient.createClient = originalCreateClusterClient
+      GlideClient.createClient = originalCreateClient
+    }
+  })
+
   it("should handle connection errors", async () => {
     const error = new Error("Connection failed")
     const originalCreateClient = GlideClient.createClient
