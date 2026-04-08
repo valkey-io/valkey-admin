@@ -34,6 +34,9 @@ export interface ConnectionDetails {
   // JSON module availability check
   jsonModuleAvailable?: boolean;
   endpointType: EndpointType
+  authType?: "password" | "iam"
+  awsRegion?: string
+  awsReplicationGroupId?: string
 }
 
 interface ReconnectState {

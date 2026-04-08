@@ -143,6 +143,25 @@ export function ConnectionModal({
                   />
                 </div>
 
+                <div className="flex flex-col gap-2">
+                  <Label>Auth Type</Label>
+                  <RadioGroup
+                    onValueChange={(value) =>
+                      onConnectionDetailsChange({ ...connectionDetails, authType: value as "password" | "iam" })
+                    }
+                    value={connectionDetails.authType ?? "password"}
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="auth-password" value="password" />
+                      <Label htmlFor="auth-password">Password</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem id="auth-iam" value="iam" />
+                      <Label htmlFor="auth-iam">IAM</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div>
                   <Label className="block mb-1" htmlFor="username">
                     Username
@@ -157,19 +176,46 @@ export function ConnectionModal({
                   />
                 </div>
 
-                <div>
-                  <Label className="block mb-1" htmlFor="password">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    onChange={(e) =>
-                      onConnectionDetailsChange({ ...connectionDetails, password: e.target.value })
-                    }
-                    type="password"
-                    value={connectionDetails.password}
-                  />
-                </div>
+                {connectionDetails.authType === "iam" ? (
+                  <>
+                    <div>
+                      <Label className="block mb-1" htmlFor="awsRegion">AWS Region</Label>
+                      <Input
+                        id="awsRegion"
+                        onChange={(e) =>
+                          onConnectionDetailsChange({ ...connectionDetails, awsRegion: e.target.value })
+                        }
+                        type="text"
+                        value={connectionDetails.awsRegion ?? ""}
+                      />
+                    </div>
+                    <div>
+                      <Label className="block mb-1" htmlFor="awsClusterName">Replication Group ID</Label>
+                      <Input
+                        id="awsClusterName"
+                        onChange={(e) =>
+                          onConnectionDetailsChange({ ...connectionDetails, awsReplicationGroupId: e.target.value })
+                        }
+                        type="text"
+                        value={connectionDetails.awsReplicationGroupId ?? ""}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <Label className="block mb-1" htmlFor="password">
+                      Password
+                    </Label>
+                    <Input
+                      id="password"
+                      onChange={(e) =>
+                        onConnectionDetailsChange({ ...connectionDetails, password: e.target.value })
+                      }
+                      type="password"
+                      value={connectionDetails.password}
+                    />
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2">
                   <input

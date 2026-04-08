@@ -48,7 +48,7 @@ export const connectionEpic = (store: Store) =>
       filter(() => !selectIsAtConnectionLimit(store.getState())),
       mergeMap(async (action) => {
         const { password } = action.payload.connectionDetails
-        if (R.isNil(password)) return action
+        if (R.isNil(password) || action.payload.connectionDetails.authType === "iam") return action
         
         const decryptedPassword = await secureStorage.decrypt(password)
         

@@ -23,6 +23,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     verifyTlsCertificate: true,
     alias: "",
     endpointType: "node" as const,
+    authType: "password",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
