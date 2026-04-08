@@ -3,6 +3,7 @@ import {
   GlideClient, 
   GlideClusterClient, 
   InfoOptions,
+  ServiceType,
   type ServerCredentials
 } from "@valkey/valkey-glide"
 import * as R from "ramda"
@@ -223,11 +224,17 @@ export async function connectToFirstNode(
       port: Number(firstNode.port),
     },
   ]
-  const newCredentials: ServerCredentials | undefined = 
-    firstNode.password ? {
-      username: firstNode.username,
-      password: firstNode.password,
-    } : undefined
+  const newCredentials: ServerCredentials | undefined =
+    firstNode.authType === "iam"
+      ? {
+        username: firstNode.username!,
+        iamConfig: {
+          clusterName: firstNode.awsReplicationGroupId!,
+          service: ServiceType.Elasticache,
+          region: firstNode.awsRegion!,
+        },
+      }
+      : firstNode.password ? { username: firstNode.username, password: firstNode.password } : undefined
         
   return await connectToCluster(
     ws,
