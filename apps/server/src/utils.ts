@@ -202,7 +202,7 @@ export async function connectToFirstNode(
   ws: WebSocket, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   clusterNodesMap: Map<string, string[]>,
-  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry: boolean},
+  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
 ) {
   clusterClient.close()
   const firstNode = Object.values(clusterNodes)[0]

@@ -227,6 +227,9 @@ export async function connectToCluster(
     const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(clusterClient, payload)
     let clusterId = initialClusterId
     if (Object.keys(clusterNodes).length < 3) {
+      try { clusterClient.close() } catch (error) {
+        console.error(`Error closing stale client for ${connectionId}:`, error)
+      }
       throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
