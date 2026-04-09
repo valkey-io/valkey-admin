@@ -156,15 +156,6 @@ const connectionSlice = createSlice({
         connectionDetails } = action.payload
       const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = connectionDetails
 
-      if (!state.connections[connectionId]) {
-        state.connections[connectionId] = {
-          status: CONNECTED,
-          errorMessage: null,
-          connectionDetails: connectionDetails ?? {} as ConnectionDetails,
-          searchableText: buildSearchableText(connectionId, connectionDetails),
-        }
-      }
-
       const connectionState = state.connections[connectionId]
       connectionState.status = CONNECTED
       connectionState.errorMessage = null

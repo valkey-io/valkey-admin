@@ -209,11 +209,17 @@ export async function connectToFirstNode(
   const firstNode = Object.values(clusterNodes)[0]
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { replicas, ...connectionDetails } = firstNode
+  const { authType, username, password, awsRegion, awsReplicationGroupId } = payload.connectionDetails
   const newPayload = {
     connectionId: payload.connectionId,
     connectionDetails: {
       ...connectionDetails,
       port: firstNode.port.toString(), //Convert to string to match ConnectionDetails type
+      username,
+      password,
+      authType,
+      awsRegion,
+      awsReplicationGroupId,
       endpointType: "node",
     } as ConnectionDetails,
     isRetry: payload.isRetry,
@@ -225,16 +231,16 @@ export async function connectToFirstNode(
     },
   ]
   const newCredentials: ServerCredentials | undefined =
-    firstNode.authType === "iam"
+    authType === "iam"
       ? {
-        username: firstNode.username!,
+        username: username!,
         iamConfig: {
-          clusterName: firstNode.awsReplicationGroupId!,
+          clusterName: awsReplicationGroupId!,
           service: ServiceType.Elasticache,
-          region: firstNode.awsRegion!,
+          region: awsRegion!,
         },
       }
-      : firstNode.password ? { username: firstNode.username, password: firstNode.password } : undefined
+      : password ? { username, password } : undefined
         
   return await connectToCluster(
     ws,

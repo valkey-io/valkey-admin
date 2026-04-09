@@ -175,17 +175,12 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
         acc[primaryKey] = {
           host: primaryHost,
           port: primaryPort,
-          ...(payload.connectionDetails.authType === "iam"
-            ? {
-              username: payload.connectionDetails.username,
-              authType: "iam" as const,
-              awsRegion: payload.connectionDetails.awsRegion,
-              awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
-            }
-            : payload.connectionDetails.password && {
-              username: payload.connectionDetails.username,
-              password: payload.connectionDetails.password,
-            }),
+          username: payload.connectionDetails.username,
+          ...(payload.connectionDetails.authType === "iam" && {
+            authType: "iam" as const,
+            awsRegion: payload.connectionDetails.awsRegion,
+            awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
+          }),
           tls: payload.connectionDetails.tls,
           verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
           replicas: [],
@@ -204,8 +199,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
     }, {} as Record<string, {
       host: string;
       port: number;
-      username?: string, 
-      password?: string,
+      username?: string,
       tls: boolean,
       verifyTlsCertificate: boolean,
       replicas: { id: string; host: string; port: number }[];
@@ -297,7 +291,7 @@ export async function connectToCluster(
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes }, //TODO: strip credentials (this will impact connecting from Cluster Topology)
+          payload: { clusterId, clusterNodes },
         }),
       )
       clients.set(connectionId, { client: clusterClient, clusterId })

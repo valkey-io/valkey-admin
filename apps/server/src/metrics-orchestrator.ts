@@ -79,8 +79,6 @@ function flattenClusterNodeMap(clusterNodeMap: ClusterNodeMap): ClusterNodeMap {
       acc[replicaNodeId] = {
         host: replica.host,
         port: replica.port,
-        username: primaryNode.username,
-        password: primaryNode.password,
         tls: primaryNode.tls,
         verifyTlsCertificate: primaryNode.verifyTlsCertificate,
       }
@@ -215,9 +213,13 @@ async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: s
 
 async function startMetricsServers(nodesToStart: ClusterNodeMap) {
   await Promise.all(
-    Object.entries(nodesToStart).map(async ([key, value]) => {
-      if (!metricsServerMap.has(key)) {
-        await startMetricsServer(value, key)
+    Object.entries(nodesToStart).map(async ([nodeId, nodeInfo]) => {
+      if (!metricsServerMap.has(nodeId)) {
+        await startMetricsServer({
+          ...nodeInfo,
+          username: initialConnectionDetails.username,
+          password: initialConnectionDetails.password,
+        }, nodeId)
       }
     }),
   )

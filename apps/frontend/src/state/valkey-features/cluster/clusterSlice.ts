@@ -11,7 +11,6 @@ export interface PrimaryNode {
   host: string;
   port: number;
   username?: string;
-  password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean
   //TODO: Add handling and UI for uploading cert
