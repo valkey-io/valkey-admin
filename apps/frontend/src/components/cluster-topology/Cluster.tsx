@@ -3,6 +3,7 @@ import { useSelector } from "react-redux"
 import { Server, CheckCircle2 } from "lucide-react"
 import { useParams } from "react-router"
 import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { truncateText } from "@common/src/truncate-text.ts"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
 import { StatCard } from "../ui/stat-card"
@@ -66,7 +67,16 @@ export function Cluster() {
 
   return (
     <RouteContainer className="overflow-y-hidden" title="Cluster Topology">
-      <AppHeader icon={<Server size={20} />} title="Cluster Topology" />
+      <AppHeader
+        description={
+          <>
+            Topology of cluster{" "}
+            <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+          </>
+        }
+        icon={<Server size={20} />}
+        title="Cluster Topology"
+      />
       {/* Cluster Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard

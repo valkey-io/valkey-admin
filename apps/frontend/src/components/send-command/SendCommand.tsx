@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
+import { truncateText } from "@common/src/truncate-text"
 import type { JSONObject } from "@common/src/json-utils.ts"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
 import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
@@ -29,7 +30,7 @@ export function SendCommand() {
   const [keysFilter, setKeysFilter] = useState("")
   const [historyFilter, setHistoryFilter] = useState("")
 
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
@@ -62,6 +63,18 @@ export function SendCommand() {
   return (
     <RouteContainer title="Send Command">
       <AppHeader
+        description={
+          <>
+            Send commands and view responses for{" "}
+            {clusterId ? (
+              <>
+                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+              </>
+            ) : (
+              <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
+            )}
+          </>
+        }
         icon={<SquareTerminal size={20} />}
         title="Send Command"
       />

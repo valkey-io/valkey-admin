@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router"
+import { useNavigate, useParams, useLocation } from "react-router"
 import { useSelector } from "react-redux"
 import { useState, useRef, useEffect, type ReactNode } from "react"
 import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight, Search } from "lucide-react"
@@ -15,9 +15,10 @@ type AppHeaderProps = {
   className?: string;
   title: string;
   icon: ReactNode;
+  description?: ReactNode;
 };
 
-function AppHeader({ title, icon, className }: AppHeaderProps) {
+function AppHeader({ title, icon, description, className }: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState("")
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -26,6 +27,9 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const { host, port, username, alias } = useSelector(selectConnectionDetails(id!))
   const clusterData = useSelector(selectCluster(clusterId!))
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
+
+  const { pathname } = useLocation()
+  const isDashboard = pathname.endsWith("/dashboard")
 
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[id!]?.status,
@@ -39,7 +43,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
   const connectedNode = useSelector(selectConfigEndpointNode(clusterId ?? ""))
 
   const handleNavigate = (primaryKey: string) => {
-    navigate(`/${clusterId}/${primaryKey}/cluster-topology`)
+    navigate(`/${clusterId}/${primaryKey}/dashboard`)
     setIsOpen(false)
     setSearch("")
   }
@@ -73,10 +77,14 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
     <>
       {id && !clusterId ? (
         <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between", className)}>
-          <Typography className="flex items-center gap-2" variant="heading">
-            {icon}
-            {title}
-          </Typography>
+          <div>
+
+            <Typography className="flex items-center gap-2" variant="heading">
+              {icon}
+              {title}
+            </Typography>
+            <Typography variant="bodyXs">{description}</Typography>
+          </div>
 
           <Badge variant="default">
             {alias ? alias : `${username}@${host}:${port}`}
@@ -84,11 +92,15 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
         </div>
       ) : (
         <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between relative", className)}>
-          <Typography className="flex items-center gap-2" variant="heading">
-            {icon}
-            {title}
-          </Typography>
-          <div ref={dropdownRef}>
+          <div>
+
+            <Typography className="flex items-center gap-2" variant="heading">
+              {icon}
+              {title}
+            </Typography>
+            <Typography variant="bodyXs">{description}</Typography>
+          </div>
+          {isDashboard && <div ref={dropdownRef}>
             <Badge
               className={cn(
                 "h-5 w-auto text-nowrap px-2 py-4 flex items-center gap-2 justify-between",
@@ -183,7 +195,7 @@ function AppHeader({ title, icon, className }: AppHeaderProps) {
                 </ul>
               </div>
             )}
-          </div>
+          </div>}
         </div>
       )}
     </>

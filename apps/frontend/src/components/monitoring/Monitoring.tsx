@@ -4,6 +4,7 @@ import { Activity, RefreshCcw } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
+import { truncateText } from "@common/src/truncate-text"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
@@ -44,7 +45,7 @@ export const Monitoring = () => {
   const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REPLY)(state))
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
-  const hotKeysErrorMessage = useSelector((state:RootState) => selectHotKeysError(id!)(state))
+  const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(id!)(state))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {
@@ -109,7 +110,22 @@ export const Monitoring = () => {
 
   return (
     <RouteContainer title="monitoring">
-      <AppHeader icon={<Activity size={20} />} title="Monitoring" />
+      <AppHeader
+        description={
+          <>
+            Monitor Hot Keys and Command Logs of{" "}
+            {clusterId ? (
+              <>
+                cluster node{" "} <span className="font-semibold text-primary">{truncateText(id!)}</span>
+              </>
+            ) : (
+              <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
+            )}
+          </>
+        }
+        icon={<Activity size={20} />}
+        title="Monitoring"
+      />
 
       <div className="flex justify-between">
         {/* Tab Navigation */}

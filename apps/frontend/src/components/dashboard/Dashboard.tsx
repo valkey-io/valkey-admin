@@ -6,21 +6,23 @@ import { formatBytes } from "@common/src/bytes-conversion"
 import { Database } from "lucide-react"
 import { accordionDescriptions } from "@common/src/dashboard-metrics"
 import { singleMetricDescriptions } from "@common/src/dashboard-metrics"
+import { calculateHitRatio } from "@common/src/cache-hit-ratio"
+import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { truncateText } from "@common/src/truncate-text"
 import { AppHeader } from "../ui/app-header"
 import Accordion from "../ui/accordion"
-import DonutChart from "../ui/donut-chart"
 import CpuMemoryUsage from "./cpu-memory-usage"
-import { SplitPanel } from "../ui/split-panel"
-import { Panel } from "../ui/panel"
 import { Input } from "../ui/input"
 import { StatCard } from "../ui/stat-card"
+import { TooltipIcon } from "../ui/tooltip-icon"
 import RouteContainer from "../ui/route-container"
 import { Typography } from "../ui/typography"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
 
 export function Dashboard() {
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const infoData = useSelector(selectData(id!)) || {}
+
   const [searchQuery, setSearchQuery] = useState("")
 
   if (!infoData) {
@@ -107,99 +109,113 @@ export function Dashboard() {
   return (
     <RouteContainer title="Dashboard">
       <AppHeader
+        description={
+          <>
+            Metrics, CPU and Memory Usage for{" "}
+            {clusterId ? (
+              <>
+                cluster node{" "} <span className="font-semibold text-primary">{truncateText(id!)}</span>
+              </>
+            ) : (
+              <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
+            )}
+          </>
+        }
         icon={<LayoutDashboard size={20} />}
         title="Dashboard"
       />
       <div className="flex-1 overflow-y-auto">
         {/* Memory Area */}
-        <div className="flex mb-4">
-          <div className="w-1/2 pr-2">
+        <TooltipProvider>
+          <div className="flex mb-4 gap-4">
             <StatCard
+              className="flex-1"
               icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
               value={formatBytes(memoryUsageMetrics.total_system_memory || 0)}
             />
-          </div>
-          <div className="w-1/2 pl-2">
             <StatCard
+              className="flex-1"
               icon={<Database className="text-primary" size={24} />}
               label="Used Memory"
               value={formatBytes(memoryUsageMetrics.used_memory || 0)}
             />
+            <StatCard
+              className="flex-1"
+              label="Operations"
+              tooltip={<TooltipIcon description="Total number of commands processed" size={14} />}
+              value={infoData.total_commands_processed ?? 0}
+            />
+            <StatCard
+              className="flex-1"
+              label="Hit Ratio"
+              tooltip={<TooltipIcon description="Ratio of key lookups that resulted in a cache hit" size={14} />}
+              value={calculateHitRatio(Number(infoData.keyspace_hits) || 0, Number(infoData.keyspace_misses) || 0)}
+            />
           </div>
+        </TooltipProvider>
+        <div className="overflow-y-auto p-4 border border-input rounded-md shadow-xs">
+          {/* Search or Filtering Input */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
+            <Input
+              className="pl-10"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search metrics..."
+              type="text"
+              value={searchQuery}
+            />
+          </div>
+          <Accordion
+            accordionDescription={accordionDescriptions.memoryUsageMetrics}
+            accordionItems={memoryUsageMetrics}
+            accordionName="Memory Usage Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="bytes" />
+          <Accordion
+            accordionDescription={accordionDescriptions.uptimeMetrics}
+            accordionItems={upTimeMetrics}
+            accordionName="Uptime Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="mixed" />
+          <Accordion
+            accordionDescription={accordionDescriptions.replicationPersistenceMetrics}
+            accordionItems={replicationPersistenceMetrics}
+            accordionName="Replication & Persistence Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="number" />
+          <Accordion
+            accordionDescription={accordionDescriptions.clientConnectivityMetrics}
+            accordionItems={clientConnectivityMetrics}
+            accordionName="Client Connectivity Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="number" />
+          <Accordion
+            accordionDescription={accordionDescriptions.commandExecutionMetrics}
+            accordionItems={commandExecutionMetrics}
+            accordionName="Command Execution Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="number" />
+          <Accordion
+            accordionDescription={accordionDescriptions.dataEffectivenessEvictionMetrics}
+            accordionItems={dataEffectivenessAndEvictionMetrics}
+            accordionName="Data Effectiveness & Eviction Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="number" />
+          <Accordion
+            accordionDescription={accordionDescriptions.messagingMetrics}
+            accordionItems={messagingMetrics}
+            accordionName="Messaging Metrics"
+            searchQuery={searchQuery}
+            singleMetricDescriptions={singleMetricDescriptions}
+            valueType="number" />
         </div>
-        <SplitPanel
-          left={
-            <Panel className="overflow-y-auto p-2">
-              {/* Search or Filtering Input */}
-              <div className="mb-4 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
-                <Input
-                  className="pl-10"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search metrics..."
-                  type="text"
-                  value={searchQuery}
-                />
-              </div>
-              <Accordion
-                accordionDescription={accordionDescriptions.memoryUsageMetrics}
-                accordionItems={memoryUsageMetrics}
-                accordionName="Memory Usage Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="bytes" />
-              <Accordion
-                accordionDescription={accordionDescriptions.uptimeMetrics}
-                accordionItems={upTimeMetrics}
-                accordionName="Uptime Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="mixed" />
-              <Accordion
-                accordionDescription={accordionDescriptions.replicationPersistenceMetrics}
-                accordionItems={replicationPersistenceMetrics}
-                accordionName="Replication & Persistence Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="number" />
-              <Accordion
-                accordionDescription={accordionDescriptions.clientConnectivityMetrics}
-                accordionItems={clientConnectivityMetrics}
-                accordionName="Client Connectivity Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="number" />
-              <Accordion
-                accordionDescription={accordionDescriptions.commandExecutionMetrics}
-                accordionItems={commandExecutionMetrics}
-                accordionName="Command Execution Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="number" />
-              <Accordion
-                accordionDescription={accordionDescriptions.dataEffectivenessEvictionMetrics}
-                accordionItems={dataEffectivenessAndEvictionMetrics}
-                accordionName="Data Effectiveness & Eviction Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="number" />
-              <Accordion
-                accordionDescription={accordionDescriptions.messagingMetrics}
-                accordionItems={messagingMetrics}
-                accordionName="Messaging Metrics"
-                searchQuery={searchQuery}
-                singleMetricDescriptions={singleMetricDescriptions}
-                valueType="number" />
-            </Panel>
-          }
-          right={
-            <Panel className="p-4">
-              <DonutChart />
-            </Panel>
-          }
-          rightClassName="pl-2"
-        />
         {/* cpu and memory usage charts */}
         <CpuMemoryUsage />
       </div>
