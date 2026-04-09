@@ -162,7 +162,7 @@ export function ConnectionModal({
                     </div>
                     <div className="flex items-center gap-2">
                       <RadioGroupItem id="auth-iam" value="iam" />
-                      <Label htmlFor="auth-iam">IAM</Label>
+                      <Label htmlFor="auth-iam">AWS IAM</Label>
                     </div>
                   </RadioGroup>
                 </div>
