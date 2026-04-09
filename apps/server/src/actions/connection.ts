@@ -16,6 +16,9 @@ export interface ConnectionDetails {
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string;
   endpointType: EndpointType;
+  authType?: "password" | "iam";
+  awsRegion?: string;
+  awsReplicationGroupId?: string;
 }
 
 type ConnectPayload = {

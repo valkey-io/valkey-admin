@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, ConnectionError } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, ConnectionError, ServiceType } from "@valkey/valkey-glide"
 import { ChildProcess, spawn } from "child_process"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
@@ -21,10 +21,13 @@ type ClusterNodeInfo = {
   host: string;
   port: number | string;
   username?: string;
-  password?: string;          
+  password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean;
   replicas?: { id: string; host: string; port: number }[];
+  authType?: "password" | "iam";
+  awsRegion?: string;
+  awsReplicationGroupId?: string;
 }
 
 export type ClusterNodeMap = Record<string, ClusterNodeInfo>;
@@ -50,6 +53,9 @@ export const initialConnectionDetails: ConnectionDetails = {
   tls: process.env.VALKEY_TLS === "true",
   verifyTlsCertificate: process.env.VALKEY_VERIFY_CERT === "true",
   endpointType,
+  authType: process.env.VALKEY_AUTH_TYPE === "iam" ? "iam" : "password",
+  awsRegion: process.env.VALKEY_AWS_REGION,
+  awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
 }
 
 const ttl = Number(process.env.TTL) || 20000
@@ -142,24 +148,21 @@ export async function getInitialClient() {
 }
 
 async function createClusterClient(connectionDetails: ConnectionDetails) {
-  const { host, port, username, password, tls, verifyTlsCertificate } = connectionDetails
-  const addresses = [
-    { host, port: Number(port) },
-  ]
+  const { host, port, username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = connectionDetails
+  const addresses = [{ host, port: Number(port) }]
   const credentials =
-    password ? {
-      username,
-      password,
-    } : undefined
+    authType === "iam"
+      ? {
+        username: username!,
+        iamConfig: {
+          clusterName: awsReplicationGroupId!,
+          service: ServiceType.Elasticache,
+          region: awsRegion!,
+        },
+      }
+      : password ? { username, password } : undefined
 
-  const client = await createOrchestratorValkeyClient({
-    addresses,
-    credentials,
-    useTLS: tls,
-    verifyTlsCertificate,
-  })
-
-  return client
+  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate })
 }
 
 async function getClusterTopology(client: GlideClusterClient | null, node: ConnectionDetails) {
@@ -267,6 +270,9 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
       VALKEY_PASSWORD: nodeToStart.password,
       VALKEY_TLS: String(nodeToStart.tls),
       VALKEY_VERIFY_CERT: String(nodeToStart.verifyTlsCertificate),
+      VALKEY_AUTH_TYPE: nodeToStart.authType ?? "password",
+      VALKEY_AWS_REGION: nodeToStart.awsRegion,
+      VALKEY_REPLICATION_GROUP_ID: nodeToStart.awsReplicationGroupId,
       SERVER_HOST: process.env.SERVER_HOST ?? "localhost",
       SERVER_PORT: process.env.SERVER_PORT ?? "8080",
       DATA_DIR: `${data_dir}/${nodeId}`,

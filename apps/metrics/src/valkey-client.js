@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, ServiceType } from "@valkey/valkey-glide"
 
 const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
 
@@ -21,10 +21,19 @@ export const createValkeyClient = async (cfg = {}) => {
     },
   ]
   const credentials =
-    process.env.VALKEY_PASSWORD ? {
-      username: process.env.VALKEY_USERNAME,
-      password: process.env.VALKEY_PASSWORD,
-    } : undefined
+    process.env.VALKEY_AUTH_TYPE === "iam"
+      ? {
+        username: process.env.VALKEY_USERNAME,
+        iamConfig: {
+          clusterName: process.env.VALKEY_REPLICATION_GROUP_ID,
+          service: ServiceType.Elasticache,
+          region: process.env.VALKEY_AWS_REGION,
+        },
+      }
+      : process.env.VALKEY_PASSWORD ? {
+        username: process.env.VALKEY_USERNAME,
+        password: process.env.VALKEY_PASSWORD,
+      } : undefined
 
   const useTLS = process.env.VALKEY_TLS === "true"
   const sharedOptions = {

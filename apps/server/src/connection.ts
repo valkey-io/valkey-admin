@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials, ServiceType } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
@@ -29,7 +29,11 @@ export async function connectToValkey(
   metricsServerMap: MetricsServerMap,
 ) {
   
-  const { host, port, username, password, tls: useTLS, verifyTlsCertificate, endpointType } = payload.connectionDetails
+  const { 
+    host, port, username, password, tls: useTLS, 
+    verifyTlsCertificate, endpointType, authType, awsRegion, awsReplicationGroupId,
+  } = payload.connectionDetails
+  
   const { connectionId } = payload
   const addresses = [
     {
@@ -37,11 +41,17 @@ export async function connectToValkey(
       port: Number(port),
     },
   ]
-  const credentials: ServerCredentials | undefined = 
-    password ? {
-      username,
-      password,
-    } : undefined
+  const credentials: ServerCredentials | undefined =
+    authType === "iam"
+      ? {
+        username: username!,
+        iamConfig: {
+          clusterName: awsReplicationGroupId!,
+          service: ServiceType.Elasticache,
+          region: awsRegion!,
+        },
+      }
+      : password ? { username, password } : undefined
 
   try {
     // If retrying, we need to close stale client
@@ -166,10 +176,17 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
         acc[primaryKey] = {
           host: primaryHost,
           port: primaryPort,
-          ...(payload.connectionDetails.password && {
-            username: payload.connectionDetails.username,
-            password: payload.connectionDetails.password,
-          }),
+          ...(payload.connectionDetails.authType === "iam"
+            ? {
+              username: payload.connectionDetails.username,
+              authType: "iam" as const,
+              awsRegion: payload.connectionDetails.awsRegion,
+              awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
+            }
+            : payload.connectionDetails.password && {
+              username: payload.connectionDetails.username,
+              password: payload.connectionDetails.password,
+            }),
           tls: payload.connectionDetails.tls,
           verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
           replicas: [],
@@ -216,12 +233,13 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    let clusterClient = await createClusterValkeyClient({
-      addresses,
-      credentials,
-      useTLS,
-      verifyTlsCertificate,
-    })
+    const CONNECTION_TIMEOUT_MS = 10000
+    let clusterClient = await Promise.race([
+      createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Connection timed out")), CONNECTION_TIMEOUT_MS),
+      ),
+    ])
     
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once
