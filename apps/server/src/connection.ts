@@ -226,7 +226,7 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    const CONNECTION_TIMEOUT_MS = 10000
+    const CONNECTION_TIMEOUT_MS = 30000
     let clusterClient = await Promise.race([
       createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate }),
       new Promise<never>((_, reject) =>
