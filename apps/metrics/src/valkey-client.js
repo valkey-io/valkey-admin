@@ -45,10 +45,10 @@ export const createValkeyClient = async (cfg = {}) => {
         tlsAdvancedConfiguration: {
           insecure: true,
         },
+        connectionTimeout: 30000,
       },
     }),
     requestTimeout: 5000,
-    connectionTimeout: 60000,
   }
 
   const mode = getValkeyMode(cfg)
