@@ -13,7 +13,7 @@ interface PasswordPromptModalProps {
   onClose: () => void
   onSubmit: (password: string) => void
   isConnecting?: boolean
-  errorMessage?: string
+  errorMessage?: string | null
   connectionLabel: string
 }
 

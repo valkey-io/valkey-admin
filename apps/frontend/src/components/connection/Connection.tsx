@@ -58,7 +58,7 @@ export function Connection() {
   const promptedConnection = connections[passwordPromptConnectionId as string]
   const isPromptConnecting = promptedConnection?.status === CONNECTING
   const promptErrorMessage = promptedConnection?.status === ERROR
-    ? promptedConnection.errorMessage ?? undefined
+    ? promptedConnection.errorMessage
     : undefined
   const promptConnectionLabel = promptedConnection
     ? promptedConnection.connectionDetails.alias
