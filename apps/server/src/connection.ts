@@ -316,6 +316,7 @@ export async function connectToCluster(
           payload: {
             connectionId,
             connectedNode: addresses[0],
+            address: addresses[0],
             connectionDetails: {
               clusterId,
               keyEvictionPolicy,
