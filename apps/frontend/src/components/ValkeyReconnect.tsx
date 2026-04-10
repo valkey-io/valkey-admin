@@ -50,9 +50,7 @@ export function ValkeyReconnect() {
 
   const handlePasswordSubmit = async (password: string) => {
     if (!connection) return
-    const encryptedPassword = password.length > 0 && secureStorage.isAvailable()
-      ? await secureStorage.encrypt(password)
-      : password
+    const encryptedPassword = await secureStorage.encryptIfAvailable(password)
     dispatch(connectPending({
       connectionId: id!,
       connectionDetails: { ...connection.connectionDetails, password: encryptedPassword },

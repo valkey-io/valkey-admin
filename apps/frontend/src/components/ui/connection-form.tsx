@@ -48,12 +48,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
     setConnectionId(newConnectionId)
     const detailsToDispatch = connectionDetails.password
-      ? { 
-        ...connectionDetails, 
-        password: connectionDetails.password.length > 0 && secureStorage.isAvailable() 
-          ? await secureStorage.encrypt(connectionDetails.password) 
-          : connectionDetails.password, 
-      }
+      ? { ...connectionDetails, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
       : connectionDetails
     dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch }))
   }

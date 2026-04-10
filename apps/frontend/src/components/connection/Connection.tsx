@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
 import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
@@ -47,9 +47,7 @@ export function Connection() {
     if (!passwordPromptConnectionId) return
     const connection = connections[passwordPromptConnectionId]
     if (!connection) return
-    const encryptedPassword = password.length > 0 && secureStorage.isAvailable()
-      ? await secureStorage.encrypt(password)
-      : password
+    const encryptedPassword = await secureStorage.encryptIfAvailable(password)
     dispatch(connectPending({
       connectionId: passwordPromptConnectionId,
       connectionDetails: { ...connection.connectionDetails, password: encryptedPassword },
@@ -57,9 +55,7 @@ export function Connection() {
     }))
   }
 
-  const promptedConnection = passwordPromptConnectionId
-    ? connections[passwordPromptConnectionId]
-    : undefined
+  const promptedConnection = connections[passwordPromptConnectionId as string]
   const isPromptConnecting = promptedConnection?.status === CONNECTING
   const promptErrorMessage = promptedConnection?.status === ERROR
     ? promptedConnection.errorMessage ?? undefined
@@ -68,13 +64,6 @@ export function Connection() {
     ? promptedConnection.connectionDetails.alias
       || `${promptedConnection.connectionDetails.host}:${promptedConnection.connectionDetails.port}`
     : ""
-
-  // Close password prompt on successful connection
-  useEffect(() => {
-    if (promptedConnection?.status === CONNECTED) {
-      setPasswordPromptConnectionId(undefined)
-    }
-  }, [promptedConnection?.status])
 
   // filter based on connections that connected at least once (have history) then sort by history length
   const connectionsWithHistory = Object.entries(connections)
@@ -150,7 +139,7 @@ export function Connection() {
         isConnecting={isPromptConnecting}
         onClose={() => setPasswordPromptConnectionId(undefined)}
         onSubmit={handlePasswordSubmit}
-        open={passwordPromptConnectionId !== undefined}
+        open={passwordPromptConnectionId !== undefined && promptedConnection?.status !== CONNECTED}
       />
 
       {!hasConnectionsWithHistory ? (

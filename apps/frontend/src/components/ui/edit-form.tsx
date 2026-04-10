@@ -111,12 +111,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
 
       // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
       const detailsToDispatch = passwordChanged && connectionDetails.password
-        ? { 
-          ...connectionDetails, 
-          password: connectionDetails.password.length > 0 && secureStorage.isAvailable() 
-            ? await secureStorage.encrypt(connectionDetails.password) 
-            : connectionDetails.password,
-        }
+        ? { ...connectionDetails, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
         : connectionDetails
 
       dispatch(

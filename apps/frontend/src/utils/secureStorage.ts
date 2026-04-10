@@ -9,6 +9,13 @@ export const secureStorage = {
     return await window.secureStorage.decrypt(encrypted)
   },
 
+  encryptIfAvailable: async (password: string): Promise<string> => {
+    if (password.length > 0 && secureStorage.isAvailable()) {
+      return await secureStorage.encrypt(password)
+    }
+    return password
+  },
+
   isAvailable: (): boolean => {
     return window.secureStorage ? true : false
   },

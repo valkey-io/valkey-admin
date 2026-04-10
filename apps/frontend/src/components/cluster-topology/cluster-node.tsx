@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
 import { useNavigate, useParams } from "react-router"
 import { useSelector } from "react-redux"
@@ -14,7 +14,9 @@ import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-import { selectIsAtConnectionLimit, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors"
+import {
+  selectIsAtConnectionLimit, selectConfigEndpointNode, selectEncryptedPassword
+} from "@/state/valkey-features/connection/connectionSelectors"
 import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
@@ -63,18 +65,9 @@ export function ClusterNode({
 
   // Look up encrypted password from an existing connection in the same cluster.
   // Available when secureStorage was active during the original connection.
-  const encryptedPassword = useSelector((state: RootState) =>
-    Object.values(state.valkeyConnection?.connections ?? {}).find(
-      (c) => c.connectionDetails?.clusterId === clusterId && c.connectionDetails?.password,
-    )?.connectionDetails?.password,
-  )
+  const encryptedPassword = useSelector(selectEncryptedPassword(clusterId))
 
   const [showPasswordModal, setShowPasswordModal] = useState(false)
-
-  // Close password modal on successful connection
-  useEffect(() => {
-    if (connectionStatus === CONNECTED) setShowPasswordModal(false)
-  }, [connectionStatus])
 
   const baseDetails: ConnectionDetails = {
     host: primary.host,
@@ -116,9 +109,7 @@ export function ClusterNode({
   }
 
   const handlePasswordSubmit = async (password: string) => {
-    const encryptedPw = password.length > 0 && secureStorage.isAvailable()
-      ? await secureStorage.encrypt(password)
-      : password
+    const encryptedPw = await secureStorage.encryptIfAvailable(password)
     dispatch(connectPending({
       connectionId,
       connectionDetails: {
@@ -237,7 +228,7 @@ export function ClusterNode({
         isConnecting={connectionStatus === CONNECTING}
         onClose={() => setShowPasswordModal(false)}
         onSubmit={handlePasswordSubmit}
-        open={showPasswordModal}
+        open={showPasswordModal && connectionStatus !== CONNECTED}
       />
     </div>
   )

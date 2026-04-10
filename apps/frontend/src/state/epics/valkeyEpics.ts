@@ -223,7 +223,7 @@ export const autoReconnectEpic = (store: Store) =>
 
       const disconnectedConnections = Object.entries(connections)
         .filter(([, connection]) => connection.status === DISCONNECTED)
-        .filter(([, connection]) => connection.connectionDetails.password !== undefined)
+        .filter(([, connection]) => connection.connectionDetails.password !== undefined && connection.connectionDetails.password !== "")
 
       if (disconnectedConnections.length > 0) {
         console.log(`Auto-reconnecting ${disconnectedConnections.length} connection(s)`)

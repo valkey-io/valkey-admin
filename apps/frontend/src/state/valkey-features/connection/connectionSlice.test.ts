@@ -22,7 +22,7 @@ describe("connectionSlice", () => {
   })
 
   describe("connectPending", () => {
-    it("should create connection with CONNECTING status and store details", () => {
+    it("should create connection with CONNECTING status and store details with no password", () => {
       const state = connectionReducer(
         initialState,
         connectPending({
