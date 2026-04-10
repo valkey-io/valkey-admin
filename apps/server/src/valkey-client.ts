@@ -21,14 +21,14 @@ const buildSharedOptions = ({
   addresses,
   credentials,
   useTLS,
-  ...(useTLS && verifyTlsCertificate === false && {
-    advancedConfiguration: {
+  advancedConfiguration: {
+    ...(useTLS && verifyTlsCertificate === false && {
       tlsAdvancedConfiguration: {
         insecure: true,
       },
-      connectionTimeout: 30000,
-    },
-  }),
+    }),
+    connectionTimeout: 30000,
+  },
   requestTimeout: 5000,
 })
 
