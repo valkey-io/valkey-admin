@@ -226,13 +226,7 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    const CONNECTION_TIMEOUT_MS = 30000
-    let clusterClient = await Promise.race([
-      createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Connection timed out")), CONNECTION_TIMEOUT_MS),
-      ),
-    ])
+    let clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
     
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once

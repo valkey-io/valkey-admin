@@ -28,7 +28,8 @@ const buildSharedOptions = ({
       },
     },
   }),
-  requestTimeout: 30000,
+  requestTimeout: 5000,
+  connectionTimeout: 30000,
 })
 
 export const createStandaloneValkeyClient = ({
