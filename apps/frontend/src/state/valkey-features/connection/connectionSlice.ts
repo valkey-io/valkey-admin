@@ -152,7 +152,7 @@ const connectionSlice = createSlice({
     clusterConnectFulfilled: (state, action) => {
       const { 
         connectionId, 
-        connectedNode, 
+        address, 
         connectionDetails } = action.payload
       const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = connectionDetails
 
@@ -163,7 +163,7 @@ const connectionSlice = createSlice({
       connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
       connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
       connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
-      if (connectedNode) connectionState.connectedNode = connectedNode
+      if (address) connectionState.connectedNode = address
       delete connectionState.reconnect
       connectionState.connectionHistory ??= []
       connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })
