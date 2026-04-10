@@ -338,6 +338,7 @@ export async function connectToCluster(
             clusterSlotStatsEnabled,
             jsonModuleAvailable,
           },
+          address: addresses[0],
         },
       }),
     )
