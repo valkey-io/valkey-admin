@@ -109,7 +109,7 @@ const connectionSlice = createSlice({
         connectionDetails: {
           ...connectionDetails,
           // Strip password from state if secure storage is unavailable to prevent unencrypted persistence.
-          password: connectionDetails.password && secureStorage.isAvailable() ? connectionDetails.password : undefined,
+          password: connectionDetails.password != undefined && secureStorage.isAvailable() ? connectionDetails.password : undefined,
           clusterSlotStatsEnabled: false,
           jsonModuleAvailable: false,
         },

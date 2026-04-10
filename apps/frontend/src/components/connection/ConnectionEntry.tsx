@@ -41,7 +41,8 @@ export const ConnectionEntry = ({
 
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
   const handleConnect = () => {
-    if (connection.connectionDetails.password === undefined && onPasswordRequired) {
+    const { password, authType } = connection.connectionDetails
+    if (authType !== "iam" && password === undefined && onPasswordRequired) {
       onPasswordRequired(connectionId)
       return
     }
