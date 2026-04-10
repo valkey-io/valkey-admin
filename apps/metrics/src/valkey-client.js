@@ -47,7 +47,7 @@ export const createValkeyClient = async (cfg = {}) => {
         },
       },
     }),
-    requestTimeout: 5000,
+    requestTimeout: 30000,
   }
 
   const mode = getValkeyMode(cfg)

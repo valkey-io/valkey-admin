@@ -295,7 +295,7 @@ describe("connectToValkey", () => {
         host: alternate_payload.connectionDetails.host,
         port: Number(alternate_payload.connectionDetails.port),
       }])
-      assert.strictEqual(config.requestTimeout, 5000)
+      assert.strictEqual(config.requestTimeout, 30000)
       assert.strictEqual(config.clientName, "valkey_server_standalone_client")
       return mockStandaloneClient as any
     })
@@ -309,6 +309,7 @@ describe("connectToValkey", () => {
         tls: false,
         verifyTlsCertificate: false,
         connectionId: "conn-456",
+        endpointType: "node",
       } as ConnectionDetails,
       connectionId: "",
     }
@@ -323,7 +324,7 @@ describe("connectToValkey", () => {
         host: alternate_payload.connectionDetails.host,
         port: Number(alternate_payload.connectionDetails.port),
       }])
-      assert.strictEqual(config.requestTimeout, 5000)
+      assert.strictEqual(config.requestTimeout, 30000)
       assert.strictEqual(config.clientName, "valkey_server_standalone_client")
     } finally {
       GlideClient.createClient = originalCreateClient
