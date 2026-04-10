@@ -160,7 +160,13 @@ async function createClusterClient(connectionDetails: ConnectionDetails) {
       }
       : password ? { username, password } : undefined
 
-  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate })
+  const CONNECTION_TIMEOUT_MS = 30000
+  return await Promise.race([
+    createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Connection timed out")), CONNECTION_TIMEOUT_MS),
+    ),
+  ])
 }
 
 async function getClusterTopology(client: GlideClusterClient | null, node: ConnectionDetails) {
