@@ -226,23 +226,22 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    let clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
-    
+    // Use a standalone client for faster cluster discovery
+    const discoveryClient = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+    let clusterClient: GlideClusterClient 
+
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once
-    const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(clusterClient, payload)
+    const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
+    discoveryClient.close()
     let clusterId = initialClusterId
     if (Object.keys(clusterNodes).length < 3) {
-      try { clusterClient.close() } catch (error) {
-        console.error(`Error closing stale client for ${connectionId}:`, error)
-      }
       throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
     if (useClusterEndpoint) {
       return await connectToFirstNode(
-        clusterClient,
         clusterNodes,
         ws,
         clients,
@@ -263,29 +262,28 @@ export async function connectToCluster(
         try { existingClusterConnection.client.close() } catch (error) {
           console.error(`Error closing stale client for ${connectionId}:`, error)
         }
+        clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
         // Update map with new client
-        sharedIds.forEach((id) => clients.set(id, { client: clusterClient, clusterId }))
+        sharedIds.forEach((id) => clients.set(id, { client: clusterClient!, clusterId }))
       }
       else {
-        // Close the client we used to discover 
-        clusterClient.close()
-        clusterClient = 
-          await returnExistingClusterClient(
-            existingClusterConnection,
-            clients,
-            payload.connectionId, 
-            clusterNodesMap, 
-            ws,
-            clusterNodes,
-          )
+        clusterClient = await returnExistingClusterClient(
+          existingClusterConnection,
+          clients,
+          payload.connectionId,
+          clusterNodesMap,
+          ws,
+          clusterNodes,
+        )
       }
     } 
     else {
       clusterId = configEndpointId ?? clusterId
+      clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes },
+          payload: { clusterId, clusterNodes }, //TODO: strip credentials (this will impact connecting from Cluster Topology)
         }),
       )
       clients.set(connectionId, { client: clusterClient, clusterId })

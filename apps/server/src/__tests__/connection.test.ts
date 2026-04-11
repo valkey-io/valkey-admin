@@ -245,9 +245,9 @@ describe("connectToValkey", () => {
     try {
       await connectToValkey(mockWs, iamPayload, clients, clusterNodesMap, metricsServerMap)
 
-      const calls = (GlideClusterClient.createClient as ReturnType<typeof mock.fn>).mock.calls
+      const calls = (GlideClusterClient.createClient as unknown as ReturnType<typeof mock.fn>).mock.calls
       assert.ok(calls.length > 0)
-      const calledWith = calls[0].arguments[0]
+      const calledWith = calls[0].arguments[0] as any
       assert.strictEqual(calledWith.credentials.iamConfig.clusterName, "my-cluster")
       assert.strictEqual(calledWith.credentials.iamConfig.region, "us-east-1")
       assert.strictEqual(calledWith.credentials.password, undefined)
@@ -440,7 +440,9 @@ describe("returnIfDuplicateConnection", () => {
     clients.set(sanitizeUrl("10.0.0.1:6379"), {} as any)
 
     const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
+      { connectionId: "abc123", connectionDetails: { 
+        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+      } },
       clients,
     )
 
@@ -456,7 +458,9 @@ describe("returnIfDuplicateConnection", () => {
     const clients = new Map()
 
     const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
+      { connectionId: "abc123", connectionDetails: { 
+        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+      } },
       clients,
     )
 
