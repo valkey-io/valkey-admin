@@ -108,8 +108,10 @@ const connectionSlice = createSlice({
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
         connectionDetails: {
           ...connectionDetails,
-          // Strip password from state if secure storage is unavailable to prevent unencrypted persistence.
-          password: connectionDetails.password != undefined && secureStorage.isAvailable() ? connectionDetails.password : undefined,
+          // Preserve "" (no-password connections) but strip real passwords if secure storage is unavailable
+          password: (R.isNotNil(connectionDetails.password) && secureStorage.isAvailable()) || R.isEmpty(connectionDetails.password)
+            ? connectionDetails.password
+            : undefined,
           clusterSlotStatsEnabled: false,
           jsonModuleAvailable: false,
         },

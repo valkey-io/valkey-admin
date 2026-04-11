@@ -7,6 +7,7 @@ import RetryProgress from "./ui/retry-progress"
 import { PasswordPromptModal } from "./ui/password-prompt-modal"
 import type { RootState } from "@/store"
 import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
+import * as R from "ramda"
 import { secureStorage } from "@/utils/secureStorage"
 
 export function ValkeyReconnect() {
@@ -20,7 +21,7 @@ export function ValkeyReconnect() {
 
   const { status, errorMessage, reconnect } = connection || {}
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
-  const needsPassword = connection?.connectionDetails.password === undefined
+  const needsPassword = R.isNil(connection?.connectionDetails.password)
 
   // Close password prompt on successful connection
   useEffect(() => {
