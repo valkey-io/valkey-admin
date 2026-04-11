@@ -1,4 +1,5 @@
 import { CONNECTED, ERROR, CONNECTING } from "@common/src/constants.ts"
+import * as R from "ramda"
 import { CircleChevronRight, Server } from "lucide-react"
 import { Link } from "react-router"
 import {
@@ -41,7 +42,8 @@ export const ConnectionEntry = ({
 
   const handleDisconnect = () => dispatch(closeConnection({ connectionId }))
   const handleConnect = () => {
-    if (connection.connectionDetails.password === undefined && onPasswordRequired) {
+    const { password, authType } = connection.connectionDetails
+    if (authType !== "iam" && R.isNil(password) && onPasswordRequired) {
       onPasswordRequired(connectionId)
       return
     }

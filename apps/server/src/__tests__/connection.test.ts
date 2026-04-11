@@ -309,6 +309,7 @@ describe("connectToValkey", () => {
         tls: false,
         verifyTlsCertificate: false,
         connectionId: "conn-456",
+        endpointType: "node",
       } as ConnectionDetails,
       connectionId: "",
     }

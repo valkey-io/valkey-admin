@@ -40,13 +40,14 @@ export const createValkeyClient = async (cfg = {}) => {
     addresses,
     credentials,
     useTLS,
-    ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
-      advancedConfiguration: {
+    advancedConfiguration: {
+      ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
         tlsAdvancedConfiguration: {
           insecure: true,
         },
-      },
-    }),
+      }),
+      connectionTimeout: 30000,
+    },
     requestTimeout: 5000,
   }
 

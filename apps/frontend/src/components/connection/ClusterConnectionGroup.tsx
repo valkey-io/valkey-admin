@@ -96,7 +96,8 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
 
   const handleConnectLatest = () => {
     if (!lastOpenedNode) return
-    if (lastOpenedNode.connection.connectionDetails.password === undefined && onPasswordRequired) {
+    const { password, authType } = lastOpenedNode.connection.connectionDetails
+    if (authType !== "iam" && R.isNil(password) && onPasswordRequired) {
       onPasswordRequired(lastOpenedNode.connectionId)
       return
     }

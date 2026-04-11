@@ -83,6 +83,7 @@ describe("valkey client mode selection", () => {
         tlsAdvancedConfiguration: {
           insecure: true,
         },
+        connectionTimeout: 30000,
       },
       requestTimeout: 5000,
       clientName: "valkey_admin_metrics_cluster_client",

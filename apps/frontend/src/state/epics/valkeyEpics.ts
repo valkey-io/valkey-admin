@@ -166,7 +166,7 @@ export const valkeyRetryEpic = (store: Store) =>
         return EMPTY
       }
 
-      if (connection.connectionDetails.password === undefined) {
+      if (R.isNil(connection.connectionDetails.password)) {
         console.debug(`Password unavailable for ${connectionId}, skipping auto-retry`)
         store.dispatch(stopRetry({ connectionId }))
         return EMPTY
@@ -223,7 +223,7 @@ export const autoReconnectEpic = (store: Store) =>
 
       const disconnectedConnections = Object.entries(connections)
         .filter(([, connection]) => connection.status === DISCONNECTED)
-        .filter(([, connection]) => connection.connectionDetails.password !== undefined && connection.connectionDetails.password !== "")
+        .filter(([, connection]) => R.isNotNil(connection.connectionDetails.password))
 
       if (disconnectedConnections.length > 0) {
         console.log(`Auto-reconnecting ${disconnectedConnections.length} connection(s)`)
