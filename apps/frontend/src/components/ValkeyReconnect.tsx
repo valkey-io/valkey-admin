@@ -3,11 +3,11 @@ import { useDispatch, useSelector } from "react-redux"
 import { useNavigate, useParams } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
 import { Loader2, Database, AlertCircle } from "lucide-react"
+import * as R from "ramda"
 import RetryProgress from "./ui/retry-progress"
 import { PasswordPromptModal } from "./ui/password-prompt-modal"
 import type { RootState } from "@/store"
 import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
-import * as R from "ramda"
 import { secureStorage } from "@/utils/secureStorage"
 
 export function ValkeyReconnect() {
