@@ -8,6 +8,7 @@ import RetryProgress from "./ui/retry-progress"
 import { PasswordPromptModal } from "./ui/password-prompt-modal"
 import type { RootState } from "@/store"
 import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
+import * as R from "ramda"
 import { secureStorage } from "@/utils/secureStorage"
 
 export function ValkeyReconnect() {
