@@ -1,6 +1,7 @@
 import { Subject, timer, race, firstValueFrom, defer, of } from "rxjs"
 import { exhaustMap, catchError, map } from "rxjs"
 import Valkey from "iovalkey"
+import { ElastiCacheIAMProvider } from "../utils/elasticache-iam-provider.js"
 
 export const makeMonitorStream = (onLogs = async () => { }, config) => {
   const { monitoringInterval, monitoringDuration, maxCommandsPerRun: maxLogs } = config
@@ -9,7 +10,6 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
   const port = Number(process.env.VALKEY_PORT)
 
   const username = process.env.VALKEY_USERNAME
-  const password = process.env.VALKEY_PASSWORD
   const verifyTlsCertificate  = process.env.VALKEY_VERIFY_CERT
   let tls = undefined
   if (process.env.VALKEY_TLS === "true") {
@@ -17,9 +17,12 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
   }
 
   const runMonitorOnce = async () => {
+    const password = process.env.VALKEY_AUTH_TYPE === "iam"
+      ? await new ElastiCacheIAMProvider(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION).getCredentials()
+      : process.env.VALKEY_PASSWORD
     const monitorClient = new Valkey({
       host,
-      port, 
+      port,
       username,
       password,
       tls,

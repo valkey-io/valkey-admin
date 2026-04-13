@@ -9,6 +9,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@aws-sdk/credential-provider-node": "^3.972.30",
+    "@aws-sdk/util-format-url": "^3.972.9",
+    "@smithy/protocol-http": "^5.3.13",
+    "@smithy/signature-v4": "^5.3.13",
     "@valkey/valkey-glide": "^2.3.1",
     "express": "^4.21.2",
     "heap-js": "^2.7.1",

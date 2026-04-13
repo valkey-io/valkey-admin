@@ -31,7 +31,7 @@ import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
-import { monitorRequested, saveMonitorSettingsRequested, selectMonitorRunning } from "../valkey-features/monitor/monitorSlice.ts"
+import { monitorRequested, saveMonitorSettingsRequested } from "../valkey-features/monitor/monitorSlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
 import { selectIsAtConnectionLimit } from "../valkey-features/connection/connectionSelectors.ts"
 import type { Store } from "@reduxjs/toolkit"
@@ -374,13 +374,12 @@ export const getHotKeysEpic = (store: Store) =>
       const socket = getSocket()
       const state = store.getState()
       const connection = state.valkeyConnection.connections[connectionId]
-      const monitorEnabled = selectMonitorRunning(connectionId)(state)
       const lfuEnabled = connection.connectionDetails.keyEvictionPolicy?.includes("lfu") ?? false
       const clusterSlotStatsEnabled = connection.connectionDetails.clusterSlotStatsEnabled ?? false
 
       socket.next({
         type: action.type,
-        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, monitorEnabled },
+        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled },
       })
 
     }),
