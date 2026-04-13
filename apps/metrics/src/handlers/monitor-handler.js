@@ -5,9 +5,10 @@ import { startMonitor, stopMonitor } from "../init-collectors.js"
 import { enrichHotKeys } from "../analyzers/enrich-hot-keys.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
 export const readMonitorMetadata = () => getCollectorMeta(MONITOR)
-const toResponse = ({ isRunning, willCompleteAt }) => ({
+const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
   monitorRunning: isRunning,
   checkAt: willCompleteAt,
+  startedAt: startedAt ?? null,
 })
 
 export const useMonitor = async (res, client) => {

@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { AlertTriangle, CircleStop, Minimize2 } from "lucide-react"
-import { MONITOR_ACTION } from "@common/src/constants"
-import { formatDuration } from "@common/src/time-utils"
+import { AlertTriangle, CircleStop, Dot, Minimize2 } from "lucide-react"
+import { MONITOR_ACTION, VALKEY } from "@common/src/constants"
+import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
+import * as R from "ramda"
+import { useParams } from "react-router"
 import { Button } from "./button"
 import { Typography } from "./typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { saveMonitorSettingsRequested, selectRunningMonitorConnections } from "@/state/valkey-features/monitor/monitorSlice"
 
+interface MonitoringConfig {
+  monitoringDuration: number
+  monitoringInterval: number
+}
+
 export function MonitorWarningBanner() {
+  const { id } = useParams()
   const dispatch = useAppDispatch()
+  const config = useSelector((state: unknown) =>
+    R.path<{ monitoring?: MonitoringConfig }>([VALKEY.CONFIG.name, id!], state),
+  )
   const runningConnections = useSelector(selectRunningMonitorConnections)
   const [expanded, setExpanded] = useState(true)
   const [now, setNow] = useState(Date.now())
@@ -64,7 +75,12 @@ export function MonitorWarningBanner() {
                       Running for : {formatDuration(now - startedAt)}
                     </span>
                   )}
+                  <span className="text-xs text-gray-400 flex items-center">
+                    Duration : {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                    Interval : {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
+                  </span>
                 </div>
+
                 <Button
 
                   onClick={() => handleStop(connectionId)}

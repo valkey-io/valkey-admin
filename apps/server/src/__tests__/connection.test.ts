@@ -73,12 +73,9 @@ describe("connectToValkey", () => {
 
         if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
           return [
-            [
-              0,
-              5460,
-              ["192.168.1.1", 6379, "node-1"],
-              ["192.168.1.2", 6379, "replica-1"],
-            ],
+            [0, 5460, ["192.168.1.1", 6379, "node-1"], ["192.168.1.2", 6379, "replica-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
           ]
         }
 
@@ -123,7 +120,7 @@ describe("connectToValkey", () => {
       const result = await connectToValkey(mockWs, payload, clients, clusterNodesMap, metricsServerMap)
 
       assert.ok(result)
-      assert.strictEqual(mockStandaloneClient.close.mock.calls.length, 1)
+      assert.strictEqual(mockStandaloneClient.close.mock.calls.length, 2)
       const connection = clients.get(payload.connectionId)
       assert.strictEqual(connection.client, mockClusterClient)
 
@@ -245,9 +242,9 @@ describe("connectToValkey", () => {
     try {
       await connectToValkey(mockWs, iamPayload, clients, clusterNodesMap, metricsServerMap)
 
-      const calls = (GlideClusterClient.createClient as ReturnType<typeof mock.fn>).mock.calls
+      const calls = (GlideClusterClient.createClient as unknown as ReturnType<typeof mock.fn>).mock.calls
       assert.ok(calls.length > 0)
-      const calledWith = calls[0].arguments[0]
+      const calledWith = calls[0].arguments[0] as any
       assert.strictEqual(calledWith.credentials.iamConfig.clusterName, "my-cluster")
       assert.strictEqual(calledWith.credentials.iamConfig.region, "us-east-1")
       assert.strictEqual(calledWith.credentials.password, undefined)
@@ -440,7 +437,9 @@ describe("returnIfDuplicateConnection", () => {
     clients.set(sanitizeUrl("10.0.0.1:6379"), {} as any)
 
     const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
+      { connectionId: "abc123", connectionDetails: { 
+        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+      } },
       clients,
     )
 
@@ -456,7 +455,9 @@ describe("returnIfDuplicateConnection", () => {
     const clients = new Map()
 
     const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false } },
+      { connectionId: "abc123", connectionDetails: { 
+        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+      } },
       clients,
     )
 
