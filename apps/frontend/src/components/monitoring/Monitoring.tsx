@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Activity, RefreshCcw, Settings2 } from "lucide-react"
+import { Activity, RefreshCcw } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
@@ -18,6 +18,7 @@ import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import { hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError } from "@/state/valkey-features/hotkeys/hotKeysSlice"
+import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
@@ -48,6 +49,7 @@ export const Monitoring = () => {
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(id!)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(id!)(state))
   const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(id!)(state))
+  const monitorRunning = useSelector(selectMonitorRunning(id!))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {
@@ -58,6 +60,12 @@ export const Monitoring = () => {
       dispatch(hotKeysRequested({ connectionId: id, clusterId }))
     }
   }, [id, clusterId, dispatch])
+
+  useEffect(() => {
+    if (id) {
+      dispatch(hotKeysRequested({ connectionId: id, clusterId }))
+    }
+  }, [monitorRunning, id, clusterId, dispatch])
 
   const refreshCommandLogs = () => {
     if (id) {
@@ -138,13 +146,6 @@ export const Monitoring = () => {
         {activeTab === "hot-keys" && (
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => setConfigOpen(true)}
-              size={"sm"}
-              variant={"outline"}
-            >
-              Params <Settings2 className="hover:text-primary" size={15} />
-            </Button>
-            <Button
               onClick={refreshHotKeys}
               size={"sm"}
               variant={"outline"}
@@ -185,6 +186,7 @@ export const Monitoring = () => {
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
                 onKeyClick={handleKeyClick}
+                onStartMonitoring={() => setConfigOpen(true)}
                 selectedKey={selectedKey}
                 status={hotKeysStatus}
               />

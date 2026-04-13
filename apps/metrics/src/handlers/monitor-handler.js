@@ -10,6 +10,7 @@ export const readMonitorMetadata = () => getCollectorMeta(MONITOR)
 const toResponse = ({ isRunning, willCompleteAt }) => ({
   monitorRunning: isRunning,
   checkAt: willCompleteAt,
+  startedAt: startedAt ?? null,
 })
 
 export const useMonitor = async (res, client) => {

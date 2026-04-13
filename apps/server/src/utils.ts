@@ -198,14 +198,12 @@ export async function returnExistingClusterClient(
 }
 
 export async function connectToFirstNode(
-  clusterClient: GlideClusterClient, 
   clusterNodes: ClusterNodeMap, 
   ws: WebSocket, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   clusterNodesMap: Map<string, string[]>,
   payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
 ) {
-  clusterClient.close()
   const firstNode = Object.values(clusterNodes)[0]
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { replicas, ...connectionDetails } = firstNode
