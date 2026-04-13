@@ -11,15 +11,18 @@ import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../ui/so
 import { Typography } from "../ui/typography"
 import { copyToClipboard } from "@/lib/utils"
 
+const START_MONITORING_STRING = "Start Monitoring"
+
 interface HotKeysProps {
   data: [string, number, number | null, number][] | null
   errorMessage: string | null
   status?: string
   onKeyClick?: (keyName: string) => void
+  onStartMonitoring?: () => void
   selectedKey?: string | null
 }
 
-export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }: HotKeysProps) {
+export function HotKeys({ data, errorMessage, status, onKeyClick, onStartMonitoring, selectedKey }: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   const toggleSortOrder = () => {
@@ -137,7 +140,23 @@ export function HotKeys({ data, errorMessage, status, onKeyClick, selectedKey }:
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
               <Typography variant="bodySm">
-                {errorMessage}
+                {(() => {
+                  const parts = errorMessage.split(START_MONITORING_STRING)
+                  if (parts.length < 2 || !onStartMonitoring) return errorMessage
+                  return (
+                    <>
+                      {parts[0]}
+                      <button
+                        className="text-primary underline hover:opacity-80"
+                        onClick={onStartMonitoring}
+                        type="button"
+                      >
+                        {START_MONITORING_STRING}
+                      </button>
+                      {parts.slice(1).join(START_MONITORING_STRING)}
+                    </>
+                  )
+                })()}
               </Typography>
             </div>
           </div>

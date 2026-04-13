@@ -44,6 +44,8 @@ const hotKeysSlice = createSlice({
         }
       } else {
         state[connectionId].status = PENDING
+        state[connectionId].hotKeys = []
+        state[connectionId].error = null
       }
     },
     hotKeysFulfilled: (state, action) => {
