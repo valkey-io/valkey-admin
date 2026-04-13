@@ -4,7 +4,9 @@ import { calculateHotKeysFromMonitor } from "../analyzers/calculate-hot-keys.js"
 import { startMonitor, stopMonitor } from "../init-collectors.js"
 import { enrichHotKeys } from "../analyzers/enrich-hot-keys.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
+
 export const readMonitorMetadata = () => getCollectorMeta(MONITOR)
+
 const toResponse = ({ isRunning, willCompleteAt }) => ({
   monitorRunning: isRunning,
   checkAt: willCompleteAt,
