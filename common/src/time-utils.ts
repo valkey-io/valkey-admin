@@ -59,3 +59,8 @@ export function formatDuration(ms: number): string {
   }
   return `${minutes}m ${seconds.toString().padStart(2, "0")}s`
 }
+
+export function milliSecondsToSeconds(ms: number): string {
+  const seconds = ms / 1000
+  return `${seconds.toFixed(0)}s`
+}
