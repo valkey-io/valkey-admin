@@ -374,13 +374,12 @@ export const getHotKeysEpic = (store: Store) =>
       const socket = getSocket()
       const state = store.getState()
       const connection = state.valkeyConnection.connections[connectionId]
-      const monitorEnabled = selectMonitorRunning(connectionId)(state)
       const lfuEnabled = connection.connectionDetails.keyEvictionPolicy?.includes("lfu") ?? false
       const clusterSlotStatsEnabled = connection.connectionDetails.clusterSlotStatsEnabled ?? false
 
       socket.next({
         type: action.type,
-        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, monitorEnabled },
+        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled },
       })
 
     }),

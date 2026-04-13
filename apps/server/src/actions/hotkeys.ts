@@ -44,7 +44,7 @@ const sendHotKeysError = (
 
 export const hotKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
-    const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, monitorEnabled } = action.payload
+    const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
     const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
     
     const promises = connectionIds.map(async (connectionId: string) => {
@@ -56,15 +56,6 @@ export const hotKeysRequested = withDeps<Deps, void>(
       }
       const url = new URL("/hot-keys", metricsServerURI)
       if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
-      else if (!monitorEnabled) {
-        sendHotKeysError(
-          ws,
-          connectionId,
-          "To collect hotkeys, you must either have monitoring started in params " +
-          "or use an LFU eviction policy with cluster-slot-stats enabled",
-        )
-        return 
-      }
       try {
         console.debug("[Hot keys] Fetching from:", url.href)
         const initialResponse = await fetch(url)
