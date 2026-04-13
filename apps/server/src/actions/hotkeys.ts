@@ -60,7 +60,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         sendHotKeysError(
           ws,
           connectionId,
-          "To collect hotkeys, you must either have monitoring enabled in Settings " +
+          "To collect hotkeys, you must either have monitoring started in params " +
           "or use an LFU eviction policy with cluster-slot-stats enabled",
         )
         return 

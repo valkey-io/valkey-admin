@@ -7,6 +7,7 @@ import { getOtherWatchers } from "../node-watchers"
 type MonitorResponse = {
   monitorRunning: boolean
   checkAt: number | null
+  startedAt: number | null
   error?: string
 }
 

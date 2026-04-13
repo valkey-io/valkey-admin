@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Activity, RefreshCcw } from "lucide-react"
+import { Activity, RefreshCcw, Settings2 } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
@@ -9,6 +9,7 @@ import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
 import { HotKeys } from "./hot-keys"
+import { HotKeysParamsModal } from "./hot-keys-params-modal"
 import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
@@ -39,6 +40,7 @@ export const Monitoring = () => {
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
   const [commandLogSubTab, setCommandLogSubTab] = useState<CommandLogSubTab>("slow")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [configOpen, setConfigOpen] = useState(false)
 
   const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.SLOW)(state))
   const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
@@ -110,6 +112,7 @@ export const Monitoring = () => {
 
   return (
     <RouteContainer title="monitoring">
+      <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
       <AppHeader
         description={
           <>
@@ -133,13 +136,22 @@ export const Monitoring = () => {
 
         {/* Hot Keys Refresh */}
         {activeTab === "hot-keys" && (
-          <Button
-            onClick={refreshHotKeys}
-            size={"sm"}
-            variant={"outline"}
-          >
-            Refresh <RefreshCcw className="hover:text-primary" size={15} />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setConfigOpen(true)}
+              size={"sm"}
+              variant={"outline"}
+            >
+              Params <Settings2 className="hover:text-primary" size={15} />
+            </Button>
+            <Button
+              onClick={refreshHotKeys}
+              size={"sm"}
+              variant={"outline"}
+            >
+              Refresh <RefreshCcw className="hover:text-primary" size={15} />
+            </Button>
+          </div>
         )}
 
         {/* Command Log Sub-tabs and Refresh */}
