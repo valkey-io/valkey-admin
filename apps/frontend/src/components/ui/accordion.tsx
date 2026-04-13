@@ -63,9 +63,11 @@ export default function Accordion({ accordionName, accordionItems, valueType = "
   }
 
   return (
-    <div className="w-full mt-2">
+    <div className="w-full mt-2 cursor-pointer">
       <TooltipProvider>
-        <div className="h-14 px-2 py-4 border border-input rounded-md shadow-xs flex items-center gap-2 justify-between">
+        <div className="h-14 px-2 py-4 hover:bg-primary/20 border border-input rounded-md shadow-xs flex items-center gap-2 
+        justify-between cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}>
           <div className="flex flex-col gap-1">
             <Typography className="flex items-center gap-1" variant="label">
               {accordionName}
