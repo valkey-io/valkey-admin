@@ -73,7 +73,6 @@ const startMonitor = (cfg) => {
     next: (logs) => {
       updateCollectorMeta(monitorEpic.name, {
         lastUpdatedAt: Date.now(),
-        willCompleteAt: Date.now() + monitorEpic.monitoringDuration,
       })
       console.debug(`[${monitorEpic.name}] monitor cycle complete (${logs.length} logs)`)
     },
