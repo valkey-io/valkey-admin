@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux"
 import { Outlet } from "react-router"
 import { SidebarInset, SidebarProvider } from "./components/ui/sidebar"
 import { AppSidebar } from "./components/ui/app-sidebar"
+import { MonitorWarningBanner } from "./components/ui/monitor-warning-banner"
 import { Toaster } from "./components/ui/sonner"
 import { DarkModeProvider } from "./contexts/DarkModeContext"
 import { useWebSocketNavigation } from "./hooks/useWebSocketNavigation"
@@ -29,6 +30,7 @@ function App() {
           <SidebarInset>
             <Outlet />
           </SidebarInset>
+          <MonitorWarningBanner />
         </SidebarProvider>
         <Toaster />
       </div>

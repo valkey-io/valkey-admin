@@ -13,12 +13,21 @@ export const selectMonitorLoading =
     (state: RootState) =>
       R.path<boolean>([VALKEY.MONITOR.name, connectionId, "loading"], state) ?? false
 
+export const selectRunningMonitorConnections =
+  (state: RootState): { connectionId: string; startedAt: number | null }[] => {
+    const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
+    return Object.entries(monitorState)
+      .filter(([, entry]) => entry.monitorRunning)
+      .map(([connectionId, entry]) => ({ connectionId, startedAt: entry.startedAt }))
+  }
+
 interface MonitorState {
   [connectionId: string]: {
     monitorRunning: boolean
     checkAt: number | null
     loading: boolean
     error?: string | null
+    startedAt: number | null
   }
 }
 
@@ -35,6 +44,7 @@ const monitorSlice = createSlice({
           monitorRunning: false,
           checkAt: null,
           loading: false,
+          startedAt: null,
         }
       }
       state[connectionId].loading = true
@@ -46,10 +56,12 @@ const monitorSlice = createSlice({
           monitorRunning: false,
           checkAt: null,
           loading: false,
+          startedAt: null,
         }
       }
       state[connectionId].monitorRunning = parsedResponse.monitorRunning ?? false
       state[connectionId].checkAt = parsedResponse.checkAt ?? null
+      state[connectionId].startedAt = parsedResponse.startedAt ?? null
       state[connectionId].loading = false
       state[connectionId].error = null
     },
