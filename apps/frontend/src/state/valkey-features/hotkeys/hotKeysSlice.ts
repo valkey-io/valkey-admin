@@ -33,9 +33,10 @@ const hotKeysSlice = createSlice({
   initialState: initialHotKeysState,
   reducers: {
     hotKeysRequested: (state, action) => {
-      const connectionId = action.payload.connectionId
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      const { connectionId, clusterId } = action.payload
+      const id = clusterId ?? connectionId
+      if (!state[id]) {
+        state[id] = {
           hotKeys: [],
           checkAt: null,
           monitorRunning: false,
@@ -43,9 +44,9 @@ const hotKeysSlice = createSlice({
           status: PENDING,
         }
       } else {
-        state[connectionId].status = PENDING
-        state[connectionId].hotKeys = []
-        state[connectionId].error = null
+        state[id].status = PENDING
+        state[id].hotKeys = []
+        state[id].error = null
       }
     },
     hotKeysFulfilled: (state, action) => {
