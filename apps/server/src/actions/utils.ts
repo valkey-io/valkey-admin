@@ -1,6 +1,6 @@
 import { type GlideClient, type GlideClusterClient } from "@valkey/valkey-glide"
 import { FETCH_TIMEOUT_MS } from "valkey-common"
-import { MetricsServerMap } from "../metrics-orchestrator"
+import { ClusterRegistry, MetricsServerMap } from "../metrics-orchestrator"
 import type WebSocket from "ws"
 
 export type Deps = {
@@ -8,7 +8,8 @@ export type Deps = {
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>
   connectionId: string,
   metricsServerMap: MetricsServerMap,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
 }
 
 export type ReduxAction = {

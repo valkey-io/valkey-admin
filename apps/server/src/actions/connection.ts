@@ -28,8 +28,8 @@ type ConnectPayload = {
 }
 
 export const connectPending = withDeps<Deps, void>(
-  async ({ ws, clients, action, clusterNodesMap, metricsServerMap }) => {
-    await connectToValkey(ws, action.payload as ConnectPayload, clients, clusterNodesMap, metricsServerMap)
+  async ({ ws, clients, action, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry }) => {
+    await connectToValkey(ws, action.payload as ConnectPayload, clients, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry)
   },
 )
 
@@ -52,7 +52,7 @@ export const resetConnection = withDeps<Deps, void>(
 )
 
 export const closeConnection = withDeps<Deps, void>(
-  async ({ ws, clients, action, metricsServerMap, clusterNodesMap }) => {
+  async ({ ws, clients, action, metricsServerMap, connectedNodesByCluster }) => {
     const { connectionId } = action.payload
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId
@@ -68,12 +68,12 @@ export const closeConnection = withDeps<Deps, void>(
     if (getWatcherCount(connectionId) > 0) {
       return
     }
-    const nodes = clusterNodesMap.get(clusterId!)
+    const nodes = connectedNodesByCluster.get(clusterId!)
 
     // Remove node from cluster map accordingly
     if (clusterId && nodes) {
       if (nodes.length === 1) {
-        clusterNodesMap.delete(clusterId)
+        connectedNodesByCluster.delete(clusterId)
       } else {
         const index = nodes.indexOf(connectionId)
         if (index !== -1) {

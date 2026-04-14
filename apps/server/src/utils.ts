@@ -10,7 +10,7 @@ import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
 import WebSocket from "ws"
-import { ClusterNodeMap, metricsServerMap } from "./metrics-orchestrator"
+import { ClusterNodeMap, ClusterRegistry, metricsServerMap } from "./metrics-orchestrator"
 import { connectToCluster } from "./connection"
 import { subscribe } from "./node-watchers"
 import type { ConnectionDetails } from "./actions/connection"
@@ -146,11 +146,11 @@ export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
 export async function isLastConnectedClusterNode(
   connectionId: string, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId? :string }>,
-  clusterNodesMap: Map<string, string[]>) 
+  connectedNodesByCluster: Map<string, string[]>) 
 {
   const connection = clients.get(connectionId)
   const currentClusterId = connection?.clusterId
-  return clusterNodesMap.get(currentClusterId!)?.length === 1
+  return connectedNodesByCluster.get(currentClusterId!)?.length === 1
 }
 
 function isClusterClientEntry(
@@ -179,19 +179,21 @@ export async function returnExistingClusterClient(
   existingClusterConnection: {client: GlideClusterClient, clusterId?: string},
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   connectionId: string,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
   ws: WebSocket,
-  clusterNodes: ClusterNodeMap,
+  discoveredClusterNodes: ClusterNodeMap,
 ) {
   const { client: existingClusterClient, clusterId: existingClusterId } = existingClusterConnection
   clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
-      
-  if (!clusterNodesMap.get(existingClusterId!)?.includes(connectionId)) clusterNodesMap.get(existingClusterId!)?.push(connectionId)
+  clusterNodesRegistry[existingClusterId!] = discoveredClusterNodes
+  if (!connectedNodesByCluster.get(existingClusterId!)?.includes(connectionId)) 
+    connectedNodesByCluster.get(existingClusterId!)?.push(connectionId)
   subscribe(connectionId, ws)
   ws.send(
     JSON.stringify({
       type: VALKEY.CLUSTER.updateClusterInfo,
-      payload: { clusterId: existingClusterId, clusterNodes },
+      payload: { clusterId: existingClusterId, clusterNodes: discoveredClusterNodes },
     }),
   )
   return existingClusterClient
@@ -201,8 +203,9 @@ export async function connectToFirstNode(
   clusterNodes: ClusterNodeMap, 
   ws: WebSocket, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
   payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
+  clusterNodesRegistry: ClusterRegistry,
 ) {
   const firstNode = Object.values(clusterNodes)[0]
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -246,8 +249,9 @@ export async function connectToFirstNode(
     newPayload,
     newAddresses,
     newCredentials,
-    clusterNodesMap,
+    connectedNodesByCluster,
     metricsServerMap,
+    clusterNodesRegistry,
     payload.connectionId,
   )
 }

@@ -13,7 +13,7 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
+import { ClusterRegistry, MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -25,8 +25,9 @@ export async function connectToValkey(
     isRetry?: boolean
   },
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
   metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry: ClusterRegistry,
 ) {
   
   const { 
@@ -81,8 +82,9 @@ export async function connectToValkey(
         payload, 
         addresses, 
         credentials, 
-        clusterNodesMap,
+        connectedNodesByCluster,
         metricsServerMap,
+        clusterNodesRegistry,
       )
     }
 
@@ -111,8 +113,9 @@ export async function connectToValkey(
         payload, 
         addresses, 
         credentials, 
-        clusterNodesMap,
+        connectedNodesByCluster,
         metricsServerMap,
+        clusterNodesRegistry,
       )
     }
 
@@ -166,7 +169,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
     // First primary node's ID
     const clusterId = R.path([0, 2, 2], response)
 
-    const clusterNodes = response.reduce((acc, slotRange) => {
+    const discoveredClusterNodes = response.reduce((acc, slotRange) => {
       const [, , ...nodes] = slotRange
       const [primaryHost, primaryPort] = nodes[0]
       const primaryKey = sanitizeUrl(`${primaryHost}-${primaryPort}`)
@@ -205,7 +208,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
       replicas: { id: string; host: string; port: number }[];
     }>)
 
-    return { clusterNodes, clusterId }
+    return { discoveredClusterNodes, clusterId }
   } catch (err) {
     console.error("Error discovering cluster:", err)
     throw new Error("Failed to discover cluster") 
@@ -219,10 +222,12 @@ export async function connectToCluster(
   payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
   metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry: ClusterRegistry,
   configEndpointId?: string,
 ): Promise<GlideClusterClient | undefined> {
+
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
@@ -230,27 +235,27 @@ export async function connectToCluster(
     const discoveryClient = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
     let clusterClient: GlideClusterClient 
 
-    // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once
-    const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
+    const { discoveredClusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
     discoveryClient.close()
     let clusterId = initialClusterId
-    if (Object.keys(clusterNodes).length < 3) {
+    if (Object.keys(discoveredClusterNodes).length < 3) {
       throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     // Reconnect using a real node address instead of the clustercfg endpoint
     if (useClusterEndpoint) {
       return await connectToFirstNode(
-        clusterNodes,
+        discoveredClusterNodes,
         ws,
         clients,
-        clusterNodesMap,
+        connectedNodesByCluster,
         payload,
+        clusterNodesRegistry,
       )
     }
 
-    const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
+    const existingClusterConnection = await clusterClientExists(discoveredClusterNodes, clients)
     if (existingClusterConnection) {
       clusterId = existingClusterConnection.clusterId
       if (payload.isRetry) {
@@ -271,9 +276,10 @@ export async function connectToCluster(
           existingClusterConnection,
           clients,
           payload.connectionId,
-          clusterNodesMap,
+          connectedNodesByCluster,
+          clusterNodesRegistry,
           ws,
-          clusterNodes,
+          discoveredClusterNodes,
         )
       }
     } 
@@ -283,11 +289,12 @@ export async function connectToCluster(
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes }, //TODO: strip credentials (this will impact connecting from Cluster Topology)
+          payload: { clusterId, discoveredClusterNodes }, 
         }),
       )
+      clusterNodesRegistry[clusterId] = discoveredClusterNodes
       clients.set(connectionId, { client: clusterClient, clusterId })
-      clusterNodesMap.set(clusterId, [connectionId])
+      connectedNodesByCluster.set(clusterId, [connectionId])
       subscribe(payload.connectionId, ws)
     }
 
@@ -299,7 +306,7 @@ export async function connectToCluster(
     if (configEndpointId) {
       const nodeConnectionId = sanitizeUrl(`${payload.connectionDetails.host}-${payload.connectionDetails.port}`)
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
-      if (!clusterNodesMap.get(clusterId)?.includes(nodeConnectionId)) clusterNodesMap.get(clusterId)?.push(nodeConnectionId)
+      if (!connectedNodesByCluster.get(clusterId)?.includes(nodeConnectionId)) connectedNodesByCluster.get(clusterId)?.push(nodeConnectionId)
       if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
       // Add connectedNode to payload 
       ws.send(

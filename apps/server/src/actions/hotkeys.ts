@@ -43,9 +43,17 @@ const sendHotKeysError = (
 }
 
 export const hotKeysRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    
+    const nodes =
+      typeof clusterId === "string"
+        ? clusterNodesRegistry[clusterId]
+        : undefined
+
+    const connectionIds = nodes
+      ? Object.keys(nodes)
+      : [connectionId]
     
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI

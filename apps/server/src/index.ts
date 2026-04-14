@@ -33,7 +33,7 @@ import {
   initialConnectionDetails,
   cleanupOrchestratorResources,
   clients,
-  getInitialClient
+  updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
@@ -87,21 +87,16 @@ async function runReconcileLoop() {
     return
   }
 
-  let initialClient
   let consecutiveFailures = 0
   const MAX_FAILURES = 5
 
   while (true) {
     try {
-      if (!initialClient) {
-        initialClient = await getInitialClient()
-      }
-      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails, initialClient)
+      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails)
       consecutiveFailures = 0
-      await delay(5000)
+      await delay(10000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)
-      initialClient = undefined
       consecutiveFailures++
       if (consecutiveFailures >= MAX_FAILURES) {
         console.error(`Orchestrator failed ${MAX_FAILURES} consecutive times. Stopping reconcile loop.`)
@@ -112,11 +107,45 @@ async function runReconcileLoop() {
   }
 }
 
+async function refreshAllClusterRegistries() {
+  await Promise.all(
+    Object.entries(clusterNodesRegistry).map(async ([clusterId]) => {
+      const clientEntry = [...clients.values()].find((e) => e.clusterId === clusterId)
+      if (!clientEntry) return
+
+      const updatedNodes = clusterNodesRegistry[clusterId]
+      // Am I being too safe here?
+      if (!updatedNodes) return
+
+      wss.clients.forEach((ws) => {
+        ws.send(JSON.stringify({
+          type: VALKEY.CLUSTER.updateClusterInfo,
+          payload: { clusterId, clusterNodes: updatedNodes },
+        }))
+      })
+    }),
+  )
+}
+
+async function refreshAllClusterRegistriesLoop() {
+  while (true) {
+    try {
+      await refreshAllClusterRegistries()
+      const refreshInterval = process.env.TOPOLOGY_REFRESH_INTERVAL
+      await delay( refreshInterval ? Number(refreshInterval) : 30000)
+    } catch (err) {
+      console.warn("Unable to refresh cluster topologies. ", err)
+    }
+  }
+}
+
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }
+  refreshAllClusterRegistriesLoop()
+
   if (process.env.USE_CLUSTER_ORCHESTRATOR === "true") {
     runReconcileLoop()
   }
@@ -135,7 +164,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
   ws.isAlive = true
   ws.on("pong", () => {ws.isAlive = true})
   // This is a simplified cluster node map that stores clusterIds and their corresponding nodeIds
-  const clusterNodesMap: Map<string, string[]> = new Map()
+  const connectedNodesByCluster: Map<string, string[]> = new Map()
 
   const handlers: Record<string, Handler> = {
     [VALKEY.CONNECTION.connectPending]: connectPending,
@@ -198,7 +227,13 @@ wss.on("connection", (ws: AliveWebSocket) => {
 
     try {
       const handler = handlers[action.type] ?? unknownHandler
-      await handler({ ws, clients, connectionId: connectionId!, metricsServerMap, clusterNodesMap })(action as ReduxAction)
+      await handler(
+        { ws, 
+          clients, 
+          connectionId: connectionId!, 
+          metricsServerMap, 
+          connectedNodesByCluster, 
+          clusterNodesRegistry })(action as ReduxAction)
     } catch (error) {
       console.error(`Error handling action ${action.type}:`, error)
     }
@@ -208,7 +243,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
   })
   ws.on("close", (code, reason) => {
     const removedIds = unsubscribeAll(ws)
-    clusterNodesMap.clear()
+    connectedNodesByCluster.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
 
     for (const connectionId of removedIds) {

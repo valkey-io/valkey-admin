@@ -27,7 +27,7 @@ describe("connectToValkey", () => {
   let mockWs: any
   let messages: string[]
   let clients: Map<string, any>
-  let clusterNodesMap: Map<string, string[]>
+  let connectedNodesByCluster: Map<string, string[]>
   let metricsServerMap: MetricsServerMap
   beforeEach(() => {
     messages = []
@@ -35,7 +35,7 @@ describe("connectToValkey", () => {
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     clients = new Map()
-    clusterNodesMap = new Map() 
+    connectedNodesByCluster = new Map() 
     metricsServerMap = new Map()
     metricsServerMap.set(DEFAULT_PAYLOAD.connectionId, {
       metricsURI: "http://localhost:1234",
@@ -51,7 +51,7 @@ describe("connectToValkey", () => {
     }
     mock.restoreAll()
     clients.clear()
-    clusterNodesMap.clear()
+    connectedNodesByCluster.clear()
     resetNodeWatchers()
   })
 
@@ -117,7 +117,7 @@ describe("connectToValkey", () => {
     }
 
     try {
-      const result = await connectToValkey(mockWs, payload, clients, clusterNodesMap, metricsServerMap)
+      const result = await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap)
 
       assert.ok(result)
       assert.strictEqual(mockStandaloneClient.close.mock.calls.length, 2)
@@ -170,7 +170,7 @@ describe("connectToValkey", () => {
     }
 
     try {
-      const result = await connectToValkey(mockWs, payload, clients, clusterNodesMap, metricsServerMap)
+      const result = await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap)
 
       assert.ok(result)
       const connection = clients.get(payload.connectionId)
@@ -240,7 +240,7 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, iamPayload, clients, clusterNodesMap, metricsServerMap)
+      await connectToValkey(mockWs, iamPayload, clients, connectedNodesByCluster, metricsServerMap)
 
       const calls = (GlideClusterClient.createClient as unknown as ReturnType<typeof mock.fn>).mock.calls
       assert.ok(calls.length > 0)
@@ -263,7 +263,7 @@ describe("connectToValkey", () => {
     mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
-      const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients, clusterNodesMap, metricsServerMap)
+      const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients, connectedNodesByCluster, metricsServerMap)
 
       assert.strictEqual(result, undefined)
       assert.strictEqual(clients.has(DEFAULT_PAYLOAD.connectionId), false)
@@ -312,7 +312,7 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, alternate_payload, clients, clusterNodesMap, metricsServerMap)
+      await connectToValkey(mockWs, alternate_payload, clients, connectedNodesByCluster, metricsServerMap)
       assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 1)
 
       const config = (GlideClient.createClient as any).mock.calls[0].arguments[0]
@@ -343,7 +343,7 @@ describe("connectToValkey", () => {
     payload.connectionId = uniqueConnID
 
     try {
-      await connectToValkey(mockWs, payload, clients, clusterNodesMap, metricsServerMap)
+      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap)
 
       assert.strictEqual(clients.size, 1)
       assert.ok(clients.has(uniqueConnID))
