@@ -1,10 +1,11 @@
 import { type WebSocket } from "ws"
 import { VALKEY } from "valkey-common"
+import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
 
 type HotKeysResponse = {
   nodeId: string
-  hotkeys: [[]]
+  hotKeys: [[]]
   checkAt: number
   monitorRunning: boolean
 }
@@ -76,25 +77,36 @@ export const hotKeysRequested = withDeps<Deps, void>(
         // Reads monitor data and returns when to fetch results (`checkAt`).
         if (initialParsedResponse.checkAt) {
           const delay = initialParsedResponse.checkAt - Date.now()
-          // Schedule the follow-up request for when the monitor cycle finishes
-          setTimeout(async () => {
-            try {
-              const dataResponse = await fetch(`${metricsServerURI}/hot-keys`)
-              const dataParsedResponse = await dataResponse.json() as HotKeysResponse
-              sendHotKeysFulfilled(ws, connectionId, dataParsedResponse)
-            } catch (error) {
-              sendHotKeysError(ws, connectionId, error)
-            }
-          }, delay)
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          const dataResponse = await fetch(`${metricsServerURI}/hot-keys`)
+          return await dataResponse.json() as HotKeysResponse
         }
         else {
-          sendHotKeysFulfilled(ws, connectionId, initialParsedResponse)
+          return initialParsedResponse
         }
       } catch (error) {
         sendHotKeysError(ws, connectionId, error)
+        return
       }
     })
-    await Promise.all(promises)
+    const results = (await Promise.all(promises)).filter((r): r is HotKeysResponse => !!r?.hotKeys)
 
-  },
-)
+    if (results.length === 0) return
+
+    if (!nodes) {
+      sendHotKeysFulfilled(ws, connectionId, results[0])
+      return
+    }
+
+    const aggregatedHotKeys = R.pipe(
+      R.chain(({ hotKeys }: HotKeysResponse) => hotKeys as unknown as [string, number][]),
+      R.reduce((acc, [key, count]: [string, number]) => ({
+        ...acc,
+        [key]: (acc[key] ?? 0) + count,
+      }), {} as Record<string, number>),
+      R.toPairs,
+      R.sort(([, a]: [string, number], [, b]: [string, number]) => b - a),
+    )(results)
+    const { monitorRunning, checkAt, nodeId } = results[0]
+    sendHotKeysFulfilled(ws, clusterId as string, { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse)
+  })

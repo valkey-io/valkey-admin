@@ -32,8 +32,7 @@ import {
   clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
-  clients,
-  updateClusterNodeRegistry
+  clients
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
