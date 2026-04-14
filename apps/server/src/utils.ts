@@ -160,11 +160,11 @@ function isClusterClientEntry(
 }
 
 export async function clusterClientExists(
-  clusterNodes: ClusterNodeMap, 
+  discoveredClusterNodes: ClusterNodeMap, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) {
   // Check if we've already connected to this cluster before 
-  const existingKey = Object.keys(clusterNodes).find(
+  const existingKey = Object.keys(discoveredClusterNodes).find(
     (key) => isClusterClientEntry(clients.get(key)),
   )
 

@@ -289,7 +289,7 @@ export async function connectToCluster(
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, discoveredClusterNodes }, 
+          payload: { clusterId, clusterNodes: discoveredClusterNodes }, 
         }),
       )
       clusterNodesRegistry[clusterId] = discoveredClusterNodes
