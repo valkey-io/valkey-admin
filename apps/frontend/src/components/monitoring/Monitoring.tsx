@@ -185,6 +185,7 @@ export const Monitoring = () => {
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
+                monitorRunning={monitorRunning}
                 onKeyClick={handleKeyClick}
                 onStartMonitoring={() => setConfigOpen(true)}
                 selectedKey={selectedKey}
