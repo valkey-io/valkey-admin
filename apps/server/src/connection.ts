@@ -210,7 +210,6 @@ export async function connectToCluster(
   credentials: ServerCredentials | undefined,
   connectedNodesByCluster: Map<string, string[]>,
   clusterNodesRegistry: ClusterRegistry,
-  configEndpointId?: string,
 ): Promise<GlideClusterClient | undefined> {
 
   const { connectionId } = payload
@@ -228,7 +227,7 @@ export async function connectToCluster(
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     if (useClusterEndpoint) {
-      const firstNode = Object.values(clusterNodes)[0]
+      const firstNode = Object.values(connectedNodesByCluster)[0]
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.configEndpointRedirect,

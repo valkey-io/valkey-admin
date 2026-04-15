@@ -18,7 +18,7 @@ import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
-  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError, selectHotKeysNodeErrors,
+  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError, selectHotKeysNodeErrors
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
