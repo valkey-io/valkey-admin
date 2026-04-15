@@ -70,8 +70,7 @@ export const ConnectionEntry = ({
   const lastConnectionTime = connection.connectionHistory?.at(-1) ?? null
 
   const statusType = isConnected ? "connected" : isError ? "error" : "disconnected"
-  const clusterPath = (id: string) =>
-    `/${clusterId}/${id}/${connection.connectionDetails.endpointType === "cluster-endpoint" ? "cluster-topology" : "dashboard"}`
+  const clusterPath = (id: string) => `/${clusterId}/${id}/dashboard`
 
   // for cluster instances
   if (isNested) {

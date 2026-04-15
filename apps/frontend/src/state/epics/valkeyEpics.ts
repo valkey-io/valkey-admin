@@ -18,7 +18,7 @@ import {
   closeConnectionFulfilled,
   closeConnectionFailed,
   closeConnection,
-  type ValkeyConnectionsState
+  configEndpointRedirect
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
@@ -104,6 +104,15 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+      }),
+      ignoreElements(),
+    ),
+
+    action$.pipe(
+      select(configEndpointRedirect),
+      tap(({ payload: { fromId, toId, connectionDetails } }) => {
+        store.dispatch(deleteConnection({ connectionId: fromId, silent: true }))
+        store.dispatch(connectPending({ connectionId: toId, connectionDetails }))
       }),
       ignoreElements(),
     ),
@@ -242,7 +251,7 @@ export const autoReconnectEpic = (store: Store) =>
     ignoreElements(),
   )
 
-export const deleteConnectionEpic = (store: Store) =>
+export const deleteConnectionEpic = () =>
   merge (
     action$.pipe(
       select(deleteConnection),
@@ -269,18 +278,6 @@ export const deleteConnectionEpic = (store: Store) =>
       select(closeConnection),
       tap((action) => {
         const socket = getSocket()
-        const { connectionId } = action.payload
-        const state = store.getState()
-        // TODO: remove extra defensiveness
-        const connection = state.valkeyConnection?.connections?.[connectionId]
-        const clusterId = connection?.connectionDetails?.clusterId
-
-        if (connection?.connectionDetails?.endpointType === "cluster-endpoint" && clusterId) {
-          Object.entries(state.valkeyConnection.connections as ValkeyConnectionsState)
-            .filter(([id, c]) => id !== connectionId && c.connectionDetails?.clusterId === clusterId)
-            .forEach(([id]) => store.dispatch(deleteConnection({ connectionId: id, silent: true })))
-        }
-
         socket.next(action)
       }),
     ),
@@ -356,10 +353,8 @@ export const setDataEpic = (store: Store) =>
       }
 
       socket.next({ type: setData.type, payload: action.payload })
-      const state = store.getState()
-      const endpointType = state.valkeyConnection?.connections?.[connectionId]?.connectionDetails?.endpointType
       const redirectPath = clusterId
-        ? `/${clusterId}/${connectionId}/${endpointType === "cluster-endpoint" ? "cluster-topology" : "dashboard"}`
+        ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`
 
       history.navigate(redirectPath)

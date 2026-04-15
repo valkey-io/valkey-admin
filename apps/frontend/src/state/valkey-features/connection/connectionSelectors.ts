@@ -18,18 +18,8 @@ export const selectIsAnyConnecting = (state: RootState) =>
   Object.values(selectConnections(state)).some((c) => c.status === CONNECTING)
 export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
   atId(id, state)?.connectionDetails?.jsonModuleAvailable ?? false
-export const selectEndpointType = (id: string) => (state: RootState) => atId(id, state)?.connectionDetails.endpointType ?? "node"
-
 export const selectEncryptedPassword = (clusterId: string) => (state: RootState) =>
   Object.values(state.valkeyConnection?.connections ?? {}).find(
     (c) => c.connectionDetails?.clusterId === clusterId && c.connectionDetails?.password,
   )?.connectionDetails?.password
-
-export const selectConfigEndpointNode = (clusterId: string) => (state: RootState) => {
-  const entry = Object.entries(state.valkeyConnection.connections).find(([, c]) =>
-    c.connectionDetails?.clusterId === clusterId && c.connectedNode)
-  if (!entry) return undefined
-  const [connectionId, conn] = entry
-  return { ...conn.connectedNode, status: conn.status, connectionId }
-}
 
