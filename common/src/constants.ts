@@ -26,6 +26,7 @@ export const VALKEY = {
     connectPending: "connectPending",
     standaloneConnectFulfilled: "standaloneConnectFulfilled",
     clusterConnectFulfilled: "clusterConnectFulfilled",
+    configEndpointRedirect: "configEndpointRedirect",
     connectRejected: "connectRejected",
     resetConnection: "resetConnection",
     closeConnection: "closeConnection",

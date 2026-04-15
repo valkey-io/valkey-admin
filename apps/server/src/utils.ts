@@ -2,18 +2,15 @@ import {
   ClusterResponse, 
   GlideClient, 
   GlideClusterClient, 
-  InfoOptions,
-  ServiceType,
-  type ServerCredentials
+  InfoOptions
+
 } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
 import WebSocket from "ws"
-import { ClusterNodeMap, metricsServerMap } from "./metrics-orchestrator"
-import { connectToCluster } from "./connection"
+import { ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
-import type { ConnectionDetails } from "./actions/connection"
 export const dns = {
   lookup,
   reverse,
@@ -195,61 +192,6 @@ export async function returnExistingClusterClient(
     }),
   )
   return existingClusterClient
-}
-
-export async function connectToFirstNode(
-  clusterNodes: ClusterNodeMap, 
-  ws: WebSocket, 
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  clusterNodesMap: Map<string, string[]>,
-  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
-) {
-  const firstNode = Object.values(clusterNodes)[0]
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { replicas, ...connectionDetails } = firstNode
-  const { authType, username, password, awsRegion, awsReplicationGroupId } = payload.connectionDetails
-  const newPayload = {
-    connectionId: payload.connectionId,
-    connectionDetails: {
-      ...connectionDetails,
-      port: firstNode.port.toString(), //Convert to string to match ConnectionDetails type
-      username,
-      password,
-      authType,
-      awsRegion,
-      awsReplicationGroupId,
-      endpointType: "node",
-    } as ConnectionDetails,
-    isRetry: payload.isRetry,
-  }
-  const newAddresses = [
-    {
-      host: firstNode.host,
-      port: Number(firstNode.port),
-    },
-  ]
-  const newCredentials: ServerCredentials | undefined =
-    authType === "iam"
-      ? {
-        username: username!,
-        iamConfig: {
-          clusterName: awsReplicationGroupId!,
-          service: ServiceType.Elasticache,
-          region: awsRegion!,
-        },
-      }
-      : password ? { username, password } : undefined
-        
-  return await connectToCluster(
-    ws,
-    clients,
-    newPayload,
-    newAddresses,
-    newCredentials,
-    clusterNodesMap,
-    metricsServerMap,
-    payload.connectionId,
-  )
 }
 
 export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {

@@ -7,7 +7,7 @@ import { Badge } from "./badge"
 import { Input } from "./input"
 import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
-import { selectConnectionDetails, selectConfigEndpointNode } from "@/state/valkey-features/connection/connectionSelectors.ts"
+import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { cn } from "@/lib/utils.ts"
 
@@ -39,8 +39,6 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
   const allConnections = useSelector((state: RootState) =>
     state.valkeyConnection?.connections,
   )
-
-  const connectedNode = useSelector(selectConfigEndpointNode(clusterId ?? ""))
 
   const handleNavigate = (primaryKey: string) => {
     navigate(`/${clusterId}/${primaryKey}/dashboard`)
@@ -156,11 +154,7 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
                   )}
                   {/* TODO: Remove extra defensiveness */}
                   {nodesToRender.map(([primaryKey, primary]) => {
-                    const nodeIsConnected =
-                      allConnections?.[primaryKey]?.status === CONNECTED ||
-                      (connectedNode?.status === CONNECTED &&
-                        connectedNode?.host === primary.host &&
-                        connectedNode?.port === primary.port)
+                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
 
                     return (
                       <li className="flex flex-col gap-1" key={primaryKey}>
