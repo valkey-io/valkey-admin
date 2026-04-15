@@ -20,6 +20,6 @@ export const selectJsonModuleAvailable = (id: string) => (state: RootState) =>
   atId(id, state)?.connectionDetails?.jsonModuleAvailable ?? false
 export const selectEncryptedPassword = (clusterId: string) => (state: RootState) =>
   Object.values(state.valkeyConnection?.connections ?? {}).find(
-    (c) => c.connectionDetails?.clusterId === clusterId && c.connectionDetails?.password,
+    (c) => c.connectionDetails?.clusterId === clusterId && R.isNotNil(c.connectionDetails?.password),
   )?.connectionDetails?.password
 
