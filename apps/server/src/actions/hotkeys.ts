@@ -123,12 +123,12 @@ export const hotKeysRequested = withDeps<Deps, void>(
     }
 
     const aggregatedHotKeys = R.pipe(
-      R.chain(({ hotKeys }: HotKeysResponse) => hotKeys as unknown as [string, number][]),
-      R.reduce((acc, [key, count]: [string, number]) => ({
+      R.chain(({ hotKeys }: HotKeysResponse) => hotKeys as unknown as [string, number, number | null, number][]),
+      R.reduce((acc, [key, count, size, ttl]: [string, number, number | null, number]) => ({
         ...acc,
-        [key]: (acc[key] ?? 0) + count,
-      }), {} as Record<string, number>),
-      R.toPairs,
+        [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl],
+      }), {} as Record<string, [string, number, number | null, number]>),
+      R.values,
       R.sort(([, a]: [string, number], [, b]: [string, number]) => b - a),
     )(results)
     const { monitorRunning, checkAt, nodeId } = results[0]
