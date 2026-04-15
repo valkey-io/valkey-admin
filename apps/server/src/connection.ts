@@ -80,7 +80,9 @@ export async function connectToValkey(
       useTLS,
       verifyTlsCertificate,
     })
-    
+    // Need to set for metrics server to be able to register
+    clients.set(connectionId, { client: standaloneClient })
+
     // In cluster-orchestrator mode, metrics sidecars register themselves.
     if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
@@ -90,6 +92,7 @@ export async function connectToValkey(
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (endpointType === "cluster-endpoint" || await belongsToCluster(standaloneClient)) {
+      clients.delete(connectionId)
       return connectToCluster(
         ws, 
         standaloneClient,
@@ -101,8 +104,6 @@ export async function connectToValkey(
         clusterNodesRegistry,
       )
     }
-
-    clients.set(connectionId, { client: standaloneClient })
 
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
