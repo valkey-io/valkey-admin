@@ -197,11 +197,9 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
             </td>
 
             {/* node */}
-            {"nodeId" in entry && (
-              <td className="px-4 py-2 w-1/6 text-center">
-                <Typography variant="code">{(entry as any).nodeId}</Typography>
-              </td>
-            )}
+            <td className="px-4 py-2 w-1/6 text-center">
+              <Typography variant="code">{(entry as any).nodeId ?? "—"}</Typography>
+            </td>
           </tr>
         )
       })}

@@ -155,11 +155,9 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
               </td>
 
               {/* node */}
-              {nodeId && (
-                <td className="px-4 py-3 w-1/6 text-center">
-                  <Typography variant={"code"}>{nodeId}</Typography>
-                </td>
-              )}
+              <td className="px-4 py-3 w-1/6 text-center">
+                <Typography variant={"code"}>{nodeId ?? "—"}</Typography>
+              </td>
             </tr>
           )
         })}

@@ -13,7 +13,7 @@ const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
   startedAt: startedAt ?? null,
 })
 
-export const useMonitor = async (res, client) => {
+export const useMonitor = async (res, client, nodeId) => {
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
   try {
     if (!isRunning) {
@@ -21,7 +21,7 @@ export const useMonitor = async (res, client) => {
     }
     if (Date.now() > checkAt) {
       const hotKeys = await Streamer.monitor().then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      return res.json({ hotKeys, ...toResponse(getCollectorMeta(MONITOR)) })
+      return res.json({ hotKeys, nodeId, ...toResponse(getCollectorMeta(MONITOR)) })
     }
     return res.json({ checkAt })
   } catch (e) {
