@@ -33,6 +33,7 @@ interface LogGroup {
   ts: number
   metric: string
   values: (SlowLogEntry | LargeLogEntry)[]
+  nodeId: string,
 }
 
 type LogType = "slow" | "large-request" | "large-reply"
@@ -117,6 +118,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
       logGroup.values.map((entry) => ({
         ...entry,
         groupTs: logGroup.ts,
+        nodeId: (logGroup).nodeId,
       })),
     )
     .sort((sortOrder === SORT_ORDER.ASC ? R.ascend : R.descend)(
@@ -129,81 +131,81 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
     <>
       {nodeErrorsBanner}
       <TableContainer
-      header={
-        <>
-          <StaticTableHeader className="flex-1" label="Command" />
-          <SortableTableHeader
-            active={sortField === SORT_FIELD.METRIC}
-            className="text-center"
-            label={config.metricLabel}
-            onClick={() => toggleSort(SORT_FIELD.METRIC)}
-            sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
-            width="w-1/6"
-          />
-          <SortableTableHeader
-            active={sortField === SORT_FIELD.TIMESTAMP}
-            icon={<Clock className="text-primary" size={16} />}
-            label="Timestamp"
-            onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
-            sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
-            width="w-1/6"
-          />
-          <StaticTableHeader className="text-center" label="Client Address" width="w-1/6" />
-          <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
-        </>
-      }
-    >
-      {sortedLogs.map((entry, index) => {
-        const metricValue = config.metricKey in entry
-          ? entry[config.metricKey as keyof typeof entry] as number
-          : 0
+        header={
+          <>
+            <StaticTableHeader className="flex-1" label="Command" />
+            <SortableTableHeader
+              active={sortField === SORT_FIELD.METRIC}
+              className="text-center"
+              label={config.metricLabel}
+              onClick={() => toggleSort(SORT_FIELD.METRIC)}
+              sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
+              width="w-1/6"
+            />
+            <SortableTableHeader
+              active={sortField === SORT_FIELD.TIMESTAMP}
+              icon={<Clock className="text-primary" size={16} />}
+              label="Timestamp"
+              onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
+              sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
+              width="w-1/6"
+            />
+            <StaticTableHeader className="text-center" label="Client Address" width="w-1/6" />
+            <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
+          </>
+        }
+      >
+        {sortedLogs.map((entry, index) => {
+          const metricValue = config.metricKey in entry
+            ? entry[config.metricKey as keyof typeof entry] as number
+            : 0
 
-        return (
-          <tr
-            className="group border-b dark:border-tw-dark-border hover:bg-primary/10"
-            key={`${entry.groupTs}-${entry.id}-${index}`}
-          >
-            {/* command */}
-            <td className="px-4 py-2 flex-1">
-              <CustomTooltip content={entry.argv.join(" ")}>
-                <Typography
-                  className="bg-primary/30 py-1 px-2 rounded-full"
-                  variant="code"
-                >
-                  {truncateCommand(entry.argv)}
+          return (
+            <tr
+              className="group border-b dark:border-tw-dark-border hover:bg-primary/10"
+              key={`${entry.groupTs}-${entry.id}-${index}`}
+            >
+              {/* command */}
+              <td className="px-4 py-2 flex-1">
+                <CustomTooltip content={entry.argv.join(" ")}>
+                  <Typography
+                    className="bg-primary/30 py-1 px-2 rounded-full"
+                    variant="code"
+                  >
+                    {truncateCommand(entry.argv)}
+                  </Typography>
+                </CustomTooltip>
+              </td>
+
+              {/* metric (duration or size) */}
+              <td className="px-4 py-2 w-1/6 text-center">
+                <Typography className="" variant="bodySm">
+                  {config.metricFormat(metricValue)}
                 </Typography>
-              </CustomTooltip>
-            </td>
+              </td>
 
-            {/* metric (duration or size) */}
-            <td className="px-4 py-2 w-1/6 text-center">
-              <Typography className="" variant="bodySm">
-                {config.metricFormat(metricValue)}
-              </Typography>
-            </td>
+              {/* timestamp */}
+              <td className="px-4 py-2 w-1/6 text-center">
+                <Typography variant="bodySm">
+                  {new Date(entry.ts).toLocaleString()}
+                </Typography>
+              </td>
 
-            {/* timestamp */}
-            <td className="px-4 py-2 w-1/6 text-center">
-              <Typography variant="bodySm">
-                {new Date(entry.ts).toLocaleString()}
-              </Typography>
-            </td>
+              {/* client address */}
+              <td className="px-4 py-2 w-1/6 text-center">
+                <Typography variant="code">
+                  {entry.addr}
+                </Typography>
+              </td>
 
-            {/* client address */}
-            <td className="px-4 py-2 w-1/6 text-center">
-              <Typography variant="code">
-                {entry.addr}
-              </Typography>
-            </td>
-
-            {/* node */}
-            <td className="px-4 py-2 w-1/6 text-center">
-              <Typography variant="code">{(entry as any).nodeId ?? "—"}</Typography>
-            </td>
-          </tr>
-        )
-      })}
-    </TableContainer>
+              {/* node */}
+              <td className="px-4 py-2 w-1/6 text-center">
+                <Typography variant="code">{(entry).nodeId ?? "—"}</Typography>
+              </td>
+            </tr>
+          )
+        })}
+      </TableContainer>
     </>
   ) : (
     <>
