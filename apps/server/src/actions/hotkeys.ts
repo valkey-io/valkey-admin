@@ -10,10 +10,16 @@ type HotKeysResponse = {
   monitorRunning: boolean
 }
 
+type NodeError = {
+  connectionId: string
+  error: string
+}
+
 const sendHotKeysFulfilled = (
   ws: WebSocket,
   connectionId: string,
   parsedResponse: HotKeysResponse,
+  nodeErrors?: NodeError[],
 ) => {
   ws.send(
     JSON.stringify({
@@ -21,6 +27,7 @@ const sendHotKeysFulfilled = (
       payload: {
         connectionId,
         parsedResponse,
+        ...(nodeErrors?.length ? { nodeErrors } : {}),
       },
     }),
   )
@@ -70,8 +77,11 @@ export const hotKeysRequested = withDeps<Deps, void>(
         const initialResponse = await fetch(url)
         if (!initialResponse.ok) {
           const errorBody = await initialResponse.json() as { error?: string }
-          sendHotKeysError(ws, connectionId, errorBody.error ?? `HTTP ${initialResponse.status}`)
-          return
+          if (!nodes) {
+            sendHotKeysError(ws, connectionId, errorBody.error ?? `HTTP ${initialResponse.status}`)
+            return
+          }
+          return { connectionId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
         }
         const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
         // Reads monitor data and returns when to fetch results (`checkAt`).
@@ -85,11 +95,17 @@ export const hotKeysRequested = withDeps<Deps, void>(
           return initialParsedResponse
         }
       } catch (error) {
-        sendHotKeysError(ws, connectionId, error)
-        return
+        if (!nodes) {
+          sendHotKeysError(ws, connectionId, error)
+          return
+        }
+        return { connectionId, error: error instanceof Error ? error.message : String(error) } as NodeError
       }
     })
-    const results = (await Promise.all(promises)).filter((r): r is HotKeysResponse => !!r?.hotKeys)
+
+    const settled = await Promise.all(promises)
+    const results = settled.filter((r): r is HotKeysResponse => !!r && "hotKeys" in r)
+    const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
 
     if (results.length === 0) return
 
@@ -108,5 +124,5 @@ export const hotKeysRequested = withDeps<Deps, void>(
       R.sort(([, a]: [string, number], [, b]: [string, number]) => b - a),
     )(results)
     const { monitorRunning, checkAt, nodeId } = results[0]
-    sendHotKeysFulfilled(ws, clusterId as string, { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse)
+    sendHotKeysFulfilled(ws, clusterId as string, { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse, nodeErrors)
   })

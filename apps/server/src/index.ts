@@ -113,7 +113,7 @@ async function refreshAllClusterRegistries() {
       if (!clientEntry) return
 
       const updatedNodes = clusterNodesRegistry[clusterId]
-      // Am I being too safe here?
+      // Am I being too defensive here?
       if (!updatedNodes) return
 
       wss.clients.forEach((ws) => {
