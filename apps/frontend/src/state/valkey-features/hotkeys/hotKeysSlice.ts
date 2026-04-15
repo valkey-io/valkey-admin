@@ -15,6 +15,9 @@ export const selectHotKeysStatus = (id: string) => (state: RootState) =>
 export const selectHotKeysError = (id: string) => (state: RootState) =>
   R.path([VALKEY.HOTKEYS.name, id, "error"], state)
 
+export const selectHotKeysNodeErrors = (id: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, id, "nodeErrors"], state) ?? []
+
 interface HotKeysState {
   [connectionId: string]: {
     hotKeys: [string, number, number | null, number][]
@@ -22,6 +25,7 @@ interface HotKeysState {
     monitorRunning: boolean,
     nodeId: string | null,
     error?: JSONObject | null,
+    nodeErrors?: { connectionId: string; error: string }[],
     status: HotKeysStatus,
   }
 }
@@ -33,9 +37,10 @@ const hotKeysSlice = createSlice({
   initialState: initialHotKeysState,
   reducers: {
     hotKeysRequested: (state, action) => {
-      const connectionId = action.payload.connectionId
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      const { connectionId, clusterId } = action.payload
+      const id = clusterId ?? connectionId
+      if (!state[id]) {
+        state[id] = {
           hotKeys: [],
           checkAt: null,
           monitorRunning: false,
@@ -43,14 +48,15 @@ const hotKeysSlice = createSlice({
           status: PENDING,
         }
       } else {
-        state[connectionId].status = PENDING
-        state[connectionId].hotKeys = []
-        state[connectionId].error = null
+        state[id].status = PENDING
+        state[id].hotKeys = []
+        state[id].error = null
       }
     },
     hotKeysFulfilled: (state, action) => {
       const { hotKeys, monitorRunning, checkAt, nodeId } = action.payload.parsedResponse
       const connectionId = action.payload.connectionId
+      const nodeErrors = action.payload.nodeErrors ?? []
       if (!state[connectionId]) {
         state[connectionId] = {
           hotKeys: [],
@@ -63,8 +69,9 @@ const hotKeysSlice = createSlice({
       state[connectionId] = {
         hotKeys,
         checkAt,
-        monitorRunning, 
+        monitorRunning,
         nodeId,
+        nodeErrors,
         status: FULFILLED,
       }
       

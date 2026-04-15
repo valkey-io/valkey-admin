@@ -76,9 +76,9 @@ const sendCommandLogsError = (
 }
 
 export const commandLogsRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
+  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId } = action.payload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
 
     const promises = connectionIds.map(async (connectionId: string) => {

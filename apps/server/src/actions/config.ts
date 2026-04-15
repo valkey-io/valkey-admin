@@ -10,9 +10,9 @@ interface ParsedResponse  {
 }
 
 export const updateConfig = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
+  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId, config } = action.payload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
@@ -60,9 +60,9 @@ export const updateConfig = withDeps<Deps, void>(
 
 // TODO: Add frontend component to dispatch this
 export const enableClusterSlotStats = withDeps<Deps, void>(
-  async ({ clients, action, clusterNodesMap }) => {
+  async ({ clients, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId } = action.payload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
     
     const promises = connectionIds.map(async (connectionId: string) => {
       const connection = clients.get(connectionId)

@@ -143,11 +143,11 @@ export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
 export async function isLastConnectedClusterNode(
   connectionId: string, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId? :string }>,
-  clusterNodesMap: Map<string, string[]>) 
+  connectedNodesByCluster: Map<string, string[]>) 
 {
   const connection = clients.get(connectionId)
   const currentClusterId = connection?.clusterId
-  return clusterNodesMap.get(currentClusterId!)?.length === 1
+  return connectedNodesByCluster.get(currentClusterId!)?.length === 1
 }
 
 function isClusterClientEntry(
@@ -157,11 +157,11 @@ function isClusterClientEntry(
 }
 
 export async function clusterClientExists(
-  clusterNodes: ClusterNodeMap, 
+  discoveredClusterNodes: ClusterNodeMap, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) {
   // Check if we've already connected to this cluster before 
-  const existingKey = Object.keys(clusterNodes).find(
+  const existingKey = Object.keys(discoveredClusterNodes).find(
     (key) => isClusterClientEntry(clients.get(key)),
   )
 
@@ -176,19 +176,21 @@ export async function returnExistingClusterClient(
   existingClusterConnection: {client: GlideClusterClient, clusterId?: string},
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   connectionId: string,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
   ws: WebSocket,
-  clusterNodes: ClusterNodeMap,
+  discoveredClusterNodes: ClusterNodeMap,
 ) {
   const { client: existingClusterClient, clusterId: existingClusterId } = existingClusterConnection
   clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
-      
-  if (!clusterNodesMap.get(existingClusterId!)?.includes(connectionId)) clusterNodesMap.get(existingClusterId!)?.push(connectionId)
+  clusterNodesRegistry[existingClusterId!] = discoveredClusterNodes
+  if (!connectedNodesByCluster.get(existingClusterId!)?.includes(connectionId)) 
+    connectedNodesByCluster.get(existingClusterId!)?.push(connectionId)
   subscribe(connectionId, ws)
   ws.send(
     JSON.stringify({
       type: VALKEY.CLUSTER.updateClusterInfo,
-      payload: { clusterId: existingClusterId, clusterNodes },
+      payload: { clusterId: existingClusterId, clusterNodes: discoveredClusterNodes },
     }),
   )
   return existingClusterClient

@@ -45,9 +45,9 @@ const sendMonitorError = (
 }
 
 export const monitorRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
+  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId, monitorAction } = action.payload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
@@ -85,8 +85,8 @@ export const monitorRequested = withDeps<Deps, void>(
   })
 
 export const saveMonitorSettingsRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, metricsServerMap, clusterNodesMap, action }) => {
-    const deps: Deps = { ws, clients, connectionId, metricsServerMap, clusterNodesMap }
+  async ({ ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, action }) => {
+    const deps: Deps = { ws, clients, connectionId, metricsServerMap, connectedNodesByCluster }
     const { config, monitorAction } = action.payload
 
     if (config) {

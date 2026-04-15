@@ -17,7 +17,7 @@ describe("monitorAction", () => {
   let mockWs: any
   let messages: string[]
   let metricsServerMap: Map<string, any>
-  let clusterNodesMap: Map<string, string[]>
+  let connectedNodesByCluster: Map<string, string[]>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe("monitorAction", () => {
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     metricsServerMap = new Map()
-    clusterNodesMap = new Map()
+    connectedNodesByCluster = new Map()
   })
 
   afterEach(() => {
@@ -47,7 +47,7 @@ describe("monitorAction", () => {
     globalThis.fetch = (async () => { throw error }) as any
   }
 
-  const deps = () => ({ ws: mockWs, metricsServerMap, clusterNodesMap, clients: new Map(), connectionId: "" } as any)
+  const deps = () => ({ ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "" } as any)
 
   describe("status request", () => {
     it("should call GET /monitor?action=status and send monitorFulfilled", async () => {
@@ -171,7 +171,7 @@ describe("monitorAction", () => {
     it("should send requests to all cluster nodes", async () => {
       metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
       metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-      clusterNodesMap.set("cluster-1", ["node-1", "node-2"])
+      connectedNodesByCluster.set("cluster-1", ["node-1", "node-2"])
 
       const fetchCalls = mockFetch({ monitorRunning: true, checkAt: 55555 })
 
@@ -298,7 +298,7 @@ describe("saveMonitorSettingsRequested", () => {
   let mockWs: any
   let messages: string[]
   let metricsServerMap: Map<string, any>
-  let clusterNodesMap: Map<string, string[]>
+  let connectedNodesByCluster: Map<string, string[]>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -307,7 +307,7 @@ describe("saveMonitorSettingsRequested", () => {
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     metricsServerMap = new Map()
-    clusterNodesMap = new Map()
+    connectedNodesByCluster = new Map()
   })
 
   afterEach(() => {
@@ -330,7 +330,7 @@ describe("saveMonitorSettingsRequested", () => {
     return fetchCalls
   }
 
-  const deps = () => ({ ws: mockWs, metricsServerMap, clusterNodesMap, clients: new Map(), connectionId: "" } as any)
+  const deps = () => ({ ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "" } as any)
 
   it("should call only updateConfig when config is present but monitorAction is absent", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
@@ -445,7 +445,7 @@ describe("saveMonitorSettingsRequested", () => {
   it("should fan out across cluster nodes for both config and monitor", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-    clusterNodesMap.set("cluster-1", ["node-1", "node-2"])
+    connectedNodesByCluster.set("cluster-1", ["node-1", "node-2"])
 
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },

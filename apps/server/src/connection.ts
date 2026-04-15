@@ -12,7 +12,7 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
+import { ClusterRegistry, MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -24,8 +24,9 @@ export async function connectToValkey(
     isRetry?: boolean
   },
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
   metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry: ClusterRegistry,
 ) {
   
   const { 
@@ -79,7 +80,9 @@ export async function connectToValkey(
       useTLS,
       verifyTlsCertificate,
     })
-    
+    // Need to set for metrics server to be able to register
+    clients.set(connectionId, { client: standaloneClient })
+
     // In cluster-orchestrator mode, metrics sidecars register themselves.
     if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
@@ -89,6 +92,7 @@ export async function connectToValkey(
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
     if (endpointType === "cluster-endpoint" || await belongsToCluster(standaloneClient)) {
+      clients.delete(connectionId)
       return connectToCluster(
         ws, 
         standaloneClient,
@@ -96,11 +100,10 @@ export async function connectToValkey(
         payload, 
         addresses, 
         credentials, 
-        clusterNodesMap,
+        connectedNodesByCluster,
+        clusterNodesRegistry,
       )
     }
-
-    clients.set(connectionId, { client: standaloneClient })
 
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
@@ -152,7 +155,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
     // First primary node's ID
     const clusterId = R.path([0, 2, 2], response)
 
-    const clusterNodes = response.reduce((acc, slotRange) => {
+    const discoveredClusterNodes = response.reduce((acc, slotRange) => {
       const [, , ...nodes] = slotRange
       const [primaryHost, primaryPort] = nodes[0]
       const primaryKey = sanitizeUrl(`${primaryHost}-${primaryPort}`)
@@ -191,7 +194,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
       replicas: { id: string; host: string; port: number }[];
     }>)
 
-    return { clusterNodes, clusterId }
+    return { discoveredClusterNodes, clusterId }
   } catch (err) {
     console.error("Error discovering cluster:", err)
     throw new Error("Failed to discover cluster") 
@@ -206,25 +209,26 @@ export async function connectToCluster(
   payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
   addresses: { host: string, port: number }[],
   credentials: ServerCredentials | undefined,
-  clusterNodesMap: Map<string, string[]>,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
 ): Promise<GlideClusterClient | undefined> {
+
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
 
     let clusterClient: GlideClusterClient 
 
-    // TODO: Optimize to not call discoverCluster when configEndpointId is available
     // It implies we already discovered cluster nodes once
-    const { clusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
+    const { discoveredClusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
     discoveryClient.close()
     let clusterId = initialClusterId
-    if (Object.keys(clusterNodes).length < 3) {
+    if (Object.keys(discoveredClusterNodes).length < 3) {
       throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     if (useClusterEndpoint) {
-      const firstNode = Object.values(clusterNodes)[0]
+      const firstNode = Object.values(discoveredClusterNodes)[0]
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.configEndpointRedirect,
@@ -243,7 +247,7 @@ export async function connectToCluster(
       return undefined
     }
 
-    const existingClusterConnection = await clusterClientExists(clusterNodes, clients)
+    const existingClusterConnection = await clusterClientExists(discoveredClusterNodes, clients)
     if (existingClusterConnection) {
       clusterId = existingClusterConnection.clusterId
       if (payload.isRetry) {
@@ -264,9 +268,10 @@ export async function connectToCluster(
           existingClusterConnection,
           clients,
           payload.connectionId,
-          clusterNodesMap,
+          connectedNodesByCluster,
+          clusterNodesRegistry,
           ws,
-          clusterNodes,
+          discoveredClusterNodes,
         )
       }
     } 
@@ -275,11 +280,12 @@ export async function connectToCluster(
       ws.send(
         JSON.stringify({
           type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes }, //TODO: strip credentials (this will impact connecting from Cluster Topology)
+          payload: { clusterId, clusterNodes: discoveredClusterNodes }, 
         }),
       )
+      clusterNodesRegistry[clusterId] = discoveredClusterNodes
       clients.set(connectionId, { client: clusterClient, clusterId })
-      clusterNodesMap.set(clusterId, [connectionId])
+      connectedNodesByCluster.set(clusterId, [connectionId])
       subscribe(payload.connectionId, ws)
     }
 

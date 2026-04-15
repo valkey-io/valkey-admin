@@ -163,18 +163,18 @@ async function createClusterClient(connectionDetails: ConnectionDetails) {
   return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate })
 }
 
-async function getClusterTopology(client: GlideClusterClient | null, node: ConnectionDetails) {
+async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {
   if (!client) client = await createClusterClient(node)
 
-  const { clusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
+  const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
 
-  return { clusterNodes, clusterId }
+  return { discoveredClusterNodes, clusterId }
 }
 
-async function updateClusterNodeRegistry(client: GlideClusterClient | null) {
+export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient | null, connectionDetails = initialConnectionDetails) {
   try {
-    const { clusterNodes, clusterId } = await getClusterTopology(client, initialConnectionDetails)
-    if (clusterId && clusterNodes) clusterNodesRegistry[clusterId] = clusterNodes 
+    const { discoveredClusterNodes, clusterId } = await getClusterTopology(client, connectionDetails)
+    if (clusterId && discoveredClusterNodes) clusterNodesRegistry[clusterId] = discoveredClusterNodes 
   }
   catch (err) {
     if (err instanceof ConnectionError) {
@@ -332,13 +332,13 @@ export async function reconcileClusterMetricsServers(
   clusterNodesRegistry: ClusterRegistry, 
   metricsServerMap: MetricsServerMap, 
   connectionDetails: ConnectionDetails, 
-  client: GlideClusterClient | null,
 ) {
   let clusterIds = Object.keys(clusterNodesRegistry) 
   if (clusterIds.length === 0) {
     try {
-      const { clusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
-      if (clusterId && clusterNodes) clusterNodesRegistry[clusterId] = clusterNodes 
+      const client = await getInitialClient()
+      const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
+      if (clusterId && discoveredClusterNodes) clusterNodesRegistry[clusterId] = discoveredClusterNodes 
       clusterIds = Object.keys(clusterNodesRegistry)
     } catch (err) {
       console.error(err)
@@ -347,8 +347,7 @@ export async function reconcileClusterMetricsServers(
   await Promise.all(
     clusterIds.map(async (clusterId) => {
       try {
-        const updatedClusterNodeRegistry = await internals.updateClusterNodeRegistry(client)
-        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, updatedClusterNodeRegistry[clusterId])
+        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry[clusterId])
         // Early return if nothing has changed
         if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
           console.debug("Cluster nodes and metrics servers are in sync")

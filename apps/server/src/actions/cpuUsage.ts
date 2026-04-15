@@ -49,9 +49,9 @@ type RequestPayload = {
 }
 
 export const cpuUsageRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesMap }) => {
+  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId, timeRange = "12h" } = action.payload as unknown as RequestPayload
-    const connectionIds = clusterId ? clusterNodesMap.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
