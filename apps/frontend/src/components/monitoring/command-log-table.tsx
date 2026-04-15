@@ -146,10 +146,10 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
             label="Timestamp"
             onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
             sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
-            width="w-1/4"
+            width="w-1/6"
           />
-          <StaticTableHeader className="text-center" label="Client Address" width="w-1/5" />
-          <StaticTableHeader className="text-center" label="Node" width="w-1/5" />
+          <StaticTableHeader className="text-center" label="Client Address" width="w-1/6" />
+          <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
         </>
       }
     >
@@ -183,14 +183,14 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
             </td>
 
             {/* timestamp */}
-            <td className="px-4 py-2 w-1/4 text-center">
+            <td className="px-4 py-2 w-1/6 text-center">
               <Typography variant="bodySm">
                 {new Date(entry.ts).toLocaleString()}
               </Typography>
             </td>
 
             {/* client address */}
-            <td className="px-4 py-2 w-1/5 text-center">
+            <td className="px-4 py-2 w-1/6 text-center">
               <Typography variant="code">
                 {entry.addr}
               </Typography>
@@ -198,7 +198,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
 
             {/* node */}
             {"nodeId" in entry && (
-              <td className="px-4 py-2 w-1/5 text-center">
+              <td className="px-4 py-2 w-1/6 text-center">
                 <Typography variant="code">{(entry as any).nodeId}</Typography>
               </td>
             )}
