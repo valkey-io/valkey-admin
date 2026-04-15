@@ -45,7 +45,8 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
   }
 
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
-    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
+    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
+      border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
       <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
       <div>
         <Typography variant="bodySm">
