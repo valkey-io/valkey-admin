@@ -238,6 +238,11 @@ const connectionSlice = createSlice({
     deleteConnection: (state, { payload: { connectionId } }) => {
       return R.dissocPath(["connections", connectionId], state)
     },
+    configEndpointRedirect: (_state, _action: PayloadAction<{
+      fromId: string;
+      toId: string;
+      connectionDetails: ConnectionDetails;
+    }>) => { /* handled in epic */ },
   },
 })
 
@@ -255,4 +260,5 @@ export const {
   closeConnectionFailed,
   startRetry,
   stopRetry,
+  configEndpointRedirect,
 } = connectionSlice.actions

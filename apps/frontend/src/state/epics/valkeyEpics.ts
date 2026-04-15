@@ -18,6 +18,7 @@ import {
   closeConnectionFulfilled,
   closeConnectionFailed,
   closeConnection,
+  configEndpointRedirect,
   type ValkeyConnectionsState
 } from "../valkey-features/connection/connectionSlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
@@ -104,6 +105,15 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+      }),
+      ignoreElements(),
+    ),
+
+    action$.pipe(
+      select(configEndpointRedirect),
+      tap(({ payload: { fromId, toId, connectionDetails } }) => {
+        store.dispatch(deleteConnection({ connectionId: fromId }))
+        store.dispatch(connectPending({ connectionId: toId, connectionDetails }))
       }),
       ignoreElements(),
     ),
