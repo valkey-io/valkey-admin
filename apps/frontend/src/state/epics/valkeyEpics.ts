@@ -111,7 +111,7 @@ export const connectionEpic = (store: Store) =>
     action$.pipe(
       select(configEndpointRedirect),
       tap(({ payload: { fromId, toId, connectionDetails } }) => {
-        store.dispatch(deleteConnection({ connectionId: fromId }))
+        store.dispatch(deleteConnection({ connectionId: fromId, silent: true }))
         store.dispatch(connectPending({ connectionId: toId, connectionDetails }))
       }),
       ignoreElements(),
