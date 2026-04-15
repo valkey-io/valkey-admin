@@ -354,7 +354,7 @@ export const setDataEpic = (store: Store) =>
 
       socket.next({ type: setData.type, payload: action.payload })
       const redirectPath = clusterId
-        ? `/${clusterId}/${connectionId}/"cluster-topology"`
+        ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`
 
       history.navigate(redirectPath)
