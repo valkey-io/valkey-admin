@@ -227,7 +227,7 @@ export async function connectToCluster(
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
     if (useClusterEndpoint) {
-      const firstNode = Object.values(connectedNodesByCluster)[0]
+      const firstNode = Object.values(discoveredClusterNodes)[0]
       ws.send(
         JSON.stringify({
           type: VALKEY.CONNECTION.configEndpointRedirect,
