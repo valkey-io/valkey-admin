@@ -60,7 +60,6 @@ export interface ConnectionState {
   reconnect?: ReconnectState;
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
-  connectedNode?: { host: string; port: number } // Added to check which node the config endpoint connected to
 }
 
 export interface ValkeyConnectionsState {
@@ -152,10 +151,7 @@ const connectionSlice = createSlice({
       }
     },
     clusterConnectFulfilled: (state, action) => {
-      const { 
-        connectionId, 
-        connectedNode, 
-        connectionDetails } = action.payload
+      const { connectionId, connectionDetails } = action.payload
       const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = connectionDetails
 
       const connectionState = state.connections[connectionId]
@@ -165,7 +161,6 @@ const connectionSlice = createSlice({
       connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
       connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
       connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
-      if (connectedNode) connectionState.connectedNode = connectedNode
       delete connectionState.reconnect
       connectionState.connectionHistory ??= []
       connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })
@@ -238,11 +233,7 @@ const connectionSlice = createSlice({
     deleteConnection: (state, { payload: { connectionId } }) => {
       return R.dissocPath(["connections", connectionId], state)
     },
-    configEndpointRedirect: (_state, _action: PayloadAction<{
-      fromId: string;
-      toId: string;
-      connectionDetails: ConnectionDetails;
-    }>) => { /* handled in epic */ },
+    configEndpointRedirect: () => { /* handled in epic */ },
   },
 })
 

@@ -73,24 +73,12 @@ export async function connectToValkey(
       )
     }
 
-    if (endpointType === "cluster-endpoint") {
-      return connectToCluster(
-        ws, 
-        clients, 
-        payload, 
-        addresses, 
-        credentials, 
-        clusterNodesMap,
-      )
-    }
-
     const standaloneClient = await createStandaloneValkeyClient({
       addresses,
       credentials,
       useTLS,
       verifyTlsCertificate,
     })
-    clients.set(connectionId, { client: standaloneClient })
     
     // In cluster-orchestrator mode, metrics sidecars register themselves.
     if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
@@ -100,11 +88,10 @@ export async function connectToValkey(
     const keyEvictionPolicy = await getKeyEvictionPolicy(standaloneClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
-    if (await belongsToCluster(standaloneClient)) {
-      standaloneClient.close()
-      clients.delete(connectionId)
+    if (endpointType === "cluster-endpoint" || await belongsToCluster(standaloneClient)) {
       return connectToCluster(
         ws, 
+        standaloneClient,
         clients, 
         payload, 
         addresses, 
@@ -112,6 +99,8 @@ export async function connectToValkey(
         clusterNodesMap,
       )
     }
+
+    clients.set(connectionId, { client: standaloneClient })
 
     const connectionInfo = {
       type: VALKEY.CONNECTION.standaloneConnectFulfilled,
@@ -212,6 +201,7 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
 
 export async function connectToCluster(
   ws: WebSocket,
+  discoveryClient: GlideClient,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
   addresses: { host: string, port: number }[],
@@ -221,8 +211,7 @@ export async function connectToCluster(
   const { connectionId } = payload
   const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
   try {
-    // Use a standalone client for faster cluster discovery
-    const discoveryClient = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+
     let clusterClient: GlideClusterClient 
 
     // TODO: Optimize to not call discoverCluster when configEndpointId is available
