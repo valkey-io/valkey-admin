@@ -47,19 +47,21 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
     <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
       <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
-      <Typography variant="bodySm">
-        Hot keys data is partial —{" "}
-        {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
-      </Typography>
-      <ul className="mt-1 space-y-0.5">
-        {nodeErrors.map(({ connectionId, error }) => (
-          <li key={connectionId}>
-            <Typography variant="bodySm">
-              <span className="font-mono">{connectionId}</span>: {error}
-            </Typography>
-          </li>
-        ))}
-      </ul>
+      <div>
+        <Typography variant="bodySm">
+          Hot keys data is partial —{" "}
+          {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
+        </Typography>
+        <ul className="mt-1 space-y-0.5">
+          {nodeErrors.map(({ connectionId, error }) => (
+            <li key={connectionId}>
+              <Typography variant="bodySm">
+                <span className="font-mono">{connectionId}</span>: {error}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 
