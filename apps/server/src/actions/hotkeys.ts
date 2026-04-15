@@ -129,7 +129,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl],
       }), {} as Record<string, [string, number, number | null, number]>),
       R.values,
-      R.sort(([, a]: [string, number], [, b]: [string, number]) => b - a),
+      R.sort(R.descend(R.prop(1))),
     )(results)
     const { monitorRunning, checkAt, nodeId } = results[0]
     const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse

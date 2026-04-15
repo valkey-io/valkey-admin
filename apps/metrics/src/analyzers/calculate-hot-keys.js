@@ -65,9 +65,7 @@ export const calculateHotKeysFromMonitor = (rows) =>
       if (MULTI_KEY_COMMANDS.has(normalizedCmd)) {
         args.forEach((key) => { acc[key] = (acc[key] ?? 0) + 1 })
       } else if (INTERLEAVED_KEY_COMMANDS.has(normalizedCmd)) {
-        for (let i = 0; i < args.length; i += 2) {
-          acc[args[i]] = (acc[args[i]] ?? 0) + 1
-        }
+        R.splitEvery(2, args).forEach(([key]) => { acc[key] = (acc[key] ?? 0) + 1 })
       } else {
         const key = args[0]
         if (key) acc[key] = (acc[key] ?? 0) + 1
