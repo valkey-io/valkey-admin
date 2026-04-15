@@ -117,7 +117,7 @@ describe("connectToValkey", () => {
     }
 
     try {
-      const result = await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
       const connection = clients.get(payload.connectionId)
       assert.strictEqual(connection.client, mockClusterClient)
 
