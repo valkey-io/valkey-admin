@@ -308,6 +308,7 @@ export async function connectToCluster(
       clients.set(nodeConnectionId, { client: clusterClient, clusterId })
       if (!connectedNodesByCluster.get(clusterId)?.includes(nodeConnectionId)) connectedNodesByCluster.get(clusterId)?.push(nodeConnectionId)
       if (!metricsServerMap.has(connectionId)) await startMetricsServer(payload.connectionDetails, connectionId)
+      if (!metricsServerMap.has(nodeConnectionId)) await startMetricsServer(payload.connectionDetails, nodeConnectionId)
       // Add connectedNode to payload 
       ws.send(
         JSON.stringify({
