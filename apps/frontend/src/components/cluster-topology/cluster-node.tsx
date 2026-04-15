@@ -1,3 +1,4 @@
+import * as R from "ramda"
 import { useState } from "react"
 import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
 import { useNavigate, useParams } from "react-router"
@@ -92,7 +93,7 @@ export function ClusterNode({
           awsReplicationGroupId: primary.awsReplicationGroupId,
         },
       }))
-    } else if (encryptedPassword) {
+    } else if (R.isNotNil(encryptedPassword)) {
       // Password already encrypted from existing cluster connection — do NOT re-encrypt
       dispatch(connectPending({
         connectionId,
