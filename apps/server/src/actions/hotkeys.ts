@@ -66,9 +66,11 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
       if (!metricsServerURI) {
-        // We could sendHotKeysError here similar to below, but in another PR
-        console.warn("Metrics server not started for node: ", connectionId)
-        return
+        if (!nodes) {
+          console.warn("Metrics server not started for node: ", connectionId)
+          return
+        }
+        return { connectionId, error: "Metrics server not started" } as NodeError
       }
       const url = new URL("/hot-keys", metricsServerURI)
       if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
@@ -107,7 +109,13 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const results = settled.filter((r): r is HotKeysResponse => !!r && "hotKeys" in r)
     const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
 
-    if (results.length === 0) return
+    if (results.length === 0) {
+      if (nodes) {
+        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
+        sendHotKeysFulfilled(ws, clusterId as string, emptyResponse, nodeErrors)
+      }
+      return
+    }
 
     if (!nodes) {
       sendHotKeysFulfilled(ws, connectionId, results[0])
@@ -124,5 +132,6 @@ export const hotKeysRequested = withDeps<Deps, void>(
       R.sort(([, a]: [string, number], [, b]: [string, number]) => b - a),
     )(results)
     const { monitorRunning, checkAt, nodeId } = results[0]
-    sendHotKeysFulfilled(ws, clusterId as string, { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse, nodeErrors)
+    const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse
+    sendHotKeysFulfilled(ws, clusterId as string, aggregatedResponse, nodeErrors)
   })

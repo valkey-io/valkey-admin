@@ -44,146 +44,152 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
     return <LoadingState message="Loading hot keys..." />
   }
 
+  const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
+    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-700">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+        <div>
+          <Typography variant="bodySm">
+            Hot keys data is partial —{" "}
+            {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
+          </Typography>
+          <ul className="mt-1 space-y-0.5">
+            {nodeErrors.map(({ connectionId, error }) => (
+              <li key={connectionId}>
+                <Typography variant="bodySm">
+                  <span className="font-mono">{connectionId}</span>: {error}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+
   return sortedHotKeys.length > 0 ? (
     <>
-      {nodeErrors && nodeErrors.length > 0 && (
-        <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-700">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
-            <div>
-              <Typography variant="bodySm">
-                Hot keys data is partial — {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond:
-              </Typography>
-              <ul className="mt-1 space-y-0.5">
-                {nodeErrors.map(({ connectionId, error }) => (
-                  <li key={connectionId}>
-                    <Typography variant="bodySm">
-                      <span className="font-mono">{connectionId}</span>: {error}
-                    </Typography>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
+      {nodeErrorsBanner}
       <TableContainer
         header={
-        <>
-          <StaticTableHeader
-            icon={<Flame className="text-primary" size={16} />}
-            label="Key Name"
-            width="w-2/5"
-          />
-          <SortableTableHeader
-            active={true}
-            className="text-center"
-            label="Access Count"
-            onClick={toggleSortOrder}
-            sortOrder={sortOrder}
-            width="w-1/5"
-          />
-          <StaticTableHeader className="text-center" label="Size" width="w-1/5" />
-          <StaticTableHeader className="text-center" label="TTL" width="w-1/5" />
-        </>
-      }
-    >
-      {sortedHotKeys.map(([keyName, count, size, ttl], index) => {
-        const isDeleted = ttl === -2
-        return (
-          <tr
-            className={`group border-b dark:border-tw-dark-border transition-all duration-200 cursor-pointer
+          <>
+            <StaticTableHeader
+              icon={<Flame className="text-primary" size={16} />}
+              label="Key Name"
+              width="w-2/5"
+            />
+            <SortableTableHeader
+              active={true}
+              className="text-center"
+              label="Access Count"
+              onClick={toggleSortOrder}
+              sortOrder={sortOrder}
+              width="w-1/5"
+            />
+            <StaticTableHeader className="text-center" label="Size" width="w-1/5" />
+            <StaticTableHeader className="text-center" label="TTL" width="w-1/5" />
+          </>
+        }
+      >
+        {sortedHotKeys.map(([keyName, count, size, ttl], index) => {
+          const isDeleted = ttl === -2
+          return (
+            <tr
+              className={`group border-b dark:border-tw-dark-border transition-all duration-200 cursor-pointer
                         ${isDeleted
-            ? "opacity-75"
-            : selectedKey === keyName
-              ? "bg-primary/10 hover:bg-primary/10"
-              : "hover:bg-gray-50 dark:hover:bg-neutral-800/50"
-          }`}
-            key={`${keyName}-${index}`}
-            onClick={() => onKeyClick?.(keyName)}
-          >
-            {/* key name */}
-            <td className="px-4 py-3 w-2/5">
-              <div className="flex items-center gap-2">
-                <Typography className={`truncate
+              ? "opacity-75"
+              : selectedKey === keyName
+                ? "bg-primary/10 hover:bg-primary/10"
+                : "hover:bg-gray-50 dark:hover:bg-neutral-800/50"
+            }`}
+              key={`${keyName}-${index}`}
+              onClick={() => onKeyClick?.(keyName)}
+            >
+              {/* key name */}
+              <td className="px-4 py-3 w-2/5">
+                <div className="flex items-center gap-2">
+                  <Typography className={`truncate
                             ${isDeleted
-            ? "line-through opacity-75" : ""
-          }`} variant={"code"}>
-                  {keyName}
-                </Typography>
-                {isDeleted && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full
+              ? "line-through opacity-75" : ""
+            }`} variant={"code"}>
+                    {keyName}
+                  </Typography>
+                  {isDeleted && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full
                              bg-red-200 dark:bg-red-400">
-                    <AlertCircle size={12} />
-                    DELETED
-                  </span>
-                )}
-                {!isDeleted && (
-                  <button
-                    aria-label = "Copy key name"
-                    className="p-1 rounded text-primary hover:bg-primary/20"
-                    onClick={(e) => handleCopyKey(keyName, e)}
-                  >
-                    <Copy size={14} />
-                  </button>
-                )}
-              </div>
-            </td>
+                      <AlertCircle size={12} />
+                      DELETED
+                    </span>
+                  )}
+                  {!isDeleted && (
+                    <button
+                      aria-label = "Copy key name"
+                      className="p-1 rounded text-primary hover:bg-primary/20"
+                      onClick={(e) => handleCopyKey(keyName, e)}
+                    >
+                      <Copy size={14} />
+                    </button>
+                  )}
+                </div>
+              </td>
 
-            {/* access count */}
-            <td className="px-4 py-3 w-1/5 text-center">
-              <Typography variant={"bodySm"}>
-                {count.toLocaleString()}
-              </Typography>
-            </td>
+              {/* access count */}
+              <td className="px-4 py-3 w-1/5 text-center">
+                <Typography variant={"bodySm"}>
+                  {count.toLocaleString()}
+                </Typography>
+              </td>
 
-            {/* size */}
-            <td className="px-4 py-3 w-1/5 text-center">
-              <Typography variant={"bodySm"}>
-                {isDeleted ? "—" : formatBytes(size!)}
-              </Typography>
-            </td>
+              {/* size */}
+              <td className="px-4 py-3 w-1/5 text-center">
+                <Typography variant={"bodySm"}>
+                  {isDeleted ? "—" : formatBytes(size!)}
+                </Typography>
+              </td>
 
-            {/* ttl */}
-            <td className="px-4 py-3 w-1/5 text-center">
-              <Typography variant={"bodySm"}>
-                {isDeleted ? "—" : convertTTL(ttl)}
-              </Typography>
-            </td>
-          </tr>
-        )
-      })}
-    </TableContainer>
+              {/* ttl */}
+              <td className="px-4 py-3 w-1/5 text-center">
+                <Typography variant={"bodySm"}>
+                  {isDeleted ? "—" : convertTTL(ttl)}
+                </Typography>
+              </td>
+            </tr>
+          )
+        })}
+      </TableContainer>
     </>
   ) : (
-    <EmptyState
-      action={
-        (errorMessage || !monitorRunning) && (
-          <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-              <Typography variant="bodySm">
-                {!monitorRunning && onStartMonitoring ? (
-                  <>
-                    Monitor is not running.{" "}
-                    <button
-                      className="text-primary underline hover:opacity-80"
-                      onClick={onStartMonitoring}
-                      type="button"
-                    >
-                      Start Monitoring
-                    </button>
-                  </>
-                ) : (
-                  errorMessage
-                )}
-              </Typography>
+    <>
+      {nodeErrorsBanner}
+      <EmptyState
+        action={
+          (errorMessage || !monitorRunning) && (
+            <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                <Typography variant="bodySm">
+                  {!monitorRunning && onStartMonitoring ? (
+                    <>
+                      Monitor is not running.{" "}
+                      <button
+                        className="text-primary underline hover:opacity-80"
+                        onClick={onStartMonitoring}
+                        type="button"
+                      >
+                        Start Monitoring
+                      </button>
+                    </>
+                  ) : (
+                    errorMessage
+                  )}
+                </Typography>
+              </div>
             </div>
-          </div>
-        )
-      }
-      icon={<Flame size={48} />}
-      title="No Hot Keys Found"
-    />
+          )
+        }
+        icon={<Flame size={48} />}
+        title="No Hot Keys Found"
+      />
+    </>
   )
 }
