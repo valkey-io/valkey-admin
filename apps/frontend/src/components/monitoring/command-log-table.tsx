@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Clock } from "lucide-react"
+import { Clock, AlertCircle } from "lucide-react"
 import * as R from "ramda"
 import { SORT_ORDER, SORT_FIELD } from "@common/src/constants"
 import { EmptyState } from "../ui/empty-state"
@@ -40,6 +40,7 @@ type LogType = "slow" | "large-request" | "large-reply"
 interface CommandLogTableProps {
   data: LogGroup[] | null
   logType: LogType
+  nodeErrors?: { connectionId: string; error: string }[]
 }
 
 const logTypeConfig = {
@@ -69,10 +70,32 @@ const logTypeConfig = {
   },
 }
 
-export function CommandLogTable({ data, logType }: CommandLogTableProps) {
+export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTableProps) {
   const [sortField, setSortField] = useState<SortField>(SORT_FIELD.TIMESTAMP)
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
   const config = logTypeConfig[logType]
+
+  const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
+    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
+      border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
+      <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+      <div>
+        <Typography variant="bodySm">
+          Command log data is partial —{" "}
+          {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
+        </Typography>
+        <ul className="mt-1 space-y-0.5">
+          {nodeErrors.map(({ connectionId, error }) => (
+            <li key={connectionId}>
+              <Typography variant="bodySm">
+                <span className="font-mono">{connectionId}</span>: {error}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -103,7 +126,9 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
     ))
 
   return sortedLogs.length > 0 ? (
-    <TableContainer
+    <>
+      {nodeErrorsBanner}
+      <TableContainer
       header={
         <>
           <StaticTableHeader className="flex-1" label="Command" />
@@ -124,6 +149,7 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
             width="w-1/4"
           />
           <StaticTableHeader className="text-center" label="Client Address" width="w-1/5" />
+          <StaticTableHeader className="text-center" label="Node" width="w-1/5" />
         </>
       }
     >
@@ -169,15 +195,26 @@ export function CommandLogTable({ data, logType }: CommandLogTableProps) {
                 {entry.addr}
               </Typography>
             </td>
+
+            {/* node */}
+            {"nodeId" in entry && (
+              <td className="px-4 py-2 w-1/5 text-center">
+                <Typography variant="code">{(entry as any).nodeId}</Typography>
+              </td>
+            )}
           </tr>
         )
       })}
     </TableContainer>
+    </>
   ) : (
-    <EmptyState
-      description={config.emptySubtext}
-      icon={<Clock size={48} />}
-      title={config.emptyMessage}
-    />
+    <>
+      {nodeErrorsBanner}
+      <EmptyState
+        description={config.emptySubtext}
+        icon={<Clock size={48} />}
+        title={config.emptyMessage}
+      />
+    </>
   )
 }

@@ -122,14 +122,19 @@ export const hotKeysRequested = withDeps<Deps, void>(
       return
     }
 
+    type HotKeyTuple = [string, number, number | null, number, string]
     const aggregatedHotKeys = R.pipe(
-      R.chain(({ hotKeys }: HotKeysResponse) => hotKeys as unknown as [string, number, number | null, number][]),
-      R.reduce((acc, [key, count, size, ttl]: [string, number, number | null, number]) => ({
+      R.chain(({ hotKeys, nodeId: nId }: HotKeysResponse) =>
+        (hotKeys as unknown as [string, number, number | null, number][]).map(
+          ([key, count, size, ttl]) => [key, count, size, ttl, nId] as HotKeyTuple,
+        ),
+      ),
+      R.reduce((acc: Record<string, HotKeyTuple>, [key, count, size, ttl, nId]: HotKeyTuple) => ({
         ...acc,
-        [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl],
-      }), {} as Record<string, [string, number, number | null, number]>),
+        [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl, nId] as HotKeyTuple,
+      }), {}),
       R.values,
-      R.sort(R.descend(R.prop(1))),
+      R.sort(R.descend(R.nth(1) as (x: HotKeyTuple) => number)),
     )(results)
     const { monitorRunning, checkAt, nodeId } = results[0]
     const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse

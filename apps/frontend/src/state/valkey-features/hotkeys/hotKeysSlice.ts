@@ -20,7 +20,7 @@ export const selectHotKeysNodeErrors = (id: string) => (state: RootState) =>
 
 interface HotKeysState {
   [connectionId: string]: {
-    hotKeys: [string, number, number | null, number][]
+    hotKeys: [string, number, number | null, number, string?][]
     checkAt: string | null,
     monitorRunning: boolean,
     nodeId: string | null,

@@ -58,7 +58,7 @@ async function main() {
     }
   })
 
-  app.get("/commandlog", getCommandLogs)
+  app.get("/commandlog", (req, res) => getCommandLogs(req, res, ownConnectionId))
 
   app.get("/slowlog_len", async (req, res) => {
     try {

@@ -12,7 +12,7 @@ import { Typography } from "../ui/typography"
 import { copyToClipboard } from "@/lib/utils"
 
 interface HotKeysProps {
-  data: [string, number, number | null, number][] | null
+  data: [string, number, number | null, number, string?][] | null
   errorMessage: string | null
   status?: string
   monitorRunning?: boolean
@@ -87,10 +87,11 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
             />
             <StaticTableHeader className="text-center" label="Size" width="w-1/5" />
             <StaticTableHeader className="text-center" label="TTL" width="w-1/5" />
+            <StaticTableHeader className="text-center" label="Node" width="w-1/5" />
           </>
         }
       >
-        {sortedHotKeys.map(([keyName, count, size, ttl], index) => {
+        {sortedHotKeys.map(([keyName, count, size, ttl, nodeId], index) => {
           const isDeleted = ttl === -2
           return (
             <tr
@@ -152,6 +153,13 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
                   {isDeleted ? "—" : convertTTL(ttl)}
                 </Typography>
               </td>
+
+              {/* node */}
+              {nodeId && (
+                <td className="px-4 py-3 w-1/5 text-center">
+                  <Typography variant={"code"}>{nodeId}</Typography>
+                </td>
+              )}
             </tr>
           )
         })}
