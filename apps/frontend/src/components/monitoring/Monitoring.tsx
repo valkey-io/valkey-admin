@@ -18,7 +18,8 @@ import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
-  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError, selectHotKeysNodeErrors
+  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
+  selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
@@ -53,6 +54,7 @@ export const Monitoring = () => {
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(hotKeysId)(state))
   const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(hotKeysId)(state))
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(hotKeysId)(state))
+  const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
   const monitorRunning = useSelector(selectMonitorRunning(id!))
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
@@ -189,6 +191,7 @@ export const Monitoring = () => {
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
+                lastCollectedAt={hotKeysLastCollectedAt}
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}

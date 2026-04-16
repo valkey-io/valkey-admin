@@ -13,15 +13,20 @@ const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
   startedAt: startedAt ?? null,
 })
 
-export const useMonitor = async (res, client) => {
+export const useMonitor = async (res, client, nodeId) => {
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
   try {
     if (!isRunning) {
-      return res.status(400).json({ error: "Monitor is not running" })
+      const rows = await Streamer.monitor()
+      const lastCollectedAt = rows.at(-1)?.ts ?? null
+      const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
+      return res.json({ hotKeys, nodeId, monitorRunning: false, checkAt: null, startedAt: null, lastCollectedAt })
     }
     if (Date.now() > checkAt) {
-      const hotKeys = await Streamer.monitor().then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      return res.json({ hotKeys, ...toResponse(getCollectorMeta(MONITOR)) })
+      const rows = await Streamer.monitor()
+      const lastCollectedAt = rows.at(-1)?.ts ?? null
+      const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
+      return res.json({ hotKeys, nodeId, lastCollectedAt, ...toResponse(getCollectorMeta(MONITOR)) })
     }
     return res.json({ checkAt })
   } catch (e) {

@@ -17,12 +17,15 @@ interface HotKeysProps {
   status?: string
   monitorRunning?: boolean
   nodeErrors?: { connectionId: string; error: string }[]
+  lastCollectedAt?: number | null
   onKeyClick?: (keyName: string) => void
   onStartMonitoring?: () => void
   selectedKey?: string | null
 }
 
-export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors, onKeyClick, onStartMonitoring, selectedKey }: HotKeysProps) {
+export function HotKeys({ 
+  data, errorMessage, status, monitorRunning, nodeErrors, lastCollectedAt, onKeyClick, onStartMonitoring, selectedKey, 
+}: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   const toggleSortOrder = () => {
@@ -44,24 +47,39 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
     return <LoadingState message="Loading hot keys..." />
   }
 
-  const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
+  const nodeErrorsBanner = (nodeErrors && nodeErrors.length > 0 || (!monitorRunning && onStartMonitoring)) && (
     <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
       border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
       <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
       <div>
-        <Typography variant="bodySm">
-          Hot keys data is partial —{" "}
-          {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
-        </Typography>
-        <ul className="mt-1 space-y-0.5">
-          {nodeErrors.map(({ connectionId, error }) => (
-            <li key={connectionId}>
-              <Typography variant="bodySm">
-                <span className="font-mono">{connectionId}</span>: {error}
-              </Typography>
-            </li>
-          ))}
-        </ul>
+        {!monitorRunning && onStartMonitoring && (
+          <Typography variant="bodySm">
+            Monitor is not running. Showing last known data.{" "}
+            <button
+              className="text-primary underline hover:opacity-80"
+              onClick={onStartMonitoring}
+              type="button"
+            >
+              Start Monitoring
+            </button>
+          </Typography>
+        )}
+        {nodeErrors && nodeErrors.length > 0 && (
+          <>
+            <Typography variant="bodySm">
+              Hot keys data is partial:
+            </Typography>
+            <ul className="mt-1 space-y-0.5">
+              {nodeErrors.map(({ connectionId, error }) => (
+                <li key={connectionId}>
+                  <Typography variant="bodySm">
+                    <span className="font-mono">{connectionId}</span>: {error}
+                  </Typography>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   )
@@ -69,6 +87,13 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
   return sortedHotKeys.length > 0 ? (
     <>
       {nodeErrorsBanner}
+      {lastCollectedAt && (
+        <div className="px-4 py-2 text-right">
+          <Typography className="text-muted-foreground" variant="bodySm">
+            Hot Keys last collected at: {new Date(lastCollectedAt).toLocaleString()}
+          </Typography>
+        </div>
+      )}
       <TableContainer
         header={
           <>
