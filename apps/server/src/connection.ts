@@ -29,9 +29,9 @@ export async function connectToValkey(
   clusterNodesRegistry: ClusterRegistry,
 ) {
   
-  const { 
-    host, port, username, password, tls: useTLS, 
-    verifyTlsCertificate, endpointType, authType, awsRegion, awsReplicationGroupId,
+  const {
+    host, port, username, password, tls: useTLS,
+    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
   } = payload.connectionDetails
   
   const { connectionId } = payload
@@ -91,15 +91,15 @@ export async function connectToValkey(
     const keyEvictionPolicy = await getKeyEvictionPolicy(standaloneClient)
     const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
     
-    if (endpointType === "cluster-endpoint" || await belongsToCluster(standaloneClient)) {
+    if (await belongsToCluster(standaloneClient)) {
       clients.delete(connectionId)
       return connectToCluster(
-        ws, 
+        ws,
         standaloneClient,
-        clients, 
-        payload, 
-        addresses, 
-        credentials, 
+        clients,
+        payload,
+        addresses,
+        credentials,
         connectedNodesByCluster,
         clusterNodesRegistry,
       )
@@ -136,6 +136,56 @@ export async function connectToValkey(
       }),
     )
     return undefined
+  }
+}
+
+export async function discoverTopology(
+  ws: WebSocket,
+  payload: { discoveryId: string; connectionDetails: ConnectionDetails },
+): Promise<void> {
+  const { discoveryId, connectionDetails } = payload
+  const {
+    host, port, username, password, tls: useTLS,
+    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
+  } = connectionDetails
+
+  const addresses = [{ host, port: Number(port) }]
+  const credentials: ServerCredentials | undefined =
+    authType === "iam"
+      ? {
+        username: username!,
+        iamConfig: {
+          clusterName: awsReplicationGroupId!,
+          service: ServiceType.Elasticache,
+          region: awsRegion!,
+        },
+      }
+      : password ? { username, password } : undefined
+
+  let client: GlideClient | undefined
+  try {
+    client = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+    const { discoveredClusterNodes } = await discoverCluster(client, { connectionDetails })
+    if (Object.keys(discoveredClusterNodes).length < 1) {
+      throw new Error("Unable to discover cluster")
+    }
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.TOPOLOGY.discoveryEndpointFulfilled,
+        payload: { discoveryId, clusterNodes: discoveredClusterNodes },
+      }),
+    )
+  } catch (err) {
+    console.error("Error discovering topology", err)
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.TOPOLOGY.discoveryEndpointRejected,
+        payload: { discoveryId, errorMessage },
+      }),
+    )
+  } finally {
+    try { client?.close() } catch { }
   }
 }
 
@@ -225,26 +275,6 @@ export async function connectToCluster(
     let clusterId = initialClusterId
     if (Object.keys(discoveredClusterNodes).length < 1) {
       throw new Error("Unable to discover cluster")
-    }
-    const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
-    if (useClusterEndpoint) {
-      const firstNode = Object.values(discoveredClusterNodes)[0]
-      ws.send(
-        JSON.stringify({
-          type: VALKEY.CONNECTION.configEndpointRedirect,
-          payload: {
-            fromId: connectionId,
-            toId: sanitizeUrl(`${firstNode.host}-${firstNode.port}`),
-            connectionDetails: {
-              ...payload.connectionDetails,
-              host: firstNode.host,
-              port: firstNode.port.toString(),
-              endpointType: "node",
-            },
-          },
-        }),
-      )
-      return undefined
     }
 
     const existingClusterConnection = await clusterClientExists(discoveredClusterNodes, clients)
