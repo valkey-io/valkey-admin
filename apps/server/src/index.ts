@@ -6,6 +6,7 @@ import { VALKEY } from "valkey-common"
 import { fileURLToPath } from "url"
 import rateLimit from "express-rate-limit"
 import { connectPending, resetConnection, closeConnection } from "./actions/connection"
+import { topologyDiscoveryEndpointPending } from "./actions/topology"
 import { sendRequested } from "./actions/command"
 import { setData } from "./actions/stats"
 import { setClusterData } from "./actions/cluster"
@@ -169,6 +170,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.CONNECTION.connectPending]: connectPending,
     [VALKEY.CONNECTION.resetConnection]: resetConnection,
     [VALKEY.CONNECTION.closeConnection]: closeConnection,
+    [VALKEY.TOPOLOGY.discoveryEndpointPending]: topologyDiscoveryEndpointPending,
     [VALKEY.CONFIG.updateConfig]: updateConfig,
     [VALKEY.CLUSTER.setClusterData]: setClusterData,
     [VALKEY.COMMAND.sendRequested]: sendRequested,

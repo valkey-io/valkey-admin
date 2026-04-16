@@ -26,12 +26,17 @@ export const VALKEY = {
     connectPending: "connectPending",
     standaloneConnectFulfilled: "standaloneConnectFulfilled",
     clusterConnectFulfilled: "clusterConnectFulfilled",
-    configEndpointRedirect: "configEndpointRedirect",
     connectRejected: "connectRejected",
     resetConnection: "resetConnection",
     closeConnection: "closeConnection",
     closeConnectionFulfilled: "closeConnectionFulfilled",
     closeConnectionFailed: "closeConnectionFailed",
+  } as const),
+  TOPOLOGY: makeNamespace("valkeyTopology", {
+    discoveryEndpointPending: "discoveryEndpointPending",
+    discoveryEndpointFulfilled: "discoveryEndpointFulfilled",
+    discoveryEndpointRejected: "discoveryEndpointRejected",
+    clearEndpointDiscovery: "clearEndpointDiscovery",
   } as const),
   COMMAND: makeNamespace("valkeyCommand", {
     sendFailed: "sendFailed",

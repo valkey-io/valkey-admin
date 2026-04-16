@@ -14,6 +14,7 @@ import configReducer from "@/state/valkey-features/config/configSlice"
 import cpuReducer from "@/state/valkey-features/cpu/cpuSlice.ts"
 import memoryReducer from "@/state/valkey-features/memory/memorySlice.ts"
 import monitorReducer from "@/state/valkey-features/monitor/monitorSlice.ts"
+import topologyReducer from "@/state/valkey-features/topology/topologySlice.ts"
 
 export const store = configureStore({
   reducer: {
@@ -29,6 +30,7 @@ export const store = configureStore({
     [VALKEY.CPU.name]: cpuReducer,
     [VALKEY.MEMORY.name]: memoryReducer,
     [VALKEY.MONITOR.name]: monitorReducer,
+    [VALKEY.TOPOLOGY.name]: topologyReducer,
   },
   middleware: (getDefaultMiddleware) => {
     return getDefaultMiddleware({

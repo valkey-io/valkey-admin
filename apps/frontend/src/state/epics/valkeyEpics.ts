@@ -17,9 +17,13 @@ import {
   type ConnectionState,
   closeConnectionFulfilled,
   closeConnectionFailed,
-  closeConnection,
-  configEndpointRedirect
+  closeConnection
 } from "../valkey-features/connection/connectionSlice"
+import {
+  discoveryEndpointPending,
+  discoveryEndpointFulfilled,
+  clearEndpointDiscovery
+} from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
@@ -108,11 +112,35 @@ export const connectionEpic = (store: Store) =>
       ignoreElements(),
     ),
 
+    // send discovery action to server
     action$.pipe(
-      select(configEndpointRedirect),
-      tap(({ payload: { fromId, toId, connectionDetails } }) => {
-        store.dispatch(deleteConnection({ connectionId: fromId, silent: true }))
-        store.dispatch(connectPending({ connectionId: toId, connectionDetails }))
+      select(discoveryEndpointPending),
+      tap((action) => { getSocket().next(action) }),
+      ignoreElements(),
+    ),
+
+    // when disovery results succeeds - connect to the first node
+    action$.pipe(
+      select(discoveryEndpointFulfilled),
+      tap(({ payload: { discoveryId, clusterNodes } }) => {
+        const state = store.getState()
+        const discovery = state.valkeyTopology?.discoveries?.[discoveryId]
+        if (!discovery) return
+
+        const firstNode = Object.values(clusterNodes)[0]
+        if (!firstNode) return
+
+        const connectionId = sanitizeUrl(`${firstNode.host}-${firstNode.port}`)
+        store.dispatch(connectPending({
+          connectionId,
+          connectionDetails: {
+            ...discovery.connectionDetails,
+            host: firstNode.host,
+            port: String(firstNode.port),
+            endpointType: "node",
+          },
+        }))
+        store.dispatch(clearEndpointDiscovery({ discoveryId }))
       }),
       ignoreElements(),
     ),

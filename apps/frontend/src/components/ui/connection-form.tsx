@@ -6,6 +6,10 @@ import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectIsAtConnectionLimit } from "@/state/valkey-features/connection/connectionSelectors"
+import {
+  discoveryEndpointPending,
+  clearEndpointDiscovery
+} from "@/state/valkey-features/topology/topologySlice.ts"
 import { secureStorage } from "@/utils/secureStorage.ts"
 
 interface ConnectionFormProps {
@@ -26,14 +30,19 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     authType: "password",
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
+  const [discoveryId, setDiscoveryId] = useState<string | null>(null)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const connectionState = useAppSelector((state) =>
     connectionId ? state.valkeyConnection.connections[connectionId] : null,
   )
+  const discoveryState = useAppSelector((state) =>
+    discoveryId ? state.valkeyTopology.discoveries[discoveryId] : null,
+  )
 
-  const isConnecting = connectionState?.status === CONNECTING
-  const hasError = connectionState?.status === ERROR
-  const errorMessage = connectionState?.errorMessage
+  const isDiscovering = discoveryState?.status === "pending"
+  const isConnecting = isDiscovering || connectionState?.status === CONNECTING
+  const hasError = discoveryState?.status === "rejected" || connectionState?.status === ERROR
+  const errorMessage = discoveryState?.errorMessage ?? connectionState?.errorMessage
 
   // close connection form on successful connection
   useEffect(() => {
@@ -42,14 +51,30 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     }
   }, [connectionState?.status, onClose])
 
+  // cleanup discovery state when unmounting
+  useEffect(() => () => {
+    if (discoveryId) dispatch(clearEndpointDiscovery({ discoveryId }))
+  }, [discoveryId, dispatch])
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (isAtConnectionLimit) return
-    const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
-    setConnectionId(newConnectionId)
+
     const detailsToDispatch = connectionDetails.password
       ? { ...connectionDetails, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
       : connectionDetails
+
+    if (connectionDetails.endpointType === "cluster-endpoint") {
+      const newDiscoveryId = `discovery-${sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)}`
+      setDiscoveryId(newDiscoveryId)
+      setConnectionId(null)
+      dispatch(discoveryEndpointPending({ discoveryId: newDiscoveryId, connectionDetails: detailsToDispatch }))
+      return
+    }
+
+    const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+    setConnectionId(newConnectionId)
+    setDiscoveryId(null)
     dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch }))
   }
 
