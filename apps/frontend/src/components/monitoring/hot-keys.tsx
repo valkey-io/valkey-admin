@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { Copy, Flame, AlertCircle } from "lucide-react"
+import { Copy, Flame, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import * as R from "ramda"
 import { toast } from "sonner"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
+import { Alert, AlertDescription } from "../ui/alert"
 import { LoadingState } from "../ui/loading-state"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
@@ -27,6 +28,7 @@ export function HotKeys({
   data, errorMessage, status, monitorRunning, nodeErrors, lastCollectedAt, onKeyClick, onStartMonitoring, selectedKey, 
 }: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
+  const [nodeErrorsExpanded, setNodeErrorsExpanded] = useState(false)
 
   const toggleSortOrder = () => {
     setSortOrder((prev) => prev === "asc" ? "desc" : "asc")
@@ -48,14 +50,24 @@ export function HotKeys({
   }
 
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
-    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
-      border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
-      <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
-      <div>
-        <Typography variant="bodySm">
-          Hot keys data is partial:
-        </Typography>
-        <ul className="mt-1 space-y-0.5">
+    <div className="m-3 relative">
+      <Alert
+        className="cursor-pointer"
+        onClick={() => setNodeErrorsExpanded((prev) => !prev)}
+        variant="warning"
+      >
+        <AlertDescription className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          Hot keys data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s" : ""} failed to respond
+          {nodeErrorsExpanded
+            ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />
+            : <ChevronDown className="w-4 h-4 shrink-0 ml-auto" />
+          }
+        </AlertDescription>
+      </Alert>
+      {nodeErrorsExpanded && (
+        <ul className="absolute z-50 left-0 right-0 mt-1 p-3 max-h-40 overflow-y-auto space-y-0.5
+           rounded-md border-2 bg-primary/10 dark:bg-primary/30 shadow-sm">
           {nodeErrors.map(({ connectionId, error }) => (
             <li key={connectionId}>
               <Typography variant="bodySm">
@@ -64,7 +76,7 @@ export function HotKeys({
             </li>
           ))}
         </ul>
-      </div>
+      )}
     </div>
   )
 
@@ -150,7 +162,7 @@ export function HotKeys({
                   )}
                   {!isDeleted && (
                     <button
-                      aria-label = "Copy key name"
+                      aria-label="Copy key name"
                       className="p-1 rounded text-primary hover:bg-primary/20"
                       onClick={(e) => handleCopyKey(keyName, e)}
                     >
