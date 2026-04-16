@@ -16,16 +16,17 @@ const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
 export const useMonitor = async (res, client, nodeId) => {
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
   try {
-    const toLastCollectedAt = (rows) => rows.at(-1)?.ts ? rows.at(-1).ts * 1000 : null
     if (!isRunning) {
       const rows = await Streamer.monitor()
+      const lastCollectedAt = rows.at(-1)?.ts ? rows.at(-1).ts * 1000 : null
       const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      return res.json({ hotKeys, nodeId, monitorRunning: false, checkAt: null, startedAt: null, lastCollectedAt: toLastCollectedAt(rows) })
+      return res.json({ hotKeys, nodeId, monitorRunning: false, checkAt: null, startedAt: null, lastCollectedAt })
     }
     if (Date.now() > checkAt) {
       const rows = await Streamer.monitor()
+      const lastCollectedAt = rows.at(-1)?.ts ? rows.at(-1).ts * 1000 : null
       const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      return res.json({ hotKeys, nodeId, lastCollectedAt: toLastCollectedAt(rows), ...toResponse(getCollectorMeta(MONITOR)) })
+      return res.json({ hotKeys, nodeId, lastCollectedAt, ...toResponse(getCollectorMeta(MONITOR)) })
     }
     return res.json({ checkAt })
   } catch (e) {
