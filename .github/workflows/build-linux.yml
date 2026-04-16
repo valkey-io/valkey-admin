@@ -1,0 +1,35 @@
+name: Build Linux
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+            package_script: package:linux:nosign
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            package_script: package:linux:arm64:nosign
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Use Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 'latest'
+    - name: Install dependencies
+      run: npm ci
+    - name: Package unsigned Linux app (${{ matrix.arch }})
+      run: npm run ${{ matrix.package_script }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
