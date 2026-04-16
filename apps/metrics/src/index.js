@@ -58,7 +58,7 @@ async function main() {
     }
   })
 
-  app.get("/commandlog", getCommandLogs)
+  app.get("/commandlog", (req, res) => getCommandLogs(req, res, ownConnectionId))
 
   app.get("/slowlog_len", async (req, res) => {
     try {
@@ -78,9 +78,9 @@ async function main() {
   app.get("/hot-keys", async (req, res) => {
     if (req.query.useHotSlots === "true") {
       const hotKeys = await calculateHotKeysFromHotSlots(client, req.query.count).then(enrichHotKeys(client))
-      return res.json({ hotKeys })
+      return res.json({ hotKeys, nodeId: ownConnectionId })
     }
-    else useMonitor(res, client)
+    else useMonitor(res, client, ownConnectionId)
   })
 
   app.post("/update-config", async (req, res) => {

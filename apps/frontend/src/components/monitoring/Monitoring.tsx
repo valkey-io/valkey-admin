@@ -15,7 +15,7 @@ import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
 import { Button } from "../ui/button"
 import type { RootState } from "@/store"
-import { commandLogsRequested, selectCommandLogs } from "@/state/valkey-features/commandlogs/commandLogsSlice"
+import { commandLogsRequested, selectCommandLogs, selectCommandLogsNodeErrors } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError, selectHotKeysNodeErrors
@@ -45,9 +45,11 @@ export const Monitoring = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [configOpen, setConfigOpen] = useState(false)
 
-  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.SLOW)(state))
-  const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
-  const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(id!, COMMANDLOG_TYPE.LARGE_REPLY)(state))
+  const commandLogsId = clusterId ?? id!
+  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.SLOW)(state))
+  const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
+  const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.LARGE_REPLY)(state))
+  const commandLogsNodeErrors = useSelector((state: RootState) => selectCommandLogsNodeErrors(commandLogsId)(state))
   const hotKeysId = clusterId ?? id!
   const hotKeysData = useSelector((state: RootState) => selectHotKeys(hotKeysId)(state))
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(hotKeysId)(state))
@@ -213,7 +215,7 @@ export const Monitoring = () => {
         </div>
       ) : (
         <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
-          <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} />
+          <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} nodeErrors={commandLogsNodeErrors} />
         </div>
       )}
     </RouteContainer>

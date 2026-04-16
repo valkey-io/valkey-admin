@@ -12,7 +12,7 @@ import { Typography } from "../ui/typography"
 import { copyToClipboard } from "@/lib/utils"
 
 interface HotKeysProps {
-  data: [string, number, number | null, number][] | null
+  data: [string, number, number | null, number, string?][] | null
   errorMessage: string | null
   status?: string
   monitorRunning?: boolean
@@ -75,7 +75,7 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
             <StaticTableHeader
               icon={<Flame className="text-primary" size={16} />}
               label="Key Name"
-              width="w-2/5"
+              width="w-1/3"
             />
             <SortableTableHeader
               active={true}
@@ -83,14 +83,15 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
               label="Access Count"
               onClick={toggleSortOrder}
               sortOrder={sortOrder}
-              width="w-1/5"
+              width="w-1/6"
             />
-            <StaticTableHeader className="text-center" label="Size" width="w-1/5" />
-            <StaticTableHeader className="text-center" label="TTL" width="w-1/5" />
+            <StaticTableHeader className="text-center" label="Size" width="w-1/6" />
+            <StaticTableHeader className="text-center" label="TTL" width="w-1/6" />
+            <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
           </>
         }
       >
-        {sortedHotKeys.map(([keyName, count, size, ttl], index) => {
+        {sortedHotKeys.map(([keyName, count, size, ttl, nodeId], index) => {
           const isDeleted = ttl === -2
           return (
             <tr
@@ -105,7 +106,7 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
               onClick={() => onKeyClick?.(keyName)}
             >
               {/* key name */}
-              <td className="px-4 py-3 w-2/5">
+              <td className="px-4 py-3 w-1/3">
                 <div className="flex items-center gap-2">
                   <Typography className={`truncate
                             ${isDeleted
@@ -133,24 +134,29 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
               </td>
 
               {/* access count */}
-              <td className="px-4 py-3 w-1/5 text-center">
+              <td className="px-4 py-3 w-1/6 text-center">
                 <Typography variant={"bodySm"}>
                   {count.toLocaleString()}
                 </Typography>
               </td>
 
               {/* size */}
-              <td className="px-4 py-3 w-1/5 text-center">
+              <td className="px-4 py-3 w-1/6 text-center">
                 <Typography variant={"bodySm"}>
                   {isDeleted ? "—" : formatBytes(size!)}
                 </Typography>
               </td>
 
               {/* ttl */}
-              <td className="px-4 py-3 w-1/5 text-center">
+              <td className="px-4 py-3 w-1/6 text-center">
                 <Typography variant={"bodySm"}>
                   {isDeleted ? "—" : convertTTL(ttl)}
                 </Typography>
+              </td>
+
+              {/* node */}
+              <td className="px-4 py-3 w-1/6 text-center">
+                <Typography variant={"code"}>{nodeId ?? "—"}</Typography>
               </td>
             </tr>
           )

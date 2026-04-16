@@ -27,7 +27,7 @@ const getCommandLogRows = async (commandlogType) => {
   }
 }
 
-export const getCommandLogs = async (req, res) => {
+export const getCommandLogs = async (req, res, nodeId) => {
   try {
     const commandlogType = req.query.type
     const { lastUpdatedAt, nextCycleAt } = getCollectorMeta(commandlogType) || {}
@@ -35,7 +35,7 @@ export const getCommandLogs = async (req, res) => {
       const count = Number(req.query.count) || 50
       const rows = await getCommandLogRows(commandlogType, count)
       // Add minimum (1) and maximum (500) boundaries for rows requested
-      return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt })
+      return res.json({ count: Math.max(1, Math.min(500, count)), rows, lastUpdatedAt, nodeId })
     }
     else return res.json({ checkAt: nextCycleAt, lastUpdatedAt })
   } catch (e) {
