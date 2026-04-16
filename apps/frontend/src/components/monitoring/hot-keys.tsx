@@ -99,8 +99,8 @@ export function HotKeys({
 
   return sortedHotKeys.length > 0 ? (
     <>
-      {nodeErrorsBanner}
       {monitorNotRunningBanner}
+      {nodeErrorsBanner}
       {lastCollectedAt && (
         <div className="px-4 py-2 text-right">
           <Typography className="text-muted-foreground" variant="bodySm">
@@ -204,11 +204,11 @@ export function HotKeys({
     </>
   ) : (
     <>
-      {nodeErrorsBanner}
       {monitorNotRunningBanner}
+      {nodeErrorsBanner}
       <EmptyState
         action={
-          (errorMessage || !monitorRunning) && (
+          (errorMessage || (!monitorRunning && onStartMonitoring)) && (
             <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
               <Typography variant="bodySm">

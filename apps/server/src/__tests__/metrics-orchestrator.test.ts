@@ -1,7 +1,7 @@
  
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import { GlideClient } from "@valkey/valkey-glide"
 import {
   metricsServerMap,
   stopAllMetricsServers,
@@ -214,15 +214,13 @@ describe("metrics-orchestrator", () => {
 
   describe("reconcileClusterMetricsServers", () => {
     let connectionDetails: ConnectionDetails
-    let client: GlideClusterClient
 
     beforeEach(() => {
       metricsServerMap.clear()
       connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node" }
-      client = {} as GlideClusterClient
 
       // Mock all side-effectful internal functions
-      mock.method(__test__, "createClusterClient", async () => ({}))
+      mock.method(__test__, "createClient", async () => ({}))
       mock.method(__test__, "getClusterTopology", async () => ({
         clusterNodes: {
           node1: { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false },
@@ -239,17 +237,8 @@ describe("metrics-orchestrator", () => {
 
     it("should discover cluster if registry is empty", async () => {
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
+        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
       assert.ok(mockClusterNodesRegistry["cluster-1"])
-    })
-
-    it("should call updateClusterNodeRegistry for existing clusters", async () => {
-      mockClusterNodesRegistry["cluster-1"] = {
-        node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
-      }
-      await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
-      // Nothing should throw; mocks handle all calls
     })
 
     it("should early return if nothing changed", async () => {
@@ -259,7 +248,7 @@ describe("metrics-orchestrator", () => {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       }
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails, client)
+        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
       // updateMetricsServers should not be called because nothing changed
     })
   })
