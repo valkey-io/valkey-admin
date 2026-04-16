@@ -22,6 +22,7 @@ import {
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
@@ -56,6 +57,8 @@ export const Monitoring = () => {
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(hotKeysId)(state))
   const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
   const monitorRunning = useSelector(selectMonitorRunning(id!))
+  const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
+  const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {
@@ -195,7 +198,7 @@ export const Monitoring = () => {
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}
-                onStartMonitoring={() => setConfigOpen(true)}
+                onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}
                 selectedKey={selectedKey}
                 status={hotKeysStatus}
               />
