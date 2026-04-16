@@ -39,7 +39,7 @@ export function HotKeys({
   }
 
   const sortedHotKeys = R.sort<[string, number, number | null, number]>(
-    (sortOrder === "asc" ? R.ascend : R.descend)(R.nth(1) as (tuple: [string, number, number | null, number]) => number),
+    (sortOrder === "asc" ? R.ascend : R.descend)(R.nth(1) as (tuple: [string, number, number | null, number,]) => number),
     R.defaultTo([], data),
   )
 
