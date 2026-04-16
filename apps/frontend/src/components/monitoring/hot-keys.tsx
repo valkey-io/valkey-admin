@@ -208,7 +208,7 @@ export function HotKeys({
       {monitorNotRunningBanner}
       <EmptyState
         action={
-          (errorMessage || !monitorRunning) && (
+          (errorMessage || (!monitorRunning && onStartMonitoring)) && (
             <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
               <Typography variant="bodySm">

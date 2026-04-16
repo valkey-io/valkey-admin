@@ -136,16 +136,16 @@ export function createMetricsOrchestratorRouter() {
   return router
 }
 
-let initialClient: GlideClusterClient | null = null
+let initialClient: GlideClient | null = null
 
 export async function getInitialClient() {
   if (!initialClient) {
-    initialClient = await createClusterClient(initialConnectionDetails)
+    initialClient = await createClient(initialConnectionDetails)
   }
   return initialClient
 }
 
-async function createClusterClient(connectionDetails: ConnectionDetails) {
+async function createClient(connectionDetails: ConnectionDetails) {
   const { host, port, username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = connectionDetails
   const addresses = [{ host, port: Number(port) }]
   const credentials =
@@ -164,7 +164,7 @@ async function createClusterClient(connectionDetails: ConnectionDetails) {
 }
 
 async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {
-  if (!client) client = await createClusterClient(node)
+  if (!client) client = await createClient(node)
 
   const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
 
@@ -374,7 +374,7 @@ export function cleanupOrchestratorResources() {
 // To help mock internal methods in tests
 const internals =  {
   startMetricsServers,
-  createClusterClient,
+  createClient,
   getClusterTopology,
   updateClusterNodeRegistry,
   findDiff,
