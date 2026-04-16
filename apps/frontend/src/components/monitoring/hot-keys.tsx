@@ -47,46 +47,48 @@ export function HotKeys({
     return <LoadingState message="Loading hot keys..." />
   }
 
-  const nodeErrorsBanner = (nodeErrors && nodeErrors.length > 0 || (!monitorRunning && onStartMonitoring)) && (
+  const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
     <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
       border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
       <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
       <div>
-        {!monitorRunning && onStartMonitoring && (
-          <Typography variant="bodySm">
-            Monitor is not running. Showing last known data.{" "}
-            <button
-              className="text-primary underline hover:opacity-80"
-              onClick={onStartMonitoring}
-              type="button"
-            >
-              Start Monitoring
-            </button>
-          </Typography>
-        )}
-        {nodeErrors && nodeErrors.length > 0 && (
-          <>
-            <Typography variant="bodySm">
-              Hot keys data is partial:
-            </Typography>
-            <ul className="mt-1 space-y-0.5">
-              {nodeErrors.map(({ connectionId, error }) => (
-                <li key={connectionId}>
-                  <Typography variant="bodySm">
-                    <span className="font-mono">{connectionId}</span>: {error}
-                  </Typography>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+        <Typography variant="bodySm">
+          Hot keys data is partial:
+        </Typography>
+        <ul className="mt-1 space-y-0.5">
+          {nodeErrors.map(({ connectionId, error }) => (
+            <li key={connectionId}>
+              <Typography variant="bodySm">
+                <span className="font-mono">{connectionId}</span>: {error}
+              </Typography>
+            </li>
+          ))}
+        </ul>
       </div>
+    </div>
+  )
+
+  const monitorNotRunningBanner = !monitorRunning && onStartMonitoring && (
+    <div className="m-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-md border
+      border-red-200 dark:border-red-700 flex items-start gap-2">
+      <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+      <Typography variant="bodySm">
+        Monitor is not running. Showing last known data.{" "}
+        <button
+          className="text-primary underline hover:opacity-80"
+          onClick={onStartMonitoring}
+          type="button"
+        >
+          Start Monitoring
+        </button>
+      </Typography>
     </div>
   )
 
   return sortedHotKeys.length > 0 ? (
     <>
       {nodeErrorsBanner}
+      {monitorNotRunningBanner}
       {lastCollectedAt && (
         <div className="px-4 py-2 text-right">
           <Typography className="text-muted-foreground" variant="bodySm">
@@ -185,6 +187,7 @@ export function HotKeys({
   ) : (
     <>
       {nodeErrorsBanner}
+      {monitorNotRunningBanner}
       <EmptyState
         action={
           (errorMessage || !monitorRunning) && (
