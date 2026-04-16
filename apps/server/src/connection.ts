@@ -185,7 +185,7 @@ export async function discoverTopology(
       }),
     )
   } finally {
-    try { client?.close() } catch { }
+    client?.close()
   }
 }
 
