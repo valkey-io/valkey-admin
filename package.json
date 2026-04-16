@@ -129,7 +129,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "icon": "apps/frontend/assets/img/logo-512.png"
     },
     "afterSign": "mac_build/notarize.js",
     "afterAllArtifactBuild": "linux_build/sign.js"
