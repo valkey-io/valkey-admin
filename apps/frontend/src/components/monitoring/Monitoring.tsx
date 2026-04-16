@@ -18,9 +18,11 @@ import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs, selectCommandLogsNodeErrors } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
-  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError, selectHotKeysNodeErrors
+  hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
+  selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
@@ -55,7 +57,10 @@ export const Monitoring = () => {
   const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(hotKeysId)(state))
   const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(hotKeysId)(state))
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(hotKeysId)(state))
+  const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
   const monitorRunning = useSelector(selectMonitorRunning(id!))
+  const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
+  const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {
@@ -191,10 +196,11 @@ export const Monitoring = () => {
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
+                lastCollectedAt={hotKeysLastCollectedAt}
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}
-                onStartMonitoring={() => setConfigOpen(true)}
+                onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}
                 selectedKey={selectedKey}
                 status={hotKeysStatus}
               />

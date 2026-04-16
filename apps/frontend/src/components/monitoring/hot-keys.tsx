@@ -17,12 +17,15 @@ interface HotKeysProps {
   status?: string
   monitorRunning?: boolean
   nodeErrors?: { connectionId: string; error: string }[]
+  lastCollectedAt?: number | null
   onKeyClick?: (keyName: string) => void
   onStartMonitoring?: () => void
   selectedKey?: string | null
 }
 
-export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors, onKeyClick, onStartMonitoring, selectedKey }: HotKeysProps) {
+export function HotKeys({ 
+  data, errorMessage, status, monitorRunning, nodeErrors, lastCollectedAt, onKeyClick, onStartMonitoring, selectedKey, 
+}: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   const toggleSortOrder = () => {
@@ -36,7 +39,7 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
   }
 
   const sortedHotKeys = R.sort<[string, number, number | null, number]>(
-    (sortOrder === "asc" ? R.ascend : R.descend)(R.nth(1) as (tuple: [string, number, number | null, number]) => number),
+    (sortOrder === "asc" ? R.ascend : R.descend)(R.nth(1) as (tuple: [string, number, number | null, number,]) => number),
     R.defaultTo([], data),
   )
 
@@ -50,8 +53,7 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
       <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
       <div>
         <Typography variant="bodySm">
-          Hot keys data is partial —{" "}
-          {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
+          Hot keys data is partial:
         </Typography>
         <ul className="mt-1 space-y-0.5">
           {nodeErrors.map(({ connectionId, error }) => (
@@ -66,9 +68,34 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
     </div>
   )
 
+  const monitorNotRunningBanner = !monitorRunning && onStartMonitoring && (
+    <div className="m-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-md border
+      border-red-200 dark:border-red-700 flex items-start gap-2">
+      <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+      <Typography variant="bodySm">
+        Monitor is not running. Showing last known data.{" "}
+        <button
+          className="text-primary underline hover:opacity-80"
+          onClick={onStartMonitoring}
+          type="button"
+        >
+          Start Monitoring
+        </button>
+      </Typography>
+    </div>
+  )
+
   return sortedHotKeys.length > 0 ? (
     <>
       {nodeErrorsBanner}
+      {monitorNotRunningBanner}
+      {lastCollectedAt && (
+        <div className="px-4 py-2 text-right">
+          <Typography className="text-muted-foreground" variant="bodySm">
+            Hot Keys last collected at: {new Date(lastCollectedAt).toLocaleString()}
+          </Typography>
+        </div>
+      )}
       <TableContainer
         header={
           <>
@@ -166,6 +193,7 @@ export function HotKeys({ data, errorMessage, status, monitorRunning, nodeErrors
   ) : (
     <>
       {nodeErrorsBanner}
+      {monitorNotRunningBanner}
       <EmptyState
         action={
           (errorMessage || !monitorRunning) && (
