@@ -18,12 +18,16 @@ export const selectHotKeysError = (id: string) => (state: RootState) =>
 export const selectHotKeysNodeErrors = (id: string) => (state: RootState) =>
   R.path([VALKEY.HOTKEYS.name, id, "nodeErrors"], state) ?? []
 
+export const selectHotKeysLastCollectedAt = (id: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, id, "lastCollectedAt"], state) ?? null
+
 interface HotKeysState {
   [connectionId: string]: {
     hotKeys: [string, number, number | null, number, string?][]
     checkAt: string | null,
     monitorRunning: boolean,
     nodeId: string | null,
+    lastCollectedAt?: number | null,
     error?: JSONObject | null,
     nodeErrors?: { connectionId: string; error: string }[],
     status: HotKeysStatus,
@@ -54,7 +58,7 @@ const hotKeysSlice = createSlice({
       }
     },
     hotKeysFulfilled: (state, action) => {
-      const { hotKeys, monitorRunning, checkAt, nodeId } = action.payload.parsedResponse
+      const { hotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } = action.payload.parsedResponse
       const connectionId = action.payload.connectionId
       const nodeErrors = action.payload.nodeErrors ?? []
       if (!state[connectionId]) {
@@ -71,6 +75,7 @@ const hotKeysSlice = createSlice({
         checkAt,
         monitorRunning,
         nodeId,
+        lastCollectedAt,
         nodeErrors,
         status: FULFILLED,
       }

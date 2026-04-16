@@ -8,6 +8,7 @@ type HotKeysResponse = {
   hotKeys: [[]]
   checkAt: number
   monitorRunning: boolean
+  lastCollectedAt: number | null
 }
 
 type NodeError = {
@@ -136,7 +137,9 @@ export const hotKeysRequested = withDeps<Deps, void>(
       R.values,
       R.sort(R.descend(R.nth(1) as (x: HotKeyTuple) => number)),
     )(results)
-    const { monitorRunning, checkAt, nodeId } = results[0]
-    const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId } as unknown as HotKeysResponse
+    const { checkAt, nodeId } = results[0]
+    const monitorRunning = results.every((r) => r.monitorRunning)
+    const lastCollectedAt = results.reduce((max, r) => Math.max(max, r.lastCollectedAt ?? 0), 0) || null
+    const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } as unknown as HotKeysResponse
     sendHotKeysFulfilled(ws, clusterId as string, aggregatedResponse, nodeErrors)
   })

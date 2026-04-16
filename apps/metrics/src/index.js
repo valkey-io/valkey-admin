@@ -180,7 +180,18 @@ async function main() {
     }
 
     console.debug(`listening on http://${metricsBindHost}:${assignedPort}`)
-    await registerWithServer()
+
+    const registerWithRetry = async () => {
+      const maxAttempts = 30
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const success = await registerWithServer()
+        if (success) return
+        if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+      console.error("Failed to register with server after 30 attempts. Shutting down.")
+      shutdown()
+    }
+    await registerWithRetry()
     // Base interval ±10% jitter
     const pingIntervalMs = cfg.backend.ping_interval * (1 + (Math.random() * 2 - 1) * 0.1)
     setInterval(async () => {
