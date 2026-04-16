@@ -223,7 +223,7 @@ export async function connectToCluster(
     const { discoveredClusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
     discoveryClient.close()
     let clusterId = initialClusterId
-    if (Object.keys(discoveredClusterNodes).length < 3) {
+    if (Object.keys(discoveredClusterNodes).length < 1) {
       throw new Error("Unable to discover cluster")
     }
     const useClusterEndpoint = payload.connectionDetails.endpointType === "cluster-endpoint"
