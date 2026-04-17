@@ -52,6 +52,16 @@ export function Dashboard() {
     maxmemory: infoData.maxmemory,
   }
 
+  const maxmem = Number(memoryUsageMetrics.maxmemory)
+  const sysmem = Number(memoryUsageMetrics.total_system_memory)
+  const totalMemoryDisplay = maxmem > 0
+    ? formatBytes(maxmem)
+    : maxmem === 0 && sysmem > 0
+      ? formatBytes(sysmem)
+      : maxmem === 0
+        ? "∞"
+        : "—"
+
   const upTimeMetrics = {
     evicted_scripts: infoData.evicted_scripts,
     uptime_in_seconds: infoData.uptime_in_seconds,
@@ -133,13 +143,7 @@ export function Dashboard() {
               className="flex-1"
               icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
-              value={(() => {
-                const maxmem = Number(memoryUsageMetrics.maxmemory)
-                if (maxmem > 0) return formatBytes(maxmem)
-                const sysmem = Number(memoryUsageMetrics.total_system_memory)
-                if (sysmem > 0) return formatBytes(sysmem)
-                return "∞"
-              })()}
+              value={totalMemoryDisplay}
             />
             <StatCard
               className="flex-1"
