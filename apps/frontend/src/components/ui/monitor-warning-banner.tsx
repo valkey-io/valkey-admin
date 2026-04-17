@@ -41,7 +41,7 @@ export function MonitorWarningBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 pointer-events-auto">
       {expanded ? (
         <div className="border border-destructive rounded-md shadow-xs w-80 overflow-hidden">
           {/* Header */}

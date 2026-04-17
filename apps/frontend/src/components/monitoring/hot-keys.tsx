@@ -58,7 +58,8 @@ export function HotKeys({
       >
         <AlertDescription className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          Hot keys data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s" : ""} failed to respond
+          Hot keys data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "} 
+          failed to respond or {nodeErrors.length > 1 ? "are" : "is"} not connected
           {nodeErrorsExpanded
             ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />
             : <ChevronDown className="w-4 h-4 shrink-0 ml-auto" />
@@ -66,8 +67,8 @@ export function HotKeys({
         </AlertDescription>
       </Alert>
       {nodeErrorsExpanded && (
-        <ul className="absolute z-50 left-0 right-0 mt-1 p-3 max-h-40 overflow-y-auto space-y-0.5
-           rounded-md border-2 bg-primary/10 dark:bg-primary/30 shadow-sm">
+        <ul className="absolute z-50 left-0 right-0 mt-0.5 p-3 max-h-40 overflow-y-auto space-y-0.5
+           rounded-md border bg-accent shadow-sm">
           {nodeErrors.map(({ connectionId, error }) => (
             <li key={connectionId}>
               <Typography variant="bodySm">
