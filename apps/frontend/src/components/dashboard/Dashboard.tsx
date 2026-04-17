@@ -48,8 +48,20 @@ export function Dashboard() {
     used_memory_vm_eval: infoData.used_memory_vm_eval,
     used_memory_peak: infoData.used_memory_peak,
     used_memory_scripts: infoData.used_memory_scripts,
-    total_system_memory: infoData.total_system_memory,
+    ...(Number(infoData.maxmemory) > 0
+      ? { max_memory: infoData.maxmemory }
+      : { total_system_memory: infoData.total_system_memory }),
   }
+
+  const maxmem = Number(infoData.maxmemory)
+  const sysmem = Number(infoData.total_system_memory)
+  const totalMemoryDisplay = maxmem > 0
+    ? formatBytes(maxmem)
+    : maxmem === 0 && sysmem > 0
+      ? formatBytes(sysmem)
+      : maxmem === 0
+        ? "∞"
+        : "—"
 
   const upTimeMetrics = {
     evicted_scripts: infoData.evicted_scripts,
@@ -132,7 +144,7 @@ export function Dashboard() {
               className="flex-1"
               icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
-              value={formatBytes(memoryUsageMetrics.total_system_memory || 0)}
+              value={totalMemoryDisplay}
             />
             <StatCard
               className="flex-1"
