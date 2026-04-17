@@ -48,11 +48,12 @@ export function Dashboard() {
     used_memory_vm_eval: infoData.used_memory_vm_eval,
     used_memory_peak: infoData.used_memory_peak,
     used_memory_scripts: infoData.used_memory_scripts,
-    total_system_memory: infoData.total_system_memory,
-    maxmemory: infoData.maxmemory,
+    ...(Number(infoData.maxmemory) > 0
+      ? { max_memory: infoData.maxmemory }
+      : { total_system_memory: infoData.total_system_memory }),
   }
 
-  const maxmem = Number(memoryUsageMetrics.maxmemory)
+  const maxmem = Number(memoryUsageMetrics.max_memory)
   const sysmem = Number(memoryUsageMetrics.total_system_memory)
   const totalMemoryDisplay = maxmem > 0
     ? formatBytes(maxmem)
