@@ -17,7 +17,7 @@ Use this skill when editing transformation-heavy TypeScript or JavaScript in thi
 - Collections: `groupBy`, `countBy`, `uniq`, `range`, `indexBy`, `partition`, `sortBy`, `ascend`, `descend`.
 - Predicates: `any`, `all`, `anyPass`, `allPass`, `propEq`, `pathEq`, `includes`.
 - String/list transforms: `split`, `splitAt`, `splitEvery`, `join`.
-- Fan-out and composition: `juxt`, `applySpec`, `converge`, `pipe`, `compose`.
+- Fan-out and composition: `juxt`, `applySpec`, `converge`, `pipe`.
 - Object utilities: `invert`, `invertObj`, `toPairs`, `fromPairs`, `mapObjIndexed`.
 
 ## Type Discipline
@@ -30,6 +30,4 @@ Use this skill when editing transformation-heavy TypeScript or JavaScript in thi
 
 - Is the transformation clearer than the equivalent plain TypeScript?
 - Are all intermediate domain concepts still named when naming helps understanding?
-- Does the code preserve `undefined` versus `null` semantics?
-- Are expected errors returned as values instead of thrown mid-pipeline?
-
+- Does the code preserve `undefined` versus `null` semantics when that distinction matters?
