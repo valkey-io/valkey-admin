@@ -53,8 +53,8 @@ export function Dashboard() {
       : { total_system_memory: infoData.total_system_memory }),
   }
 
-  const maxmem = Number(memoryUsageMetrics.max_memory)
-  const sysmem = Number(memoryUsageMetrics.total_system_memory)
+  const maxmem = Number(infoData.maxmemory)
+  const sysmem = Number(infoData.total_system_memory)
   const totalMemoryDisplay = maxmem > 0
     ? formatBytes(maxmem)
     : maxmem === 0 && sysmem > 0
