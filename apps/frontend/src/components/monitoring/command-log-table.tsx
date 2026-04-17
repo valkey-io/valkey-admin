@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { Clock, AlertCircle } from "lucide-react"
+import { Clock, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import * as R from "ramda"
 import { SORT_ORDER, SORT_FIELD } from "@common/src/constants"
+import { Alert, AlertDescription } from "../ui/alert"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
 import { SortableTableHeader, StaticTableHeader } from "../ui/sortable-table-header"
@@ -74,18 +75,29 @@ const logTypeConfig = {
 export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTableProps) {
   const [sortField, setSortField] = useState<SortField>(SORT_FIELD.TIMESTAMP)
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
+  const [nodeErrorsExpanded, setNodeErrorsExpanded] = useState(false)
   const config = logTypeConfig[logType]
 
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
-    <div className="m-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border
-      border-yellow-200 dark:border-yellow-700 flex items-start gap-2">
-      <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
-      <div>
-        <Typography variant="bodySm">
-          Command log data is partial —{" "}
-          {nodeErrors.length} metrics server{nodeErrors.length > 1 ? "s" : ""} failed to respond or are not connected:
-        </Typography>
-        <ul className="mt-1 space-y-0.5">
+    <div className="m-3 relative">
+      <Alert
+        className="cursor-pointer"
+        onClick={() => setNodeErrorsExpanded((prev) => !prev)}
+        variant="warning"
+      >
+        <AlertDescription className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          Command log data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "} 
+          failed to respond or {nodeErrors.length > 1 ? "are" : "is"} not connected
+          {nodeErrorsExpanded
+            ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />
+            : <ChevronDown className="w-4 h-4 shrink-0 ml-auto" />
+          }
+        </AlertDescription>
+      </Alert>
+      {nodeErrorsExpanded && (
+        <ul className="absolute z-50 left-0 mt-0.5 right-0 p-3 max-h-40 overflow-y-auto space-y-0.5
+           rounded-md border bg-accent shadow-sm">
           {nodeErrors.map(({ connectionId, error }) => (
             <li key={connectionId}>
               <Typography variant="bodySm">
@@ -94,7 +106,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
             </li>
           ))}
         </ul>
-      </div>
+      )}
     </div>
   )
 

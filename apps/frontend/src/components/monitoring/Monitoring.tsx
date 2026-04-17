@@ -138,7 +138,7 @@ export const Monitoring = () => {
             Monitor Hot Keys and Command Logs of{" "}
             {clusterId ? (
               <>
-                cluster node{" "} <span className="font-semibold text-primary">{truncateText(id!)}</span>
+                cluster {" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
               </>
             ) : (
               <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
