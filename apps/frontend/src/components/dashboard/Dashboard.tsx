@@ -48,7 +48,7 @@ export function Dashboard() {
     used_memory_vm_eval: infoData.used_memory_vm_eval,
     used_memory_peak: infoData.used_memory_peak,
     used_memory_scripts: infoData.used_memory_scripts,
-    total_system_memory: infoData.total_system_memory,
+    maxmemory: infoData.maxmemory,
   }
 
   const upTimeMetrics = {
@@ -132,7 +132,7 @@ export function Dashboard() {
               className="flex-1"
               icon={<Database className="text-primary" size={24} />}
               label="Total Memory"
-              value={formatBytes(memoryUsageMetrics.total_system_memory || 0)}
+              value={formatBytes(memoryUsageMetrics.maxmemory || 0)}
             />
             <StatCard
               className="flex-1"
