@@ -40,8 +40,12 @@ export const singleMetricDescriptions = {
     description: "Number of bytes overhead by the EVAL scripts + Number of bytes overhead by Function scripts (part of used_memory).",
     unit: "Unit: Bytes",
   },
-  maxmemory: {
+  max_memory: {
     description: "Maximum amount of memory allocated for the Valkey instance.",
+    unit: "Unit: Bytes",
+  },
+  total_system_memory: {
+    description: "Total amount of memory that the Valkey instance has available.",
     unit: "Unit: Bytes",
   },
 
