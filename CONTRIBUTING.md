@@ -74,7 +74,7 @@ We use **RxJS-based middleware (Epics)** to handle side effects and asynchronous
 * **Secrets:** Never log passwords, IAM tokens, credentials, connection strings with secrets, or raw secure-storage payloads. Redact sensitive connection details in logs and errors.
 
 ### Agent Skills
-Detailed guidance for AI coding agents lives in `.opencode/skills/` and should be loaded only when relevant:
+Detailed guidance for AI coding agents lives in `.agents/skills/` and should be loaded only when relevant:
 * `ramda`: transformation-heavy TypeScript or JavaScript.
 * `rx-js`: Redux slices, selectors, epics, websocket flows, and frontend data orchestration.
 * `valkey`: Valkey connection, command, dashboard, metrics, key-browser, monitoring, and cluster behavior.
