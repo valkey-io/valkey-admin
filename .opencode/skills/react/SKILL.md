@@ -1,3 +1,8 @@
+---
+name: react
+description: Guidance for React frontend work. Use when changing React components, hooks, JSX structure, semantic markup, component composition, selector consumption, or frontend render data flow.
+---
+
 # React Skill
 
 Use this skill when changing React components, hooks, JSX structure, or frontend render data flow.
@@ -30,4 +35,3 @@ Use this skill when changing React components, hooks, JSX structure, or frontend
 - Prefer named components for repeated or meaningful UI concepts in `apps/frontend/src/components`.
 - Prefer composition over large components and prop-heavy abstractions.
 - Keep components focused on rendering and local interaction. Move data orchestration to middleware and shared transforms to selectors, reducers, or `common/`.
-

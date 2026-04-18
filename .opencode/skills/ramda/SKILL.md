@@ -1,3 +1,8 @@
+---
+name: ramda
+description: Guidance for using Ramda in transformation-heavy TypeScript or JavaScript. Use when editing data pipelines, collection/object transformations, reducers, selectors, or parser code that can benefit from Ramda operators.
+---
+
 # Ramda Skill
 
 Use this skill when editing transformation-heavy TypeScript or JavaScript in this repo.

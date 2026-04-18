@@ -1,3 +1,8 @@
+---
+name: rx-js
+description: Guidance for Redux Toolkit and RxJS middleware patterns. Use when changing slices, selectors, epics, websocket action flows, async orchestration, frontend data flow, retries, polling, or middleware-driven API workflows.
+---
+
 # RxJS And RTK Skill
 
 Use this skill when changing Redux slices, selectors, epics, websocket flows, or frontend data orchestration.

@@ -1,3 +1,8 @@
+---
+name: styling
+description: Guidance for frontend styling. Use when changing Tailwind classes, CSS tokens, light or dark themes, semantic color usage, accessibility contrast, layout wrappers, or visual UI states.
+---
+
 # Styling Skill
 
 Use this skill when changing Tailwind classes, CSS tokens, themes, layout, or visual UI states.
@@ -27,4 +32,3 @@ Use this skill when changing Tailwind classes, CSS tokens, themes, layout, or vi
 - Prefer semantic elements for meaningful structure and `div` for layout, containment, flex/grid, spacing, overflow, or styling when no semantic element fits.
 - Avoid card-inside-card and wrapper-heavy layouts.
 - Keep repeated styled concepts as named components in `apps/frontend/src/components`.
-

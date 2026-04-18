@@ -1,3 +1,8 @@
+---
+name: valkey
+description: Guidance for Valkey-specific behavior. Use when changing Valkey connections, commands, dashboard data, metrics, key browser behavior, monitoring, cluster routing, response normalization, or unsupported capability handling.
+---
+
 # Valkey Skill
 
 Use this skill when changing Valkey connection, command, dashboard, metrics, key-browser, monitoring, or cluster behavior.
@@ -36,4 +41,3 @@ Use this skill when changing Valkey connection, command, dashboard, metrics, key
 - Add focused regression tests for parser changes, response normalization, cluster routing, and unsupported-command fallbacks.
 - Mock both standalone and cluster response shapes when behavior depends on the client type.
 - Test `undefined` and `null` states separately when Valkey data can be absent or explicitly null.
-
