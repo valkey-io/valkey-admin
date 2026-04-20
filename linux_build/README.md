@@ -33,7 +33,7 @@ gpg --armor --export <KEY_ID> > linux_build/valkey-admin.pub
 ## Local signing setup
 
 1. Copy `.env.example` to `.env`
-2. Set `GPG_KEY_ID` to your key ID
+2. Optionally set `GPG_KEY_ID` to your key ID (if you have multiple GPG keys; otherwise the default key is used)
 3. Build, sign, and package by running `npm run package:linux` from the root directory
 
 ## CI/CD signing setup (GitHub Actions)
@@ -47,6 +47,8 @@ gpg --armor --export-secret-keys <KEY_ID> | base64 > gpg-private-key-base64.txt
 Add these GitHub Actions secrets:
 - **`GPG_PRIVATE_KEY`** — contents of `gpg-private-key-base64.txt`
 - **`GPG_PASSPHRASE`** — the passphrase for the key
+
+The imported key is automatically used for signing (no need to specify a key ID in CI since only one key is in the keyring).
 
 Then delete `gpg-private-key-base64.txt` from your machine. Keep a secure backup of the private key in a password manager.
 
