@@ -189,7 +189,7 @@ export async function returnExistingClusterClient(
   subscribe(connectionId, ws)
   ws.send(
     JSON.stringify({
-      type: VALKEY.CLUSTER.updateClusterInfo,
+      type: VALKEY.CLUSTER.addCluster,
       payload: { clusterId: existingClusterId, clusterNodes: discoveredClusterNodes },
     }),
   )

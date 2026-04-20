@@ -52,7 +52,7 @@ export const resetConnection = withDeps<Deps, void>(
 )
 
 export const closeConnection = withDeps<Deps, void>(
-  async ({ ws, clients, action, metricsServerMap, connectedNodesByCluster }) => {
+  async ({ ws, clients, action, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry }) => {
     const { connectionId } = action.payload
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId
