@@ -395,6 +395,7 @@ export function teardownConnection(
   connectionId: string,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry?: ClusterRegistry,
 ) {
   if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
     closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
@@ -410,6 +411,10 @@ export function teardownConnection(
       connection.client.close()
     } catch (error) {
       console.error(`Error closing connection ${connectionId}:`, error)
+    }
+
+    if (clusterNodesRegistry && connection.clusterId && process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
+      delete clusterNodesRegistry[connection.clusterId]
     }
   }
 }

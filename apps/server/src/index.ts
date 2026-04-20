@@ -2,7 +2,7 @@ import { WebSocket, WebSocketServer } from "ws"
 import express from "express"
 import path from "path"
 import http from "http"
-import { VALKEY } from "valkey-common"
+import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
 import { fileURLToPath } from "url"
 import rateLimit from "express-rate-limit"
 import { connectPending, resetConnection, closeConnection } from "./actions/connection"
@@ -159,6 +159,7 @@ const interval = setInterval(() => {
     ws.ping()
   })
 }, 30000)
+
 wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
   ws.isAlive = true
@@ -248,12 +249,16 @@ wss.on("connection", (ws: AliveWebSocket) => {
     console.log("Client disconnected. Reason:", code, reason.toString())
 
     for (const connectionId of removedIds) {
-      if (getWatcherCount(connectionId) === 0) teardownConnection(connectionId, clients, metricsServerMap)
+      setTimeout(() => {
+        if (getWatcherCount(connectionId) === 0) {
+          teardownConnection(connectionId, clients, metricsServerMap, clusterNodesRegistry)
+        }
+      }, CONNECTION_TEARDOWN_DELAY_MS)
     }
 
     // Clean up any side-entries (e.g., node entries from config endpoint connections)
     for (const [id] of clients) {
-      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap)
+      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap, clusterNodesRegistry)
     }
   })
 })
