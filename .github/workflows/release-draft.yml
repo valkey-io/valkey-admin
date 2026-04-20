@@ -51,7 +51,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
     - name: Import GPG key
-      if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
       run: |
         echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --batch --import
     - name: Package Linux app (${{ matrix.arch }})
