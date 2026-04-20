@@ -81,6 +81,6 @@ export const closeConnection = withDeps<Deps, void>(
         }
       }
     }
-    teardownConnection(connectionId, clients, metricsServerMap)
+    teardownConnection(connectionId, clients, metricsServerMap, clusterNodesRegistry)
   },
 )

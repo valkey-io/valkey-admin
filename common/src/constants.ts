@@ -205,3 +205,6 @@ export const METRICS_EVICTION_POLICY = {
 }
 
 export type EndpointType = "node" | "cluster-endpoint"
+
+export const CONNECTION_TEARDOWN_DELAY_MS = Number(process.env.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)
+
