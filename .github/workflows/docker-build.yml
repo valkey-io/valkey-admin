@@ -1,0 +1,119 @@
+name: Docker Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+env:
+  PUBLISH_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
+  PUBLISH_GHCR: ${{ github.repository == 'valkey-io/valkey-admin' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
+  PUBLISH_ECR: ${{ secrets.AWS_ROLE_TO_ASSUME != '' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
+
+defaults:
+  run:
+    shell: 'bash -Eeuo pipefail -x {0}'
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: env.PUBLISH_DOCKERHUB == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        if: env.PUBLISH_GHCR == 'true'
+        continue-on-error: true # TODO: remove before merging - only needed for local act testing
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Configure AWS credentials via OIDC
+        if: env.PUBLISH_ECR == 'true'
+        continue-on-error: true # TODO: remove before merging - only needed for local act testing
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public Gallery
+        if: env.PUBLISH_ECR == 'true'
+        continue-on-error: true # TODO: remove before merging - only needed for local act testing
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Generate tags
+        id: tags
+        run: |
+          all_tags=""
+          version_tag=""
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            version_tag="${{ github.ref_name }}"
+            version_tag="${version_tag#v}"
+          fi
+
+          if [[ "$PUBLISH_DOCKERHUB" == "true" ]]; then
+            if [[ -n "$version_tag" ]]; then
+              tags="${{ secrets.DOCKERHUB_REPOSITORY }}:latest,${{ secrets.DOCKERHUB_REPOSITORY }}:$version_tag"
+            else
+              tags="${{ secrets.DOCKERHUB_REPOSITORY }}:edge"
+            fi
+            all_tags="$tags"
+          fi
+
+          if [[ "$PUBLISH_GHCR" == "true" ]]; then
+            if [[ -n "$version_tag" ]]; then
+              tags="ghcr.io/${{ github.repository_owner }}/valkey-admin:latest,ghcr.io/${{ github.repository_owner }}/valkey-admin:$version_tag"
+            else
+              tags="ghcr.io/${{ github.repository_owner }}/valkey-admin:edge"
+            fi
+            all_tags="${all_tags:+$all_tags,}$tags"
+          fi
+
+          if [[ "$PUBLISH_ECR" == "true" ]]; then
+            if [[ -n "$version_tag" ]]; then
+              tags="public.ecr.aws/${{ secrets.ECR_REGISTRY_ALIAS }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest,public.ecr.aws/${{ secrets.ECR_REGISTRY_ALIAS }}/${{ secrets.ECR_REPOSITORY_NAME }}:$version_tag"
+            else
+              tags="public.ecr.aws/${{ secrets.ECR_REGISTRY_ALIAS }}/${{ secrets.ECR_REPOSITORY_NAME }}:edge"
+            fi
+            all_tags="${all_tags:+$all_tags,}$tags"
+          fi
+
+          echo "tags=$all_tags" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.app
+          push: ${{ env.PUBLISH_DOCKERHUB == 'true' || env.PUBLISH_GHCR == 'true' || env.PUBLISH_ECR == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
