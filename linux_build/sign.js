@@ -3,19 +3,10 @@ const { execSync } = require("child_process")
 const path = require("path")
 
 function shouldSkipSigning() {
-  const dotenvResult = require("dotenv").config({ path: "./linux_build/.env", debug: true })
+  require("dotenv").config({ path: "./linux_build/.env", debug: true })
 
   if (process.env.CSC_IDENTITY_AUTO_DISCOVERY === "false") {
     console.log("  • ⚠️ nosign packaging detected. Skipping GPG signing step.")
-    return true
-  }
-
-  if (!process.env.GPG_KEY_ID) {
-    if (dotenvResult.error?.code === "ENOENT") {
-      console.log("  • ⚠️ No linux_build/.env detected and GPG_KEY_ID not set. Skipping GPG signing step.")
-    } else {
-      console.log("  • ⚠️ GPG_KEY_ID not set. Skipping GPG signing step.")
-    }
     return true
   }
 
@@ -27,7 +18,7 @@ exports.default = async function afterAllArtifactBuild(buildResult) {
     return []
   }
 
-  const gpgKeyId = process.env.GPG_KEY_ID
+  const gpgKeyId = process.env.GPG_KEY_ID || ""
   const gpgPassphrase = process.env.GPG_PASSPHRASE
   const artifactPaths = buildResult.artifactPaths || []
   const signedFiles = []
@@ -42,7 +33,7 @@ exports.default = async function afterAllArtifactBuild(buildResult) {
     return []
   }
 
-  console.log(`  • Signing ${linuxArtifacts.length} Linux artifact(s) with GPG key ${gpgKeyId}`)
+  console.log(`  • Signing ${linuxArtifacts.length} Linux artifact(s)${gpgKeyId ? ` with GPG key ${gpgKeyId}` : " with default GPG key"}`)
 
   for (const artifact of linuxArtifacts) {
     const ascFile = `${artifact}.asc`
@@ -51,7 +42,8 @@ exports.default = async function afterAllArtifactBuild(buildResult) {
         ? "--batch --yes --pinentry-mode loopback --passphrase-fd 0"
         : ""
 
-      const command = `gpg --detach-sign --armor --local-user ${gpgKeyId} ${passphraseArgs} --output "${ascFile}" "${artifact}"`
+      const localUserArg = gpgKeyId ? `--local-user ${gpgKeyId}` : ""
+      const command = `gpg --detach-sign --armor ${localUserArg} ${passphraseArgs} --output "${ascFile}" "${artifact}"`
 
       if (gpgPassphrase) {
         execSync(command, { input: gpgPassphrase, stdio: ["pipe", "pipe", "pipe"] })
