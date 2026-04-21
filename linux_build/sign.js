@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { execSync } = require("child_process")
+const { spawnSync } = require("child_process")
 const path = require("path")
 
 function shouldSkipSigning() {
@@ -37,26 +37,33 @@ exports.default = async function afterAllArtifactBuild(buildResult) {
 
   for (const artifact of linuxArtifacts) {
     const ascFile = `${artifact}.asc`
-    try {
-      const passphraseArgs = gpgPassphrase
-        ? "--batch --yes --pinentry-mode loopback --passphrase-fd 0"
-        : ""
+    const args = ["--detach-sign", "--armor"]
 
-      const localUserArg = gpgKeyId ? `--local-user ${gpgKeyId}` : ""
-      const command = `gpg --detach-sign --armor ${localUserArg} ${passphraseArgs} --output "${ascFile}" "${artifact}"`
-
-      if (gpgPassphrase) {
-        execSync(command, { input: gpgPassphrase, stdio: ["pipe", "pipe", "pipe"] })
-      } else {
-        execSync(command, { stdio: "pipe" })
-      }
-
-      console.log(`  • ✅ Signed: ${path.basename(artifact)} → ${path.basename(ascFile)}`)
-      signedFiles.push(ascFile)
-    } catch (err) {
-      console.error(`  • ❌ Failed to sign ${path.basename(artifact)}: ${err.message}`)
-      throw err
+    if (gpgKeyId) {
+      args.push("--local-user", gpgKeyId)
     }
+
+    if (gpgPassphrase) {
+      // to prevent GUI passphrase prompt (using passed in passphrase)
+      args.push("--batch", "--yes", "--pinentry-mode", "loopback", "--passphrase-fd", "0")
+    }
+
+    args.push("--output", ascFile, artifact)
+
+    const result = spawnSync("gpg", args, {
+      input: gpgPassphrase || undefined,
+      stdio: ["pipe", "pipe", "pipe"],
+      encoding: "utf8",
+    })
+
+    if (result.status !== 0) {
+      const errMsg = result.stderr || result.error?.message || `exit code ${result.status}`
+      console.error(`  • ❌ Failed to sign ${path.basename(artifact)}: ${errMsg}`)
+      throw new Error(`GPG signing failed for ${path.basename(artifact)}`)
+    }
+
+    console.log(`  • ✅ Signed: ${path.basename(artifact)} → ${path.basename(ascFile)}`)
+    signedFiles.push(ascFile)
   }
 
   return signedFiles
