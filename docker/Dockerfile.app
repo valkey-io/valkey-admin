@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificat
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV DEPLOYMENT_MODE=Web
 
 # Copy root workspace files
 COPY package.json package-lock.json ./

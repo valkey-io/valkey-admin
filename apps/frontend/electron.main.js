@@ -5,7 +5,7 @@ const { fork } = require("child_process")
 const { createApplicationMenu } = require("./menu")
 
 let serverProcess
-
+const ELECTRON = "Electron"
 function startServer() {
   if (app.isPackaged) {
     const serverPath = path.join(process.resourcesPath, "server-backend.cjs")
@@ -13,7 +13,7 @@ function startServer() {
     serverProcess = fork(serverPath, [], {
       env: {
         ...process.env,
-        ELECTRON_APP: "true",
+        DEPLOYMENT_MODE: ELECTRON,
         PROCESS_RESOURCES_PATH: process.resourcesPath,
         DATA_DIR: path.join(app.getPath("userData"), "metrics-data"),
       },

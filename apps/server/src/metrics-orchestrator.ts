@@ -3,7 +3,7 @@ import { ChildProcess, spawn } from "child_process"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
-import { sanitizeUrl } from "valkey-common"
+import { DEPLOYMENT_TYPE, sanitizeUrl } from "valkey-common"
 import { discoverCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
@@ -41,6 +41,10 @@ export const clients: Map<string, {client: GlideClient | GlideClusterClient, clu
 export const clusterNodesRegistry: ClusterRegistry = {}
 
 export const metricsServerMap: MetricsServerMap = new Map()
+
+export const isWebMode = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.WEB
+export const isKubernetes = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.K8
+export const isElectron = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.ELECTRON
 
 // Validate env variable so it matches EndpointType
 const endpointType = process.env.VALKEY_ENDPOINT_TYPE === "node" ? "node" : "cluster-endpoint"
@@ -205,9 +209,7 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
 }
 
 async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: string[]) {
-  if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
-    await startMetricsServers(nodesToAdd)
-  }
+  await startMetricsServers(nodesToAdd)
   await stopMetricsServers(nodesToRemove)
 }
 
@@ -236,20 +238,21 @@ async function stopMetricsServers(nodesToStop: string[]) {
 }
 
 export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
-  const useClusterOrchestrator = process.env.USE_CLUSTER_ORCHESTRATOR === "true"
-  metricsMap.forEach((metricsServer, nodeId) => {
-    try {
-      if (!useClusterOrchestrator && metricsServer.pid)
-        process.kill(metricsServer.pid)
-    } catch (e) {
-      console.warn(`Failed to kill metrics server ${nodeId}:`, e)
-    }
-  })
+  if (!isKubernetes) {
+    metricsMap.forEach((metricsServer, nodeId) => {
+      try {
+        if (metricsServer.pid)
+          process.kill(metricsServer.pid)
+      } catch (e) {
+        console.warn(`Failed to kill metrics server ${nodeId}:`, e)
+      }
+    })
+  }
   metricsMap.clear()
 }
 
 export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: string) {
-  const isElectron = process.env.ELECTRON_APP === "true"
+  const isElectron = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.ELECTRON
   const processResourcesPath = process.env.PROCESS_RESOURCES_PATH  ?? ""
   const metricsServerPath = isElectron
     ? path.join(processResourcesPath, "server-metrics.js")
@@ -314,7 +317,7 @@ async function stopMetricsServer(nodeToStop: string) {
   try {
     console.log("Killing metrics server for ", nodeToStop)
     const entry = metricsServerMap.get(nodeToStop)
-    if (process.env.USE_CLUSTER_ORCHESTRATOR === "true") {
+    if (isKubernetes) {
       metricsServerMap.delete(nodeToStop)
       return
     }

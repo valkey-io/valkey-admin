@@ -12,7 +12,7 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { ClusterRegistry, MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
+import { ClusterRegistry, isElectron, isWebMode, MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -83,8 +83,8 @@ export async function connectToValkey(
     // Need to set for metrics server to be able to register
     clients.set(connectionId, { client: standaloneClient })
 
-    // In cluster-orchestrator mode, metrics sidecars register themselves.
-    if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
+    // In K8s or Web, metrics servers register themselves.
+    if (isElectron && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
     }
 
@@ -397,7 +397,8 @@ export function teardownConnection(
   metricsServerMap: MetricsServerMap,
   clusterNodesRegistry?: ClusterRegistry,
 ) {
-  if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
+  // In web mode, metrics servers are managed by the orchestrator
+  if (!isWebMode) {
     closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
       console.error(`Error closing metrics server for ${connectionId}:`, err),
     )
@@ -413,7 +414,7 @@ export function teardownConnection(
       console.error(`Error closing connection ${connectionId}:`, error)
     }
 
-    if (clusterNodesRegistry && connection.clusterId && process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
+    if (clusterNodesRegistry && connection.clusterId && !isWebMode) {
       delete clusterNodesRegistry[connection.clusterId]
     }
   }

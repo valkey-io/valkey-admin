@@ -33,7 +33,8 @@ import {
   clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
-  clients
+  clients,
+  isWebMode
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
@@ -82,10 +83,6 @@ const wss = new WebSocketServer({ server })
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function runReconcileLoop() {
-  if (!initialConnectionDetails.host || !initialConnectionDetails.port) {
-    console.error("USE_CLUSTER_ORCHESTRATOR is enabled but VALKEY_HOST and VALKEY_PORT are not set. Orchestrator will not start.")
-    return
-  }
 
   let consecutiveFailures = 0
   const MAX_FAILURES = 5
@@ -146,7 +143,7 @@ server.listen(port, () => {
   }
   refreshAllClusterRegistriesLoop()
 
-  if (process.env.USE_CLUSTER_ORCHESTRATOR === "true") {
+  if (isWebMode) {
     runReconcileLoop()
   }
 })
