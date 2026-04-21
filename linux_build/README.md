@@ -35,6 +35,7 @@ gpg --armor --export <KEY_ID> > linux_build/valkey-admin.pub
 1. Copy `.env.example` to `.env`
 2. Optionally set `GPG_KEY_ID` to your key ID (if you have multiple GPG keys; otherwise the default key is used)
 3. Build, sign, and package by running `npm run package:linux` from the root directory
+4. You will be prompted to enter your GPG key passphrase
 
 ## CI/CD signing setup (GitHub Actions)
 
