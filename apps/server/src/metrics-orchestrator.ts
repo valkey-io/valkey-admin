@@ -252,7 +252,6 @@ export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
 }
 
 export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: string) {
-  const isElectron = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.ELECTRON
   const processResourcesPath = process.env.PROCESS_RESOURCES_PATH  ?? ""
   const metricsServerPath = isElectron
     ? path.join(processResourcesPath, "server-metrics.js")
