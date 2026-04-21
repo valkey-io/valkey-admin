@@ -12,7 +12,7 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { ClusterRegistry, isElectron, isWebMode, MetricsServerMap, startMetricsServer, clusterCredentials } from "./metrics-orchestrator"
+import { ClusterRegistry, isElectron, isWebMode, MetricsServerMap, startMetricsServer, clusterCredentials, reconcileClusterMetricsServers, metricsServerMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -314,7 +314,12 @@ export async function connectToCluster(
         }),
       )
       clusterNodesRegistry[clusterId] = discoveredClusterNodes
-      clusterCredentials.set(clusterId, payload.connectionDetails.password) 
+      clusterCredentials.set(clusterId, payload.connectionDetails.password)
+
+      if (isWebMode) {
+        reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails) 
+      } 
+
       clients.set(connectionId, { client: clusterClient, clusterId })
       connectedNodesByCluster.set(clusterId, [connectionId])
       subscribe(payload.connectionId, ws)
