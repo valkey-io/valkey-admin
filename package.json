@@ -45,8 +45,10 @@
     "build:electron": "npm run build:common && npm run build:vite:server && npm run build:frontend && npm run build:metrics",
     "package:mac": "npm run build:electron && npx electron-builder --mac --arm64",
     "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
-    "package:linux": "npm run build:all && npx electron-builder --linux --x64",
-    "package:linux:nosign": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
+    "package:linux": "npm run build:electron && npx electron-builder --linux --x64",
+    "package:linux:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
+    "package:linux:arm64": "npm run build:electron && npx electron-builder --linux --arm64",
+    "package:linux:arm64:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux:arm64",
     "lint": "eslint ."
   },
   "build": {
@@ -90,8 +92,12 @@
         "to": "node_modules/@valkey/valkey-glide-darwin-arm64"
       },
       {
-        "from": "node_modules/@valkey/valkey-glide-linux-x64",
-        "to": "node_modules/@valkey/valkey-glide-linux-x64"
+        "from": "node_modules/@valkey/valkey-glide-linux-x64-gnu",
+        "to": "node_modules/@valkey/valkey-glide-linux-x64-gnu"
+      },
+      {
+        "from": "node_modules/@valkey/valkey-glide-linux-arm64-gnu",
+        "to": "node_modules/@valkey/valkey-glide-linux-arm64-gnu"
       },
       {
         "from": "node_modules/long",
@@ -123,9 +129,11 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "icon": "apps/frontend/assets/img/logo-512.png"
     },
-    "afterSign": "mac_build/notarize.js"
+    "afterSign": "mac_build/notarize.js",
+    "afterAllArtifactBuild": "linux_build/sign.js"
   },
   "dependencies": {
     "@types/express": "^5.0.6"

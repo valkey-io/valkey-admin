@@ -144,6 +144,23 @@ The repository includes settings for the ESLint extension. Please install it.
 
 This requires ESLint v9.0.0 and above.
 
+## Create Linux Packages
+
+### Unsigned Build
+
+In the root directory, build unsigned AppImage and deb packages:
+- **x64:** `npm run package:linux:nosign`
+- **arm64:** `npm run package:linux:arm64:nosign`
+
+### Signed Build
+
+Requires GPG. See [linux_build/README.md](./linux_build/README.md) for key setup.
+
+- **x64:** `npm run package:linux`
+- **arm64:** `npm run package:linux:arm64`
+
+---
+
 ## Create DMG
 
 You are able to build notarized or non-notarized Applications.

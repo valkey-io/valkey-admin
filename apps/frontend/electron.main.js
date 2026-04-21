@@ -32,6 +32,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "assets/img/logo-big.png"),
     minWidth: 1200,
     minHeight: 800,
     webPreferences: {
