@@ -40,6 +40,8 @@ export const clients: Map<string, {client: GlideClient | GlideClusterClient, clu
 
 export const clusterNodesRegistry: ClusterRegistry = {}
 
+export const clusterCredentials: Map<string, string | undefined> = new Map()
+
 export const metricsServerMap: MetricsServerMap = new Map()
 
 export const isWebMode = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.WEB
@@ -208,20 +210,17 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
   return { nodesToAdd, nodesToRemove }
 }
 
-async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: string[]) {
-  await startMetricsServers(nodesToAdd)
+async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: string[], clusterId: string) {
+  await startMetricsServers(nodesToAdd, clusterId)
   await stopMetricsServers(nodesToRemove)
 }
 
-async function startMetricsServers(nodesToStart: ClusterNodeMap) {
+async function startMetricsServers(nodesToStart: ClusterNodeMap, clusterId: string) {
+  const password = clusterCredentials.get(clusterId)
   await Promise.all(
     Object.entries(nodesToStart).map(async ([nodeId, nodeInfo]) => {
       if (!metricsServerMap.has(nodeId)) {
-        await startMetricsServer({
-          ...nodeInfo,
-          username: initialConnectionDetails.username,
-          password: initialConnectionDetails.password,
-        }, nodeId)
+        await startMetricsServer({ ...nodeInfo, password }, nodeId)
       }
     }),
   )
@@ -340,7 +339,10 @@ export async function reconcileClusterMetricsServers(
     try {
       const client = await getInitialClient()
       const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
-      if (clusterId && discoveredClusterNodes) clusterNodesRegistry[clusterId] = discoveredClusterNodes 
+      if (clusterId && discoveredClusterNodes) {
+        clusterNodesRegistry[clusterId] = discoveredClusterNodes 
+        if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
+      } 
       clusterIds = Object.keys(clusterNodesRegistry)
     } catch (err) {
       console.error(err)
@@ -355,7 +357,7 @@ export async function reconcileClusterMetricsServers(
           console.debug("Cluster nodes and metrics servers are in sync")
           return
         }
-        await internals.updateMetricsServers(nodesToAdd, nodesToRemove)
+        await internals.updateMetricsServers(nodesToAdd, nodesToRemove, clusterId)
       } catch (err) {
         console.error(`Failed to reconcile metrics servers for cluster ${clusterId}:`, err)
       }
