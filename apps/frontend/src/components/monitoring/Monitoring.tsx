@@ -8,8 +8,8 @@ import { truncateText } from "@common/src/truncate-text"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
-import { HotKeys } from "./hot-keys"
-import { HotKeysParamsModal } from "./hot-keys-params-modal"
+import { HotKeys } from "./hotkeys/hot-keys"
+import { HotKeysParamsModal } from "./hotkeys/hot-keys-params-modal"
 import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
@@ -196,6 +196,7 @@ export const Monitoring = () => {
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
+                isCluster={!!clusterId}
                 lastCollectedAt={hotKeysLastCollectedAt}
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
