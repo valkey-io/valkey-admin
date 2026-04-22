@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { Flame, Server, X } from "lucide-react"
 import { truncateText } from "@common/src/truncate-text"
@@ -41,17 +41,22 @@ export function HotKeysHeatmapModal({ open, onClose, data }: HotKeysHeatmapModal
   const [hovered, setHovered] = useState<HoveredTile | null>(null)
   const [selectedBuckets, setSelectedBuckets] = useState<Set<number>>(new Set())
 
-  const nodeStats = data.reduce((acc, [, accessCount, , , nodeId]) => {
-    const key = nodeId ?? "Unknown"
-    acc[key] ??= { nodeId: key, count: 0, totalAccess: 0 }
-    acc[key].count += 1
-    acc[key].totalAccess += accessCount
-    return acc
-  }, {} as Record<string, NodeStat>)
+  const { sorted, max, min } = useMemo(() => {
+    const nodeStats = data.reduce((acc, [, accessCount, , , nodeId]) => {
+      const key = nodeId ?? "Unknown"
+      acc[key] ??= { nodeId: key, count: 0, totalAccess: 0 }
+      acc[key].count += 1
+      acc[key].totalAccess += accessCount
+      return acc
+    }, {} as Record<string, NodeStat>)
 
-  const sorted: NodeStat[] = Object.values(nodeStats).sort((a, b) => b.count - a.count)
-  const max = sorted[0]?.count ?? 1
-  const min = sorted[sorted.length - 1]?.count ?? 0
+    const sorted: NodeStat[] = Object.values(nodeStats).sort((a, b) => b.count - a.count)
+    return {
+      sorted,
+      max: sorted[0]?.count ?? 1,
+      min: sorted.at(-1)?.count ?? 0,
+    }
+  }, [data])
 
   const hasBucketFilter = selectedBuckets.size > 0
 
