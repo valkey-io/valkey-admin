@@ -34,7 +34,10 @@ import {
   initialConnectionDetails,
   cleanupOrchestratorResources,
   clients,
-  isWebMode
+  isWebMode,
+  isKubernetes,
+  getInitialClient,
+  updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
@@ -127,6 +130,11 @@ async function refreshAllClusterRegistriesLoop() {
   }
 }
 
+async function updateRegistryforK8() {
+  const client = await getInitialClient()
+  updateClusterNodeRegistry(client, initialConnectionDetails)
+}
+
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
@@ -136,6 +144,9 @@ server.listen(port, () => {
 
   if (isWebMode) {
     runReconcileLoop()
+  }
+  else if (isKubernetes) {
+    updateRegistryforK8()
   }
 })
 
