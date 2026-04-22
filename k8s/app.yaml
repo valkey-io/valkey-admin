@@ -22,8 +22,8 @@ spec:
               value: production
             - name: PORT
               value: "8080"
-            - name: USE_CLUSTER_ORCHESTRATOR
-              value: "true"
+            - name: DEPLOYMENT_MODE
+              value: "K8"
             - name: VALKEY_HOST
               value: valkey-0.valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT

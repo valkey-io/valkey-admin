@@ -327,7 +327,6 @@ services:
       VALKEY_PASSWORD: ${VALKEY_PASSWORD}
       VALKEY_TLS: ${VALKEY_TLS}
       VALKEY_VERIFY_CERT: ${VALKEY_VERIFY_CERT}
-      USE_CLUSTER_ORCHESTRATOR: true
     ports:
       - "8080:8080"
     networks:
