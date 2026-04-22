@@ -4,6 +4,7 @@ import assert from "node:assert"
 import { VALKEY } from "valkey-common"
 import { monitorRequested, saveMonitorSettingsRequested } from "../actions/monitorAction"
 import { subscribe, _reset as resetNodeWatchers } from "../node-watchers"
+import { ClusterRegistry } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
   return {
@@ -18,6 +19,7 @@ describe("monitorAction", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
+  let clusterNodesRegistry: ClusterRegistry 
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -27,6 +29,7 @@ describe("monitorAction", () => {
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
+    clusterNodesRegistry = {}
   })
 
   afterEach(() => {
@@ -47,7 +50,9 @@ describe("monitorAction", () => {
     globalThis.fetch = (async () => { throw error }) as any
   }
 
-  const deps = () => ({ ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "" } as any)
+  const deps = () => ({ 
+    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry, 
+  } as any)
 
   describe("status request", () => {
     it("should call GET /monitor?action=status and send monitorFulfilled", async () => {
@@ -171,7 +176,22 @@ describe("monitorAction", () => {
     it("should send requests to all cluster nodes", async () => {
       metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
       metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-      connectedNodesByCluster.set("cluster-1", ["node-1", "node-2"])
+      clusterNodesRegistry = {
+        "cluster-1": {
+          "node-1": {
+            host: "127.0.0.1",
+            port: 7000,
+            tls: false,
+            verifyTlsCertificate: false,
+          },
+          "node-2": {
+            host: "127.0.0.1",
+            port: 7001,
+            tls: false,
+            verifyTlsCertificate: false,
+          },
+        },
+      }
 
       const fetchCalls = mockFetch({ monitorRunning: true, checkAt: 55555 })
 
@@ -299,6 +319,7 @@ describe("saveMonitorSettingsRequested", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
+  let clusterNodesRegistry: ClusterRegistry
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -308,6 +329,7 @@ describe("saveMonitorSettingsRequested", () => {
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
+    clusterNodesRegistry = {}
   })
 
   afterEach(() => {
@@ -330,7 +352,9 @@ describe("saveMonitorSettingsRequested", () => {
     return fetchCalls
   }
 
-  const deps = () => ({ ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "" } as any)
+  const deps = () => ({ 
+    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry, 
+  } as any)
 
   it("should call only updateConfig when config is present but monitorAction is absent", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
@@ -445,8 +469,22 @@ describe("saveMonitorSettingsRequested", () => {
   it("should fan out across cluster nodes for both config and monitor", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-    connectedNodesByCluster.set("cluster-1", ["node-1", "node-2"])
-
+    clusterNodesRegistry = {
+      "cluster-1": {
+        "node-1": {
+          host: "127.0.0.1",
+          port: 7000,
+          tls: false,
+          verifyTlsCertificate: false,
+        },
+        "node-2": {
+          host: "127.0.0.1",
+          port: 7001,
+          tls: false,
+          verifyTlsCertificate: false,
+        },
+      },
+    }
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
       "/monitor": { body: { monitorRunning: true, checkAt: 55555 } },

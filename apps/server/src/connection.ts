@@ -12,7 +12,15 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { ClusterRegistry, isElectron, isWebMode, MetricsServerMap, startMetricsServer, clusterCredentials, reconcileClusterMetricsServers, metricsServerMap } from "./metrics-orchestrator"
+import { 
+  ClusterRegistry, 
+  isElectron, 
+  isWebMode, 
+  MetricsServerMap, 
+  startMetricsServer, 
+  clusterCredentials, 
+  reconcileClusterMetricsServers, 
+  metricsServerMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 

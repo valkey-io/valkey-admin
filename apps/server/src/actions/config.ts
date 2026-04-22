@@ -10,9 +10,11 @@ interface ParsedResponse  {
 }
 
 export const updateConfig = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, config } = action.payload
-    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
+    const connectionIds = clusterId 
+      ? Object.keys(clusterNodesRegistry[clusterId as string] ?? {}).filter((id) => metricsServerMap.has(id))
+      : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
