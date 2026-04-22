@@ -120,7 +120,7 @@ export function HotKeysHeatmapModal({ open, onClose, data }: HotKeysHeatmapModal
                   </div>
                 </div>
 
-                {/* Distribution + legend */}
+                {/* Legend with filter */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <Typography variant="bodyXs">
@@ -155,7 +155,7 @@ export function HotKeysHeatmapModal({ open, onClose, data }: HotKeysHeatmapModal
                   <div className="rounded-lg border border-border bg-muted/40 p-4 min-h-16 max-h-40 overflow-y-auto">
                     <div className="flex flex-wrap gap-1.5">
                       {sorted.map((stat) => {
-                        const ratio = max === min ? 0.5 : (stat.count - min) / (max - min)
+                        const ratio = max === min ? 0 : (stat.count - min) / (max - min)
                         return (
                           <div
                             className={`w-5 h-5 rounded transition-all relative cursor-default
