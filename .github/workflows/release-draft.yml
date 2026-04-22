@@ -20,10 +20,35 @@ jobs:
         node-version: 'latest'
     - name: Install dependencies
       run: npm ci
-    - name: Package unsigned mac app
-      run: npm run package:mac:nosign
+    - name: Import Developer ID certificate
+      env:
+        MAC_CERTIFICATE_P12_BASE64: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+        MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+      run: |
+        CERT_PATH="$RUNNER_TEMP/developer_id.p12"
+        KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        echo -n "$MAC_CERTIFICATE_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH" # 6h auto-lock (default 5min too short for notarization)
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security import "$CERT_PATH" -P "$MAC_CERTIFICATE_PASSWORD" \
+          -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        security set-key-partition-list -S apple-tool:,apple: \
+          -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" # Adds to partition list, if not, codesign pops GUI password prompt
+        security list-keychain -d user -s "$KEYCHAIN_PATH" \
+          $(security list-keychains -d user | tr -d '"') # Adds keychain to user search list
+        security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+    - name: Package, sign & notarize mac app
+      run: npm run package:mac
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_ID_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_APP_SPECIFIC_PASSWORD }}
+    - name: Clean up keychain
+      if: always()
+      run: security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
     - name: Upload mac artifacts
       uses: actions/upload-artifact@v4
       with:
