@@ -51,7 +51,7 @@ export function CountRangeFilter({
       </Button>
 
       {open && (
-        <div className="absolute z-50 right-0 top-11 w-64 rounded-md border bg-popover shadow-md p-3 space-y-3">
+        <div className="absolute z-50 right-0 top-11 w-68 rounded-md border bg-popover shadow-md p-3 space-y-3">
           <div className="flex items-center justify-between">
             <Typography variant={"bodyXs"}>
               Adjust the Min and Max access count to filter results:
@@ -67,7 +67,7 @@ export function CountRangeFilter({
             )}
           </div>
           <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-primary/20">
-            <Typography variant={"bodyXs"}>Data range:</Typography>
+            <Typography variant={"bodyXs"}>Access Count range:</Typography>
             <Typography className="font-mono font-medium" variant="caption">
               {dataMin.toLocaleString()} – {dataMax.toLocaleString()}
             </Typography>
