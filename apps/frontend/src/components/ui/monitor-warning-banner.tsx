@@ -43,13 +43,13 @@ export function MonitorWarningBanner() {
   return (
     <div className="fixed bottom-4 right-4 z-50 pointer-events-auto">
       {expanded ? (
-        <div className="border border-destructive rounded-md shadow-xs w-80 overflow-hidden">
+        <div className="border border-destructive rounded-md shadow-xs w-80 max-h-54 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between border-b bg-destructive text-white">
             <div className="flex items-center gap-2 ml-2">
               <AlertTriangle className="shrink-0" size={18} />
-              <Typography variant="bodySm">
-                MONITOR Active
+              <Typography variant="bodySm">MONITOR Active
+                <span className="text-white">{" "}({runningConnections.length})</span>
               </Typography>
             </div>
             <Button
@@ -62,7 +62,7 @@ export function MonitorWarningBanner() {
           </div>
 
           {/* Connection rows */}
-          <div className="flex flex-col gap-2 px-4 py-3 bg-white dark:bg-gray-800">
+          <div className="flex-1 flex flex-col gap-2 px-4 py-3 bg-white dark:bg-gray-800 overflow-y-auto min-h-0">
             <Typography variant="bodyXs">
               Running MONITOR may impact server performance.
             </Typography>

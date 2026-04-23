@@ -1,0 +1,2412 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+Valkey Admin
+================================================================================
+
+This product includes software developed by third parties.
+The following is a list of all third-party components included
+in this product, along with their license information.
+
+================================================================================
+
+Package: @isaacs/cliui
+Version: 8.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @isaacs/fs-minipass
+Version: 4.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @isaacs/string-locale-compare
+Version: 1.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/agent
+Version: 3.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/arborist
+Version: 8.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/config
+Version: 9.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/fs
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/git
+Version: 6.0.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/installed-package-contents
+Version: 3.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/map-workspaces
+Version: 4.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/metavuln-calculator
+Version: 8.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/name-from-folder
+Version: 3.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/node-gyp
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/package-json
+Version: 6.2.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/promise-spawn
+Version: 8.0.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/query
+Version: 4.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/redact
+Version: 3.2.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @npmcli/run-script
+Version: 9.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: @pkgjs/parseargs
+Version: 0.11.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/aspromise
+Version: 1.1.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/base64
+Version: 1.1.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/codegen
+Version: 2.0.4
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/eventemitter
+Version: 1.1.0
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/fetch
+Version: 1.1.0
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/float
+Version: 1.0.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/inquire
+Version: 1.1.0
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/path
+Version: 1.1.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/pool
+Version: 1.1.0
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @protobufjs/utf8
+Version: 1.1.0
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: @sigstore/bundle
+Version: 3.1.0
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @sigstore/core
+Version: 2.0.0
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @sigstore/protobuf-specs
+Version: 0.4.3
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @sigstore/sign
+Version: 3.1.0
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @sigstore/tuf
+Version: 3.1.1
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @sigstore/verify
+Version: 2.1.1
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @tufjs/canonical-json
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @tufjs/models
+Version: 3.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/body-parser
+Version: 1.19.6
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/connect
+Version: 3.4.38
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/express
+Version: 5.0.6
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/express-serve-static-core
+Version: 5.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/http-errors
+Version: 2.0.5
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/node
+Version: 25.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/qs
+Version: 6.14.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/range-parser
+Version: 1.2.7
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/send
+Version: 1.2.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @types/serve-static
+Version: 2.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: @valkey/valkey-glide
+Version: 2.3.1
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @valkey/valkey-glide-linux-x64-gnu
+Version: 2.3.1
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: @valkey/valkey-glide-linux-x64-musl
+Version: 2.3.1
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: abbrev
+Version: 3.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: accepts
+Version: 1.3.8
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: adduser
+Version: 3.134
+Type: deb
+License(s): GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: agent-base
+Version: 7.1.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ansi-regex
+Version: 5.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ansi-regex
+Version: 6.2.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ansi-regex
+Version: 6.2.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ansi-styles
+Version: 4.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ansi-styles
+Version: 6.2.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: aproba
+Version: 2.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: apt
+Version: 2.6.1
+Type: deb
+License(s): BSD-3-clause, Expat, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: archy
+Version: 1.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: array-flatten
+Version: 1.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: balanced-match
+Version: 1.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: base-files
+Version: 12.4+deb12u13
+Type: deb
+License(s): GPL
+--------------------------------------------------------------------------------
+
+Package: base-passwd
+Version: 3.6.1
+Type: deb
+License(s): GPL-2, public-domain
+--------------------------------------------------------------------------------
+
+Package: bash
+Version: 5.2.15-2+b10
+Type: deb
+License(s): BSD-4-clause-UC, GFDL-1.3, GFDL-NIV-1.3, GPL-2, GPL-2+, GPL-3, GPL-3+, Latex2e, MIT-like, permissive
+--------------------------------------------------------------------------------
+
+Package: bin-links
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: binary-extensions
+Version: 2.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: body-parser
+Version: 1.20.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: brace-expansion
+Version: 2.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: bsdutils
+Version: 1:2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: bytes
+Version: 3.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ca-certificates
+Version: 20230311+deb12u1
+Type: deb
+License(s): GPL-2, GPL-2+, MPL-2.0
+--------------------------------------------------------------------------------
+
+Package: cacache
+Version: 19.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: call-bind-apply-helpers
+Version: 1.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: call-bound
+Version: 1.0.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: chalk
+Version: 5.6.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: chownr
+Version: 3.0.0
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: ci-info
+Version: 4.4.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: cidr-regex
+Version: 4.1.3
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: cli-columns
+Version: 4.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: cmd-shim
+Version: 7.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: color-convert
+Version: 2.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: color-name
+Version: 1.1.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: common-ancestor-path
+Version: 1.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: content-disposition
+Version: 0.5.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: content-type
+Version: 1.0.5
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: cookie
+Version: 0.7.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: cookie-signature
+Version: 1.0.7
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: corepack
+Version: 0.34.6
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: coreutils
+Version: 9.1-1
+Type: deb
+License(s): BSD-4-clause-UC, FSFULLR, GFDL-1.3, GFDL-NIV-1.3, GPL-3, GPL-3+, ISC
+--------------------------------------------------------------------------------
+
+Package: cross-spawn
+Version: 7.0.6
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: cssesc
+Version: 3.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: dash
+Version: 0.5.12-2
+Type: deb
+License(s): BSD-3-Clause, BSD-3-clause, GPL-2, GPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: debconf
+Version: 1.5.82
+Type: deb
+License(s): BSD-2-clause
+--------------------------------------------------------------------------------
+
+Package: debian-archive-keyring
+Version: 2023.3+deb12u2
+Type: deb
+License(s): GPL
+--------------------------------------------------------------------------------
+
+Package: debianutils
+Version: 5.7-0.5~deb12u1
+Type: deb
+License(s): GPL-2, GPL-2+, SMAIL-GPL, public-domain
+--------------------------------------------------------------------------------
+
+Package: debug
+Version: 2.6.9
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: debug
+Version: 2.6.9
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: debug
+Version: 2.6.9
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: debug
+Version: 2.6.9
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: debug
+Version: 4.4.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: depd
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: destroy
+Version: 1.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: diff
+Version: 5.2.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: diffutils
+Version: 1:3.8-4
+Type: deb
+License(s): FSFAP, FSFULLR, GFDL-1.3, GFDL-NIV-1.3, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-2, LGPL-2.0+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3.0+, X11, public-domain
+--------------------------------------------------------------------------------
+
+Package: dpkg
+Version: 1.21.22
+Type: deb
+License(s): BSD-2-clause, GPL-2, GPL-2+, public-domain-s-s-d
+--------------------------------------------------------------------------------
+
+Package: dunder-proto
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: e2fsprogs
+Version: 1.47.0-2+b2
+Type: deb
+License(s): Apache-2, Apache-2.0, BSD-3-Clause, GPL, GPL-2, GPL-2+, ISC, Kazlib, LGPL-2, Latex2e
+--------------------------------------------------------------------------------
+
+Package: eastasianwidth
+Version: 0.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ee-first
+Version: 1.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: emoji-regex
+Version: 8.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: emoji-regex
+Version: 9.2.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: emoji-regex
+Version: 9.2.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: encodeurl
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: encoding
+Version: 0.1.13
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: env-paths
+Version: 2.2.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: err-code
+Version: 2.0.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: es-define-property
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: es-errors
+Version: 1.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: es-object-atoms
+Version: 1.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: escape-html
+Version: 1.0.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: etag
+Version: 1.8.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: exponential-backoff
+Version: 3.1.3
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: express
+Version: 4.22.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: express-rate-limit
+Version: 8.3.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: fastest-levenshtein
+Version: 1.0.16
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: fdir
+Version: 6.5.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: finalhandler
+Version: 1.3.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: findutils
+Version: 4.9.0-4
+Type: deb
+License(s): BSD-3-clause, FSFAP, FSFULLR, GFDL-1.3, GFDL-NIV-1.3+, GPL, GPL-2, GPL-2+, GPL-3, GPL-3+, ISC, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, X11, public-domain
+--------------------------------------------------------------------------------
+
+Package: foreground-child
+Version: 3.3.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: forwarded
+Version: 0.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: fresh
+Version: 0.5.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: fs-minipass
+Version: 3.0.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: function-bind
+Version: 1.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: gcc-12-base
+Version: 12.2.0-14+deb12u1
+Type: deb
+License(s): Artistic, GFDL-1.2, GPL, GPL-2, GPL-3, LGPL
+--------------------------------------------------------------------------------
+
+Package: get-intrinsic
+Version: 1.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: get-proto
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: glob
+Version: 10.5.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: gopd
+Version: 1.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: gpgv
+Version: 2.2.40-1.1+deb12u2
+Type: deb
+License(s): BSD-3-clause, CC0-1.0, Expat, GPL-3, GPL-3+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, RFC-Reference, TinySCHEME, permissive
+--------------------------------------------------------------------------------
+
+Package: graceful-fs
+Version: 4.2.11
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: grep
+Version: 3.8-5
+Type: deb
+License(s): GPL-3, GPL-3+
+--------------------------------------------------------------------------------
+
+Package: gzip
+Version: 1.12-1
+Type: deb
+License(s): FSF-manpages, GFDL-1.3+-no-invariant, GFDL-3, GPL-3, GPL-3+
+--------------------------------------------------------------------------------
+
+Package: has-symbols
+Version: 1.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: hasown
+Version: 2.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: hosted-git-info
+Version: 8.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: hostname
+Version: 3.23+nmu1
+Type: deb
+License(s): GPL-2
+--------------------------------------------------------------------------------
+
+Package: http-cache-semantics
+Version: 4.2.0
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: http-errors
+Version: 2.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: http-proxy-agent
+Version: 7.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: https-proxy-agent
+Version: 7.0.6
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: iconv-lite
+Version: 0.4.24
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: iconv-lite
+Version: 0.4.24
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: iconv-lite
+Version: 0.6.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ignore-walk
+Version: 7.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: imurmurhash
+Version: 0.1.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: inherits
+Version: 2.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: ini
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: init-package-json
+Version: 7.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: init-system-helpers
+Version: 1.65.2+deb12u1
+Type: deb
+License(s): BSD-3-clause, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: ip-address
+Version: 10.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ip-address
+Version: 10.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ip-regex
+Version: 5.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ipaddr.js
+Version: 1.9.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: is-cidr
+Version: 5.1.1
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: is-fullwidth-code-point
+Version: 3.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: isexe
+Version: 2.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: isexe
+Version: 3.1.5
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: jackspeak
+Version: 3.4.3
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: json-parse-even-better-errors
+Version: 4.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: json-stringify-nice
+Version: 1.1.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: jsonparse
+Version: 1.3.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: just-diff
+Version: 6.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: just-diff-apply
+Version: 5.5.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: libacl1
+Version: 2.3.1-3
+Type: deb
+License(s): GPL-2, GPL-2+, LGPL-2+, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libapt-pkg6.0
+Version: 2.6.1
+Type: deb
+License(s): BSD-3-clause, Expat, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: libattr1
+Version: 1:2.5.1-4
+Type: deb
+License(s): GPL-2, GPL-2+, LGPL-2+, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libaudit-common
+Version: 1:3.0.9-1
+Type: deb
+License(s): GPL-1, GPL-2, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libaudit1
+Version: 1:3.0.9-1
+Type: deb
+License(s): GPL-1, GPL-2, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libblkid1
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: libbz2-1.0
+Version: 1.0.8-5+b1
+Type: deb
+License(s): BSD-variant, GPL-2
+--------------------------------------------------------------------------------
+
+Package: libc-bin
+Version: 2.36-9+deb12u13
+Type: deb
+License(s): GPL-2, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libc6
+Version: 2.36-9+deb12u13
+Type: deb
+License(s): GPL-2, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libcap-ng0
+Version: 0.8.3-1+b3
+Type: deb
+License(s): GPL-2, GPL-2+, GPL-3, LGPL-2.1, LGPL-2.1+
+--------------------------------------------------------------------------------
+
+Package: libcap2
+Version: 1:2.66-4+deb12u2+b2
+Type: deb
+License(s): BSD-3-clause, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: libcom-err2
+Version: 1.47.0-2+b2
+Type: deb
+License(s): Apache-2, Apache-2.0, BSD-3-Clause, GPL, GPL-2, GPL-2+, ISC, Kazlib, LGPL-2, Latex2e
+--------------------------------------------------------------------------------
+
+Package: libcrypt1
+Version: 1:4.4.33-2
+Type: deb
+License(s): sha256:5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16
+--------------------------------------------------------------------------------
+
+Package: libdb5.3
+Version: 5.3.28+dfsg2-1
+Type: deb
+License(s): Artistic, BSD-3-clause, BSD-3-clause-fjord, GPL, GPL-3, MIT-old, Ms-PL, Sleepycat, TCL-like, X11, zlib
+--------------------------------------------------------------------------------
+
+Package: libdebconfclient0
+Version: 0.270
+Type: deb
+License(s): BSD-2-Clause, BSD-2-clause, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: libext2fs2
+Version: 1.47.0-2+b2
+Type: deb
+License(s): Apache-2, Apache-2.0, BSD-3-Clause, GPL, GPL-2, GPL-2+, ISC, Kazlib, LGPL-2, Latex2e
+--------------------------------------------------------------------------------
+
+Package: libffi8
+Version: 3.4.4-1
+Type: deb
+License(s): Expat, GPL, GPL-2+, GPL-3+, MPL-1.1, X11, public-domain
+--------------------------------------------------------------------------------
+
+Package: libgcc-s1
+Version: 12.2.0-14+deb12u1
+Type: deb
+License(s): Artistic, GFDL-1.2, GPL, GPL-2, GPL-3, LGPL
+--------------------------------------------------------------------------------
+
+Package: libgcrypt20
+Version: 1.10.1-3
+Type: deb
+License(s): GPL-2, LGPL
+--------------------------------------------------------------------------------
+
+Package: libgmp10
+Version: 2:6.2.1+dfsg1-1.1
+Type: deb
+License(s): GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-3, LGPL-3+
+--------------------------------------------------------------------------------
+
+Package: libgnutls30
+Version: 3.7.9-2+deb12u6
+Type: deb
+License(s): Apache-2.0, BSD-3-Clause, CC0, Expat, GFDL-1.3, GPL, GPL-3, GPLv3+, LGPL, LGPL-3, LGPLv2.1+, LGPLv3+_or_GPLv2+, The
+--------------------------------------------------------------------------------
+
+Package: libgpg-error0
+Version: 1.46-1
+Type: deb
+License(s): BSD-3-clause, GPL-3, GPL-3+, LGPL-2.1, LGPL-2.1+, g10-permissive
+--------------------------------------------------------------------------------
+
+Package: libhogweed6
+Version: 3.8.1-2
+Type: deb
+License(s): Expat, GAP, GPL, GPL-2, GPL-2+, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-3+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libidn2-0
+Version: 2.3.3-1+b1
+Type: deb
+License(s): GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-3, LGPL-3+, Unicode
+--------------------------------------------------------------------------------
+
+Package: liblz4-1
+Version: 1.9.4-1
+Type: deb
+License(s): BSD-2-clause, GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: liblzma5
+Version: 5.4.1-1
+Type: deb
+License(s): Autoconf, GPL-2, GPL-2+, GPL-3, LGPL-2, LGPL-2.1, LGPL-2.1+, PD, PD-debian, config-h, noderivs, permissive-fsf, permissive-nowarranty, probably-PD
+--------------------------------------------------------------------------------
+
+Package: libmd0
+Version: 1.0.4-2
+Type: deb
+License(s): BSD-2-clause, BSD-2-clause-NetBSD, BSD-3-clause, BSD-3-clause-Aaron-D-Gifford, Beerware, ISC, public-domain-md4, public-domain-md5, public-domain-sha1
+--------------------------------------------------------------------------------
+
+Package: libmount1
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: libnettle8
+Version: 3.8.1-2
+Type: deb
+License(s): Expat, GAP, GPL, GPL-2, GPL-2+, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-3+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libnpmaccess
+Version: 9.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmdiff
+Version: 7.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmexec
+Version: 9.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmfund
+Version: 6.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmhook
+Version: 11.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmorg
+Version: 7.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmpack
+Version: 8.0.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmpublish
+Version: 10.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmsearch
+Version: 8.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmteam
+Version: 7.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libnpmversion
+Version: 7.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: libp11-kit0
+Version: 0.24.1-2
+Type: deb
+License(s): Apache-2.0, BSD-3-Clause, ISC, ISC+IBM, LGPL-2.1, LGPL-2.1+, permissive-like-automake-output, same-as-rest-of-p11kit
+--------------------------------------------------------------------------------
+
+Package: libpam-modules
+Version: 1.5.2-6+deb12u2
+Type: deb
+License(s): BSD-3-clause, BSD-tcp_wrappers, Beerware, GPL, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-2, LGPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libpam-modules-bin
+Version: 1.5.2-6+deb12u2
+Type: deb
+License(s): BSD-3-clause, BSD-tcp_wrappers, Beerware, GPL, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-2, LGPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libpam-runtime
+Version: 1.5.2-6+deb12u2
+Type: deb
+License(s): BSD-3-clause, BSD-tcp_wrappers, Beerware, GPL, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-2, LGPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libpam0g
+Version: 1.5.2-6+deb12u2
+Type: deb
+License(s): BSD-3-clause, BSD-tcp_wrappers, Beerware, GPL, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-2, LGPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libpcre2-8-0
+Version: 10.42-1
+Type: deb
+License(s): BSD-2-clause, BSD-3-clause, BSD-3-clause-Cambridge, X11, public-domain
+--------------------------------------------------------------------------------
+
+Package: libseccomp2
+Version: 2.5.4-1+deb12u1
+Type: deb
+License(s): LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libselinux1
+Version: 3.4-1+b6
+Type: deb
+License(s): GPL-2, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libsemanage-common
+Version: 3.4-1
+Type: deb
+License(s): GPL, LGPL
+--------------------------------------------------------------------------------
+
+Package: libsemanage2
+Version: 3.4-1+b5
+Type: deb
+License(s): GPL, LGPL
+--------------------------------------------------------------------------------
+
+Package: libsepol2
+Version: 3.4-2.1
+Type: deb
+License(s): GPL-2, GPL-2+, LGPL-2.1, LGPL-2.1+, Zlib
+--------------------------------------------------------------------------------
+
+Package: libsmartcols1
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: libss2
+Version: 1.47.0-2+b2
+Type: deb
+License(s): Apache-2, Apache-2.0, BSD-3-Clause, GPL, GPL-2, GPL-2+, ISC, Kazlib, LGPL-2, Latex2e
+--------------------------------------------------------------------------------
+
+Package: libssl3
+Version: 3.0.19-1~deb12u2
+Type: deb
+License(s): Apache-2.0, Artistic, GPL-1, GPL-1+
+--------------------------------------------------------------------------------
+
+Package: libstdc++6
+Version: 12.2.0-14+deb12u1
+Type: deb
+License(s): Artistic, GFDL-1.2, GPL, GPL-2, GPL-3, LGPL
+--------------------------------------------------------------------------------
+
+Package: libsystemd0
+Version: 252.39-1~deb12u1
+Type: deb
+License(s): CC0-1.0, Expat, GPL-2, GPL-2+, LGPL-2.1, LGPL-2.1+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libtasn1-6
+Version: 4.19.0-2+deb12u1
+Type: deb
+License(s): GFDL-1.3, GPL-3, LGPL, LGPL-2.1
+--------------------------------------------------------------------------------
+
+Package: libtinfo6
+Version: 6.4-4
+Type: deb
+License(s): BSD-3-clause, MIT/X11, X11
+--------------------------------------------------------------------------------
+
+Package: libudev1
+Version: 252.39-1~deb12u1
+Type: deb
+License(s): CC0-1.0, Expat, GPL-2, GPL-2+, LGPL-2.1, LGPL-2.1+, public-domain
+--------------------------------------------------------------------------------
+
+Package: libunistring2
+Version: 1.0-2
+Type: deb
+License(s): FreeSoftware, GFDL-1.2, GFDL-1.2+, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-3, LGPL-3+, MIT
+--------------------------------------------------------------------------------
+
+Package: libuuid1
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: libxxhash0
+Version: 0.8.1-1
+Type: deb
+License(s): BSD-2-clause, GPL-2
+--------------------------------------------------------------------------------
+
+Package: libzstd1
+Version: 1.5.4+dfsg2-5
+Type: deb
+License(s): BSD-3-clause, Expat, GPL-2, zlib
+--------------------------------------------------------------------------------
+
+Package: login
+Version: 1:4.13+dfsg1-1+deb12u2
+Type: deb
+License(s): BSD-3-clause, GPL-1, GPL-2, GPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: logsave
+Version: 1.47.0-2+b2
+Type: deb
+License(s): Apache-2, Apache-2.0, BSD-3-Clause, GPL, GPL-2, GPL-2+, ISC, Kazlib, LGPL-2, Latex2e
+--------------------------------------------------------------------------------
+
+Package: long
+Version: 5.3.2
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: lru-cache
+Version: 10.4.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: make-fetch-happen
+Version: 14.0.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: math-intrinsics
+Version: 1.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mawk
+Version: 1.3.4.20200120-3.1
+Type: deb
+License(s): CC-BY-3.0, GPL-2, X11
+--------------------------------------------------------------------------------
+
+Package: media-typer
+Version: 0.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: merge-descriptors
+Version: 1.0.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: methods
+Version: 1.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mime
+Version: 1.6.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mime-db
+Version: 1.52.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mime-types
+Version: 2.1.35
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: minimatch
+Version: 9.0.9
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass
+Version: 3.3.6
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass
+Version: 3.3.6
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass
+Version: 3.3.6
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass
+Version: 7.1.3
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: minipass-collect
+Version: 2.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass-fetch
+Version: 4.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: minipass-flush
+Version: 1.0.5
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass-pipeline
+Version: 1.2.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minipass-sized
+Version: 1.0.3
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: minizlib
+Version: 3.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mount
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.1.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: ms
+Version: 2.1.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: mute-stream
+Version: 2.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: ncurses-base
+Version: 6.4-4
+Type: deb
+License(s): BSD-3-clause, MIT/X11, X11
+--------------------------------------------------------------------------------
+
+Package: ncurses-bin
+Version: 6.4-4
+Type: deb
+License(s): BSD-3-clause, MIT/X11, X11
+--------------------------------------------------------------------------------
+
+Package: negotiator
+Version: 0.6.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: negotiator
+Version: 1.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: node
+Version: 22.22.2
+Type: binary
+License(s): Unknown
+--------------------------------------------------------------------------------
+
+Package: node-gyp
+Version: 11.5.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: nopt
+Version: 8.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: normalize-package-data
+Version: 7.0.1
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: npm
+Version: 10.9.7
+Type: npm
+License(s): Artistic-2.0
+--------------------------------------------------------------------------------
+
+Package: npm-audit-report
+Version: 6.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-bundled
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-install-checks
+Version: 7.1.2
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: npm-normalize-package-bin
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-package-arg
+Version: 12.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-packlist
+Version: 9.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-pick-manifest
+Version: 10.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-profile
+Version: 11.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-registry-fetch
+Version: 18.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: npm-user-validate
+Version: 3.0.0
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: object-inspect
+Version: 1.13.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: on-finished
+Version: 2.4.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: openssl
+Version: 3.0.19-1~deb12u2
+Type: deb
+License(s): Apache-2.0, Artistic, GPL-1, GPL-1+
+--------------------------------------------------------------------------------
+
+Package: p-limit
+Version: 6.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: p-map
+Version: 7.0.4
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: package-json-from-dist
+Version: 1.0.1
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: pacote
+Version: 19.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: pacote
+Version: 20.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: parse-conflict-json
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: parseurl
+Version: 1.3.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: passwd
+Version: 1:4.13+dfsg1-1+deb12u2
+Type: deb
+License(s): BSD-3-clause, GPL-1, GPL-2, GPL-2+, public-domain
+--------------------------------------------------------------------------------
+
+Package: path-key
+Version: 3.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: path-scurry
+Version: 1.11.1
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: path-to-regexp
+Version: 0.1.12
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: perl-base
+Version: 5.36.0-7+deb12u3
+Type: deb
+License(s): Artistic, Artistic-2, Artistic-dist, BSD-3-clause, BSD-3-clause-GENERIC, BSD-3-clause-with-weird-numbering, BSD-4-clause-POWERDOG, BZIP, DONT-CHANGE-THE-GPL, Expat, GPL-1, GPL-1+, GPL-2, GPL-2+, GPL-3+-WITH-BISON-EXCEPTION, HSIEH-BSD, HSIEH-DERIVATIVE, LGPL-2.1, REGCOMP, REGCOMP,, RRA-KEEP-THIS-NOTICE, SDBM-PUBLIC-DOMAIN, TEXT-TABS, Unicode, ZLIB
+--------------------------------------------------------------------------------
+
+Package: picomatch
+Version: 4.0.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: postcss-selector-parser
+Version: 7.1.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: proc-log
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: proggy
+Version: 3.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: promise-all-reject-late
+Version: 1.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: promise-call-limit
+Version: 3.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: promise-retry
+Version: 2.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: promzard
+Version: 2.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: protobufjs
+Version: 7.5.4
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: proxy-addr
+Version: 2.0.7
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: qrcode-terminal
+Version: 0.12.0
+Type: npm
+License(s): Apache 2.0
+--------------------------------------------------------------------------------
+
+Package: qs
+Version: 6.14.2
+Type: npm
+License(s): BSD-3-Clause
+--------------------------------------------------------------------------------
+
+Package: ramda
+Version: 0.31.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: range-parser
+Version: 1.2.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: raw-body
+Version: 2.5.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: read
+Version: 4.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: read-cmd-shim
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: read-package-json-fast
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: retry
+Version: 0.12.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: safe-buffer
+Version: 5.2.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: safer-buffer
+Version: 2.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: safer-buffer
+Version: 2.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: sed
+Version: 4.9-1
+Type: deb
+License(s): BSD-4-clause-UC, BSL-1, GFDL-1.3, GFDL-NIV-1.3+, GPL-3, GPL-3+, ISC, X11, pcre
+--------------------------------------------------------------------------------
+
+Package: semver
+Version: 7.7.4
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: send
+Version: 0.19.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: serve-static
+Version: 1.16.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: server
+Version: UNKNOWN
+Type: npm
+License(s): Unknown
+--------------------------------------------------------------------------------
+
+Package: setprototypeof
+Version: 1.2.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: shebang-command
+Version: 2.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: shebang-regex
+Version: 3.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: side-channel
+Version: 1.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: side-channel-list
+Version: 1.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: side-channel-map
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: side-channel-weakmap
+Version: 1.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: signal-exit
+Version: 4.1.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: sigstore
+Version: 3.1.0
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: smart-buffer
+Version: 4.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: socks
+Version: 2.8.7
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: socks-proxy-agent
+Version: 8.0.5
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: spdx-correct
+Version: 3.2.0
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: spdx-exceptions
+Version: 2.5.0
+Type: npm
+License(s): CC-BY-3.0
+--------------------------------------------------------------------------------
+
+Package: spdx-expression-parse
+Version: 3.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: spdx-expression-parse
+Version: 3.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: spdx-expression-parse
+Version: 4.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: spdx-license-ids
+Version: 3.0.23
+Type: npm
+License(s): CC0-1.0
+--------------------------------------------------------------------------------
+
+Package: ssri
+Version: 12.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: statuses
+Version: 2.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: string-width
+Version: 4.2.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: string-width
+Version: 4.2.3
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: string-width
+Version: 5.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: string-width
+Version: 5.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: strip-ansi
+Version: 6.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: strip-ansi
+Version: 6.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: strip-ansi
+Version: 7.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: strip-ansi
+Version: 7.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: supports-color
+Version: 9.4.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: sysvinit-utils
+Version: 3.06-4
+Type: deb
+License(s): GPL-2, GPL-2.0, GPL-2.0+, GPL-3, GPL-3.0
+--------------------------------------------------------------------------------
+
+Package: tar
+Version: 1.34+dfsg-1.2+deb12u1
+Type: deb
+License(s): GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL-3, LGPL-3+
+--------------------------------------------------------------------------------
+
+Package: tar
+Version: 7.5.11
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: text-table
+Version: 0.2.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: tiny-relative-date
+Version: 1.3.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: tinyglobby
+Version: 0.2.15
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: toidentifier
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: treeverse
+Version: 3.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: tuf-js
+Version: 3.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: type-is
+Version: 1.6.18
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: tzdata
+Version: 2025b-0+deb12u2
+Type: deb
+License(s): public-domain
+--------------------------------------------------------------------------------
+
+Package: undici-types
+Version: 7.18.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: unique-filename
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: unique-slug
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: unpipe
+Version: 1.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: usr-is-merged
+Version: 37~deb12u1
+Type: deb
+License(s): GPL-2, GPL-2+
+--------------------------------------------------------------------------------
+
+Package: util-deprecate
+Version: 1.0.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: util-linux
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: util-linux-extra
+Version: 2.38.1-5+deb12u3
+Type: deb
+License(s): BSD-3-clause, BSD-4-clause, BSLA, GPL-2, GPL-2+, GPL-3, GPL-3+, LGPL, LGPL-2, LGPL-2+, LGPL-2.1, LGPL-2.1+, LGPL-3, LGPL-3+, MIT, public-domain
+--------------------------------------------------------------------------------
+
+Package: utils-merge
+Version: 1.0.1
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: validate-npm-package-license
+Version: 3.0.4
+Type: npm
+License(s): Apache-2.0
+--------------------------------------------------------------------------------
+
+Package: validate-npm-package-name
+Version: 6.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: valkey-admin
+Version: 0.1.1
+Type: npm
+License(s): Unknown
+--------------------------------------------------------------------------------
+
+Package: valkey-common
+Version: 1.0.0
+Type: npm
+License(s): Unknown
+--------------------------------------------------------------------------------
+
+Package: vary
+Version: 1.1.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: walk-up-path
+Version: 3.0.1
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: which
+Version: 2.0.2
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: which
+Version: 5.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: wrap-ansi
+Version: 7.0.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: wrap-ansi
+Version: 8.1.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: write-file-atomic
+Version: 6.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: ws
+Version: 8.19.0
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: yallist
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: yallist
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: yallist
+Version: 4.0.0
+Type: npm
+License(s): ISC
+--------------------------------------------------------------------------------
+
+Package: yallist
+Version: 5.0.0
+Type: npm
+License(s): BlueOak-1.0.0
+--------------------------------------------------------------------------------
+
+Package: yarn
+Version: 1.22.22
+Type: npm
+License(s): BSD-2-Clause
+--------------------------------------------------------------------------------
+
+Package: yocto-queue
+Version: 1.2.2
+Type: npm
+License(s): MIT
+--------------------------------------------------------------------------------
+
+Package: zlib1g
+Version: 1:1.2.13.dfsg-1
+Type: deb
+License(s): Zlib
+--------------------------------------------------------------------------------
+
+================================================================================
+Total packages: 400

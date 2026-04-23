@@ -2,7 +2,7 @@ import { WebSocket, WebSocketServer } from "ws"
 import express from "express"
 import path from "path"
 import http from "http"
-import { VALKEY } from "valkey-common"
+import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
 import { fileURLToPath } from "url"
 import rateLimit from "express-rate-limit"
 import { connectPending, resetConnection, closeConnection } from "./actions/connection"
@@ -33,7 +33,11 @@ import {
   clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
-  clients
+  clients,
+  isWebMode,
+  isKubernetes,
+  getInitialClient,
+  updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import type { Request, Response } from "express"
 
@@ -82,26 +86,13 @@ const wss = new WebSocketServer({ server })
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function runReconcileLoop() {
-  if (!initialConnectionDetails.host || !initialConnectionDetails.port) {
-    console.error("USE_CLUSTER_ORCHESTRATOR is enabled but VALKEY_HOST and VALKEY_PORT are not set. Orchestrator will not start.")
-    return
-  }
-
-  let consecutiveFailures = 0
-  const MAX_FAILURES = 5
 
   while (true) {
     try {
       await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails)
-      consecutiveFailures = 0
       await delay(10000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)
-      consecutiveFailures++
-      if (consecutiveFailures >= MAX_FAILURES) {
-        console.error(`Orchestrator failed ${MAX_FAILURES} consecutive times. Stopping reconcile loop.`)
-        return
-      }
       await delay(10000)
     }
   }
@@ -139,6 +130,11 @@ async function refreshAllClusterRegistriesLoop() {
   }
 }
 
+async function updateRegistryforK8() {
+  const client = await getInitialClient()
+  updateClusterNodeRegistry(client, initialConnectionDetails)
+}
+
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
@@ -146,8 +142,11 @@ server.listen(port, () => {
   }
   refreshAllClusterRegistriesLoop()
 
-  if (process.env.USE_CLUSTER_ORCHESTRATOR === "true") {
+  if (isWebMode) {
     runReconcileLoop()
+  }
+  else if (isKubernetes) {
+    updateRegistryforK8()
   }
 })
 
@@ -159,6 +158,7 @@ const interval = setInterval(() => {
     ws.ping()
   })
 }, 30000)
+
 wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
   ws.isAlive = true
@@ -248,12 +248,16 @@ wss.on("connection", (ws: AliveWebSocket) => {
     console.log("Client disconnected. Reason:", code, reason.toString())
 
     for (const connectionId of removedIds) {
-      if (getWatcherCount(connectionId) === 0) teardownConnection(connectionId, clients, metricsServerMap)
+      setTimeout(() => {
+        if (getWatcherCount(connectionId) === 0) {
+          teardownConnection(connectionId, clients, metricsServerMap, clusterNodesRegistry)
+        }
+      }, CONNECTION_TEARDOWN_DELAY_MS)
     }
 
     // Clean up any side-entries (e.g., node entries from config endpoint connections)
     for (const [id] of clients) {
-      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap)
+      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap, clusterNodesRegistry)
     }
   })
 })

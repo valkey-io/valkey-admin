@@ -5,7 +5,7 @@ const { fork } = require("child_process")
 const { createApplicationMenu } = require("./menu")
 
 let serverProcess
-
+const ELECTRON = "Electron"
 function startServer() {
   if (app.isPackaged) {
     const serverPath = path.join(process.resourcesPath, "server-backend.cjs")
@@ -13,7 +13,7 @@ function startServer() {
     serverProcess = fork(serverPath, [], {
       env: {
         ...process.env,
-        ELECTRON_APP: "true",
+        DEPLOYMENT_MODE: ELECTRON,
         PROCESS_RESOURCES_PATH: process.resourcesPath,
         DATA_DIR: path.join(app.getPath("userData"), "metrics-data"),
       },
@@ -32,6 +32,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "assets/img/logo-big.png"),
     minWidth: 1200,
     minHeight: 800,
     webPreferences: {

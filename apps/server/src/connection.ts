@@ -12,7 +12,15 @@ import {
   returnExistingClusterClient } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
-import { ClusterRegistry, MetricsServerMap, startMetricsServer } from "./metrics-orchestrator"
+import { 
+  ClusterRegistry, 
+  isWebMode, 
+  MetricsServerMap, 
+  startMetricsServer, 
+  clusterCredentials, 
+  reconcileClusterMetricsServers, 
+  metricsServerMap, 
+  isKubernetes } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -83,8 +91,8 @@ export async function connectToValkey(
     // Need to set for metrics server to be able to register
     clients.set(connectionId, { client: standaloneClient })
 
-    // In cluster-orchestrator mode, metrics sidecars register themselves.
-    if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true" && !metricsServerMap.has(payload.connectionId)) {
+    // In K8s or Web, metrics servers register themselves.
+    if (!isKubernetes && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
     }
 
@@ -314,6 +322,12 @@ export async function connectToCluster(
         }),
       )
       clusterNodesRegistry[clusterId] = discoveredClusterNodes
+      clusterCredentials.set(clusterId, payload.connectionDetails.password)
+
+      if (isWebMode) {
+        reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails) 
+      } 
+
       clients.set(connectionId, { client: clusterClient, clusterId })
       connectedNodesByCluster.set(clusterId, [connectionId])
       subscribe(payload.connectionId, ws)
@@ -395,8 +409,10 @@ export function teardownConnection(
   connectionId: string,
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
   metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry?: ClusterRegistry,
 ) {
-  if (process.env.USE_CLUSTER_ORCHESTRATOR !== "true") {
+  // In web mode, metrics servers are managed by the orchestrator
+  if (!isWebMode) {
     closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
       console.error(`Error closing metrics server for ${connectionId}:`, err),
     )
@@ -410,6 +426,11 @@ export function teardownConnection(
       connection.client.close()
     } catch (error) {
       console.error(`Error closing connection ${connectionId}:`, error)
+    }
+
+    if (clusterNodesRegistry && connection.clusterId && !isWebMode) {
+      delete clusterNodesRegistry[connection.clusterId]
+      clusterCredentials.delete(connection.clusterId)
     }
   }
 }

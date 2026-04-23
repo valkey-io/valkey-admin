@@ -188,6 +188,7 @@ export const KEY_EVICTION_POLICY = {
 
 export type KeyEvictionPolicy =
   typeof KEY_EVICTION_POLICY[keyof typeof KEY_EVICTION_POLICY]
+
 export const KEY_TYPES = {
   STRING: "String",
   LIST: "List",
@@ -205,3 +206,11 @@ export const METRICS_EVICTION_POLICY = {
 }
 
 export type EndpointType = "node" | "cluster-endpoint"
+
+export const CONNECTION_TEARDOWN_DELAY_MS = Number(process.env.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)
+
+export const DEPLOYMENT_TYPE = {
+  ELECTRON: "Electron",
+  WEB: "Web",
+  K8: "K8",
+}

@@ -31,19 +31,55 @@ Before you start writing code for a new feature or a significant architectural c
 
 To ensure a maintainable and scalable codebase, please adhere to the following architectural patterns:
 
+### Repository Architecture
+* **Frontend (`apps/frontend`):** React/Electron UI. It talks to the local app backend primarily through websocket actions and consumes RTK state through selectors.
+* **Server (`apps/server`):** Local Node backend. It serves the frontend with Express REST/static routes and handles websocket actions for Valkey connection, command, dashboard, config, and monitoring workflows.
+* **Metrics (`apps/metrics`):** Metrics sidecar/service. It exposes REST endpoints for collected time-series data and writes/streams metric snapshots.
+* **Common (`common/`):** Shared constants, types, formatting, parsing, and pure utilities used across apps.
+
+Keep boundaries clear:
+* Do not import frontend code into server or metrics code.
+* Keep Valkey client and transport details out of React components.
+* Normalize API and Valkey responses at ingestion boundaries: server handlers, middleware, reducers, or shared parsers.
+* Prefer reusing existing types over copying shapes. Reuse API/schema/domain types for component props when the component truly consumes that shape.
+
 ### State Management & Components
-* **Redux as Source of Truth:** Redux is the single source of truth for application state. 
-* **Presentational Components:** Prefer "dumb" or presentational components. These should focus on rendering Redux state and dispatching actions. Avoid embedding business logic directly within React components.
-* **Local UI State:** React component state should be reserved strictly for local UI concerns (e.g., controlled inputs, toggle states).
+* **RTK as Source of Truth:** RTK slices and selectors are the source of truth for app/domain state.
+* **Intent Actions:** Components should dispatch intent actions and consume selectors. Avoid anonymous `useSelector((state) => ...)` in components.
+* **Selectors:** Put single-slice selectors near the slice. Put selectors that join multiple state areas in a domain selector file; create a shared/global selector file only when the cross-slice selector does not belong to one domain.
+* **Compute Pattern:** Derived Redux fields are valid when intentional. Use the compute pattern when prepared view data improves render simplicity, consistency, or performance.
+* **Presentational Components:** Components should focus on rendering prepared state and dispatching actions. Avoid embedding business logic or transport details directly within React components.
+* **Local UI State:** React component state should be reserved for local UI concerns such as controlled inputs, toggle states, and transient interaction state.
 
 ### Side Effects & Async Flows
 We use **RxJS-based middleware (Epics)** to handle side effects and asynchronous logic.
+* **Middleware First:** Use middleware/epics for websocket sends, API calls, action chaining, retries, timers, polling, debouncing, and async coordination.
 * **Observable Pipelines:** Side effects are modeled as streams of actions. Epics should listen for specific actions and emit new actions using observable pipelines.
-* **Pure Reducers:** Keep all side effects out of both components and reducers to maintain predictability.
+* **Pure Reducers:** Keep side effects out of both components and reducers to maintain predictability.
+* **No Data Flow Effects:** Avoid `useEffect` for application data flow. Components should not use effects to fetch data, sync Redux state, chain actions, or coordinate websocket/API workflows.
 
 ### Hooks Organization
 * **Global Hooks:** The `/hooks` folder is strictly for global or truly reusable hooks shared across multiple components.
 * **Local Hooks:** If a function or hook is used by only one component, it should live in a file adjacent to that component's file, not in the global directory.
+* **Hook Scope:** Hooks are appropriate for reusable component-local behavior, browser/DOM integration, and small UI interaction state. Do not use hooks as hidden service layers for API orchestration, Redux-derived state, websocket flows, retries, polling, or action chaining.
+* **External Stores:** For external stores or subscription-based browser/runtime state, prefer `useSyncExternalStore` so React owns snapshot consistency.
+* **Manual Memoization:** Do not add `useMemo` or `useCallback` by default. Prefer straightforward code, selectors, compute steps, stable component boundaries, and React Compiler.
+
+### Types & Errors
+* **`undefined` vs `null`:** Keep them distinct. `undefined` means a field or value is absent, not requested, not loaded, or not applicable to that shape. `null` means the source explicitly returned no value.
+* **Avoid Nil Drift:** Do not use `R.isNil` where the `undefined`/`null` distinction matters. Avoid optional fields that can also be `null` unless both states are real.
+* **Type Reuse:** Keep type definitions aligned with source semantics. Do not widen types to make call sites easier unless the wider state really exists.
+* **Expected Errors:** Prefer return-style error objects for expected domain failures, validation failures, unsupported Valkey capabilities, and recoverable API outcomes.
+* **Thrown Errors:** Throw for programmer errors, impossible states, startup/config failures, or framework-required exception flows.
+* **Secrets:** Never log passwords, IAM tokens, credentials, connection strings with secrets, or raw secure-storage payloads. Redact sensitive connection details in logs and errors.
+
+### Agent Skills
+Detailed guidance for AI coding agents lives in `.agents/skills/` and should be loaded only when relevant:
+* `ramda`: transformation-heavy TypeScript or JavaScript.
+* `rx-js`: Redux slices, selectors, epics, websocket flows, and frontend data orchestration.
+* `valkey`: Valkey connection, command, dashboard, metrics, key-browser, monitoring, and cluster behavior.
+* `react`: React components, hooks, JSX structure, and frontend render data flow.
+* `styling`: Tailwind classes, CSS tokens, themes, layout, and visual UI states.
 
 ### Consistency
 Before contributing, please take the time to familiarize yourself with the existing codebase and conventions. We value consistency in patterns and naming above all else.
@@ -107,6 +143,23 @@ The repository includes settings for the ESLint extension. Please install it.
 **Note:** If you have a formatter i.e. Prettier, it could interfere with the ESLint extension. Please disable it from the workspace.
 
 This requires ESLint v9.0.0 and above.
+
+## Create Linux Packages
+
+### Unsigned Build
+
+In the root directory, build unsigned AppImage and deb packages:
+- **x64:** `npm run package:linux:nosign`
+- **arm64:** `npm run package:linux:arm64:nosign`
+
+### Signed Build
+
+Requires GPG. See [linux_build/README.md](./linux_build/README.md) for key setup.
+
+- **x64:** `npm run package:linux`
+- **arm64:** `npm run package:linux:arm64`
+
+---
 
 ## Create DMG
 

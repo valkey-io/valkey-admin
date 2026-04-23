@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Clock, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import * as R from "ramda"
 import { SORT_ORDER, SORT_FIELD } from "@common/src/constants"
+import { truncateText } from "@common/src/truncate-text"
 import { Alert, AlertDescription } from "../ui/alert"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
@@ -87,7 +88,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
       >
         <AlertDescription className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          Command log data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "} 
+          Command log data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "}
           failed to respond or {nodeErrors.length > 1 ? "are" : "is"} not connected
           {nodeErrorsExpanded
             ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />
@@ -117,12 +118,6 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
       setSortField(field)
       setSortOrder(SORT_ORDER.DESC)
     }
-  }
-
-  const truncateCommand = (argv: string[], maxLength = 40) => {
-    const command = argv.join(" ")
-    if (command.length <= maxLength) return command
-    return command.substring(0, maxLength) + "..."
   }
 
   const sortedLogs = R.defaultTo([], data)
@@ -184,7 +179,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
                     className="bg-primary/30 py-1 px-2 rounded-full"
                     variant="code"
                   >
-                    {truncateCommand(entry.argv)}
+                    {truncateText(entry.argv.join(" "), 40)}
                   </Typography>
                 </CustomTooltip>
               </td>
@@ -205,14 +200,16 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
 
               {/* client address */}
               <td className="px-4 py-2 w-1/6 text-center">
-                <Typography variant="code">
-                  {entry.addr}
-                </Typography>
+                <CustomTooltip content={entry.addr}>
+                  <Typography variant="code">{truncateText(entry.addr ?? "—")}</Typography>
+                </CustomTooltip>
               </td>
 
               {/* node */}
               <td className="px-4 py-2 w-1/6 text-center">
-                <Typography variant="code">{(entry).nodeId ?? "—"}</Typography>
+                <CustomTooltip content={entry.nodeId}>
+                  <Typography variant="code">{truncateText((entry).nodeId ?? "—")}</Typography>
+                </CustomTooltip>
               </td>
             </tr>
           )
