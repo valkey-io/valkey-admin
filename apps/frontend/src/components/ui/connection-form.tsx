@@ -60,19 +60,28 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     e.preventDefault()
     if (isAtConnectionLimit) return
 
-    const detailsToDispatch = connectionDetails.password
-      ? { ...connectionDetails, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
-      : connectionDetails
+    const trimmed: ConnectionDetails = {
+      ...connectionDetails,
+      host: connectionDetails.host.trim(),
+      alias: connectionDetails.alias?.trim() ?? "",
+      username: connectionDetails.username?.trim() ?? "",
+      awsRegion: connectionDetails.awsRegion?.trim(),
+      awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
+    }
 
-    if (connectionDetails.endpointType === "cluster-endpoint") {
-      const newDiscoveryId = `discovery-${sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)}`
+    const detailsToDispatch = connectionDetails.password
+      ? { ...trimmed, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
+      : trimmed
+
+    if (trimmed.endpointType === "cluster-endpoint") {
+      const newDiscoveryId = `discovery-${sanitizeUrl(`${trimmed.host}-${trimmed.port}`)}`
       setDiscoveryId(newDiscoveryId)
       setConnectionId(null)
       dispatch(discoveryEndpointPending({ discoveryId: newDiscoveryId, connectionDetails: detailsToDispatch }))
       return
     }
 
-    const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+    const newConnectionId = sanitizeUrl(`${trimmed.host}-${trimmed.port}`)
     setConnectionId(newConnectionId)
     setDiscoveryId(null)
     dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch }))
