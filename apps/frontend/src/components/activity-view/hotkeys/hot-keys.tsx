@@ -90,7 +90,7 @@ export function HotKeys({
                         onClick={onStartMonitoring}
                         type="button"
                       >
-                        Start Monitoring
+                        Start MONITOR
                       </button>
                     </>
                   ) : (

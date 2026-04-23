@@ -41,7 +41,7 @@ export function MonitorWarningBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 pointer-events-auto">
+    <div className="fixed bottom-16 right-2 z-50 pointer-events-auto animate-in fade-in duration-300">
       {expanded ? (
         <div className="border border-destructive rounded-md shadow-xs w-80 max-h-54 flex flex-col overflow-hidden">
           {/* Header */}
@@ -65,6 +65,18 @@ export function MonitorWarningBanner() {
           <div className="flex-1 flex flex-col gap-2 px-4 py-3 bg-white dark:bg-gray-800 overflow-y-auto min-h-0">
             <Typography variant="bodyXs">
               Running MONITOR may impact server performance.
+              {runningConnections.length > 1 && (
+                <span
+                  className="text-destructive ml-2 underline cursor-pointer hover:text-destructive/80"
+                  onClick={() => {
+                    runningConnections.forEach(({ connectionId }) => {
+                      handleStop(connectionId)
+                    })
+                  }}
+                >
+                  Stop All
+                </span>
+              )}
             </Typography>
             {runningConnections.map(({ connectionId, startedAt }) => (
               <div className="flex items-center justify-between gap-2" key={connectionId}>

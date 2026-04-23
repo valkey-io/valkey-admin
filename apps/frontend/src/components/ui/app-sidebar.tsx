@@ -69,8 +69,8 @@ export function AppSidebar() {
                     icon: KeyRound,
                   },
                   {
-                    to: (clusterId ? `/${clusterId}/${id}/monitoring` : `/${id}/monitoring`),
-                    title: "Monitoring",
+                    to: (clusterId ? `/${clusterId}/${id}/activity` : `/${id}/activity`),
+                    title: "Activity",
                     icon: Activity,
                   },
                   { to: (clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`), 

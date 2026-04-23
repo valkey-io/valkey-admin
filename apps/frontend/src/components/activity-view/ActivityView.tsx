@@ -39,7 +39,7 @@ interface KeyInfo {
   elements?: any;
 }
 
-export const Monitoring = () => {
+export const ActivityView = () => {
   const dispatch = useAppDispatch()
   const { id, clusterId } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
@@ -130,7 +130,7 @@ export const Monitoring = () => {
   ]
 
   return (
-    <RouteContainer title="monitoring">
+    <RouteContainer title="Activity">
       <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
       <AppHeader
         description={
@@ -146,7 +146,7 @@ export const Monitoring = () => {
           </>
         }
         icon={<Activity size={20} />}
-        title="Monitoring"
+        title="Activity"
       />
 
       <div className="flex justify-between">
