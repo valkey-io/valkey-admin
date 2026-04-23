@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "paths": {
-            "valkey-common": ["common/src"]
+            "valkey-common": ["./common/src"]
         }
     }
     
