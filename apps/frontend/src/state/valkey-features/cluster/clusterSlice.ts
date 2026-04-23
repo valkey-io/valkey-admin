@@ -120,6 +120,10 @@ const clusterSlice = createSlice({
       }
       state.clusters[clusterId].searchableText = searchableText
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    updateClusterData: (_state, _action) => {
+      // No-op
+    },
   },
 })
 
@@ -129,4 +133,5 @@ export const {
   updateClusterInfo,
   removeCluster,
   setClusterData,
+  updateClusterData,
 } = clusterSlice.actions

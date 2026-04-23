@@ -128,6 +128,10 @@ const infoSlice = createSlice({
   name: VALKEY.STATS.name,
   initialState,
   reducers: {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    updateData: (_state, _action) => {
+      // No-op
+    },
     setLastUpdated: (state, action) => {
       const { connectionId, timestamp } = action.payload
       if (!state[connectionId]) {
@@ -204,4 +208,4 @@ const infoSlice = createSlice({
 })
 
 export default infoSlice.reducer
-export const { setLastUpdated, setData, setError } = infoSlice.actions
+export const { setLastUpdated, setData, setError, updateData } = infoSlice.actions

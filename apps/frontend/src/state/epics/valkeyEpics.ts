@@ -25,13 +25,13 @@ import {
   clearEndpointDiscovery
 } from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
-import { setData } from "../valkey-features/info/infoSlice"
+import { setData, updateData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
-import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
+import { setClusterData, updateClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
@@ -366,7 +366,9 @@ export const setDataEpic = (store: Store) =>
     filter(
       ({ type }) =>
         type === standaloneConnectFulfilled.type ||
-          type === clusterConnectFulfilled.type,
+          type === clusterConnectFulfilled.type ||
+          type === updateData.type || // Temporary fix until we refactor this to metrics server
+          type === updateClusterData.type, // Temporary fix until we refactor this to metrics server
     ),
     tap((action) => {
       const socket = getSocket()
@@ -376,11 +378,14 @@ export const setDataEpic = (store: Store) =>
         connectionDetails: { clusterId },
       } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
       store.dispatch(setConfig( action.payload))
-      if (action.type === clusterConnectFulfilled.type) {
+
+      if (action.type === clusterConnectFulfilled.type || action.type === updateClusterData.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
       }
-
-      socket.next({ type: setData.type, payload: action.payload })
+      if (action.type !== updateClusterData.type) socket.next({ type: setData.type, payload: action.payload })
+      if (action.type === updateData.type || action.type === updateClusterData.type) {
+        return
+      }
       const redirectPath = clusterId
         ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`
