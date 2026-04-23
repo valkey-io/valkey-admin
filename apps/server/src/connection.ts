@@ -14,13 +14,13 @@ import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { 
   ClusterRegistry, 
-  isElectron, 
   isWebMode, 
   MetricsServerMap, 
   startMetricsServer, 
   clusterCredentials, 
   reconcileClusterMetricsServers, 
-  metricsServerMap } from "./metrics-orchestrator"
+  metricsServerMap, 
+  isKubernetes } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
@@ -92,7 +92,7 @@ export async function connectToValkey(
     clients.set(connectionId, { client: standaloneClient })
 
     // In K8s or Web, metrics servers register themselves.
-    if (isElectron && !metricsServerMap.has(payload.connectionId)) {
+    if (!isKubernetes && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
     }
 
