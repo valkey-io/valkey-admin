@@ -20,7 +20,7 @@ export function Cluster() {
   const dispatch = useAppDispatch()
   useEffect(() => {
     dispatch(updateClusterData({ connectionId: id, clusterId }))
-  })
+  }, [id, clusterId, dispatch])
   const clusterData = useSelector(selectCluster(clusterId!))
   const [searchQuery, setSearchQuery] = useState("")
 

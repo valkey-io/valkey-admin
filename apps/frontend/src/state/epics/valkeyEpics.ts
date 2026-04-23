@@ -377,7 +377,6 @@ export const setDataEpic = (store: Store) =>
         connectionId, 
         connectionDetails: { clusterId },
       } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
-      store.dispatch(setConfig( action.payload))
 
       if (action.type === clusterConnectFulfilled.type || action.type === updateClusterData.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
@@ -386,6 +385,7 @@ export const setDataEpic = (store: Store) =>
       if (action.type === updateData.type || action.type === updateClusterData.type) {
         return
       }
+      store.dispatch(setConfig( action.payload))
       const redirectPath = clusterId
         ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`
