@@ -372,20 +372,29 @@ export const setDataEpic = (store: Store) =>
     ),
     tap((action) => {
       const socket = getSocket()
+      if (action.type === updateClusterData.type) {
+        const { connectionId, clusterId } = action.payload as unknown as {connectionId: string, clusterId: string}
+        socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+        return
+      }
+
+      if (action.type === updateData.type) {
+        socket.next({ type: setData.type, payload: action.payload })
+        return
+      }
 
       const { 
         connectionId, 
         connectionDetails: { clusterId },
       } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
 
-      if (action.type === clusterConnectFulfilled.type || action.type === updateClusterData.type) {
+      store.dispatch(setConfig( action.payload))
+
+      if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
       }
-      if (action.type !== updateClusterData.type) socket.next({ type: setData.type, payload: action.payload })
-      if (action.type === updateData.type || action.type === updateClusterData.type) {
-        return
-      }
-      store.dispatch(setConfig( action.payload))
+      socket.next({ type: setData.type, payload: action.payload })
+
       const redirectPath = clusterId
         ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`
