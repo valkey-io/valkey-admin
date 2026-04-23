@@ -25,7 +25,7 @@ import { selectConnectionDetails } from "@/state/valkey-features/connection/conn
 export function Dashboard() {
   const dispatch = useAppDispatch()
   const { id, clusterId } = useParams()
-  const connectionDetails = useSelector(selectConnectionDetails(id!)) //
+  const connectionDetails = useSelector(selectConnectionDetails(id!))
   useEffect(() => {
     // TODO: refactor to metrics server
     dispatch(updateData({ connectionId: id, clusterId, address: { host: connectionDetails.host, port: connectionDetails.port } }))
