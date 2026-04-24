@@ -16,7 +16,7 @@ interface MonitoringConfig {
 }
 
 export function MonitorWarningBanner() {
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
   const config = useSelector((state: unknown) =>
     R.path<{ monitoring?: MonitoringConfig }>([VALKEY.CONFIG.name, id!], state),
@@ -33,11 +33,21 @@ export function MonitorWarningBanner() {
 
   if (runningConnections.length === 0) return null
 
-  const handleStop = (connectionId: string) => {
-    dispatch(saveMonitorSettingsRequested({
-      connectionId,
-      monitorAction: MONITOR_ACTION.STOP,
-    }))
+  const handleStopAll = () => {
+    if (clusterId) {
+      dispatch(saveMonitorSettingsRequested({
+        connectionId: id!,
+        clusterId,
+        monitorAction: MONITOR_ACTION.STOP,
+      }))
+    } else {
+      runningConnections.forEach(({ connectionId }) => {
+        dispatch(saveMonitorSettingsRequested({
+          connectionId,
+          monitorAction: MONITOR_ACTION.STOP,
+        }))
+      })
+    }
   }
 
   return (
@@ -63,45 +73,32 @@ export function MonitorWarningBanner() {
 
           {/* Connection rows */}
           <div className="flex-1 flex flex-col gap-2 px-4 py-3 bg-white dark:bg-gray-800 overflow-y-auto min-h-0">
-            <Typography variant="bodyXs">
-              Running MONITOR may impact server performance.
-              {runningConnections.length > 1 && (
-                <span
-                  className="text-destructive ml-2 underline cursor-pointer hover:text-destructive/80"
-                  onClick={() => {
-                    runningConnections.forEach(({ connectionId }) => {
-                      handleStop(connectionId)
-                    })
-                  }}
-                >
-                  Stop All
-                </span>
-              )}
-            </Typography>
+            <div className="flex flex-col">
+              <Typography variant="bodyXs">
+                Running MONITOR may impact server performance.
+              </Typography>
+              <Button
+                className="self-end"
+                onClick={handleStopAll}
+                size="sm"
+                variant="destructive"
+              >
+                <CircleStop size={13} />
+                Stop MONITOR
+              </Button>
+            </div>
             {runningConnections.map(({ connectionId, startedAt }) => (
-              <div className="flex items-center justify-between gap-2" key={connectionId}>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-mono text-xs truncate">{connectionId}</span>
-                  {startedAt != null && (
-                    <span className="text-xs text-destructive">
-                      Running for : {formatDuration(now - startedAt)}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-400 flex items-center">
-                    Duration : {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
-                    Interval : {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
+              <div className="flex flex-col min-w-0" key={connectionId}>
+                <span className="font-mono text-xs truncate">{connectionId}</span>
+                {startedAt != null && (
+                  <span className="text-xs text-destructive">
+                    Running for : {formatDuration(now - startedAt)}
                   </span>
-                </div>
-
-                <Button
-
-                  onClick={() => handleStop(connectionId)}
-                  size="sm"
-                  variant="destructive"
-                >
-                  <CircleStop size={13} />
-                  Stop
-                </Button>
+                )}
+                <span className="text-xs text-gray-400 flex items-center">
+                  Duration : {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                  Interval : {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
+                </span>
               </div>
             ))}
           </div>
