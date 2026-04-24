@@ -98,33 +98,33 @@ describe("metrics-orchestrator", () => {
     })
 
     // We only store data from primary nodes. This can be a TODO
-  //   it("should keep replica metrics servers because replicas belong to the cluster map", async () => {
-  //     const now = Date.now()
-  //     const clusterNodes: ClusterNodeMap = {
-  //       "valkey-0-valkey-headless-valkey-svc-cluster-local-6379": {
-  //         host: "valkey-0.valkey-headless.valkey.svc.cluster.local",
-  //         port: "6379",
-  //         tls: false,
-  //         verifyTlsCertificate: false,
-  //         replicas: [
-  //           {
-  //             id: "replica-raw-id",
-  //             host: "valkey-5.valkey-headless.valkey.svc.cluster.local",
-  //             port: 6379,
-  //           },
-  //         ],
-  //       },
-  //     }
-  //     const metricsMap: MetricsServerMap = new Map([
-  //       ["valkey-5-valkey-headless-valkey-svc-cluster-local-6379", { metricsURI: "uri", pid: 123, lastSeen: now }],
-  //     ])
+    // it("should keep replica metrics servers because replicas belong to the cluster map", async () => {
+    //   const now = Date.now()
+    //   const clusterNodes: ClusterNodeMap = {
+    //     "valkey-0-valkey-headless-valkey-svc-cluster-local-6379": {
+    //       host: "valkey-0.valkey-headless.valkey.svc.cluster.local",
+    //       port: "6379",
+    //       tls: false,
+    //       verifyTlsCertificate: false,
+    //       replicas: [
+    //         {
+    //           id: "replica-raw-id",
+    //           host: "valkey-5.valkey-headless.valkey.svc.cluster.local",
+    //           port: 6379,
+    //         },
+    //       ],
+    //     },
+    //   }
+    //   const metricsMap: MetricsServerMap = new Map([
+    //     ["valkey-5-valkey-headless-valkey-svc-cluster-local-6379", { metricsURI: "uri", pid: 123, lastSeen: now }],
+    //   ])
 
-  //     const { nodesToAdd, nodesToRemove } = await __test__.findDiff(metricsMap, clusterNodes)
+    //   const { nodesToAdd, nodesToRemove } = await __test__.findDiff(metricsMap, clusterNodes)
 
-  //     assert.strictEqual(nodesToRemove.length, 0)
-  //     assert.strictEqual(Object.keys(nodesToAdd).includes("valkey-5-valkey-headless-valkey-svc-cluster-local-6379"), false)
-  //   })
-  // })
+    //   assert.strictEqual(nodesToRemove.length, 0)
+    //   assert.strictEqual(Object.keys(nodesToAdd).includes("valkey-5-valkey-headless-valkey-svc-cluster-local-6379"), false)
+    // })
+  })
 
   describe("isKnownClusterNode", () => {
     afterEach(() => {
