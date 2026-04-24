@@ -34,20 +34,11 @@ export function MonitorWarningBanner() {
   if (runningConnections.length === 0) return null
 
   const handleStopAll = () => {
-    if (clusterId) {
-      dispatch(saveMonitorSettingsRequested({
-        connectionId: id!,
-        clusterId,
-        monitorAction: MONITOR_ACTION.STOP,
-      }))
-    } else {
-      runningConnections.forEach(({ connectionId }) => {
-        dispatch(saveMonitorSettingsRequested({
-          connectionId,
-          monitorAction: MONITOR_ACTION.STOP,
-        }))
-      })
-    }
+    dispatch(saveMonitorSettingsRequested({
+      connectionId: id!,
+      clusterId,
+      monitorAction: clusterId ? MONITOR_ACTION.STOP : MONITOR_ACTION.STOP_ALL,
+    }))
   }
 
   return (

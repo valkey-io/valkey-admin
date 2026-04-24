@@ -47,9 +47,24 @@ const sendMonitorError = (
 export const monitorRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, monitorAction } = action.payload
-    const connectionIds = clusterId 
-      ? Object.keys(clusterNodesRegistry[clusterId as string] ?? {}).filter((id) => metricsServerMap.has(id))
-      : [connectionId]
+
+    let connectionIds: string[]
+    let resolvedAction: MonitorAction
+    if (monitorAction === "stop_all") {
+      // Stop all nodes the backend knows about, regardless of frontend state.
+      // This makes sure monitors started by other clients or missed by the frontend are also stopped.
+      connectionIds = Array.from(metricsServerMap.keys())
+      resolvedAction = "stop"
+    } else if (clusterId) {
+      // for cluster nodes: fan out to all nodes in the cluster registry that have an active metrics server.
+      connectionIds = Object.keys(clusterNodesRegistry[clusterId as string] ?? {}).filter((id) => metricsServerMap.has(id))
+      resolvedAction = monitorAction as MonitorAction
+    } else {
+      // Standalone start/status: act on the single specified connection.
+      // Standalone stop is handled by stop_all above.
+      connectionIds = [connectionId]
+      resolvedAction = monitorAction as MonitorAction
+    }
 
     const promises = connectionIds.map(async (connectionId: string) => {
       const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
@@ -60,9 +75,9 @@ export const monitorRequested = withDeps<Deps, void>(
       }
 
       try {
-        const url = `${metricsServerURI}/monitor?action=${monitorAction as MonitorAction}`
+        const url = `${metricsServerURI}/monitor?action=${resolvedAction}`
 
-        console.debug(`[Monitor] ${monitorAction} request to:`, url)
+        console.debug(`[Monitor] ${resolvedAction} request to:`, url)
         const response = await fetchWithTimeout(url)
         const parsedResponse: MonitorResponse = await response.json() as MonitorResponse
 
@@ -73,8 +88,7 @@ export const monitorRequested = withDeps<Deps, void>(
 
         sendMonitorFulfilled(ws, connectionId, parsedResponse)
 
-        // No need to broadcast on status as no state change.
-        if (monitorAction === "start" || monitorAction === "stop") {
+        if (resolvedAction === "start" || resolvedAction === "stop") {
           getOtherWatchers(connectionId, ws).forEach((watcher) => {
             sendMonitorFulfilled(watcher, connectionId, parsedResponse)
           })
