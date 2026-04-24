@@ -14,7 +14,7 @@ import { Cluster } from "./components/cluster-topology/Cluster.tsx"
 import { WebSocketReconnect } from "./components/WebSocketReconnect.tsx"
 import { ValkeyReconnect } from "./components/ValkeyReconnect.tsx"
 import { SendCommand } from "@/components/send-command/SendCommand.tsx"
-import { Monitoring } from "@/components/monitoring/Monitoring.tsx"
+import { ActivityView } from "@/components/activity-view/ActivityView.tsx"
 import { Connection } from "@/components/connection/Connection.tsx"
 import "./css/index.css"
 
@@ -47,7 +47,7 @@ const AppWithHistory = () => {
           <Route element={<SendCommand />} path="/:clusterId/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:clusterId/:id/browse" />
           <Route element={<Cluster />} path="/:clusterId/:id/cluster-topology" />
-          <Route element={<Monitoring />} path="/:clusterId/:id/monitoring" />
+          <Route element={<ActivityView />} path="/:clusterId/:id/activity" />
           <Route element={<Settings />} path="/:clusterId/:id/settings" />
         </Route>
 
@@ -57,7 +57,7 @@ const AppWithHistory = () => {
           <Route element={<Dashboard />} path="/:id/dashboard" />
           <Route element={<SendCommand />} path="/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:id/browse" />
-          <Route element={<Monitoring />} path="/:id/monitoring" />
+          <Route element={<ActivityView />} path="/:id/activity" />
           <Route element={<Settings />} path="/:id/settings" />
           <Route element={<LearnMore />} path="/:id/learnmore" />
         </Route>

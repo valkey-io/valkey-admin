@@ -127,14 +127,16 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
             {isOpen && (
               <div
                 className={cn(
-                  "p-4 w-auto text-nowrap py-3 border",
+                  "flex flex-col w-auto text-nowrap border",
                   "bg-gray-50 dark:bg-gray-800",
                   "text-sm dark:border-tw-dark-border",
                   "rounded z-100 absolute top-10 right-0",
+                  "max-h-[70vh]",
                 )}
               >
-                <div className="relative mb-3">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                {/* Search — pinned, never scrolls */}
+                <div className="relative px-4 pt-3 pb-2 shrink-0">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                   <Input
                     autoFocus
                     className="pl-7 h-7 text-xs"
@@ -144,49 +146,52 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
                   />
                 </div>
 
-                <ul className="space-y-2">
-                  {nodesToRender.length === 0 && (
-                    <li>
-                      <Typography className="text-muted-foreground" variant="caption">
-                        No nodes found
-                      </Typography>
-                    </li>
-                  )}
-                  {/* TODO: Remove extra defensiveness */}
-                  {nodesToRender.map(([primaryKey, primary]) => {
-                    const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
-
-                    return (
-                      <li className="flex flex-col gap-1" key={primaryKey}>
-                        <button
-                          className="flex items-center cursor-pointer hover:bg-primary/20"
-                          disabled={!nodeIsConnected}
-                          onClick={() => handleNavigate(primaryKey)}
-                        >
-                          <Dot
-                            className={nodeIsConnected ? "text-green-500" : "text-gray-400"}
-                            size={45}
-                          />
-                          <Typography variant="bodySm">
-                            {`${primary.host}:${primary.port}`}
-                          </Typography>
-                        </button>
-
-                        {primary.replicas?.map((replica) => (
-                          <div className="flex items-center ml-4" key={replica.id}>
-                            <CornerDownRight className="text-tw-dark-border" size={20} />
-                            <button className="flex items-center">
-                              <Dot className="text-primary" size={24} />
-                              <Typography variant="caption">
-                                {replica.host}:{replica.port}
-                              </Typography>
-                            </button>
-                          </div>
-                        ))}
+                {/* Scrollable node list */}
+                <div className="overflow-y-auto px-4 pb-3">
+                  <ul className="space-y-2">
+                    {nodesToRender.length === 0 && (
+                      <li>
+                        <Typography className="text-muted-foreground" variant="caption">
+                          No nodes found
+                        </Typography>
                       </li>
-                    )
-                  })}
-                </ul>
+                    )}
+                    {/* TODO: Remove extra defensiveness */}
+                    {nodesToRender.map(([primaryKey, primary]) => {
+                      const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
+
+                      return (
+                        <li className="flex flex-col gap-1" key={primaryKey}>
+                          <button
+                            className="flex items-center cursor-pointer hover:bg-primary/20"
+                            disabled={!nodeIsConnected}
+                            onClick={() => handleNavigate(primaryKey)}
+                          >
+                            <Dot
+                              className={nodeIsConnected ? "text-green-500" : "text-gray-400"}
+                              size={45}
+                            />
+                            <Typography variant="bodySm">
+                              {`${primary.host}:${primary.port}`}
+                            </Typography>
+                          </button>
+
+                          {primary.replicas?.map((replica) => (
+                            <div className="flex items-center ml-4" key={replica.id}>
+                              <CornerDownRight className="text-tw-dark-border" size={20} />
+                              <button className="flex items-center">
+                                <Dot className="text-primary" size={24} />
+                                <Typography variant="caption">
+                                  {replica.host}:{replica.port}
+                                </Typography>
+                              </button>
+                            </div>
+                          ))}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
               </div>
             )}
           </div>}
