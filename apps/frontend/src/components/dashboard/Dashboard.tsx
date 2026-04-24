@@ -28,7 +28,7 @@ export function Dashboard() {
   const connectionDetails = useSelector(selectConnectionDetails(id!))
   useEffect(() => {
     // TODO: refactor to metrics server
-    dispatch(updateData({ connectionId: id, clusterId, address: { host: connectionDetails.host, port: connectionDetails.port } }))
+    dispatch(updateData({ connectionId: id!, clusterId: clusterId!, address: { host: connectionDetails.host, port: connectionDetails.port } }))
   }, [id, clusterId, dispatch, connectionDetails.host, connectionDetails.port])
   const infoData = useSelector(selectData(id!)) || {}
   const [searchQuery, setSearchQuery] = useState("")

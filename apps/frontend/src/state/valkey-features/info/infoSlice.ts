@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import { VALKEY } from "@common/src/constants.ts"
 import * as R from "ramda"
 
@@ -122,16 +122,14 @@ const createInitialConnectionState = (): ConnectionState => ({
   },
 })
 
+export const updateData = createAction<{connectionId: string, clusterId: string, address: { host: string, port: string }}>("updateData")
+
 const initialState: InfoSliceState = {}
 
 const infoSlice = createSlice({
   name: VALKEY.STATS.name,
   initialState,
   reducers: {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    updateData: (_state, _action) => {
-      // No-op
-    },
     setLastUpdated: (state, action) => {
       const { connectionId, timestamp } = action.payload
       if (!state[connectionId]) {
@@ -208,4 +206,4 @@ const infoSlice = createSlice({
 })
 
 export default infoSlice.reducer
-export const { setLastUpdated, setData, setError, updateData } = infoSlice.actions
+export const { setLastUpdated, setData, setError } = infoSlice.actions

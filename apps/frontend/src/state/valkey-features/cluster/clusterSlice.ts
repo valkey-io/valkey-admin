@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
 
 export interface ReplicaNode {
@@ -45,6 +45,8 @@ interface ClusterState {
   };
 }
 const initialClusterState: ClusterState = {}
+
+export const updateClusterData = createAction<{connectionId: string, clusterId: string}>("updateClusterData")
 
 const clusterSlice = createSlice({
   name: "valkeyCluster",
@@ -120,10 +122,6 @@ const clusterSlice = createSlice({
       }
       state.clusters[clusterId].searchableText = searchableText
     },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    updateClusterData: (_state, _action) => {
-      // No-op
-    },
   },
 })
 
@@ -133,5 +131,4 @@ export const {
   updateClusterInfo,
   removeCluster,
   setClusterData,
-  updateClusterData,
 } = clusterSlice.actions
