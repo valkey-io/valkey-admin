@@ -192,18 +192,18 @@ export async function updateClusterNodeRegistry(client: GlideClusterClient | Gli
 }
 
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
-  const expandedClusterNodeMap = flattenClusterNodeMap(clusterNodeMap)
+  const clusterNodes = isKubernetes ? flattenClusterNodeMap(clusterNodeMap) : clusterNodeMap
   // These are nodes that are in the clusterMap but not metricsMap
   // TODO: Could use R.pickBy instead
   const nodesToAdd: ClusterNodeMap = Object.fromEntries(
-    Object.entries(expandedClusterNodeMap)
+    Object.entries(clusterNodes)
       .filter(([key]) => !metricsServerMap.has(key)),
   )
   const now = Date.now()
   // These are nodes that are in the metricsMap but not in clusterMap and clientsMap or stale nodes
   const nodesToRemove: string[] = Array.from(metricsServerMap.entries())
     .filter(([key, value]) => {
-      return (!expandedClusterNodeMap[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
+      return (!clusterNodes[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
     })
     .map(([key]) => key)
 
