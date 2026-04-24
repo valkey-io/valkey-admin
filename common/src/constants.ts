@@ -157,6 +157,7 @@ export const VALKEY_CLIENT = {
 export const MONITOR_ACTION = {
   START: "start",
   STOP: "stop",
+  STOP_ALL: "stop_all",
   STATUS: "status",
 } as const
 
