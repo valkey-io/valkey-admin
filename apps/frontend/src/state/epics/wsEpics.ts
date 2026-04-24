@@ -30,7 +30,7 @@ const isElectron = window.location.protocol === "file:"
 const isHttps = window.location.protocol === "https:"
 
 const url =
-  process.env.VALKEY_ADMIN_WS_URL ||
+  import.meta.env.VITE_VALKEY_ADMIN_WS_URL ||
   (isElectron
     ? "ws://localhost:8080"
     : `${isHttps ? "wss" : "ws"}://${window.location.host}`)

@@ -5,6 +5,7 @@ import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import * as R from "ramda"
 import { truncateText } from "@common/src/truncate-text"
+import { MONITOR_ACTION } from "@common/src/constants"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
@@ -21,7 +22,7 @@ import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
-import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
@@ -65,6 +66,7 @@ export const ActivityView = () => {
 
   useEffect(() => {
     if (id) {
+      dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: MONITOR_ACTION.STATUS }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW, clusterId }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REQUEST, clusterId }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REPLY, clusterId }))

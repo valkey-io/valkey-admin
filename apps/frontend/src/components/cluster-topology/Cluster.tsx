@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { Server, CheckCircle2 } from "lucide-react"
 import { useParams } from "react-router"
@@ -12,9 +12,15 @@ import { ClusterNode } from "./cluster-node"
 import { Panel } from "../ui/panel"
 import type { RootState } from "@/store.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
+import { useAppDispatch } from "@/hooks/hooks"
+import { updateClusterData } from "@/state/valkey-features/cluster/clusterSlice"
 
 export function Cluster() {
-  const { clusterId } = useParams()
+  const { id, clusterId } = useParams()
+  const dispatch = useAppDispatch()
+  useEffect(() => {
+    dispatch(updateClusterData({ connectionId: id!, clusterId: clusterId! }))
+  }, [id, clusterId, dispatch])
   const clusterData = useSelector(selectCluster(clusterId!))
   const [searchQuery, setSearchQuery] = useState("")
 

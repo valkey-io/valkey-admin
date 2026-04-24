@@ -3,7 +3,8 @@
         "baseUrl": ".",
         "paths": {
             "valkey-common": ["common/src"]
-        }
+        },
+        "ignoreDeprecations": "6.0"
     }
     
 }

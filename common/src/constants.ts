@@ -104,6 +104,9 @@ export const VALKEY = {
   }),
 } as const
 
+// check truthyness in case process doesn't have env
+const nodeEnv = typeof process !== "undefined" && process.env ? process.env : {}
+
 export const CONNECTED = "Connected"
 export const CONNECTING = "Connecting"
 export const ERROR = "Error"
@@ -111,8 +114,8 @@ export const NOT_CONNECTED = "Not Connected"
 export const DISCONNECTED = "Disconnected"
 export const RECONNECTING = "Reconnecting"
 export const DISCONNECTING = "Disconnecting"
-export const MAX_CONNECTIONS = process?.env?.MAX_CONNECTIONS
-  ? Number(process.env.MAX_CONNECTIONS)
+export const MAX_CONNECTIONS = nodeEnv.MAX_CONNECTIONS
+  ? Number(nodeEnv.MAX_CONNECTIONS)
   : Infinity
 
 export const PENDING = "Pending"
@@ -207,7 +210,7 @@ export const METRICS_EVICTION_POLICY = {
 
 export type EndpointType = "node" | "cluster-endpoint"
 
-export const CONNECTION_TEARDOWN_DELAY_MS = Number(process.env.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)
+export const CONNECTION_TEARDOWN_DELAY_MS = Number(nodeEnv.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)
 
 export const DEPLOYMENT_TYPE = {
   ELECTRON: "Electron",
