@@ -4,7 +4,6 @@ import { AlertTriangle, Dot, Minimize2 } from "lucide-react"
 import { MONITOR_ACTION, VALKEY } from "@common/src/constants"
 import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
 import * as R from "ramda"
-import { useParams } from "react-router"
 import { Button } from "./button"
 import { Typography } from "./typography"
 import type { RootState } from "@/store"
@@ -18,14 +17,13 @@ interface MonitoringConfig {
 }
 
 export function MonitorWarningBanner() {
-  const { id } = useParams()
   const dispatch = useAppDispatch()
-  const config = useSelector((state: unknown) =>
-    R.path<{ monitoring?: MonitoringConfig }>([VALKEY.CONFIG.name, id!], state),
-  )
   const runningConnections = useSelector(selectRunningMonitorConnections)
   const connectionsState = useSelector((state: RootState) =>
     R.path<ValkeyConnectionsState>([VALKEY.CONNECTION.name, "connections"], state) ?? {},
+  )
+  const configState = useSelector((state: unknown) =>
+    R.path<Record<string, { monitoring?: MonitoringConfig }>>([VALKEY.CONFIG.name], state) ?? {},
   )
   const [expanded, setExpanded] = useState(true)
   const [now, setNow] = useState(Date.now())
@@ -106,8 +104,8 @@ export function MonitorWarningBanner() {
                   </span>
                 )}
                 <span className="text-xs text-gray-400 flex items-center">
-                  Duration: {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
-                  Interval: {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)} <Dot /> 
+                  Duration: {milliSecondsToSeconds(configState[nodes[0].connectionId]?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                  Interval: {milliSecondsToSeconds(configState[nodes[0].connectionId]?.monitoring?.monitoringInterval ?? 10000)} <Dot />
                   Nodes: {nodes.length}
                 </span>
               </div>
@@ -132,8 +130,8 @@ export function MonitorWarningBanner() {
                   </span>
                 )}
                 <span className="text-xs text-gray-400 flex items-center">
-                  Duration: {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
-                  Interval: {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
+                  Duration: {milliSecondsToSeconds(configState[connectionId]?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                  Interval: {milliSecondsToSeconds(configState[connectionId]?.monitoring?.monitoringInterval ?? 10000)}
                 </span>
               </div>
             ))}
