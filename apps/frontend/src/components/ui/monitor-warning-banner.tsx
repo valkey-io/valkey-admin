@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useSelector } from "react-redux"
-import { AlertTriangle, CircleStop, Dot, Minimize2 } from "lucide-react"
+import { AlertTriangle, Dot, Minimize2 } from "lucide-react"
 import { MONITOR_ACTION, VALKEY } from "@common/src/constants"
 import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
 import * as R from "ramda"
 import { useParams } from "react-router"
 import { Button } from "./button"
 import { Typography } from "./typography"
+import type { RootState } from "@/store"
+import type { ValkeyConnectionsState } from "@/state/valkey-features/connection/connectionSlice"
 import { useAppDispatch } from "@/hooks/hooks"
-import { saveMonitorSettingsRequested, selectRunningMonitorConnections } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectRunningMonitorConnections } from "@/state/valkey-features/monitor/monitorSlice"
 
 interface MonitoringConfig {
   monitoringDuration: number
@@ -16,12 +18,15 @@ interface MonitoringConfig {
 }
 
 export function MonitorWarningBanner() {
-  const { id, clusterId } = useParams()
+  const { id } = useParams()
   const dispatch = useAppDispatch()
   const config = useSelector((state: unknown) =>
     R.path<{ monitoring?: MonitoringConfig }>([VALKEY.CONFIG.name, id!], state),
   )
   const runningConnections = useSelector(selectRunningMonitorConnections)
+  const connectionsState = useSelector((state: RootState) =>
+    R.path<ValkeyConnectionsState>([VALKEY.CONNECTION.name, "connections"], state) ?? {},
+  )
   const [expanded, setExpanded] = useState(true)
   const [now, setNow] = useState(Date.now())
 
@@ -31,20 +36,35 @@ export function MonitorWarningBanner() {
     return () => clearInterval(interval)
   }, [runningConnections.length])
 
+  const { clusterGroups, standaloneConnections } = useMemo(() => {
+    const groups: Record<string, { connectionId: string; startedAt: number | null }[]> = {}
+    const standalone: { connectionId: string; startedAt: number | null }[] = []
+    for (const conn of runningConnections) {
+      const cId = connectionsState[conn.connectionId]?.connectionDetails?.clusterId
+      if (cId) {
+        if (!groups[cId]) groups[cId] = []
+        groups[cId].push(conn)
+      } else {
+        standalone.push(conn)
+      }
+    }
+    return { clusterGroups: groups, standaloneConnections: standalone }
+  }, [runningConnections, connectionsState])
+
   if (runningConnections.length === 0) return null
 
-  const handleStopAll = () => {
-    dispatch(saveMonitorSettingsRequested({
-      connectionId: id!,
-      clusterId,
-      monitorAction: clusterId ? MONITOR_ACTION.STOP : MONITOR_ACTION.STOP_ALL,
+  const handleStop = (connectionId: string, cId?: string) => {
+    dispatch(monitorRequested({
+      connectionId,
+      clusterId: cId,
+      monitorAction: MONITOR_ACTION.STOP,
     }))
   }
 
   return (
     <div className="fixed bottom-16 right-2 z-50 pointer-events-auto animate-in fade-in duration-300">
       {expanded ? (
-        <div className="border border-destructive rounded-md shadow-xs w-80 max-h-54 flex flex-col overflow-hidden">
+        <div className="border border-destructive rounded-md shadow-xs w-84 max-h-58 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between border-b bg-destructive text-white">
             <div className="flex items-center gap-2 ml-2">
@@ -62,33 +82,58 @@ export function MonitorWarningBanner() {
             </Button>
           </div>
 
-          {/* Connection rows */}
-          <div className="flex-1 flex flex-col gap-2 px-4 py-3 bg-white dark:bg-gray-800 overflow-y-auto min-h-0">
-            <div className="flex flex-col">
-              <Typography variant="bodyXs">
-                Running MONITOR may impact server performance.
-              </Typography>
-              <Button
-                className="self-end"
-                onClick={handleStopAll}
-                size="sm"
-                variant="destructive"
-              >
-                <CircleStop size={13} />
-                Stop MONITOR
-              </Button>
-            </div>
-            {runningConnections.map(({ connectionId, startedAt }) => (
-              <div className="flex flex-col min-w-0" key={connectionId}>
-                <span className="font-mono text-xs truncate">{connectionId}</span>
-                {startedAt != null && (
+          <div className="flex-1 flex flex-col p-2 bg-white dark:bg-gray-800 overflow-y-auto min-h-0">
+            <Typography variant="bodyXs">
+              Running MONITOR may impact server performance.
+            </Typography>
+
+            {/* Cluster - with its own button */}
+            {Object.entries(clusterGroups).map(([cId, nodes]) => (
+              <div className="flex flex-col border-b last:border-b-0 p-2 mt-2" key={cId}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs truncate flex-1">{cId}</span>
+                  <Button
+                    onClick={() => handleStop(nodes[0].connectionId, cId)}
+                    size={"sm"}
+                    variant={"destructive"}
+                  >
+                    Stop
+                  </Button>
+                </div>
+                {nodes[0].startedAt != null && (
                   <span className="text-xs text-destructive">
-                    Running for : {formatDuration(now - startedAt)}
+                    Running for: {formatDuration(now - nodes[0].startedAt)}
                   </span>
                 )}
                 <span className="text-xs text-gray-400 flex items-center">
-                  Duration : {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
-                  Interval : {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
+                  Duration: {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                  Interval: {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)} <Dot /> 
+                  Nodes: {nodes.length}
+                </span>
+              </div>
+            ))}
+
+            {/* Standalone — with its own button */}
+            {standaloneConnections.map(({ connectionId, startedAt }) => (
+              <div className="border-b p-2 flex flex-col last:border-b-0" key={connectionId}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs truncate flex-1">{connectionId}</span>
+                  <Button
+                    onClick={() => handleStop(connectionId)}
+                    size={"sm"}
+                    variant={"destructive"}
+                  >
+                    Stop
+                  </Button>
+                </div>
+                {startedAt != null && (
+                  <span className="text-xs text-destructive">
+                    Running for: {formatDuration(now - startedAt)}
+                  </span>
+                )}
+                <span className="text-xs text-gray-400 flex items-center">
+                  Duration: {milliSecondsToSeconds(config?.monitoring?.monitoringDuration ?? 10000)} <Dot />
+                  Interval: {milliSecondsToSeconds(config?.monitoring?.monitoringInterval ?? 10000)}
                 </span>
               </div>
             ))}
