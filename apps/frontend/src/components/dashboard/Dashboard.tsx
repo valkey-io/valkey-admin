@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { LayoutDashboard, Search } from "lucide-react"
 import { useParams } from "react-router"
@@ -18,11 +18,19 @@ import { TooltipIcon } from "../ui/tooltip-icon"
 import RouteContainer from "../ui/route-container"
 import { Typography } from "../ui/typography"
 import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
+import { useAppDispatch } from "@/hooks/hooks"
+import { updateData } from "@/state/valkey-features/info/infoSlice"
+import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function Dashboard() {
+  const dispatch = useAppDispatch()
   const { id, clusterId } = useParams()
+  const connectionDetails = useSelector(selectConnectionDetails(id!))
+  useEffect(() => {
+    // TODO: refactor to metrics server
+    dispatch(updateData({ connectionId: id!, clusterId: clusterId!, address: { host: connectionDetails.host, port: connectionDetails.port } }))
+  }, [id, clusterId, dispatch, connectionDetails.host, connectionDetails.port])
   const infoData = useSelector(selectData(id!)) || {}
-
   const [searchQuery, setSearchQuery] = useState("")
 
   if (!infoData) {
