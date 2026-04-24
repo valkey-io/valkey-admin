@@ -64,7 +64,7 @@ export const initialConnectionDetails: ConnectionDetails = {
   awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
 }
 
-const ttl = Number(process.env.TTL) || 20000
+const ttl = Number(process.env.TTL) || 60000
 
 function isKnownClusterNode(nodeId: string) {
   return Object.values(clusterNodesRegistry).some((clusterNodes) =>
