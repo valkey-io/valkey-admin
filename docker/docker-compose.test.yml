@@ -244,14 +244,14 @@ services:
       context: ../
       dockerfile: ./docker/Dockerfile.app
     environment:
-      DEPLOYMENT_MODE: web
+      DEPLOYMENT_MODE: Web
       NODE_ENV: production
       VALKEY_HOST: valkey-7001
-      VALKEY_PORT: ${VALKEY_PORT}
-      VALKEY_USERNAME: ${VALKEY_USERNAME}
-      VALKEY_PASSWORD: ${VALKEY_PASSWORD}
-      VALKEY_TLS: ${VALKEY_TLS}
-      VALKEY_VERIFY_CERT: ${VALKEY_VERIFY_CERT}
+      VALKEY_PORT: "7001"
+      VALKEY_USERNAME: appuser
+      VALKEY_PASSWORD: admin
+      VALKEY_TLS: "false"
+      VALKEY_VERIFY_CERT: "false"
     ports:
       - "8080:8080"
     networks:
