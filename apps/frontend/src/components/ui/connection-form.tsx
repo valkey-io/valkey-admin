@@ -32,14 +32,18 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [discoveryId, setDiscoveryId] = useState<string | null>(null)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
-  const connectionState = useAppSelector((state) =>
-    connectionId ? state.valkeyConnection.connections[connectionId] : null,
-  )
   const discoveryState = useAppSelector((state) =>
     discoveryId ? state.valkeyTopology.discoveries[discoveryId] : null,
   )
 
-  const isDiscovering = discoveryState?.status === "pending"
+  // for discovery endpoint - the first node's connectionId resolved from discovery
+  const nodeConnectionId = connectionId ?? discoveryState?.nodeConnectionId ?? null
+
+  const connectionState = useAppSelector((state) =>
+    nodeConnectionId ? state.valkeyConnection.connections[nodeConnectionId] : null,
+  )
+
+  const isDiscovering = discoveryState?.status === "pending" || discoveryState?.status === "node_connecting"
   const isConnecting = isDiscovering || connectionState?.status === CONNECTING
   const hasError = discoveryState?.status === "rejected" || connectionState?.status === ERROR
   const errorMessage = discoveryState?.errorMessage ?? connectionState?.errorMessage
