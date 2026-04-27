@@ -108,6 +108,7 @@ For the full-featured desktop application:
    - Linux: `npm run package:linux:nosign`
 4. **Launch app:** Find the built app in `release/` folder and launch it
 5. **Connect:** Manually add a connection to `[YOUR_LOCAL_IP]:7001`
+   - Run `ipconfig getifddr en0` to find your local IP 
 
 ### Web Development Setup
 

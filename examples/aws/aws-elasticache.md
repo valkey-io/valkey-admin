@@ -30,7 +30,7 @@ For a production setup, we recommend the following architecture with HTTPS, Cogn
 Internet → ALB (HTTPS + Cognito auth, public subnets) → EC2 (private subnet) → ElastiCache (private subnet)
 ```
 
-- **ALB (Application Load Balancer):** Provides internet-facing HTTPS access to Valkey Admin. We recommend an ALB rather than exposing the EC2 instance directly so that the instance stays in a private subnet with no public IP. The ALB integrates with [Amazon Cognito](https://aws.amazon.com/cognito/) for user authentication and uses IP-based security group rules as an additional layer of defense.
+- **ALB (Application Load Balancer):** Provides internet-facing HTTPS access to Valkey Admin. We recommend an ALB rather than exposing the EC2 instance directly so that the instance stays in a private subnet with no public IP. The ALB integrates with [Amazon Cognito](https://aws.amazon.com/cognito/) for user authentication.
 - **Amazon Cognito:** Handles user authentication. Users must sign in before accessing Valkey Admin. The template creates a Cognito User Pool — add users through the AWS Console or CLI after deployment.
 - **EC2 instance:** Runs the Valkey Admin Docker container in a private subnet. Outbound internet access is provided through a NAT Gateway for pulling the Docker image and system updates.
 - **ElastiCache cluster:** The Valkey cluster being monitored, also in a private subnet. Only accessible from the EC2 instance.
@@ -40,16 +40,15 @@ Internet → ALB (HTTPS + Cognito auth, public subnets) → EC2 (private subnet)
 - AWS CLI configured with appropriate permissions
 - A domain name with a DNS record pointing to the ALB (required for HTTPS)
 - An ACM certificate for your domain (can be requested through the [AWS Certificate Manager console](https://console.aws.amazon.com/acm/))
-- An IP address to whitelist for ALB access
 
-### CloudFormation Template
+### CloudFormation Example Template
 
-The template below creates a complete deployment with:
+The example template below creates a complete deployment with:
 - VPC with public and private subnets
 - NAT Gateway for outbound access from private subnets
-- ElastiCache Valkey cluster with IAM and password authentication
+- ElastiCache Valkey cluster with IAM authentication
 - EC2 instance (Docker pre-installed via user data)
-- ALB with HTTPS, Cognito authentication, and IP-restricted access
+- ALB with HTTPS and Cognito authentication
 - Cognito User Pool for user management
 - IAM role with `elasticache:Connect` permission
 
@@ -60,9 +59,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Valkey Admin with ElastiCache cluster, Cognito auth, and HTTPS
 
 Parameters:
-  AllowedIP:
-    Type: String
-    Description: Your public IP address for ALB access (e.g., 203.0.113.10)
   CertificateArn:
     Type: String
     Description: ARN of the ACM certificate for HTTPS
@@ -201,16 +197,16 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref VPC
-      GroupDescription: ALB - allow HTTPS from whitelisted IP
+      GroupDescription: ALB - allow HTTPS traffic
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIp: !Sub "${AllowedIP}/32"
+          CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
-          CidrIp: !Sub "${AllowedIP}/32"
+          CidrIp: 0.0.0.0/0
 
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -286,16 +282,6 @@ Resources:
       AuthenticationMode:
         Type: iam
 
-  ValkeyPasswordUser:
-    Type: AWS::ElastiCache::User
-    Properties:
-      UserId: !Sub "${AWS::StackName}-pw-user"
-      UserName: !Sub "${AWS::StackName}-pw-user"
-      Engine: redis
-      AccessString: "on ~* +@all"
-      Passwords:
-        - !Sub "${AWS::StackName}-Password123!"
-
   ValkeyDefaultUser:
     Type: AWS::ElastiCache::User
     Properties:
@@ -313,7 +299,6 @@ Resources:
       Engine: redis
       UserIds:
         - !Ref ValkeyIAMUser
-        - !Ref ValkeyPasswordUser
         - !Ref ValkeyDefaultUser
 
   CacheSubnetGroup:
@@ -483,124 +468,19 @@ Outputs:
   IAMUsername:
     Description: IAM authentication username
     Value: !Sub "${AWS::StackName}-iam-user"
-  PasswordUsername:
-    Description: Password authentication username
-    Value: !Sub "${AWS::StackName}-pw-user"
-  PasswordHint:
-    Description: Password format
-    Value: !Sub "${AWS::StackName}-Password123!"
   CognitoUserPoolId:
     Description: Cognito User Pool ID (use to create users)
     Value: !Ref CognitoUserPool
-```
-
-### Deploy
-
-### 1. Request an ACM Certificate
-
-If you don't already have one, request a certificate in the [ACM console](https://console.aws.amazon.com/acm/) for your domain. Note the certificate ARN after validation.
-
-### 2. Create the Stack
-
-```bash
-aws cloudformation create-stack \
-  --stack-name valkey-admin \
-  --template-body file://valkey-admin-elasticache.yml \
-  --parameters \
-    ParameterKey=AllowedIP,ParameterValue=$(curl -s https://checkip.amazonaws.com) \
-    ParameterKey=CertificateArn,ParameterValue=arn:aws:acm:us-west-1:123456789012:certificate/your-cert-id \
-    ParameterKey=DomainName,ParameterValue=valkey-admin.example.com \
-    ParameterKey=NumShards,ParameterValue=3 \
-  --capabilities CAPABILITY_IAM \
-  --region us-west-1
-```
-
-Wait for the stack to complete (~15-20 minutes for the ElastiCache cluster):
-
-```bash
-aws cloudformation wait stack-create-complete --stack-name valkey-admin --region us-west-1
-```
-
-### 3. Configure DNS
-
-Get the ALB DNS name from the stack outputs:
-
-```bash
-aws cloudformation describe-stacks --stack-name valkey-admin --region us-west-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='ALBDNSName'].OutputValue" --output text
-```
-
-Create a CNAME record in your DNS provider pointing your domain to the ALB DNS name.
-
-### 4. Create Cognito Users
-
-```bash
-POOL_ID=$(aws cloudformation describe-stacks --stack-name valkey-admin --region us-west-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='CognitoUserPoolId'].OutputValue" --output text)
-
-aws cognito-idp admin-create-user \
-  --user-pool-id $POOL_ID \
-  --username user@example.com \
-  --user-attributes Name=email,Value=user@example.com \
-  --region us-west-1
-```
-
-The user will receive a temporary password via email and be prompted to set a new password on first login.
-
-### Connect
-
-Open `https://your-domain.com`. After signing in through Cognito, add a connection:
-
-**Password authentication:**
-- Host: the `ValkeyEndpoint` from outputs
-- Port: 6379
-- TLS: enabled
-- Endpoint type: cluster-endpoint
-- Username: the `PasswordUsername` from outputs
-- Password: the `PasswordHint` from outputs
-
-**IAM authentication:**
-- Host: the `ValkeyEndpoint` from outputs
-- Port: 6379
-- TLS: enabled
-- Endpoint type: cluster-endpoint
-- Auth type: IAM
-- Username: the `IAMUsername` from outputs
-- Replication Group ID: the `ReplicationGroupId` from outputs
-- AWS Region: the region you deployed to
-
-### Whitelist Additional IPs
-
-To grant network access to additional users, add their IP to the ALB security group:
-
-```bash
-ALB_SG=$(aws cloudformation describe-stack-resource \
-  --stack-name valkey-admin \
-  --logical-resource-id ALBSecurityGroup \
-  --query "StackResourceDetail.PhysicalResourceId" \
-  --output text --region us-west-1)
-
-aws ec2 authorize-security-group-ingress \
-  --group-id $ALB_SG \
-  --protocol tcp --port 443 \
-  --cidr <IP_ADDRESS>/32 \
-  --region us-west-1
-```
-
-### Tear Down
-
-```bash
-aws cloudformation delete-stack --stack-name valkey-admin --region us-west-1
 ```
 
 ### Security Notes
 
 - All traffic is encrypted via HTTPS (HTTP requests are redirected to HTTPS)
 - Users must authenticate through Amazon Cognito before accessing the application
-- IP-based security group rules provide an additional layer of network-level access control
 - The EC2 instance has **no public IP** — it is only accessible through the ALB
 - ElastiCache is in a private subnet, accessible only from the EC2 instance
 - EBS volumes are encrypted at rest
 - IMDSv2 is required on the EC2 instance
 - The IAM role follows least privilege — only `elasticache:Connect` is granted
 - TLS is enabled for all ElastiCache connections
+- For additional network-level access control, consider adding IP-based restrictions to the ALB security group
