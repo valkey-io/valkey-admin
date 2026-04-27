@@ -1,11 +1,11 @@
 name: Integration
 
 on:
-  push:
-    branches:
-      - integration-tests
   pull_request:
     branches: [ "main" ]
+
+permissions:
+  contents: read
 
 jobs:
   integration:
