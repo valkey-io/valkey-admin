@@ -7,13 +7,14 @@ export interface DiscoveredNode {
   port: number
 }
 
-export type DiscoveryStatus = "pending" | "fulfilled" | "rejected"
+export type DiscoveryStatus = "pending" | "fulfilled" | "node_connecting" | "rejected"
 
 export interface DiscoveryState {
   status: DiscoveryStatus
   connectionDetails: ConnectionDetails
   clusterNodes?: Record<string, DiscoveredNode>
   errorMessage?: string
+  nodeConnectionId?: string
 }
 
 export interface TopologyState {
@@ -59,6 +60,16 @@ const topologySlice = createSlice({
       entry.status = "rejected"
       entry.errorMessage = errorMessage
     },
+    discoveryNodeConnecting: (
+      state,
+      action: PayloadAction<{ discoveryId: string; connectionId: string }>,
+    ) => {
+      const { discoveryId, connectionId } = action.payload
+      const entry = state.discoveries[discoveryId]
+      if (!entry) return
+      entry.status = "node_connecting"
+      entry.nodeConnectionId = connectionId
+    },
     clearEndpointDiscovery: (state, action: PayloadAction<{ discoveryId: string }>) => {
       delete state.discoveries[action.payload.discoveryId]
     },
@@ -69,6 +80,7 @@ export const {
   discoveryEndpointPending,
   discoveryEndpointFulfilled,
   discoveryEndpointRejected,
+  discoveryNodeConnecting,
   clearEndpointDiscovery,
 } = topologySlice.actions
 

@@ -22,7 +22,7 @@ import {
 import {
   discoveryEndpointPending,
   discoveryEndpointFulfilled,
-  clearEndpointDiscovery
+  discoveryNodeConnecting
 } from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData, updateData } from "../valkey-features/info/infoSlice"
@@ -119,7 +119,7 @@ export const connectionEpic = (store: Store) =>
       ignoreElements(),
     ),
 
-    // when disovery results succeeds - connect to the first node
+    // when discovery results succeed - connect to the first node
     action$.pipe(
       select(discoveryEndpointFulfilled),
       tap(({ payload: { discoveryId, clusterNodes } }) => {
@@ -140,7 +140,8 @@ export const connectionEpic = (store: Store) =>
             endpointType: "node",
           },
         }))
-        store.dispatch(clearEndpointDiscovery({ discoveryId }))
+        // store the connectionId in the discovery state so we can show the correct connection status
+        store.dispatch(discoveryNodeConnecting({ discoveryId, connectionId }))
       }),
       ignoreElements(),
     ),
