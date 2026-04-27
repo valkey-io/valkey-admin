@@ -11,7 +11,7 @@ import {
   retry,
   take
 } from "rxjs/operators"
-import { CONNECTED, VALKEY, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, VALKEY, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddleware"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
@@ -60,9 +60,11 @@ const connect = (store: Store) =>
               const state = store.getState()
               const connections = state[VALKEY.CONNECTION.name]?.connections || {}
 
-              // Mark all connected Valkey connections as broken
+              // Reset both CONNECTED and CONNECTING states on socket close.
+              // CONNECTING entries can get stuck if the socket dies mid-handshake
+              // (e.g., laptop sleep/wake), leaving the UI unable to retry.
               Object.keys(connections).forEach((connectionId) => {
-                if (connections[connectionId].status === CONNECTED) {
+                if (connections[connectionId].status === CONNECTED || connections[connectionId].status === CONNECTING) {
                   console.log(`Dispatching connectionBroken for ${connectionId}`)
                   store.dispatch(connectionBroken({ connectionId }))
                 }

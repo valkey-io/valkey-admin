@@ -256,9 +256,10 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
     ? path.join(processResourcesPath, "server-metrics.js")
     : fileURLToPath(new URL("../../metrics/dist/index.cjs", import.meta.url))
 
-  const configPath = isElectron
-    ? path.join(processResourcesPath, "config.yml")
-    : fileURLToPath(new URL("../../metrics/config.yml", import.meta.url))
+  const configPath = process.env.CONFIG_PATH
+    ?? (isElectron
+      ? path.join(processResourcesPath, "config.yml")
+      : fileURLToPath(new URL("../../metrics/config.yml", import.meta.url)))
 
   const data_dir = process.env.DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data")
 

@@ -107,11 +107,10 @@ For the full-featured desktop application:
    - macOS: `npm run package:mac:nosign`
    - Linux: `npm run package:linux:nosign`
 4. **Launch app:** Find the built app in `release/` folder and launch it
-5. **Connect:** Manually add a connection to `localhost:7001`
+5. **Connect:** Manually add a connection to `[YOUR_LOCAL_IP]:7001`
+   - Run `ipconfig getifddr en0` to find your local IP 
 
 ### Web Development Setup
-
-For development servers (limited features - no hotkeys/commandlogs):
 
 1. **Install dependencies:** `npm install`
 2. **Start Valkey cluster:** `./tools/valkey-cluster/scripts/build_run_cluster.sh`
