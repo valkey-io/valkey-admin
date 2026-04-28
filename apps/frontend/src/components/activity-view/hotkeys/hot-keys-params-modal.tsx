@@ -11,7 +11,7 @@ import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig } from "@/state/valkey-features/config/configSlice"
-import { monitorRequested, saveMonitorSettingsRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { saveMonitorSettingsRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 
 interface HotKeysConfigModalProps {
   open: boolean
@@ -26,12 +26,6 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
 
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
   const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitoringInterval ?? 10000)
-
-  useEffect(() => {
-    if (open) {
-      dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: MONITOR_ACTION.STATUS }))
-    }
-  }, [open, dispatch, id, clusterId])
 
   useEffect(() => {
     if (config?.monitoring) {

@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
 
 export interface ReplicaNode {
@@ -45,6 +45,8 @@ interface ClusterState {
   };
 }
 const initialClusterState: ClusterState = {}
+
+export const updateClusterData = createAction<{connectionId: string, clusterId: string}>("updateClusterData")
 
 const clusterSlice = createSlice({
   name: "valkeyCluster",

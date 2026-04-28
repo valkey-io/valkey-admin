@@ -97,8 +97,17 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
 
     if (!connectionId || !currentConnection) return
 
+    const trimmed: ConnectionDetails = {
+      ...connectionDetails,
+      host: connectionDetails.host.trim(),
+      alias: connectionDetails.alias?.trim() ?? "",
+      username: connectionDetails.username?.trim() ?? "",
+      awsRegion: connectionDetails.awsRegion?.trim(),
+      awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
+    }
+
     if (hasCoreChanges()) {
-      const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+      const newConnectionId = sanitizeUrl(`${trimmed.host}-${trimmed.port}`)
 
       // Stop any ongoing retries for the current connection
       dispatch(stopRetry({ connectionId }))
@@ -111,8 +120,8 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
 
       // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
       const detailsToDispatch = passwordChanged && connectionDetails.password
-        ? { ...connectionDetails, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
-        : connectionDetails
+        ? { ...trimmed, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
+        : trimmed
 
       dispatch(
         connectPending({
@@ -126,7 +135,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       dispatch(
         updateConnectionDetails({
           connectionId,
-          ...connectionDetails,
+          ...trimmed,
         }),
       )
     }

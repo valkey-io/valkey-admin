@@ -9,6 +9,7 @@ class MockValkey {
   constructor(options) {
     this.options = options
     mockValkeyInstances.push(this)
+    this.on = vi.fn()
   }
   async monitor() {
     return mockMonitorGlobal || createMockMonitor()

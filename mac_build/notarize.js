@@ -2,17 +2,22 @@
 const { notarize } = require("electron-notarize")
 
 function shouldSkipNotarization() {
-  const dotenvResult = require("dotenv").config({ path: "./mac_build/.env", debug: true })
+  require("dotenv").config({ path: "./mac_build/.env" })
 
   if (process.env.CSC_IDENTITY_AUTO_DISCOVERY === "false") {
     console.log("  • ⚠️ nosign packaging detected. Skipping notarization step.")
     return true
   }
 
-  if (dotenvResult.error?.code === "ENOENT") {
-    console.log("  • ⚠️ No mac_build/.env detected. Skipping notarization step.")
+  const required = ["APPLE_ID", "APPLE_TEAM_ID", "APPLE_ID_APP_SPECIFIC_PASSWORD"]
+  const missing = required.filter((key) => !process.env[key])
+ 
+  if (missing.length > 0) {
+    console.log(`  • ⚠️ Missing notarization credentials (${missing.join(", ")}). Skipping notarization step.`)
     return true
   }
+
+  return false
 }
 
 exports.default = async function notarizing(context) {
@@ -32,7 +37,7 @@ exports.default = async function notarizing(context) {
   return await notarize({
     tool: "notarytool",
     teamId: process.env.APPLE_TEAM_ID,
-    appBundleId: "com.valkey.glide",
+    appBundleId: "com.valkey.admin",
     appPath: `${appOutDir}/${appName}.app`,
     appleId: process.env.APPLE_ID,
     appleIdPassword: process.env.APPLE_ID_APP_SPECIFIC_PASSWORD,

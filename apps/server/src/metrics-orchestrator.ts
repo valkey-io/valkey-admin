@@ -64,7 +64,7 @@ export const initialConnectionDetails: ConnectionDetails = {
   awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
 }
 
-const ttl = Number(process.env.TTL) || 20000
+const ttl = Number(process.env.TTL) || 60000
 
 function isKnownClusterNode(nodeId: string) {
   return Object.values(clusterNodesRegistry).some((clusterNodes) =>
@@ -192,18 +192,18 @@ export async function updateClusterNodeRegistry(client: GlideClusterClient | Gli
 }
 
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
-  const expandedClusterNodeMap = flattenClusterNodeMap(clusterNodeMap)
+  const clusterNodes = isKubernetes ? flattenClusterNodeMap(clusterNodeMap) : clusterNodeMap
   // These are nodes that are in the clusterMap but not metricsMap
   // TODO: Could use R.pickBy instead
   const nodesToAdd: ClusterNodeMap = Object.fromEntries(
-    Object.entries(expandedClusterNodeMap)
+    Object.entries(clusterNodes)
       .filter(([key]) => !metricsServerMap.has(key)),
   )
   const now = Date.now()
   // These are nodes that are in the metricsMap but not in clusterMap and clientsMap or stale nodes
   const nodesToRemove: string[] = Array.from(metricsServerMap.entries())
     .filter(([key, value]) => {
-      return (!expandedClusterNodeMap[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
+      return (!clusterNodes[key] && !clients.has(key)) || (now - value.lastSeen) > ttl
     })
     .map(([key]) => key)
 
@@ -256,9 +256,10 @@ export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: s
     ? path.join(processResourcesPath, "server-metrics.js")
     : fileURLToPath(new URL("../../metrics/dist/index.cjs", import.meta.url))
 
-  const configPath = isElectron
-    ? path.join(processResourcesPath, "config.yml")
-    : fileURLToPath(new URL("../../metrics/config.yml", import.meta.url))
+  const configPath = process.env.CONFIG_PATH
+    ?? (isElectron
+      ? path.join(processResourcesPath, "config.yml")
+      : fileURLToPath(new URL("../../metrics/config.yml", import.meta.url)))
 
   const data_dir = process.env.DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data")
 

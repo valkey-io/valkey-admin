@@ -35,7 +35,7 @@
     "vitest": "^4.0.15"
   },
   "scripts": {
-    "dev": "npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
+    "dev": "DEPLOYMENT_MODE=Web && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
     "build:server": "npm --workspace apps/server run build",
     "build:vite:server": "npm --workspace apps/server run build:vite",
     "build:frontend": "npm --workspace apps/frontend run build",
@@ -43,13 +43,14 @@
     "build:common": "npm --workspace common run build",
     "build:all": "npm run build --workspaces",
     "build:electron": "npm run build:common && npm run build:vite:server && npm run build:frontend && npm run build:metrics",
-    "package:mac": "npm run build:electron && npx electron-builder --mac --arm64",
+    "package:mac": "npm run build:electron && npx electron-builder --mac --arm64 --publish never",
     "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
-    "package:linux": "npm run build:electron && npx electron-builder --linux --x64",
+    "package:linux": "npm run build:electron && npx electron-builder --linux --x64 --publish never",
     "package:linux:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
-    "package:linux:arm64": "npm run build:electron && npx electron-builder --linux --arm64",
+    "package:linux:arm64": "npm run build:electron && npx electron-builder --linux --arm64 --publish never",
     "package:linux:arm64:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux:arm64",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:integration": "npm --workspace apps/server run test:integration"
   },
   "build": {
     "appId": "com.valkey.admin",

@@ -222,6 +222,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
   })
 
   ws.on("message", async (message) => {
+    ws.isAlive = true // Reset heartbeat on any incoming message
     let action: WsActionMessage | undefined
     let connectionId: string | undefined
 

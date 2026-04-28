@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import { VALKEY } from "@common/src/constants.ts"
 import * as R from "ramda"
 
@@ -121,6 +121,8 @@ const createInitialConnectionState = (): ConnectionState => ({
     pubsub_patterns : null,
   },
 })
+
+export const updateData = createAction<{connectionId: string, clusterId: string, address: { host: string, port: string }}>("updateData")
 
 const initialState: InfoSliceState = {}
 

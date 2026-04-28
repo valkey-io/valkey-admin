@@ -8,10 +8,11 @@ import {
   PencilIcon,
   CheckIcon,
   XIcon,
-  Plug
+  Plug,
+  Loader2
 } from "lucide-react"
 import { Link } from "react-router"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING } from "@common/src/constants.ts"
 import { ConnectionEntry } from "./ConnectionEntry.tsx"
 import { Input } from "../ui/input.tsx"
 import {
@@ -73,6 +74,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
     () => R.reduce(R.maxBy(getLatestTimestamp), null, connections),
     [connections],
   )
+  const isLastOpenedNodeConnecting = lastOpenedNode?.connection.status === CONNECTING
 
   const handleEdit = () => {
     setEditedAlias(firstNodeAlias || "")
@@ -229,12 +231,23 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
                     onClick={handleConnectLatest}
                     variant="secondary"
                   >
-                    <Plug size={16} />
-                    Connect
+                    {isLastOpenedNodeConnecting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Plug size={16} />
+                        Connect
+                      </>
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Connect to the most recent node in this cluster
+                  {isLastOpenedNodeConnecting
+                    ? "Connecting to the most recent node in this cluster"
+                    : "Connect to the most recent node in this cluster"}
                 </TooltipContent>
               </Tooltip>
             ) : null

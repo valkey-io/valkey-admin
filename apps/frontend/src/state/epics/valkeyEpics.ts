@@ -22,16 +22,16 @@ import {
 import {
   discoveryEndpointPending,
   discoveryEndpointFulfilled,
-  clearEndpointDiscovery
+  discoveryNodeConnecting
 } from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
-import { setData } from "../valkey-features/info/infoSlice"
+import { setData, updateData } from "../valkey-features/info/infoSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
-import { setClusterData } from "../valkey-features/cluster/clusterSlice.ts"
+import { setClusterData, updateClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
@@ -108,6 +108,7 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+        toast.error(`Connection rejected for ${connectionId}: ${errorMessage}`)
       }),
       ignoreElements(),
     ),
@@ -119,7 +120,7 @@ export const connectionEpic = (store: Store) =>
       ignoreElements(),
     ),
 
-    // when disovery results succeeds - connect to the first node
+    // when discovery results succeed - connect to the first node
     action$.pipe(
       select(discoveryEndpointFulfilled),
       tap(({ payload: { discoveryId, clusterNodes } }) => {
@@ -140,7 +141,8 @@ export const connectionEpic = (store: Store) =>
             endpointType: "node",
           },
         }))
-        store.dispatch(clearEndpointDiscovery({ discoveryId }))
+        // store the connectionId in the discovery state so we can show the correct connection status
+        store.dispatch(discoveryNodeConnecting({ discoveryId, connectionId }))
       }),
       ignoreElements(),
     ),
@@ -366,21 +368,35 @@ export const setDataEpic = (store: Store) =>
     filter(
       ({ type }) =>
         type === standaloneConnectFulfilled.type ||
-          type === clusterConnectFulfilled.type,
+          type === clusterConnectFulfilled.type ||
+          type === updateData.type || // Temporary fix until we refactor this to metrics server
+          type === updateClusterData.type, // Temporary fix until we refactor this to metrics server
     ),
     tap((action) => {
       const socket = getSocket()
+      if (action.type === updateClusterData.type) {
+        const { connectionId, clusterId } = action.payload as unknown as {connectionId: string, clusterId: string}
+        socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+        return
+      }
+
+      if (action.type === updateData.type) {
+        socket.next({ type: setData.type, payload: action.payload })
+        return
+      }
 
       const { 
         connectionId, 
         connectionDetails: { clusterId },
       } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
+
       store.dispatch(setConfig( action.payload))
+
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })
       }
-
       socket.next({ type: setData.type, payload: action.payload })
+
       const redirectPath = clusterId
         ? `/${clusterId}/${connectionId}/cluster-topology`
         : `/${connectionId}/dashboard`

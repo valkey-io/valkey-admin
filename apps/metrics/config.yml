@@ -62,6 +62,7 @@ epics:
     monitoringDuration: 10000
     monitoringInterval: 10000
     maxCommandsPerRun: 1000000
+    cutoff_frequency: 100
     file_prefix: "monitor"
     data_retention_mb: 12
     data_retention_days: 5

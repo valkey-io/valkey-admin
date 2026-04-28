@@ -47,7 +47,8 @@ const sendMonitorError = (
 export const monitorRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, monitorAction } = action.payload
-    const connectionIds = clusterId 
+
+    const connectionIds = clusterId
       ? Object.keys(clusterNodesRegistry[clusterId as string] ?? {}).filter((id) => metricsServerMap.has(id))
       : [connectionId]
 

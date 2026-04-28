@@ -3,8 +3,8 @@ import { useSelector } from "react-redux"
 import { Activity, RefreshCcw } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
-import * as R from "ramda"
 import { truncateText } from "@common/src/truncate-text"
+import { MONITOR_ACTION } from "@common/src/constants"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
@@ -21,7 +21,7 @@ import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
-import { selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
@@ -39,7 +39,7 @@ interface KeyInfo {
   elements?: any;
 }
 
-export const Monitoring = () => {
+export const ActivityView = () => {
   const dispatch = useAppDispatch()
   const { id, clusterId } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
@@ -65,6 +65,7 @@ export const Monitoring = () => {
 
   useEffect(() => {
     if (id) {
+      dispatch(monitorRequested({ connectionId: id!, clusterId, monitorAction: MONITOR_ACTION.STATUS }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.SLOW, clusterId }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REQUEST, clusterId }))
       dispatch(commandLogsRequested({ connectionId: id, commandLogType: COMMANDLOG_TYPE.LARGE_REPLY, clusterId }))
@@ -109,7 +110,7 @@ export const Monitoring = () => {
     setSelectedKey(keyName)
 
     const keyInfo = keys.find((k) => k.name === keyName)
-    if (R.isNotEmpty(keyInfo) && !keyInfo!.type) {
+    if (!keyInfo?.type) {
       dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }))
     }
   }
@@ -130,7 +131,7 @@ export const Monitoring = () => {
   ]
 
   return (
-    <RouteContainer title="monitoring">
+    <RouteContainer title="Activity">
       <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
       <AppHeader
         description={
@@ -146,7 +147,7 @@ export const Monitoring = () => {
           </>
         }
         icon={<Activity size={20} />}
-        title="Monitoring"
+        title="Activity"
       />
 
       <div className="flex justify-between">
