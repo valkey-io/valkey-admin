@@ -3,7 +3,7 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
-import { connectToValkey, isDuplicateConnection, teardownConnection } from "../connection"
+import { connectToValkey, getExistingConnection, teardownConnection } from "../connection"
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
@@ -418,45 +418,97 @@ describe("resolveHostnameOrIpAddress", () => {
   })
 })
 
-describe("returnIfDuplicateConnection", () => {
+describe("getExistingConnection", () => {
   beforeEach(() => {
     mock.restoreAll()
   })
 
-  it("returns true if a duplicate connection exists", async () => {
+  it("returns the existing connection when host:port resolves to one already in clients", async () => {
     mock.method(dns, "lookup", async () => [
       { address: "10.0.0.1", family: 4 },
     ])
 
+    const existingClient = {} as any
     const clients = new Map()
-    clients.set(sanitizeUrl("10.0.0.1:6379"), {} as any)
+    clients.set(sanitizeUrl("10.0.0.1:6379"), { client: existingClient })
 
-    const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { 
-        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-      } },
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
       clients,
     )
 
-    assert.strictEqual(result, true)
-
+    assert.ok(result)
+    assert.strictEqual(result.client, existingClient)
   })
 
-  it("returns false if no duplicate connection exists", async () => {
+  it("returns undefined when no resolved address matches any client", async () => {
     mock.method(dns, "lookup", async () => [
       { address: "10.0.0.2", family: 4 },
     ])
 
     const clients = new Map()
 
-    const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { 
-        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-      } },
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
       clients,
     )
 
-    assert.strictEqual(result, false)
+    assert.strictEqual(result, undefined)
+  })
+
+  it("returns undefined when isRetry is true even if a duplicate exists", async () => {
+    mock.method(dns, "lookup", async () => [
+      { address: "10.0.0.1", family: 4 },
+    ])
+
+    const clients = new Map()
+    clients.set(sanitizeUrl("10.0.0.1:6379"), { client: {} as any })
+
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        isRetry: true,
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
+      clients,
+    )
+
+    assert.strictEqual(result, undefined)
+  })
+
+  it("returns the entry stored at connectionId when present", async () => {
+    mock.method(dns, "lookup", async () => [
+      { address: "10.0.0.99", family: 4 },
+    ])
+
+    const directClient = {} as any
+    const clients = new Map()
+    clients.set("abc123", { client: directClient })
+
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
+      clients,
+    )
+
+    assert.ok(result)
+    assert.strictEqual(result.client, directClient)
   })
 })
 
