@@ -112,6 +112,16 @@ const keyBrowserSlice = createSlice({
           if (size !== undefined) existingKey.size = size
           if (collectionSize !== undefined)
             existingKey.collectionSize = collectionSize
+        } else {
+          state[connectionId].keys.push({
+            name: key, type: keyType, ttl, size,
+            ...(collectionSize !== undefined ? { collectionSize } : {}),
+          })
+        } else {
+          state[connectionId].keys.push({
+            name: key, type: keyType, ttl, size,
+            ...(collectionSize !== undefined ? { collectionSize } : {}),
+          })
         }
         delete state[connectionId].keyTypeLoading[key]
       }
