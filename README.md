@@ -99,6 +99,7 @@ Valkey Admin is configured through environment variables. All variables are opti
 | `DEPLOYMENT_MODE` | Controls metrics server orchestration. If `Web`, all metrics servers for cluster nodes start on any successful connection. If `Electron`, the metrics server only starts when you've successfully connected to a particular node. | `Electron` for Desktop and `Web` for Docker |
 | `TTL` | Metrics server health check timeout (ms) | `60000` |
 | `TOPOLOGY_REFRESH_INTERVAL` | Cluster topology refresh interval (ms) | `30000` |
+| `HOT_KEYS_COUNT` | Maximum number of hot keys returned per query | `50` |
 
 ### Pre-configured Metrics Collection
 
