@@ -1,6 +1,6 @@
 import * as R from "ramda"
 import { useState } from "react"
-import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users } from "lucide-react"
+import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users, Loader2 } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
@@ -44,6 +44,8 @@ export function ClusterNode({
   )
 
   const isConnected = connectionStatus === CONNECTED
+  const isConnecting = connectionStatus === CONNECTING
+  const isError = connectionStatus === ERROR
 
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
@@ -62,7 +64,7 @@ export function ClusterNode({
   }
 
   const handleNodeConnect = () => {
-    if (isConnected) return
+    if (isConnected || isConnecting) return
 
     if (primary.authType === "iam") {
       // IAM: all fields available from cluster state, no password needed
@@ -166,17 +168,25 @@ export function ClusterNode({
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <CustomTooltip content={`${isConnected ? "Connected" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected"}`}>
-                <PowerIcon
-                  className={cn(
-                    "rounded-full p-0.5",
-                    isConnected && "text-green-500 bg-green-100",
-                    !isConnected && isDisabled && "text-gray-300 cursor-not-allowed bg-gray-100",
-                    !isConnected && !isDisabled && "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600",
-                  )}
-                  onClick={isDisabled ? undefined : handleNodeConnect}
-                  size={18}
-                />
+              <CustomTooltip content={isConnected ? "Connected" : isConnecting ? "Connecting..." : isError ? "Connection failed — click to retry" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected"}>
+                {isConnecting ? (
+                  <Loader2
+                    className="animate-spin text-gray-500"
+                    size={21}
+                  />
+                ) : (
+                  <PowerIcon
+                    className={cn(
+                      "rounded-full p-0.5",
+                      isConnected && "text-green-500 bg-green-100",
+                      isError && "text-red-500 bg-red-100 cursor-pointer hover:text-red-600",
+                      !isConnected && !isError && isDisabled && "text-gray-300 cursor-not-allowed bg-gray-100",
+                      !isConnected && !isError && !isDisabled && "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600",
+                    )}
+                    onClick={isDisabled ? undefined : handleNodeConnect}
+                    size={21}
+                  />
+                )}
               </CustomTooltip>
               <CustomTooltip content="Dashboard">
                 <Button

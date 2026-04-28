@@ -108,6 +108,7 @@ export const connectionEpic = (store: Store) =>
       select(connectRejected),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
+        toast.error(`Connection rejected for ${connectionId}: ${errorMessage}`)
       }),
       ignoreElements(),
     ),
