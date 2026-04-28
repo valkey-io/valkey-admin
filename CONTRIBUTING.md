@@ -207,6 +207,14 @@ We use **ESLint v9.0.0+** to maintain code quality.
 4. **Submit PR:** Open a Pull Request against the `main` branch.
 5. **Approval:** All Pull Requests require at least one approval from a project contributor before they can be merged.
 
+### CI Notes
+
+PR CI is optimized for functional feedback first: linting, tests, and integration checks should catch code regressions quickly.
+
+Docker image builds and desktop packaging builds are treated as distribution work rather than required PR signals, so those workflows run on pushes to `main` and release tags, not on every PR branch update.
+
+Before requesting review on any PR, trigger the Docker, Linux, and macOS distribution workflows manually on your branch via `workflow_dispatch` and include the successful workflow runs in the PR.
+
 ---
 
 ## License

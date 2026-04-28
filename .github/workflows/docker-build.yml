@@ -2,17 +2,16 @@ name: Docker Build
 
 on:
   push:
+    branches:
+      - 'main'
     tags:
       - 'v*'
-  pull_request:
-  schedule:
-    - cron: '0 0 * * *'
   workflow_dispatch:
 
 env:
-  PUBLISH_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
-  PUBLISH_GHCR: ${{ github.repository == 'valkey-io/valkey-admin' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
-  PUBLISH_ECR: ${{ secrets.AWS_ROLE_TO_ASSUME != '' && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')) }}
+  PUBLISH_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+  PUBLISH_GHCR: ${{ github.repository == 'valkey-io/valkey-admin' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+  PUBLISH_ECR: ${{ secrets.AWS_ROLE_TO_ASSUME != '' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
 
 defaults:
   run:

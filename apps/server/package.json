@@ -7,9 +7,10 @@
     "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
     "build:vite": "vite build --config vite.config.ts",
     "lint": "eslint .",
-    "test": "npx tsx --test src/**/*.test.ts",
-    "test:watch": "npx tsx --test --watch src/**/*.test.ts",
-    "test:coverage": "npx tsx --test --experimental-test-coverage src/**/*.test.ts"
+    "test": "npx tsx --test src/__tests__/**/*.test.ts",
+    "test:watch": "npx tsx --test --watch src/__tests__/**/*.test.ts",
+    "test:coverage": "npx tsx --test --experimental-test-coverage src/__tests__/**/*.test.ts",
+    "test:integration": "npx tsx --test --test-concurrency=1 'src/__integration__/**/*.integration.test.ts'"
   },
   "dependencies": {
     "@valkey/valkey-glide": "^2.3.1",

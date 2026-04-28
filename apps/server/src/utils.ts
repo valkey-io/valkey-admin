@@ -187,13 +187,13 @@ export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterCli
 }
 
 export async function getClusterSlotStatsEnabled(clusterClient: GlideClusterClient) {
-  let clusterSlotStatsEnabled = false
   try {
-    await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "SLOTSRANGE", "0", "0"])
-    clusterSlotStatsEnabled = true
+    const result = await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "ORDERBY", "KEY-COUNT", "LIMIT", "1"])
+    // cpu-usec is only present when cluster-slot-stats-enabled is yes
+    return JSON.stringify(result).includes("cpu-usec")
   } catch {
     console.warn("Cluster slot-stats is not enabled.")
+    return false
   }
-  return clusterSlotStatsEnabled
 }
 

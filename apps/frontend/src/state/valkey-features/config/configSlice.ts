@@ -13,6 +13,10 @@ interface MonitorConfig {
   monitoringDuration: number,
   // How long to wait before monitoring again when using continuous mode (ms)
   monitoringInterval: number,
+  // Maximum number of commands captured per monitoring cycle
+  maxCommandsPerRun: number,
+  // Minimum access count for a key to be considered hot
+  cutoffFrequency: number,
 }
 interface ConfigState {
   [connectionId: string]: {
@@ -28,7 +32,7 @@ interface ConfigState {
 const initialState: ConfigState = {}
 const defaultConfig = (partial?: Partial<ConfigState[string]>): ConfigState[string] => ({
   darkMode: false,
-  monitoring: { monitoringDuration: 10000, monitoringInterval: 10000 },
+  monitoring: { monitoringDuration: 10000, monitoringInterval: 10000, maxCommandsPerRun: 1000000, cutoffFrequency: 100 },
   status: "updated",
   errorMessage: null,
   ...partial, // merge any passed-in values

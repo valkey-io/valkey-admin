@@ -26,22 +26,33 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
 
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
   const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitoringInterval ?? 10000)
+  const [maxCommandsPerRun, setMaxCommandsPerRun] = useState(config?.monitoring?.maxCommandsPerRun ?? 1000000)
+  const [cutoffFrequency, setCutoffFrequency] = useState(config?.monitoring?.cutoffFrequency ?? 100)
 
   useEffect(() => {
     if (config?.monitoring) {
       setMonitorDuration(config.monitoring.monitoringDuration)
       setMonitorInterval(config.monitoring.monitoringInterval)
+      setMaxCommandsPerRun(config.monitoring.maxCommandsPerRun)
+      setCutoffFrequency(config.monitoring.cutoffFrequency)
     }
-  }, [config?.monitoring?.monitoringDuration, config?.monitoring?.monitoringInterval])
+  }, [config?.monitoring])
 
   const hasConfigChanges =
     config?.monitoring &&
     (monitorDuration !== config.monitoring.monitoringDuration ||
-      monitorInterval !== config.monitoring.monitoringInterval)
+      monitorInterval !== config.monitoring.monitoringInterval ||
+      maxCommandsPerRun !== config.monitoring.maxCommandsPerRun ||
+      cutoffFrequency !== config.monitoring.cutoffFrequency)
 
   const handleStart = () => {
     const configPayload = hasConfigChanges
-      ? { epic: { name: "monitor", monitoringDuration: monitorDuration, monitoringInterval: monitorInterval } }
+      ? {
+        epic: {
+          name: "monitor", monitoringDuration: monitorDuration,
+          monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+        },
+      }
       : undefined
 
     dispatch(saveMonitorSettingsRequested({
@@ -89,6 +100,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
             </div>
             <Input
               aria-label="Monitor Duration"
+              min="1"
               onChange={(e) => setMonitorDuration(Number(e.target.value))}
               step="1000"
               style={{ width: "100px" }}
@@ -104,11 +116,52 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
             </div>
             <Input
               aria-label="Monitor Interval"
+              min="1"
               onChange={(e) => setMonitorInterval(Number(e.target.value))}
               step="1000"
               style={{ width: "100px" }}
               type="number"
               value={monitorInterval}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Typography variant="bodySm">Max Commands Per Run</Typography>
+              <TooltipIcon
+                description={"Maximum number of commands captured during each monitoring cycle."
+                  + " Higher values capture more data but use more memory."}
+                size={16}
+              />
+            </div>
+            <Input
+              aria-label="Max Commands Per Run"
+              min="1"
+              onChange={(e) => setMaxCommandsPerRun(Number(e.target.value))}
+              step="100000"
+              style={{ width: "140px" }}
+              type="number"
+              value={maxCommandsPerRun}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Typography variant="bodySm">Cutoff Frequency</Typography>
+              <TooltipIcon
+                description={"Minimum number of times a key must be accessed during a monitoring cycle"
+                  + " to be considered hot. Keys accessed fewer times are filtered out."}
+                size={16}
+              />
+            </div>
+            <Input
+              aria-label="Cutoff Frequency"
+              min="1"
+              onChange={(e) => setCutoffFrequency(Number(e.target.value))}
+              step="10"
+              style={{ width: "100px" }}
+              type="number"
+              value={cutoffFrequency}
             />
           </div>
 

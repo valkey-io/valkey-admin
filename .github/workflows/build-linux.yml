@@ -3,14 +3,14 @@ name: Build Linux
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: build-linux-artifact
     strategy:
       matrix:
         include:
@@ -24,8 +24,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-      with:
-        ref: ${{ github.event.pull_request.head.sha || github.sha }}
     - name: Use Node.js
       uses: actions/setup-node@v6
       with:
