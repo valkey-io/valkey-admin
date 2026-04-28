@@ -14,7 +14,10 @@ const isLoopbackHostname = (hostname: string) =>
 const isLoopbackOrigin = (origin: URL) =>
   LOCAL_PROTOCOLS.has(origin.protocol) && isLoopbackHostname(origin.hostname)
 
-const normalizeOrigin = (origin: string) => origin.trim().replace(/\/$/, "")
+const normalizeOrigin = (origin: string) => {
+  const trimmed = origin.trim()
+  return trimmed === "file://" ? trimmed : trimmed.replace(/\/$/, "")
+}
 
 const parseConfiguredOrigins = (configuredOrigins: string | undefined) =>
   new Set(

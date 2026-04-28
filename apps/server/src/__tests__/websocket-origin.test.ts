@@ -1,8 +1,8 @@
 import { afterEach, describe, it } from "node:test"
 import assert from "node:assert"
-import type { IncomingMessage } from "http"
 import { DEPLOYMENT_TYPE } from "valkey-common"
 import { isAllowedWebSocketOrigin } from "../websocket-origin"
+import type { IncomingMessage } from "http"
 
 const makeRequest = (headers: Record<string, string | undefined>) =>
   ({ headers }) as IncomingMessage
