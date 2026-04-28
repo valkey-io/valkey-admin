@@ -102,29 +102,25 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId, key, keyType, ttl, size, collectionSize } =
         action.payload
-      if (state[connectionId]) {
-        const existingKey = state[connectionId].keys.find(
-          (k) => k.name === key,
-        )
-        if (existingKey) {
-          existingKey.type = keyType
-          existingKey.ttl = ttl
-          if (size !== undefined) existingKey.size = size
-          if (collectionSize !== undefined)
-            existingKey.collectionSize = collectionSize
-        } else {
-          state[connectionId].keys.push({
-            name: key, type: keyType, ttl, size,
-            ...(collectionSize !== undefined ? { collectionSize } : {}),
-          })
-        } else {
-          state[connectionId].keys.push({
-            name: key, type: keyType, ttl, size,
-            ...(collectionSize !== undefined ? { collectionSize } : {}),
-          })
-        }
-        delete state[connectionId].keyTypeLoading[key]
+      if (!state[connectionId]) {
+        state[connectionId] = { ...defaultConnectionState }
       }
+      const existingKey = state[connectionId].keys.find(
+        (k) => k.name === key,
+      )
+      if (existingKey) {
+        existingKey.type = keyType
+        existingKey.ttl = ttl
+        if (size !== undefined) existingKey.size = size
+        if (collectionSize !== undefined)
+          existingKey.collectionSize = collectionSize
+      } else {
+        state[connectionId].keys.push({
+          name: key, type: keyType, ttl, size,
+          ...(collectionSize !== undefined ? { collectionSize } : {}),
+        })
+      }
+      delete state[connectionId].keyTypeLoading[key]
     },
     getKeyTypeFailed: (
       state,
