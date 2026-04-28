@@ -211,9 +211,9 @@ We use **ESLint v9.0.0+** to maintain code quality.
 
 PR CI is optimized for functional feedback first: linting, tests, and integration checks should catch code regressions quickly.
 
-Docker image builds are treated as packaging/distribution work rather than a required PR signal, so the Docker publish workflow runs on pushes to `main` and release tags, not on every PR branch update.
+Docker image builds and desktop packaging builds are treated as distribution work rather than required PR signals, so those workflows run on pushes to `main` and release tags, not on every PR branch update.
 
-If the Docker workflow fails on `main`, fix it in a new branch. Validate the image build locally first, then open a PR with the packaging fix. For packaging-focused branch validation in GitHub Actions, trigger the Docker workflow manually via `workflow_dispatch`; on non-`main` branches this validates the build without publishing images.
+Before requesting review on any PR, trigger the Docker, Linux, and macOS distribution workflows manually on your branch via `workflow_dispatch` and include the successful workflow runs in the PR.
 
 ---
 
