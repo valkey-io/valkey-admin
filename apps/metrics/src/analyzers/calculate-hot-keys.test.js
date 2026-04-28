@@ -12,7 +12,7 @@ describe("calculateHotKeysFromMonitor", () => {
       { ts: 6, command: "  GET   foo   " }, // extra spaces handled
     ]
 
-    const result = calculateHotKeysFromMonitor({cutoff: 1}, rows)
+    const result = calculateHotKeysFromMonitor({ cutoff: 1 }, rows)
 
     // CUT_OFF_FREQUENCY = 1, so "bar", "field" are filtered out (1 hit each) while foo gets 4 GETs (no pun intended)
     expect(result).toEqual([
@@ -28,7 +28,7 @@ describe("calculateHotKeysFromMonitor", () => {
       { ts: 4, command: "PING" }, // ignored
     ]
 
-    const result = calculateHotKeysFromMonitor({cutoff: 1}, rows)
+    const result = calculateHotKeysFromMonitor({ cutoff: 1 }, rows)
 
     // foo: 2 hits, bar/baz/user:1/user:2: 1 hit each, so only foo survives cutoff > 1
     expect(result).toEqual([
@@ -43,7 +43,7 @@ describe("calculateHotKeysFromMonitor", () => {
       { ts: 3, command: "DEL foo" },
     ]
 
-    const result = calculateHotKeysFromMonitor({cutoff: 1}, rows)
+    const result = calculateHotKeysFromMonitor({ cutoff: 1 }, rows)
 
     expect(result).toEqual([])
   })

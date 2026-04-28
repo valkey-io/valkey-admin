@@ -76,9 +76,9 @@ async function main() {
   })
 
   app.get("/hot-keys", async (req, res) => {
-    const cutoff = getConfig().epics.find(e => e.name === "monitor")?.cutoff_frequency ?? 100
+    const cutoff = getConfig().epics.find((e) => e.name === "monitor")?.cutoff_frequency ?? 100
     if (req.query.useHotSlots === "true") {
-      const hotKeys = await calculateHotKeysFromHotSlots(client, {count: Number(req.query.count) || 50, cutoff}).then(enrichHotKeys(client))
+      const hotKeys = await calculateHotKeysFromHotSlots(client, { count: Number(req.query.count) || 50, cutoff }).then(enrichHotKeys(client))
       return res.json({ hotKeys, nodeId: ownConnectionId })
     }
     else useMonitor(res, client, ownConnectionId, Number(req.query.count) || 50)

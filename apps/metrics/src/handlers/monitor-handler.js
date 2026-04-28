@@ -15,7 +15,7 @@ const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
 })
 
 export const useMonitor = async (res, client, nodeId, limit = 50) => {
-  const cutoff = getConfig().epics.find(e => e.name === "monitor")?.cutoff_frequency ?? 100
+  const cutoff = getConfig().epics.find((e) => e.name === "monitor")?.cutoff_frequency ?? 100
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR)
   try {
     if (isRunning && Date.now() <= checkAt) return res.json({ checkAt })
