@@ -39,6 +39,7 @@ import {
   getInitialClient,
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
+import { isAllowedWebSocketOrigin } from "./websocket-origin"
 import type { Request, Response } from "express"
 
 interface AliveWebSocket extends WebSocket {
@@ -81,7 +82,7 @@ app.get("*", (_req: Request, res: Response) => {
   res.sendFile(path.join(frontendDist, "index.html"))
 })
 
-const wss = new WebSocketServer({ server })
+const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
@@ -158,6 +159,18 @@ const interval = setInterval(() => {
     ws.ping()
   })
 }, 30000)
+
+server.on("upgrade", (req, socket, head) => {
+  if (!isAllowedWebSocketOrigin(req)) {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n")
+    socket.destroy()
+    return
+  }
+
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit("connection", ws, req)
+  })
+})
 
 wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
@@ -285,6 +298,6 @@ function shutdown() {
     process.exit(0)
   })
 }
-// Not sure if this will impact kubernetes usecase
+// Not sure if this will impact kubernetes use case
 process.on("SIGINT", shutdown)
 process.on("SIGTERM", shutdown)
