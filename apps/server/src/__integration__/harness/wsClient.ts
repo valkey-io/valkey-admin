@@ -28,8 +28,9 @@ export class WsClient {
 
   static connect(url: string, timeoutMs = 10000): Promise<WsClient> {
     return new Promise((resolve, reject) => {
+      const { protocol, host } = new URL(url)
       const socket = new WebSocket(url, {
-        origin: "http://localhost:5173",
+        origin: `${protocol === "wss:" ? "https:" : "http:"}//${host}`,
       })
       const timer = setTimeout(() => {
         socket.terminate()
