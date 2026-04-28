@@ -119,6 +119,12 @@ export function ClusterNode({
     </div>
   )
 
+  const powerIconTooltip = isConnected   ? "Connected"
+    : isConnecting ? "Connecting..."
+      : isError      ? "Connection failed — click to retry"
+        : isDisabled   ? `Max connections of ${MAX_CONNECTIONS} reached`
+          :                "Not Connected"
+
   return (
     <div className="w-full">
       <TooltipProvider>
@@ -168,7 +174,7 @@ export function ClusterNode({
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <CustomTooltip content={isConnected ? "Connected" : isConnecting ? "Connecting..." : isError ? "Connection failed — click to retry" : isDisabled ? `Max connections of ${MAX_CONNECTIONS} reached` : "Not Connected"}>
+              <CustomTooltip content={powerIconTooltip}>
                 {isConnecting ? (
                   <Loader2
                     className="animate-spin text-gray-500"
@@ -177,11 +183,11 @@ export function ClusterNode({
                 ) : (
                   <PowerIcon
                     className={cn(
-                      "rounded-full p-0.5",
-                      isConnected && "text-green-500 bg-green-100",
-                      isError && "text-red-500 bg-red-100 cursor-pointer hover:text-red-600",
-                      !isConnected && !isError && isDisabled && "text-gray-300 cursor-not-allowed bg-gray-100",
-                      !isConnected && !isError && !isDisabled && "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600",
+                      "rounded-full p-0.5 border-2",
+                      isConnected && "text-green-500 border-green-500",
+                      isError && "text-red-500 cursor-pointer border-red-500",
+                      !isConnected && !isError && isDisabled && "text-gray-300 border-gray-300 cursor-not-allowed",
+                      !isConnected && !isError && !isDisabled && "text-gray-400 border-gray-400 cursor-pointer",
                     )}
                     onClick={isDisabled ? undefined : handleNodeConnect}
                     size={21}
