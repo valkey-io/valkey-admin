@@ -53,7 +53,7 @@ const ACCESS_COMMANDS = [
 const MULTI_KEY_COMMANDS = new Set(["mget", "json.mget"])
 const INTERLEAVED_KEY_COMMANDS = new Set(["mset"])
 
-export const calculateHotKeysFromMonitor = R.curry(({ limit = 50, cutoff = 100 } = {}, rows) =>
+export const calculateHotKeysFromMonitor = ({ limit, cutoff }) => (rows) =>
   R.pipe(
     R.reduce((acc, { command }) => {
       const [cmd, ...args] = command.split(" ").filter(Boolean)
@@ -74,8 +74,7 @@ export const calculateHotKeysFromMonitor = R.curry(({ limit = 50, cutoff = 100 }
     R.sort(R.descend(R.last)),
     R.reject(([, count]) => count <= cutoff),
     R.take(limit),
-  )(rows),
-)
+  )(rows)
 
 // Must have maxmemory-policy set to lfu*
 export const calculateHotKeysFromHotSlots = async (client, { count = 50, cutoff = 100 } = {}) => {
