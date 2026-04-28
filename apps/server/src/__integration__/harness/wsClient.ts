@@ -28,7 +28,9 @@ export class WsClient {
 
   static connect(url: string, timeoutMs = 10000): Promise<WsClient> {
     return new Promise((resolve, reject) => {
-      const socket = new WebSocket(url)
+      const socket = new WebSocket(url, {
+        origin: "http://localhost:5173",
+      })
       const timer = setTimeout(() => {
         socket.terminate()
         reject(new Error(`WS connect timed out after ${timeoutMs}ms: ${url}`))
