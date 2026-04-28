@@ -21,6 +21,12 @@ This option requires Valkey 8.0 or later, which introduced `cluster-slot-stats-e
 
 ---
 
+### I just connected to my cluster and see multiple unresponsive nodes
+
+**Fix** Metrics servers need a moment to start up. 
+
+---
+
 ### Intermittent "No primary node found" when connecting to large clusters via discovery endpoint
 
 When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a [known issue in Valkey GLIDE](https://github.com/valkey-io/valkey-glide/issues/5809) where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
