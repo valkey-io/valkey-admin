@@ -77,7 +77,7 @@ export const calculateHotKeysFromMonitor = ({ limit, cutoff }) => (rows) =>
   )(rows)
 
 // Must have maxmemory-policy set to lfu*
-export const calculateHotKeysFromHotSlots = async (client, { count = 50, cutoff = 100 } = {}) => {
+export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) => {
   const hotSlots = await getHotSlots(client)
   const slotPromises = hotSlots.map(async (slot) => {
     const slotId = slot["slotId"]
@@ -106,7 +106,7 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50, cutoff 
 
   const heap = new Heap((a, b) => a.freq - b.freq)
   for (const { key, freq } of allKeyFreqs) {
-    if (freq <= cutoff) continue
+    if (freq <= 1) continue
     if (heap.size() < count){
       heap.push({ key, freq })
     }

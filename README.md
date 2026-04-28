@@ -167,7 +167,9 @@ Uses the `CLUSTER SLOT-STATS` command to identify hot slots by CPU usage, networ
 - LFU eviction policy (`allkeys-lfu` or `volatile-lfu`) configured on the cluster
 - Cluster mode (not available for standalone instances)
 
-When both conditions are met, Valkey Admin queries each shard's slot statistics and identifies the hottest slots by `cpu-usec`. It then resolves the keys within those slots to surface the actual hot keys.
+When both conditions are met, Valkey Admin queries each shard's slot statistics and identifies the hottest slots by `cpu-usec`. It then resolves the keys within those slots to surface the hottest keys in those slots.
+
+> **Note:** The access count shown for hot slots keys is the LFU logarithmic frequency (0–255), not a raw access count. A key accessed millions of times may show a frequency of ~70. 
 
 ### Monitor-based Detection
 
@@ -202,7 +204,6 @@ When hot slots requirements are not met, Valkey Admin prompts you to start monit
 - **Metrics servers are per-primary only** — no independent monitoring of replica nodes
 - **No RBAC within the app** — any connected user can run any command the Valkey ACL allows
 - **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
-
 
 
 ## Contributing

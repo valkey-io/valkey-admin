@@ -48,7 +48,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 4, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 4 })
 
       expect(result).toHaveLength(4)
       // Results should be in heap order (not necessarily sorted)
@@ -76,7 +76,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 3, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 3 })
 
       // Should only return top 3
       expect(result).toHaveLength(3)
@@ -107,7 +107,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       // Only key1 should be returned (freq > 1)
       expect(result).toHaveLength(1)
@@ -138,7 +138,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       // Should have scanned and found all 4 keys
       expect(result.length).toBe(4)
@@ -168,7 +168,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       // Should have called OBJECT FREQ for each key
       expect(freqCalls).toContain("key1")
@@ -203,7 +203,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       // Should have scanned all 3 slots
       expect(scanCalls).toHaveLength(3)
@@ -218,7 +218,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       getHotSlots.mockResolvedValue([])
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       expect(result).toEqual([])
     })
@@ -237,7 +237,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       })
 
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
-      const result = await calculateHotKeysFromHotSlots(client, { count: 10, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 10 })
 
       expect(result).toEqual([])
     })
@@ -261,7 +261,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
       const { calculateHotKeysFromHotSlots } = await import("./calculate-hot-keys.js")
 
       // Request only top 2
-      const result = await calculateHotKeysFromHotSlots(client, { count: 2, cutoff: 1 })
+      const result = await calculateHotKeysFromHotSlots(client, { count: 2 })
 
       expect(result).toHaveLength(2)
 
