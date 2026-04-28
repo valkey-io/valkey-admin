@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   build:
+    name: build-linux-artifact
     strategy:
       matrix:
         include:
