@@ -27,7 +27,9 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
       password,
       tls,
     })
+    monitorClient.on("error", (err) => console.error("[monitor] ioredis client error:", err.message))
     const monitor = await monitorClient.monitor()
+    monitor.on("error", (err) => console.error("[monitor] monitor stream error:", err.message))
 
     const rows = []
     const overflow$ = new Subject()

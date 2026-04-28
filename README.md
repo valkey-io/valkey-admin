@@ -99,6 +99,7 @@ Valkey Admin is configured through environment variables. All variables are opti
 | `DEPLOYMENT_MODE` | Controls metrics server orchestration. If `Web`, all metrics servers for cluster nodes start on any successful connection. If `Electron`, the metrics server only starts when you've successfully connected to a particular node. | `Electron` for Desktop and `Web` for Docker |
 | `TTL` | Metrics server health check timeout (ms) | `60000` |
 | `TOPOLOGY_REFRESH_INTERVAL` | Cluster topology refresh interval (ms) | `30000` |
+| `HOT_KEYS_COUNT` | Maximum number of hot keys returned per query | `50` |
 
 ### Pre-configured Metrics Collection
 
@@ -119,7 +120,7 @@ Set these to start all metrics servers for your cluster on startup, before manua
 
 ### Metrics Server
 
-These are set automatically when the server spawns metrics processes. Only relevant for Kubernetes sidecar deployments:
+These are set automatically when the server spawns metrics processes. 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -151,6 +152,59 @@ Each metric collector (epic) supports the following options:
 | `poll_ms` | Collection interval (ms) | varies by epic |
 | `data_retention_mb` | Max disk space per epic (MB). Oldest files evicted when exceeded. | `10` |
 | `data_retention_days` | Files older than this are deleted during daily cleanup. | `30` |
+
+## Hot Keys Detection
+
+Valkey Admin supports two methods for detecting hot keys across your cluster:
+
+### Hot Slots (Recommended)
+
+Uses the `CLUSTER SLOT-STATS` command to identify hot slots by CPU usage, network ingress, and network egress. This is the preferred method as it has no performance impact on your cluster.
+
+**Requirements:**
+- Valkey 8.0+ (the `CLUSTER SLOT-STATS` command was introduced in Valkey 8.0)
+- `cluster-slot-stats-enabled` set to `yes`
+- LFU eviction policy (`allkeys-lfu` or `volatile-lfu`) configured on the cluster
+- Cluster mode (not available for standalone instances)
+
+When both conditions are met, Valkey Admin queries each shard's slot statistics and identifies the hottest slots by `cpu-usec`. It then resolves the keys within those slots to surface the hottest keys in those slots.
+
+> **Note:** The access count shown for hot slots keys is the LFU logarithmic frequency (0–255), not a raw access count. A key accessed millions of times may show a frequency of ~70. 
+
+### Monitor-based Detection
+
+Uses the Valkey `MONITOR` command to capture all commands in real time, then aggregates key access frequency from the command stream. Works with any Valkey or Redis version, in both standalone and cluster modes.
+
+**How it works:**
+
+When you start monitoring, two settings control the sampling behavior:
+
+- **Duration:** How long each sampling run captures commands (default: 10 seconds). During this window, the `MONITOR` command streams every command executed on the server, and the metrics server counts key access frequency.
+- **Interval:** How long to wait between sampling runs (default: 10 seconds). After each duration completes, the metrics server pauses for the interval before starting the next run.
+
+This creates a repeating cycle: capture for *duration*, pause for *interval*, capture again. The hot keys displayed are from the most recent sampling run.
+
+![Monitoring](screenshots/monitoring.png)
+
+**Cluster behavior:**
+
+- **Web/Docker mode:** Monitoring starts on all primary nodes in the cluster simultaneously, regardless of which node you connected to. The reconcile loop ensures every primary has a metrics server, and the monitor command is sent to all of them.
+- **Desktop (Electron) mode:** Monitoring only starts on nodes you have explicitly connected to. If you connected to one node in a 20-shard cluster, only that node is monitored. Connect to additional nodes individually to monitor them.
+
+In both modes, hot keys are aggregated across all monitored nodes and sorted by access count.
+
+**Trade-offs:**
+- `MONITOR` has a performance impact on the server — it streams every command to the monitoring client
+- Best suited for short diagnostic sessions, not continuous monitoring
+
+When hot slots requirements are not met, Valkey Admin prompts you to start monitoring to calculate hot keys.
+
+## Notes
+- **No built-in authentication** — relies on external auth (Cognito, reverse proxy) for web deployments
+- **Metrics servers are per-primary only** — no independent monitoring of replica nodes
+- **No RBAC within the app** — any connected user can run any command the Valkey ACL allows
+- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
+
 
 ## Contributing
 
