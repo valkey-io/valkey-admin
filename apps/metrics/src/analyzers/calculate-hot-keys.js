@@ -50,12 +50,10 @@ const ACCESS_COMMANDS = [
   "json.set", "json.del", "json.numincrby",
 ]
 
-const CUT_OFF_FREQUENCY = 1
-
 const MULTI_KEY_COMMANDS = new Set(["mget", "json.mget"])
 const INTERLEAVED_KEY_COMMANDS = new Set(["mset"])
 
-export const calculateHotKeysFromMonitor = (rows, limit = 50) =>
+export const calculateHotKeysFromMonitor = R.curry(({limit = 50, cutoff = 100} = {}, rows) =>
   R.pipe(
     R.reduce((acc, { command }) => {
       const [cmd, ...args] = command.split(" ").filter(Boolean)
@@ -74,12 +72,13 @@ export const calculateHotKeysFromMonitor = (rows, limit = 50) =>
     }, {}),
     R.toPairs,
     R.sort(R.descend(R.last)),
-    R.reject(([, count]) => count <= CUT_OFF_FREQUENCY),
+    R.reject(([, count]) => count <= cutoff),
     R.take(limit),
   )(rows)
+)
 
 // Must have maxmemory-policy set to lfu*
-export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
+export const calculateHotKeysFromHotSlots = async (client, {count = 50, cutoff = 100} = {}) => {
   const hotSlots = await getHotSlots(client)
   const slotPromises = hotSlots.map(async (slot) => {
     const slotId = slot["slotId"]
@@ -108,7 +107,7 @@ export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
 
   const heap = new Heap((a, b) => a.freq - b.freq)
   for (const { key, freq } of allKeyFreqs) {
-    if (freq <= 1) continue
+    if (freq <= cutoff) continue
     if (heap.size() < count){
       heap.push({ key, freq })
     }
