@@ -75,6 +75,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
       }
       const url = new URL("/hot-keys", metricsServerURI)
       if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
+      if (process.env.HOT_KEYS_COUNT) url.searchParams.set("count", process.env.HOT_KEYS_COUNT)
       try {
         console.debug("[Hot keys] Fetching from:", url.href)
         const initialResponse = await fetch(url)

@@ -13,21 +13,20 @@ const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
   startedAt: startedAt ?? null,
 })
 
-export const useMonitor = async (res, client, nodeId) => {
+export const useMonitor = async (res, client, nodeId, limit = 50) => {
   const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR)
   try {
     if (isRunning && Date.now() <= checkAt) return res.json({ checkAt })
 
     const rows = await Streamer.monitor()
     const lastCollectedAt = rows.at(-1)?.ts ? rows.at(-1).ts * 1000 : null
-    const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
+    const hotKeys = await Promise.resolve(rows).then((r) => calculateHotKeysFromMonitor(r, limit)).then(enrichHotKeys(client))
     const monitorMeta = isRunning ? toResponse(getCollectorMeta(MONITOR)) : { monitorRunning: false, checkAt: null, startedAt: null }
     return res.json({ hotKeys, nodeId, lastCollectedAt, ...monitorMeta })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
 }
-
 export const monitorHandler = async (action, cfg) => {
   try {
     const meta = readMonitorMetadata()

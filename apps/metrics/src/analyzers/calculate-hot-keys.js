@@ -55,7 +55,7 @@ const CUT_OFF_FREQUENCY = 1
 const MULTI_KEY_COMMANDS = new Set(["mget", "json.mget"])
 const INTERLEAVED_KEY_COMMANDS = new Set(["mset"])
 
-export const calculateHotKeysFromMonitor = (rows) =>
+export const calculateHotKeysFromMonitor = (rows, limit = 50) =>
   R.pipe(
     R.reduce((acc, { command }) => {
       const [cmd, ...args] = command.split(" ").filter(Boolean)
@@ -75,6 +75,7 @@ export const calculateHotKeysFromMonitor = (rows) =>
     R.toPairs,
     R.sort(R.descend(R.last)),
     R.reject(([, count]) => count <= CUT_OFF_FREQUENCY),
+    R.take(limit),
   )(rows)
 
 // Must have maxmemory-policy set to lfu*

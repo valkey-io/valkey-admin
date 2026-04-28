@@ -80,7 +80,7 @@ async function main() {
       const hotKeys = await calculateHotKeysFromHotSlots(client, req.query.count).then(enrichHotKeys(client))
       return res.json({ hotKeys, nodeId: ownConnectionId })
     }
-    else useMonitor(res, client, ownConnectionId)
+    else useMonitor(res, client, ownConnectionId, req.query.count)
   })
 
   app.post("/update-config", async (req, res) => {
