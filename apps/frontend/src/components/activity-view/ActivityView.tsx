@@ -111,7 +111,7 @@ export const ActivityView = () => {
     setSelectedKey(keyName)
 
     const keyInfo = keys.find((k) => k.name === keyName)
-    if (R.isNotEmpty(keyInfo) && !keyInfo!.type) {
+    if (keyInfo && !keyInfo.type) {
       dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }))
     }
   }
