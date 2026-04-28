@@ -137,6 +137,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
       }), {}),
       R.values,
       R.sort(R.descend(R.nth(1) as (x: HotKeyTuple) => number)),
+      R.take(Number(process.env.HOT_KEYS_COUNT) || 50),
     )(results)
     const { checkAt, nodeId } = results[0]
     const monitorRunning = results.every((r) => r.monitorRunning)
