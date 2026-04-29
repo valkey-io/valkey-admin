@@ -272,7 +272,7 @@ async function scanCluster(
   return allKeys
 }
 
-const limit = pLimit(10) 
+const limit = pLimit(100) 
 export async function getKeys(
   client: GlideClient | GlideClusterClient,
   ws: WebSocket,

@@ -147,7 +147,7 @@ export const retryDelay = (retryCount: number): number => {
 export const VALKEY_CLIENT = {
   SCAN: {
     defaultPayloadPattern: "*",
-    defaultCount: 50,
+    defaultCount: 500,
   } ,
   KEY_VALUE_SIZE_LIMIT: 2048, // 2KiB
   MESSAGES: {
