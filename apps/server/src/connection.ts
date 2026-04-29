@@ -24,6 +24,17 @@ import {
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
+// Dedup concurrent cluster-client creations by clusterId.
+// While createClusterValkeyClient is in flight, sibling connectors arriving at
+// the same clusterId await this promise instead of creating a duplicate.
+// The entry is held until the creator commits the cluster client into `clients`
+// in the inner finally below, so a later arriver always sees either the
+// in-flight promise or the committed clients-map entry — never a gap.
+const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
+
+// Test-only: reset in-flight state between cases.
+export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
+
 export async function connectToValkey(
   ws: WebSocket,
   payload: {
@@ -102,6 +113,7 @@ export async function connectToValkey(
       
       if (await belongsToCluster(standaloneClient)) {
         let shouldCloseClusterClientOnError
+        let ownInflight: Promise<GlideClusterClient> | undefined
 
         const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
         standaloneClient.close()
@@ -112,8 +124,23 @@ export async function connectToValkey(
           clusterClient = existingClusterConnection.client
           shouldCloseClusterClientOnError = false
         } else {
-          clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
-          shouldCloseClusterClientOnError = true
+          const inflight = inFlightClusterClients.get(clusterId)
+          if (inflight) {
+            clusterClient = await inflight
+            shouldCloseClusterClientOnError = false
+          } else {
+            ownInflight = createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+            inFlightClusterClients.set(clusterId, ownInflight)
+            try {
+              clusterClient = await ownInflight
+              shouldCloseClusterClientOnError = true
+            } catch (err) {
+              // Surface failure to siblings awaiting our promise and clear the slot
+              // so the next connector can retry instead of inheriting a permanent reject.
+              inFlightClusterClients.delete(clusterId)
+              throw err
+            }
+          }
         }
 
         try {
@@ -160,6 +187,9 @@ export async function connectToValkey(
 
           return clusterClient
         } finally {
+          if (ownInflight && inFlightClusterClients.get(clusterId) === ownInflight) {
+            inFlightClusterClients.delete(clusterId)
+          }
           if (shouldCloseClusterClientOnError) {
             try {
               clusterClient.close()
