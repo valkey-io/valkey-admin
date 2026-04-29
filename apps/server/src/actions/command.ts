@@ -12,7 +12,7 @@ export const sendRequested = withDeps<Deps, void>(
     const connection = clients.get(connectionId!)
 
     if (connection) {
-      await sendValkeyRunCommand(connection.client, ws, action.payload as CommandAction)
+      sendValkeyRunCommand(connection.client, ws, action.payload as CommandAction)
       return
     }
 
