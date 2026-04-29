@@ -39,6 +39,27 @@ type ClusterCommit = {
   discoveredClusterNodes: ClusterNodeMap
 }
 
+type StandaloneConnectionDetails = {
+  keyEvictionPolicy: KeyEvictionPolicy
+  jsonModuleAvailable: boolean
+}
+
+type ClusterConnectionDetails = StandaloneConnectionDetails & {
+  clusterId: string
+  clusterSlotStatsEnabled: boolean
+}
+
+type StandaloneConnectFulfilledPayload = {
+  connectionId: string
+  connectionDetails: StandaloneConnectionDetails
+}
+
+type ClusterConnectFulfilledPayload = {
+  connectionId: string
+  address: { host: string; port: number }
+  connectionDetails: ClusterConnectionDetails
+}
+
 // Dedup concurrent cluster-client creations by clusterId.
 const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
 
@@ -145,9 +166,17 @@ async function connectToValkeyLocked(
           discoveredClusterNodes,
         })
       }
-      await sendStandaloneConnectFulfilled(existingConnection.client as GlideClient, connectionId, ws)
+      const existingStandalone = existingConnection.client as GlideClient
+      const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+        getKeyEvictionPolicy(existingStandalone),
+        checkJsonModuleAvailability(existingStandalone),
+      ])
+      sendStandaloneConnectFulfilled(ws, {
+        connectionId,
+        connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+      })
       subscribe(connectionId, ws)
-      return existingConnection.client
+      return existingStandalone
     }
     
     standaloneClient = await createStandaloneValkeyClient({
@@ -239,7 +268,14 @@ async function connectToValkeyLocked(
 
     subscribe(payload.connectionId, ws)
 
-    await sendStandaloneConnectFulfilled(standaloneClient, connectionId, ws)
+    const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+      getKeyEvictionPolicy(standaloneClient),
+      checkJsonModuleAvailability(standaloneClient),
+    ])
+    sendStandaloneConnectFulfilled(ws, {
+      connectionId,
+      connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+    })
 
     return standaloneClient
     
@@ -367,35 +403,22 @@ async function commitClusterConnection(
   subscribe(connectionId, ws)
 
   sendAddCluster(ws, clusterId, discoveredClusterNodes)
-  sendClusterConnectFulfilled(
-    ws,
+  sendClusterConnectFulfilled(ws, {
     connectionId,
-    clusterId,
-    keyEvictionPolicy,
-    clusterSlotStatsEnabled,
-    jsonModuleAvailable,
-    seedAddress,
-  )
+    address: seedAddress,
+    connectionDetails: {
+      clusterId,
+      keyEvictionPolicy,
+      clusterSlotStatsEnabled,
+      jsonModuleAvailable,
+    },
+  })
 
   return clusterClient
 }
 
-async function sendStandaloneConnectFulfilled(client: GlideClient, connectionId: string, ws: WebSocket) {
-  const keyEvictionPolicy = await getKeyEvictionPolicy(client)
-  const jsonModuleAvailable = await checkJsonModuleAvailability(client)
-
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CONNECTION.standaloneConnectFulfilled,
-      payload: {
-        connectionId,
-        connectionDetails: {
-          keyEvictionPolicy,
-          jsonModuleAvailable,
-        },
-      },
-    }),
-  )
+function sendStandaloneConnectFulfilled(ws: WebSocket, payload: StandaloneConnectFulfilledPayload) {
+  ws.send(JSON.stringify({ type: VALKEY.CONNECTION.standaloneConnectFulfilled, payload }))
 }
 
 export async function discoverCluster(
@@ -471,30 +494,8 @@ function sendAddCluster(
   )
 }
 
-function sendClusterConnectFulfilled(
-  ws: WebSocket,
-  connectionId: string,
-  clusterId: string,
-  keyEvictionPolicy: KeyEvictionPolicy,
-  clusterSlotStatsEnabled: boolean,
-  jsonModuleAvailable: boolean,
-  address: { host: string; port: number; },
-) {
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CONNECTION.clusterConnectFulfilled,
-      payload: {
-        connectionId,
-        connectionDetails: {
-          clusterId,
-          keyEvictionPolicy,
-          clusterSlotStatsEnabled,
-          jsonModuleAvailable,
-        },
-        address,
-      },
-    }),
-  )
+function sendClusterConnectFulfilled(ws: WebSocket, payload: ClusterConnectFulfilledPayload) {
+  ws.send(JSON.stringify({ type: VALKEY.CONNECTION.clusterConnectFulfilled, payload }))
 }
 
 export async function getExistingConnection(
