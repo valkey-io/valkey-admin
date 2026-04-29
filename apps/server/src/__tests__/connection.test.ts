@@ -3,7 +3,7 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
-import { connectToValkey, getExistingConnection, teardownConnection } from "../connection"
+import { _resetInFlightClusterClients, connectToValkey, getExistingConnection, teardownConnection } from "../connection"
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
@@ -53,6 +53,7 @@ describe("connectToValkey", () => {
     clients.clear()
     connectedNodesByCluster.clear()
     resetNodeWatchers()
+    _resetInFlightClusterClients()
   })
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {
@@ -198,6 +199,77 @@ describe("connectToValkey", () => {
 
   it("should connect to cluster Valkey instance", async () => {
     await runClusterConnectionTest()
+  })
+
+  it("dedupes cluster client creation across concurrent connectors to the same cluster", async () => {
+
+    let standaloneId = 0
+    const buildStandalone = () => ({
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        return []
+      }),
+      close: mock.fn(),
+      _id: ++standaloneId,
+    })
+
+    const sharedClusterClient = {
+      info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    const originalCreateClusterClient = GlideClusterClient.createClient
+
+    GlideClient.createClient = mock.fn(async () => buildStandalone() as any)
+
+    // Delay cluster client creation so both connectors race within the in-flight window.
+    GlideClusterClient.createClient = mock.fn(async () => {
+      await new Promise((res) => setTimeout(res, 25))
+      return sharedClusterClient as any
+    })
+
+    try {
+      const payloadA = { ...DEFAULT_PAYLOAD, connectionId: "conn-A" }
+      const payloadB = { ...DEFAULT_PAYLOAD, connectionId: "conn-B" }
+
+      await Promise.all([
+        connectToValkey(mockWs, payloadA, clients, connectedNodesByCluster, metricsServerMap, {}),
+        connectToValkey(mockWs, payloadB, clients, connectedNodesByCluster, metricsServerMap, {}),
+      ])
+
+      const createCalls = (GlideClusterClient.createClient as any).mock.calls.length
+      assert.strictEqual(createCalls, 1, "expected exactly one cluster client creation")
+
+      const a = clients.get("conn-A")
+      const b = clients.get("conn-B")
+      assert.ok(a && b)
+      assert.strictEqual(a.client, sharedClusterClient)
+      assert.strictEqual(b.client, sharedClusterClient)
+      assert.strictEqual(a.clusterId, b.clusterId)
+    } finally {
+      GlideClient.createClient = originalCreateClient
+      GlideClusterClient.createClient = originalCreateClusterClient
+    }
   })
 
   it("should use iamConfig credentials when authType is iam", async () => {
