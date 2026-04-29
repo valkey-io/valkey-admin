@@ -81,7 +81,8 @@ const sendCommandLogsError = (
 }
 
 const fetchCommandLogs = async (metricsServerURI: string, commandLogType: CommandLogType): Promise<CommandLogResponse> => {
-  const url = `${metricsServerURI}/commandlog?type=${commandLogType}`
+  const count = process.env.COMMAND_LOGS_COUNT || "100"
+  const url = `${metricsServerURI}/commandlog?type=${commandLogType}&count=${count}`
   const initialResponse = await fetch(url)
   const parsed: CommandLogResponse = await initialResponse.json() as CommandLogResponse
   if (parsed.checkAt) {
@@ -126,14 +127,19 @@ export const commandLogsRequested = withDeps<Deps, void>(
     }
 
     const aggregatedRows = R.sort(
-      R.descend(R.prop("ts")),
+      R.descend((row: any) => {
+        const v = row.values?.[0]
+        return v?.duration_us ?? v?.size ?? row.ts
+      }),
       results.flatMap((r) => r.rows.map((row) => ({ ...row, nodeId: r.nodeId }))),
     )
+    const limit = Number(process.env.COMMAND_LOGS_COUNT) || 100
+    const limitedRows = aggregatedRows.slice(0, limit)
     const count = results[0]?.count ?? 0
     sendCommandLogsFulfilled(
       ws,
       clusterId as string,
-      { rows: aggregatedRows, count, checkAt: 0 } as CommandLogResponse,
+      { rows: limitedRows, count, checkAt: 0 } as CommandLogResponse,
       commandLogType,
       nodeErrors,
     )
