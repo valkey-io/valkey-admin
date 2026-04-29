@@ -35,7 +35,7 @@
     "vitest": "^4.0.15"
   },
   "scripts": {
-    "dev": "DEPLOYMENT_MODE=Web && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
+    "dev": "export DEPLOYMENT_MODE=Web VALKEY_ADMIN_ALLOWED_WS_ORIGINS=http://localhost:5173 VITE_VALKEY_ADMIN_WS_URL=ws://localhost:8080 && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
     "build:server": "npm --workspace apps/server run build",
     "build:vite:server": "npm --workspace apps/server run build:vite",
     "build:frontend": "npm --workspace apps/frontend run build",
