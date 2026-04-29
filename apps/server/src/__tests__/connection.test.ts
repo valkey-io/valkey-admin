@@ -3,7 +3,13 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
-import { _resetInFlightClusterClients, connectToValkey, getExistingConnection, teardownConnection } from "../connection"
+import {
+  _resetConnectInFlight,
+  _resetInFlightClusterClients,
+  connectToValkey,
+  getExistingConnection,
+  teardownConnection
+} from "../connection"
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
@@ -54,6 +60,7 @@ describe("connectToValkey", () => {
     connectedNodesByCluster.clear()
     resetNodeWatchers()
     _resetInFlightClusterClients()
+    _resetConnectInFlight()
   })
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {
@@ -266,6 +273,126 @@ describe("connectToValkey", () => {
       assert.strictEqual(a.client, sharedClusterClient)
       assert.strictEqual(b.client, sharedClusterClient)
       assert.strictEqual(a.clusterId, b.clusterId)
+    } finally {
+      GlideClient.createClient = originalCreateClient
+      GlideClusterClient.createClient = originalCreateClusterClient
+    }
+  })
+
+  it("dedupes standalone client creation across concurrent connectors with the same connectionId", async () => {
+    const mockStandaloneClient = {
+      info: mock.fn(async (sections: string[]) =>
+        sections?.includes("memory")
+          ? { node1: "maxmemory_policy:allkeys-lfu" }
+          : "cluster_enabled:0",
+      ),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (Array.isArray(args) && args[0] === "JSON.TYPE") throw Error
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    // Delay to widen the race window so both connectors are in flight together.
+    GlideClient.createClient = mock.fn(async () => {
+      await new Promise((res) => setTimeout(res, 25))
+      return mockStandaloneClient as any
+    })
+
+    try {
+      const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-shared" }
+
+      const [a, b] = await Promise.all([
+        connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {}),
+        connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {}),
+      ])
+
+      assert.strictEqual(
+        (GlideClient.createClient as any).mock.calls.length,
+        1,
+        "expected exactly one standalone client creation",
+      )
+      assert.strictEqual(a, mockStandaloneClient)
+      assert.strictEqual(b, mockStandaloneClient)
+      assert.strictEqual(clients.get("conn-shared")?.client, mockStandaloneClient)
+    } finally {
+      GlideClient.createClient = originalCreateClient
+    }
+  })
+
+  it("reuses cluster client on sequential connect with the same connectionId", async () => {
+    const mockStandaloneClient = {
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const mockClusterClient = {
+      info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    const originalCreateClusterClient = GlideClusterClient.createClient
+    GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
+    GlideClusterClient.createClient = mock.fn(async () => mockClusterClient as any)
+
+    try {
+      const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-Z" }
+      const registry = {}
+
+      const first = await connectToValkey(
+        mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, registry,
+      )
+      assert.strictEqual(first, mockClusterClient)
+      assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 1)
+
+      messages.length = 0
+
+      // Same connectionId again: must hit the early-return cluster reuse path,
+      // not create a new cluster client.
+      const second = await connectToValkey(
+        mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, registry,
+      )
+
+      assert.strictEqual(second, mockClusterClient)
+      assert.strictEqual(
+        (GlideClusterClient.createClient as any).mock.calls.length,
+        1,
+        "second sequential connect must not create a new cluster client",
+      )
+
+      const parsed = messages.map((m) => JSON.parse(m))
+      assert.ok(
+        parsed.find((m) => m.type === VALKEY.CLUSTER.addCluster),
+        "second connect should re-emit addCluster",
+      )
+      assert.ok(
+        parsed.find((m) => m.type === VALKEY.CONNECTION.clusterConnectFulfilled),
+        "second connect should re-emit clusterConnectFulfilled",
+      )
     } finally {
       GlideClient.createClient = originalCreateClient
       GlideClusterClient.createClient = originalCreateClusterClient

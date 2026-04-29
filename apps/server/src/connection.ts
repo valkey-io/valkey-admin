@@ -25,17 +25,48 @@ import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
 // Dedup concurrent cluster-client creations by clusterId.
-// While createClusterValkeyClient is in flight, sibling connectors arriving at
-// the same clusterId await this promise instead of creating a duplicate.
-// The entry is held until the creator commits the cluster client into `clients`
-// in the inner finally below, so a later arriver always sees either the
-// in-flight promise or the committed clients-map entry — never a gap.
 const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
 
 // Test-only: reset in-flight state between cases.
 export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
 
+// Per-connectionId mutex around the entire connectToValkey body. The second connector enters
+// only after the first has fully committed (or failed), at which point the
+// getExistingConnection path below reuses the committed
+// entry (standalone or cluster).
+const connectInFlight = new Map<string, Promise<GlideClient | GlideClusterClient | undefined>>()
+
+export const _resetConnectInFlight = () => connectInFlight.clear()
+
 export async function connectToValkey(
+  ws: WebSocket,
+  payload: {
+    connectionDetails: ConnectionDetails
+    connectionId: string
+    isRetry?: boolean
+  },
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
+  connectedNodesByCluster: Map<string, string[]>,
+  metricsServerMap: MetricsServerMap,
+  clusterNodesRegistry: ClusterRegistry,
+) {
+  const { connectionId } = payload
+  const priorConnect = connectInFlight.get(connectionId) ?? Promise.resolve()
+  // .catch swallows the prior connect's failure so our turn still runs.
+  const currentConnect = priorConnect.catch(() => {}).then(() =>
+    connectToValkeyLocked(ws, payload, clients, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry),
+  )
+  connectInFlight.set(connectionId, currentConnect)
+  try {
+    return await currentConnect
+  } finally {
+    if (connectInFlight.get(connectionId) === currentConnect) {
+      connectInFlight.delete(connectionId)
+    }
+  }
+}
+
+async function connectToValkeyLocked(
   ws: WebSocket,
   payload: {
     connectionDetails: ConnectionDetails
@@ -87,10 +118,22 @@ export async function connectToValkey(
     }
 
     const existingConnection = await getExistingConnection(payload, clients)
-    if (existingConnection && !existingConnection.clusterId) {
+    if (existingConnection) {
+      if (existingConnection.clusterId) {
+        const clusterClient = existingConnection.client as GlideClusterClient
+        const { clusterId } = existingConnection
+        const discoveredClusterNodes =
+          clusterNodesRegistry[clusterId] ??
+          (await discoverCluster(clusterClient, payload)).discoveredClusterNodes
+        return commitClusterConnection(
+          ws, clusterClient, clusterId, connectionId, addresses[0],
+          clients, connectedNodesByCluster, clusterNodesRegistry, discoveredClusterNodes,
+        )
+      }
       await sendStandaloneConnectFulfilled(existingConnection.client as GlideClient, connectionId, ws)
+      subscribe(connectionId, ws)
       return existingConnection.client
-    } 
+    }
     
     const standaloneClient = await createStandaloneValkeyClient({
       addresses,
@@ -144,47 +187,23 @@ export async function connectToValkey(
         }
 
         try {
-          const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
-            getClusterSlotStatsEnabled(clusterClient),
-            getKeyEvictionPolicy(clusterClient),
-            checkJsonModuleAvailability(clusterClient),
-          ])
-
-          clusterNodesRegistry[clusterId] = discoveredClusterNodes
           clusterCredentials.set(clusterId, payload.connectionDetails.password)
+          clusterNodesRegistry[clusterId] = discoveredClusterNodes
 
           if (isWebMode) {
-            reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails) 
-          } 
-
-          clients.set(connectionId, { client: clusterClient, clusterId })
-
-          const nodesForCluster = connectedNodesByCluster.get(clusterId)
-          if (nodesForCluster === undefined) {
-            connectedNodesByCluster.set(clusterId, [connectionId])
-          } else if (!nodesForCluster.includes(connectionId)) {
-            nodesForCluster.push(connectionId)
+            reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails)
           }
 
-          subscribe(payload.connectionId, ws)
+          await commitClusterConnection(
+            ws, clusterClient, clusterId, connectionId, addresses[0],
+            clients, connectedNodesByCluster, clusterNodesRegistry, discoveredClusterNodes,
+          )
 
           if (payload.isRetry && existingClusterConnection) {
             updateClusterNodesClient(clients, existingClusterConnection, clusterClient)
           }
 
           shouldCloseClusterClientOnError = false
-
-          sendAddCluster(ws, clusterId, discoveredClusterNodes)
-          sendClusterConnectFulfilled(
-            ws,
-            connectionId,
-            clusterId,
-            keyEvictionPolicy,
-            clusterSlotStatsEnabled,
-            jsonModuleAvailable,
-            addresses[0],
-          )
-
           return clusterClient
         } finally {
           if (ownInflight && inFlightClusterClients.get(clusterId) === ownInflight) {
@@ -308,6 +327,46 @@ function updateClusterNodesClient(
   }
   // Update map with new client
   sharedIds.forEach((id) => clients.set(id, { client: newClusterClient!, clusterId: existingClusterConnection.clusterId }))
+}
+
+async function commitClusterConnection(
+  ws: WebSocket,
+  clusterClient: GlideClusterClient,
+  clusterId: string,
+  connectionId: string,
+  seedAddress: { host: string; port: number },
+  clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
+  discoveredClusterNodes: ClusterNodeMap,
+): Promise<GlideClusterClient> {
+  const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+    getClusterSlotStatsEnabled(clusterClient),
+    getKeyEvictionPolicy(clusterClient),
+    checkJsonModuleAvailability(clusterClient),
+  ])
+
+  clusterNodesRegistry[clusterId] = discoveredClusterNodes
+  clients.set(connectionId, { client: clusterClient, clusterId })
+
+  const nodes = connectedNodesByCluster.get(clusterId)
+  if (nodes === undefined) connectedNodesByCluster.set(clusterId, [connectionId])
+  else if (!nodes.includes(connectionId)) nodes.push(connectionId)
+
+  subscribe(connectionId, ws)
+
+  sendAddCluster(ws, clusterId, discoveredClusterNodes)
+  sendClusterConnectFulfilled(
+    ws,
+    connectionId,
+    clusterId,
+    keyEvictionPolicy,
+    clusterSlotStatsEnabled,
+    jsonModuleAvailable,
+    seedAddress,
+  )
+
+  return clusterClient
 }
 
 async function sendStandaloneConnectFulfilled(client: GlideClient, connectionId: string, ws: WebSocket) {
