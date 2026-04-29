@@ -100,6 +100,7 @@ Valkey Admin is configured through environment variables. All variables are opti
 | `TTL` | Metrics server health check timeout (ms) | `60000` |
 | `TOPOLOGY_REFRESH_INTERVAL` | Cluster topology refresh interval (ms) | `30000` |
 | `HOT_KEYS_COUNT` | Maximum number of hot keys returned per query | `50` |
+| `COMMAND_LOGS_COUNT` | Maximum number of command log entries returned per query | `100` |
 
 ### Pre-configured Metrics Collection
 
