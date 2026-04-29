@@ -127,7 +127,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
     }
 
     const aggregatedRows = R.sort(
-      R.descend((row: any) => {
+      R.descend((row: { values?: Array<{ duration_us?: number; size?: number }>; ts: number }) => {
         const v = row.values?.[0]
         return v?.duration_us ?? v?.size ?? row.ts
       }),
