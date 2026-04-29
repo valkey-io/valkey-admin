@@ -125,7 +125,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
       const connection = clients.get(payload.connectionId)
       assert.strictEqual(connection.client, mockClusterClient)
 
@@ -175,7 +179,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      const result = await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      const result = await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
 
       assert.ok(result)
       const connection = clients.get(payload.connectionId)
@@ -259,9 +267,10 @@ describe("connectToValkey", () => {
       const payloadA = { ...DEFAULT_PAYLOAD, connectionId: "conn-A" }
       const payloadB = { ...DEFAULT_PAYLOAD, connectionId: "conn-B" }
 
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap }
       await Promise.all([
-        connectToValkey(mockWs, payloadA, clients, connectedNodesByCluster, metricsServerMap, {}),
-        connectToValkey(mockWs, payloadB, clients, connectedNodesByCluster, metricsServerMap, {}),
+        connectToValkey(ctx, mockWs, payloadA),
+        connectToValkey(ctx, mockWs, payloadB),
       ])
 
       const createCalls = (GlideClusterClient.createClient as any).mock.calls.length
@@ -303,9 +312,10 @@ describe("connectToValkey", () => {
     try {
       const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-shared" }
 
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap }
       const [a, b] = await Promise.all([
-        connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {}),
-        connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {}),
+        connectToValkey(ctx, mockWs, payload),
+        connectToValkey(ctx, mockWs, payload),
       ])
 
       assert.strictEqual(
@@ -363,9 +373,8 @@ describe("connectToValkey", () => {
       const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-Z" }
       const registry = {}
 
-      const first = await connectToValkey(
-        mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, registry,
-      )
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: registry, metricsServerMap }
+      const first = await connectToValkey(ctx, mockWs, payload)
       assert.strictEqual(first, mockClusterClient)
       assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 1)
 
@@ -373,9 +382,7 @@ describe("connectToValkey", () => {
 
       // Same connectionId again: must hit the early-return cluster reuse path,
       // not create a new cluster client.
-      const second = await connectToValkey(
-        mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, registry,
-      )
+      const second = await connectToValkey(ctx, mockWs, payload)
 
       assert.strictEqual(second, mockClusterClient)
       assert.strictEqual(
@@ -436,7 +443,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, iamPayload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        iamPayload,
+      )
 
       const calls = (GlideClusterClient.createClient as unknown as ReturnType<typeof mock.fn>).mock.calls
       assert.ok(calls.length > 0)
@@ -459,7 +470,11 @@ describe("connectToValkey", () => {
     mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
-      const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients, connectedNodesByCluster, metricsServerMap, {})
+      const result = await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        DEFAULT_PAYLOAD,
+      )
 
       assert.strictEqual(result, undefined)
       assert.strictEqual(clients.has(DEFAULT_PAYLOAD.connectionId), false)
@@ -508,7 +523,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, alternate_payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        alternate_payload,
+      )
       assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 1)
 
       const config = (GlideClient.createClient as any).mock.calls[0].arguments[0]
@@ -539,7 +558,11 @@ describe("connectToValkey", () => {
     payload.connectionId = uniqueConnID
 
     try {
-      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
       assert.ok(clients.has(uniqueConnID))
       const connection = clients.get(uniqueConnID)
       assert.strictEqual(connection.client, mockStandaloneClient)
@@ -718,7 +741,10 @@ describe("teardownConnection", () => {
     clients.set("conn-1", { client: mockClient })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("conn-1", clients, metricsServerMap)
+    teardownConnection(
+      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      "conn-1",
+    )
 
     assert.strictEqual(clients.has("conn-1"), false)
     assert.strictEqual(mockClient.close.mock.calls.length, 1)
@@ -731,7 +757,10 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("node-1", clients, metricsServerMap)
+    teardownConnection(
+      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      "node-1",
+    )
 
     assert.strictEqual(clients.has("node-1"), false)
     assert.strictEqual(clients.has("node-2"), true)
@@ -745,8 +774,9 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("node-1", clients, metricsServerMap)
-    teardownConnection("node-2", clients, metricsServerMap)
+    const ctx = { clients, clusterNodesRegistry: {}, metricsServerMap }
+    teardownConnection(ctx, "node-1")
+    teardownConnection(ctx, "node-2")
 
     assert.strictEqual(clients.size, 0)
     assert.strictEqual(sharedClient.close.mock.calls.length, 1)
@@ -757,7 +787,10 @@ describe("teardownConnection", () => {
     const metricsServerMap: MetricsServerMap = new Map()
 
     assert.doesNotThrow(() => {
-      teardownConnection("unknown", clients, metricsServerMap)
+      teardownConnection(
+        { clients, clusterNodesRegistry: {}, metricsServerMap },
+        "unknown",
+      )
     })
   })
 })
