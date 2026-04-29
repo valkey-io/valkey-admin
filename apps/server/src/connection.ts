@@ -3,13 +3,13 @@ import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
 import { sanitizeUrl } from "valkey-common"
+import { KeyEvictionPolicy } from "common/dist"
 import { 
-  clusterClientExists, 
+  getExistingClusterClient, 
   getClusterSlotStatsEnabled, 
   getKeyEvictionPolicy, 
   parseInfo, 
-  resolveHostnameOrIpAddress, 
-  returnExistingClusterClient } from "./utils"
+  resolveHostnameOrIpAddress } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { 
@@ -19,24 +19,97 @@ import {
   startMetricsServer, 
   clusterCredentials, 
   reconcileClusterMetricsServers, 
-  metricsServerMap, 
-  isKubernetes } from "./metrics-orchestrator"
+  isKubernetes, 
+  ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
+export type ConnectionContext = {
+  clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>
+  connectedNodesByCluster: Map<string, string[]>
+  clusterNodesRegistry: ClusterRegistry
+  metricsServerMap: MetricsServerMap
+}
+
+type ClusterCommit = {
+  clusterClient: GlideClusterClient
+  clusterId: string
+  connectionId: string
+  seedAddress: { host: string; port: number }
+  discoveredClusterNodes: ClusterNodeMap
+}
+
+type StandaloneConnectionDetails = {
+  keyEvictionPolicy: KeyEvictionPolicy
+  jsonModuleAvailable: boolean
+}
+
+type ClusterConnectionDetails = StandaloneConnectionDetails & {
+  clusterId: string
+  clusterSlotStatsEnabled: boolean
+}
+
+type StandaloneConnectFulfilledPayload = {
+  connectionId: string
+  connectionDetails: StandaloneConnectionDetails
+}
+
+type ClusterConnectFulfilledPayload = {
+  connectionId: string
+  address: { host: string; port: number }
+  connectionDetails: ClusterConnectionDetails
+}
+
+// Dedup concurrent cluster-client creations by clusterId.
+const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
+
+// Test-only: reset in-flight state between cases.
+export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
+
+// Per-connectionId mutex around the entire connectToValkey body. The second connector enters
+// only after the first has fully committed (or failed), at which point the
+// getExistingConnection path below reuses the committed
+// entry (standalone or cluster).
+const connectInFlight = new Map<string, Promise<GlideClient | GlideClusterClient | undefined>>()
+
+export const _resetConnectInFlight = () => connectInFlight.clear()
+
 export async function connectToValkey(
+  ctx: ConnectionContext,
   ws: WebSocket,
   payload: {
     connectionDetails: ConnectionDetails
     connectionId: string
     isRetry?: boolean
   },
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string }>,
-  connectedNodesByCluster: Map<string, string[]>,
-  metricsServerMap: MetricsServerMap,
-  clusterNodesRegistry: ClusterRegistry,
 ) {
-  
+  const { connectionId } = payload
+  const priorConnect = connectInFlight.get(connectionId) ?? Promise.resolve()
+  // .catch swallows the prior connect's failure so our turn still runs.
+  const currentConnect = priorConnect.catch(() => {}).then(() =>
+    connectToValkeyLocked(ctx, ws, payload),
+  )
+  connectInFlight.set(connectionId, currentConnect)
+  try {
+    return await currentConnect
+  } finally {
+    if (connectInFlight.get(connectionId) === currentConnect) {
+      connectInFlight.delete(connectionId)
+    }
+  }
+}
+
+async function connectToValkeyLocked(
+  ctx: ConnectionContext,
+  ws: WebSocket,
+  payload: {
+    connectionDetails: ConnectionDetails
+    connectionId: string
+    isRetry?: boolean
+  },
+) {
+  const { clients, clusterNodesRegistry, metricsServerMap } = ctx
+
   const {
     host, port, username, password, tls: useTLS,
     verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
@@ -61,77 +134,164 @@ export async function connectToValkey(
       }
       : password ? { username, password } : undefined
 
+  let standaloneClient: GlideClient | undefined
+
   try {
     // If retrying, we need to close stale client
     if (payload.isRetry) {
       const existing = clients.get(connectionId)
+      // Only close standalone clients here. Cluster clients are shared across
+      // slots; let updateClusterNodesClient handle the close + repoint atomically.
       if (existing && existing.client instanceof GlideClient) {
         try { existing.client.close() } catch (error) {
-          console.error(`Error closing stale client for ${connectionId}:`, error)
+          console.log(`Error closing stale client for ${connectionId}:`, error)
         }
-        clients.delete(connectionId)
       }
-    }
-    // If we've connected to the same host using IP addr or vice versa, return
-    if (await isDuplicateConnection(payload, clients)) {
-      return ws.send(
-        JSON.stringify({
-          type: VALKEY.CONNECTION.connectRejected,
-          payload: { connectionId, errorMessage: "This is a duplicate connection, please use a new endpoint." },
-        }),
-      )
+      clients.delete(connectionId)
     }
 
-    const standaloneClient = await createStandaloneValkeyClient({
+    const existingConnection = await getExistingConnection(payload, clients)
+    if (existingConnection) {
+      if (existingConnection.clusterId) {
+        const clusterClient = existingConnection.client as GlideClusterClient
+        const { clusterId } = existingConnection
+        const discoveredClusterNodes =
+          clusterNodesRegistry[clusterId] ??
+          (await discoverCluster(clusterClient, payload)).discoveredClusterNodes
+        return commitClusterConnection(ctx, ws, {
+          clusterClient,
+          clusterId,
+          connectionId,
+          seedAddress: addresses[0],
+          discoveredClusterNodes,
+        })
+      }
+      const existingStandalone = existingConnection.client as GlideClient
+      const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+        getKeyEvictionPolicy(existingStandalone),
+        checkJsonModuleAvailability(existingStandalone),
+      ])
+      sendStandaloneConnectFulfilled(ws, {
+        connectionId,
+        connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+      })
+      subscribe(connectionId, ws)
+      return existingStandalone
+    }
+    
+    standaloneClient = await createStandaloneValkeyClient({
       addresses,
       credentials,
       useTLS,
       verifyTlsCertificate,
     })
-    // Need to set for metrics server to be able to register
+
+    // Open the registration gate: the metrics process spawned below will POST
+    // /register back to the orchestrator and the handler checks clients.has(connectionId).
+    // The finally block below ensures we close this gate on every exit path.
     clients.set(connectionId, { client: standaloneClient })
 
     // In K8s or Web, metrics servers register themselves.
     if (!isKubernetes && !metricsServerMap.has(payload.connectionId)) {
       await startMetricsServer(payload.connectionDetails, payload.connectionId)
     }
-
-    const keyEvictionPolicy = await getKeyEvictionPolicy(standaloneClient)
-    const jsonModuleAvailable = await checkJsonModuleAvailability(standaloneClient)
-    
+      
     if (await belongsToCluster(standaloneClient)) {
-      clients.delete(connectionId)
-      return connectToCluster(
-        ws,
-        standaloneClient,
-        clients,
-        payload,
-        addresses,
-        credentials,
-        connectedNodesByCluster,
-        clusterNodesRegistry,
-      )
+      let shouldCloseClusterClientOnError
+      let ownInflight: Promise<GlideClusterClient> | undefined
+
+      const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
+      standaloneClient.close()
+
+      const existingClusterConnection = await getExistingClusterClient(discoveredClusterNodes, clients)
+      let clusterClient: GlideClusterClient
+      if (existingClusterConnection && !payload.isRetry) {
+        clusterClient = existingClusterConnection.client
+        shouldCloseClusterClientOnError = false
+      } else {
+        const inflight = inFlightClusterClients.get(clusterId)
+        if (inflight) {
+          clusterClient = await inflight
+          shouldCloseClusterClientOnError = false
+        } else {
+          ownInflight = createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+          inFlightClusterClients.set(clusterId, ownInflight)
+          try {
+            clusterClient = await ownInflight
+            shouldCloseClusterClientOnError = true
+          } catch (err) {
+            // Surface failure to siblings awaiting our promise and clear the slot
+            // so the next connector can retry instead of inheriting a permanent reject.
+            inFlightClusterClients.delete(clusterId)
+            throw err
+          }
+        }
+      }
+
+      try {
+        clusterCredentials.set(clusterId, payload.connectionDetails.password)
+        clusterNodesRegistry[clusterId] = discoveredClusterNodes
+
+        if (isWebMode) {
+          reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails)
+        }
+
+        await commitClusterConnection(ctx, ws, {
+          clusterClient,
+          clusterId,
+          connectionId,
+          seedAddress: addresses[0],
+          discoveredClusterNodes,
+        })
+
+        if (payload.isRetry && existingClusterConnection) {
+          updateClusterNodesClient(clients, existingClusterConnection, clusterClient)
+        }
+
+        shouldCloseClusterClientOnError = false
+        return clusterClient
+      } finally {
+        if (ownInflight && inFlightClusterClients.get(clusterId) === ownInflight) {
+          inFlightClusterClients.delete(clusterId)
+        }
+        if (shouldCloseClusterClientOnError) {
+          try {
+            clusterClient.close()
+          } catch (err) {
+            console.error(`Error closing uncommitted cluster client for ${connectionId}:`, err)
+          }
+        }
+      }
     }
 
-    const connectionInfo = {
-      type: VALKEY.CONNECTION.standaloneConnectFulfilled,
-      payload: {
-        connectionId,
-        connectionDetails: {
-          keyEvictionPolicy,
-          jsonModuleAvailable,
-        },
-      },
-    }
     console.log("Connected to standalone")
 
     subscribe(payload.connectionId, ws)
-    ws.send(
-      JSON.stringify(connectionInfo),
-    )
-    return standaloneClient
 
+    const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+      getKeyEvictionPolicy(standaloneClient),
+      checkJsonModuleAvailability(standaloneClient),
+    ])
+    sendStandaloneConnectFulfilled(ws, {
+      connectionId,
+      connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+    })
+
+    return standaloneClient
+    
   } catch (err) {
+    if (standaloneClient) {
+      try {
+        standaloneClient.close()
+      } catch (closeErr) {
+        console.error(`Error closing discovery client for ${connectionId}:`, closeErr)
+      }
+
+      if (clients.get(connectionId)?.client === standaloneClient) {
+        clients.delete(connectionId)
+      }
+    }
+
     console.error("Error connecting to Valkey", err)
     const errorMessage = err instanceof Error ? err.message : String(err)
     ws.send(
@@ -203,10 +363,68 @@ export async function belongsToCluster(client: GlideClient): Promise<boolean> {
   return parsed["cluster_enabled"] === "1"
 }
 
-export async function discoverCluster(client: GlideClient | GlideClusterClient, payload: {
-  connectionDetails: ConnectionDetails
-  connectionId?: string;
-})  {
+function updateClusterNodesClient(
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>, 
+  existingClusterConnection: {client: GlideClient | GlideClusterClient, clusterId?: string},
+  newClusterClient: GlideClusterClient,
+) {
+  const sharedIds = [...clients.entries()]
+    .filter(([, entry]) => entry.client === existingClusterConnection.client)
+    .map(([id]) => id)
+
+  try { existingClusterConnection.client.close() } catch (error) {
+    console.error(`Error closing stale client for ${existingClusterConnection.clusterId}:`, error)
+  }
+  // Update map with new client
+  sharedIds.forEach((id) => clients.set(id, { client: newClusterClient!, clusterId: existingClusterConnection.clusterId }))
+}
+
+async function commitClusterConnection(
+  ctx: ConnectionContext,
+  ws: WebSocket,
+  commit: ClusterCommit,
+): Promise<GlideClusterClient> {
+  const { clients, connectedNodesByCluster, clusterNodesRegistry } = ctx
+  const { clusterClient, clusterId, connectionId, seedAddress, discoveredClusterNodes } = commit
+
+  const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+    getClusterSlotStatsEnabled(clusterClient),
+    getKeyEvictionPolicy(clusterClient),
+    checkJsonModuleAvailability(clusterClient),
+  ])
+
+  clusterNodesRegistry[clusterId] = discoveredClusterNodes
+  clients.set(connectionId, { client: clusterClient, clusterId })
+
+  const nodes = connectedNodesByCluster.get(clusterId)
+  if (nodes === undefined) connectedNodesByCluster.set(clusterId, [connectionId])
+  else if (!nodes.includes(connectionId)) nodes.push(connectionId)
+
+  subscribe(connectionId, ws)
+
+  sendAddCluster(ws, clusterId, discoveredClusterNodes)
+  sendClusterConnectFulfilled(ws, {
+    connectionId,
+    address: seedAddress,
+    connectionDetails: {
+      clusterId,
+      keyEvictionPolicy,
+      clusterSlotStatsEnabled,
+      jsonModuleAvailable,
+    },
+  })
+
+  return clusterClient
+}
+
+function sendStandaloneConnectFulfilled(ws: WebSocket, payload: StandaloneConnectFulfilledPayload) {
+  ws.send(JSON.stringify({ type: VALKEY.CONNECTION.standaloneConnectFulfilled, payload }))
+}
+
+export async function discoverCluster(
+  client: GlideClient | GlideClusterClient, 
+  payload: { connectionDetails: ConnectionDetails, connectionId?: string;},
+)  {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await client.customCommand(["CLUSTER", "SLOTS"]) as any[][]
@@ -242,6 +460,10 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
         }
       })
 
+      if (Object.keys(acc).length < 1) {
+        throw new Error("Unable to discover cluster")
+      }
+
       return acc
     }, {} as Record<string, {
       host: string;
@@ -256,137 +478,49 @@ export async function discoverCluster(client: GlideClient | GlideClusterClient, 
   } catch (err) {
     console.error("Error discovering cluster:", err)
     throw new Error("Failed to discover cluster") 
-    
   }
 }
 
-export async function connectToCluster(
+function sendAddCluster(
   ws: WebSocket,
-  discoveryClient: GlideClient,
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  payload: { connectionDetails: ConnectionDetails, connectionId: string, isRetry?: boolean},
-  addresses: { host: string, port: number }[],
-  credentials: ServerCredentials | undefined,
-  connectedNodesByCluster: Map<string, string[]>,
-  clusterNodesRegistry: ClusterRegistry,
-): Promise<GlideClusterClient | undefined> {
-
-  const { connectionId } = payload
-  const { verifyTlsCertificate, tls: useTLS } = payload.connectionDetails
-  try {
-
-    let clusterClient: GlideClusterClient 
-
-    // It implies we already discovered cluster nodes once
-    const { discoveredClusterNodes, clusterId: initialClusterId } = await discoverCluster(discoveryClient, payload)
-    discoveryClient.close()
-    let clusterId = initialClusterId
-    if (Object.keys(discoveredClusterNodes).length < 1) {
-      throw new Error("Unable to discover cluster")
-    }
-
-    const existingClusterConnection = await clusterClientExists(discoveredClusterNodes, clients)
-    if (existingClusterConnection) {
-      clusterId = existingClusterConnection.clusterId
-      if (payload.isRetry) {
-        // Find cluster nodes that share same client
-        const sharedIds = [...clients.entries()]
-          .filter(([, entry]) => entry.client === existingClusterConnection.client)
-          .map(([id]) => id)
-
-        try { existingClusterConnection.client.close() } catch (error) {
-          console.error(`Error closing stale client for ${connectionId}:`, error)
-        }
-        clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
-        // Update map with new client
-        sharedIds.forEach((id) => clients.set(id, { client: clusterClient!, clusterId }))
-      }
-      else {
-        clusterClient = await returnExistingClusterClient(
-          existingClusterConnection,
-          clients,
-          payload.connectionId,
-          connectedNodesByCluster,
-          clusterNodesRegistry,
-          ws,
-          discoveredClusterNodes,
-        )
-      }
-    } 
-    else {
-      clusterClient = await createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
-      ws.send(
-        JSON.stringify({
-          type: VALKEY.CLUSTER.addCluster,
-          payload: { clusterId, clusterNodes: discoveredClusterNodes }, 
-        }),
-      )
-      clusterNodesRegistry[clusterId] = discoveredClusterNodes
-      clusterCredentials.set(clusterId, payload.connectionDetails.password)
-
-      if (isWebMode) {
-        reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails) 
-      } 
-
-      clients.set(connectionId, { client: clusterClient, clusterId })
-      connectedNodesByCluster.set(clusterId, [connectionId])
-      subscribe(payload.connectionId, ws)
-    }
-
-    const clusterSlotStatsEnabled = await getClusterSlotStatsEnabled(clusterClient)
-    const keyEvictionPolicy = await getKeyEvictionPolicy(clusterClient)
-    const jsonModuleAvailable = await checkJsonModuleAvailability(clusterClient)
-
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.clusterConnectFulfilled,
-        payload: {
-          connectionId: payload.connectionId,
-          connectionDetails: {
-            clusterId,
-            keyEvictionPolicy,
-            clusterSlotStatsEnabled,
-            jsonModuleAvailable,
-          },
-          address: addresses[0],
-        },
-      }),
-    )
-    return clusterClient
-  } catch (err) {
-    console.error("Error connecting to Valkey", err)
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: {
-          errorMessage,
-          connectionId,
-        },
-      }),
-    )
-    return undefined
-  }
-  
+  clusterId: string,
+  clusterNodes: ClusterNodeMap,
+) {
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.CLUSTER.addCluster,
+      payload: { clusterId, clusterNodes },
+    }),
+  )
 }
 
-export async function isDuplicateConnection(
+function sendClusterConnectFulfilled(ws: WebSocket, payload: ClusterConnectFulfilledPayload) {
+  ws.send(JSON.stringify({ type: VALKEY.CONNECTION.clusterConnectFulfilled, payload }))
+}
+
+export async function getExistingConnection(
   payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean}, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-) 
+) : Promise<{ client: GlideClient | GlideClusterClient; clusterId?: string | undefined; } | undefined>
 {
-  const { connectionId, connectionDetails } = payload
+  const { connectionId, connectionDetails, isRetry } = payload
   // If the frontend is retrying a broken connection, it's not a duplicate
-  if (payload.isRetry) {
-    return false
+  if (isRetry) {
+    return undefined
   }
 
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
   // Prevent duplicate connections: 
   // 1) True if any resolved host:port is already connected
   // 2) Or if this connectionId already exists as a standalone connection
-  return (resolvedAddresses.some((address) => clients.has(sanitizeUrl(`${address}:${connectionDetails.port}`))) || 
-  (clients.has(connectionId) && clients.get(connectionId)?.client instanceof GlideClient))
+
+  if (clients.has(connectionId)) return clients.get(connectionId)
+  
+  const existingConnectionId = resolvedAddresses
+    .map((address) => sanitizeUrl(`${address}:${connectionDetails.port}`))
+    .find((key) => clients.has(key))
+
+  return existingConnectionId ? clients.get(existingConnectionId) : undefined
 }
 
 export async function closeMetricsServer(connectionId: string, metricsServerMap: MetricsServerMap) {
@@ -406,11 +540,11 @@ export async function closeMetricsServer(connectionId: string, metricsServerMap:
 }
 
 export function teardownConnection(
+  ctx: Omit<ConnectionContext, "connectedNodesByCluster">,
   connectionId: string,
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  metricsServerMap: MetricsServerMap,
-  clusterNodesRegistry?: ClusterRegistry,
 ) {
+  const { clients, clusterNodesRegistry, metricsServerMap } = ctx
+
   // In web mode, metrics servers are managed by the orchestrator
   if (!isWebMode) {
     closeMetricsServer(connectionId, metricsServerMap).catch((err) =>
@@ -428,7 +562,7 @@ export function teardownConnection(
       console.error(`Error closing connection ${connectionId}:`, error)
     }
 
-    if (clusterNodesRegistry && connection.clusterId && !isWebMode) {
+    if (connection.clusterId && !isWebMode) {
       delete clusterNodesRegistry[connection.clusterId]
       clusterCredentials.delete(connection.clusterId)
     }

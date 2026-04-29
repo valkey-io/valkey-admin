@@ -3,7 +3,13 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { sanitizeUrl, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
-import { connectToValkey, isDuplicateConnection, teardownConnection } from "../connection"
+import {
+  _resetConnectInFlight,
+  _resetInFlightClusterClients,
+  connectToValkey,
+  getExistingConnection,
+  teardownConnection
+} from "../connection"
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
@@ -53,6 +59,8 @@ describe("connectToValkey", () => {
     clients.clear()
     connectedNodesByCluster.clear()
     resetNodeWatchers()
+    _resetInFlightClusterClients()
+    _resetConnectInFlight()
   })
 
   async function runClusterConnectionTest(payloadOverrides: Partial<any> = {}) {
@@ -117,7 +125,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
       const connection = clients.get(payload.connectionId)
       assert.strictEqual(connection.client, mockClusterClient)
 
@@ -167,7 +179,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      const result = await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      const result = await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
 
       assert.ok(result)
       const connection = clients.get(payload.connectionId)
@@ -198,6 +214,196 @@ describe("connectToValkey", () => {
 
   it("should connect to cluster Valkey instance", async () => {
     await runClusterConnectionTest()
+  })
+
+  it("dedupes cluster client creation across concurrent connectors to the same cluster", async () => {
+
+    let standaloneId = 0
+    const buildStandalone = () => ({
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        return []
+      }),
+      close: mock.fn(),
+      _id: ++standaloneId,
+    })
+
+    const sharedClusterClient = {
+      info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    const originalCreateClusterClient = GlideClusterClient.createClient
+
+    GlideClient.createClient = mock.fn(async () => buildStandalone() as any)
+
+    // Delay cluster client creation so both connectors race within the in-flight window.
+    GlideClusterClient.createClient = mock.fn(async () => {
+      await new Promise((res) => setTimeout(res, 25))
+      return sharedClusterClient as any
+    })
+
+    try {
+      const payloadA = { ...DEFAULT_PAYLOAD, connectionId: "conn-A" }
+      const payloadB = { ...DEFAULT_PAYLOAD, connectionId: "conn-B" }
+
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap }
+      await Promise.all([
+        connectToValkey(ctx, mockWs, payloadA),
+        connectToValkey(ctx, mockWs, payloadB),
+      ])
+
+      const createCalls = (GlideClusterClient.createClient as any).mock.calls.length
+      assert.strictEqual(createCalls, 1, "expected exactly one cluster client creation")
+
+      const a = clients.get("conn-A")
+      const b = clients.get("conn-B")
+      assert.ok(a && b)
+      assert.strictEqual(a.client, sharedClusterClient)
+      assert.strictEqual(b.client, sharedClusterClient)
+      assert.strictEqual(a.clusterId, b.clusterId)
+    } finally {
+      GlideClient.createClient = originalCreateClient
+      GlideClusterClient.createClient = originalCreateClusterClient
+    }
+  })
+
+  it("dedupes standalone client creation across concurrent connectors with the same connectionId", async () => {
+    const mockStandaloneClient = {
+      info: mock.fn(async (sections: string[]) =>
+        sections?.includes("memory")
+          ? { node1: "maxmemory_policy:allkeys-lfu" }
+          : "cluster_enabled:0",
+      ),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (Array.isArray(args) && args[0] === "JSON.TYPE") throw Error
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    // Delay to widen the race window so both connectors are in flight together.
+    GlideClient.createClient = mock.fn(async () => {
+      await new Promise((res) => setTimeout(res, 25))
+      return mockStandaloneClient as any
+    })
+
+    try {
+      const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-shared" }
+
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap }
+      const [a, b] = await Promise.all([
+        connectToValkey(ctx, mockWs, payload),
+        connectToValkey(ctx, mockWs, payload),
+      ])
+
+      assert.strictEqual(
+        (GlideClient.createClient as any).mock.calls.length,
+        1,
+        "expected exactly one standalone client creation",
+      )
+      assert.strictEqual(a, mockStandaloneClient)
+      assert.strictEqual(b, mockStandaloneClient)
+      assert.strictEqual(clients.get("conn-shared")?.client, mockStandaloneClient)
+    } finally {
+      GlideClient.createClient = originalCreateClient
+    }
+  })
+
+  it("reuses cluster client on sequential connect with the same connectionId", async () => {
+    const mockStandaloneClient = {
+      info: mock.fn(async () => "cluster_enabled:1\r\nmaxmemory_policy:allkeys-lfu"),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const mockClusterClient = {
+      info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "CLUSTER" && args[1] === "SLOTS") {
+          return [
+            [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+            [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+            [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+          ]
+        }
+        if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
+        if (args[0] === "JSON.TYPE") throw new Error("not available")
+        return []
+      }),
+      close: mock.fn(),
+    }
+
+    const originalCreateClient = GlideClient.createClient
+    const originalCreateClusterClient = GlideClusterClient.createClient
+    GlideClient.createClient = mock.fn(async () => mockStandaloneClient as any)
+    GlideClusterClient.createClient = mock.fn(async () => mockClusterClient as any)
+
+    try {
+      const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-Z" }
+      const registry = {}
+
+      const ctx = { clients, connectedNodesByCluster, clusterNodesRegistry: registry, metricsServerMap }
+      const first = await connectToValkey(ctx, mockWs, payload)
+      assert.strictEqual(first, mockClusterClient)
+      assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 1)
+
+      messages.length = 0
+
+      // Same connectionId again: must hit the early-return cluster reuse path,
+      // not create a new cluster client.
+      const second = await connectToValkey(ctx, mockWs, payload)
+
+      assert.strictEqual(second, mockClusterClient)
+      assert.strictEqual(
+        (GlideClusterClient.createClient as any).mock.calls.length,
+        1,
+        "second sequential connect must not create a new cluster client",
+      )
+
+      const parsed = messages.map((m) => JSON.parse(m))
+      assert.ok(
+        parsed.find((m) => m.type === VALKEY.CLUSTER.addCluster),
+        "second connect should re-emit addCluster",
+      )
+      assert.ok(
+        parsed.find((m) => m.type === VALKEY.CONNECTION.clusterConnectFulfilled),
+        "second connect should re-emit clusterConnectFulfilled",
+      )
+    } finally {
+      GlideClient.createClient = originalCreateClient
+      GlideClusterClient.createClient = originalCreateClusterClient
+    }
   })
 
   it("should use iamConfig credentials when authType is iam", async () => {
@@ -237,7 +443,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, iamPayload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        iamPayload,
+      )
 
       const calls = (GlideClusterClient.createClient as unknown as ReturnType<typeof mock.fn>).mock.calls
       assert.ok(calls.length > 0)
@@ -260,7 +470,11 @@ describe("connectToValkey", () => {
     mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
-      const result = await connectToValkey(mockWs, DEFAULT_PAYLOAD, clients, connectedNodesByCluster, metricsServerMap, {})
+      const result = await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        DEFAULT_PAYLOAD,
+      )
 
       assert.strictEqual(result, undefined)
       assert.strictEqual(clients.has(DEFAULT_PAYLOAD.connectionId), false)
@@ -309,7 +523,11 @@ describe("connectToValkey", () => {
     }
 
     try {
-      await connectToValkey(mockWs, alternate_payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        alternate_payload,
+      )
       assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 1)
 
       const config = (GlideClient.createClient as any).mock.calls[0].arguments[0]
@@ -340,7 +558,11 @@ describe("connectToValkey", () => {
     payload.connectionId = uniqueConnID
 
     try {
-      await connectToValkey(mockWs, payload, clients, connectedNodesByCluster, metricsServerMap, {})
+      await connectToValkey(
+        { clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap },
+        mockWs,
+        payload,
+      )
       assert.ok(clients.has(uniqueConnID))
       const connection = clients.get(uniqueConnID)
       assert.strictEqual(connection.client, mockStandaloneClient)
@@ -418,45 +640,97 @@ describe("resolveHostnameOrIpAddress", () => {
   })
 })
 
-describe("returnIfDuplicateConnection", () => {
+describe("getExistingConnection", () => {
   beforeEach(() => {
     mock.restoreAll()
   })
 
-  it("returns true if a duplicate connection exists", async () => {
+  it("returns the existing connection when host:port resolves to one already in clients", async () => {
     mock.method(dns, "lookup", async () => [
       { address: "10.0.0.1", family: 4 },
     ])
 
+    const existingClient = {} as any
     const clients = new Map()
-    clients.set(sanitizeUrl("10.0.0.1:6379"), {} as any)
+    clients.set(sanitizeUrl("10.0.0.1:6379"), { client: existingClient })
 
-    const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { 
-        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-      } },
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
       clients,
     )
 
-    assert.strictEqual(result, true)
-
+    assert.ok(result)
+    assert.strictEqual(result.client, existingClient)
   })
 
-  it("returns false if no duplicate connection exists", async () => {
+  it("returns undefined when no resolved address matches any client", async () => {
     mock.method(dns, "lookup", async () => [
       { address: "10.0.0.2", family: 4 },
     ])
 
     const clients = new Map()
 
-    const result = await isDuplicateConnection(
-      { connectionId: "abc123", connectionDetails: { 
-        host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-      } },
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
       clients,
     )
 
-    assert.strictEqual(result, false)
+    assert.strictEqual(result, undefined)
+  })
+
+  it("returns undefined when isRetry is true even if a duplicate exists", async () => {
+    mock.method(dns, "lookup", async () => [
+      { address: "10.0.0.1", family: 4 },
+    ])
+
+    const clients = new Map()
+    clients.set(sanitizeUrl("10.0.0.1:6379"), { client: {} as any })
+
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        isRetry: true,
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
+      clients,
+    )
+
+    assert.strictEqual(result, undefined)
+  })
+
+  it("returns the entry stored at connectionId when present", async () => {
+    mock.method(dns, "lookup", async () => [
+      { address: "10.0.0.99", family: 4 },
+    ])
+
+    const directClient = {} as any
+    const clients = new Map()
+    clients.set("abc123", { client: directClient })
+
+    const result = await getExistingConnection(
+      {
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
+      clients,
+    )
+
+    assert.ok(result)
+    assert.strictEqual(result.client, directClient)
   })
 })
 
@@ -467,7 +741,10 @@ describe("teardownConnection", () => {
     clients.set("conn-1", { client: mockClient })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("conn-1", clients, metricsServerMap)
+    teardownConnection(
+      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      "conn-1",
+    )
 
     assert.strictEqual(clients.has("conn-1"), false)
     assert.strictEqual(mockClient.close.mock.calls.length, 1)
@@ -480,7 +757,10 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("node-1", clients, metricsServerMap)
+    teardownConnection(
+      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      "node-1",
+    )
 
     assert.strictEqual(clients.has("node-1"), false)
     assert.strictEqual(clients.has("node-2"), true)
@@ -494,8 +774,9 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection("node-1", clients, metricsServerMap)
-    teardownConnection("node-2", clients, metricsServerMap)
+    const ctx = { clients, clusterNodesRegistry: {}, metricsServerMap }
+    teardownConnection(ctx, "node-1")
+    teardownConnection(ctx, "node-2")
 
     assert.strictEqual(clients.size, 0)
     assert.strictEqual(sharedClient.close.mock.calls.length, 1)
@@ -506,7 +787,10 @@ describe("teardownConnection", () => {
     const metricsServerMap: MetricsServerMap = new Map()
 
     assert.doesNotThrow(() => {
-      teardownConnection("unknown", clients, metricsServerMap)
+      teardownConnection(
+        { clients, clusterNodesRegistry: {}, metricsServerMap },
+        "unknown",
+      )
     })
   })
 })
