@@ -9,9 +9,10 @@ interface NodeFilterDropdownProps {
   nodes: string[]
   selectedNode: string
   onSelect: (node: string) => void
+  align?: "left" | "right"
 }
 
-export function NodeFilterDropdown({ nodes, selectedNode, onSelect }: NodeFilterDropdownProps) {
+export function NodeFilterDropdown({ nodes, selectedNode, onSelect, align = "left" }: NodeFilterDropdownProps) {
   const [open, setOpen] = useState(false)
   const [nodeSearch, setNodeSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
@@ -45,7 +46,7 @@ export function NodeFilterDropdown({ nodes, selectedNode, onSelect }: NodeFilter
       </Button>
 
       {open && (
-        <div className="absolute z-50 left-0 top-11 w-64 rounded-md border bg-popover shadow-md p-2">
+        <div className={`absolute z-50 ${align === "right" ? "right-0" : "left-0"} top-11 w-64 rounded-md border bg-popover shadow-md p-2`}>
           <div className="relative mb-2">
             <Input
               autoFocus

@@ -64,7 +64,7 @@ export function PasswordPromptModal({
             </div>
             <Dialog.Description asChild>
               <Typography variant="bodySm">
-                Enter password for <strong>{connectionLabel}</strong>
+                Enter password for <strong className="break-all">{connectionLabel}</strong>
               </Typography>
             </Dialog.Description>
             {errorMessage && (

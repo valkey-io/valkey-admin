@@ -120,6 +120,7 @@ export function HotKeys({
         countMin={countMin}
         dataMax={dataMax}
         dataMin={dataMin}
+        hideLastCollectedAt={!!isCluster && !!selectedKey}
         isCluster={isCluster}
         lastCollectedAt={lastCollectedAt}
         nodes={uniqueNodes}

@@ -20,6 +20,7 @@ interface HotKeysToolbarProps {
   dataMin: number
   dataMax: number
   lastCollectedAt?: number | null
+  hideLastCollectedAt?: boolean
   onHeatmapOpen: () => void
 }
 
@@ -30,6 +31,7 @@ export function HotKeysToolbar({
   countMin, countMax, onCountMinChange, onCountMaxChange,
   dataMin, dataMax,
   lastCollectedAt,
+  hideLastCollectedAt,
   onHeatmapOpen,
 }: HotKeysToolbarProps) {
   return (
@@ -70,13 +72,15 @@ export function HotKeysToolbar({
         onCountMinChange={onCountMinChange}
       />
 
-      <div className="ml-auto shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-md
-        border border-input bg-background">
-        <Clock className="shrink-0" size={12} />
-        <Typography variant="bodyXs">
-          Last collected at: {new Date(lastCollectedAt!).toLocaleString()}
-        </Typography>
-      </div>
+      {!hideLastCollectedAt && (
+        <div className="ml-auto shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-md
+          border border-input bg-background">
+          <Clock className="shrink-0" size={12} />
+          <Typography variant="bodyXs">
+            Last collected at: {new Date(lastCollectedAt!).toLocaleString()}
+          </Typography>
+        </div>
+      )}
     </div>
   )
 }
