@@ -6,10 +6,9 @@ import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
 import * as R from "ramda"
 import { Button } from "./button"
 import { Typography } from "./typography"
-import type { RootState } from "@/store"
-import type { ValkeyConnectionsState } from "@/state/valkey-features/connection/connectionSlice"
 import { useAppDispatch } from "@/hooks/hooks"
 import { monitorRequested, selectRunningMonitorConnections } from "@/state/valkey-features/monitor/monitorSlice"
+import { selectAllClusters } from "@/state/valkey-features/cluster/clusterSelectors"
 
 interface MonitoringConfig {
   monitoringDuration: number
@@ -19,9 +18,7 @@ interface MonitoringConfig {
 export function MonitorWarningBanner() {
   const dispatch = useAppDispatch()
   const runningConnections = useSelector(selectRunningMonitorConnections)
-  const connectionsState = useSelector((state: RootState) =>
-    R.path<ValkeyConnectionsState>([VALKEY.CONNECTION.name, "connections"], state) ?? {},
-  )
+  const clusters = useSelector(selectAllClusters)
   const configState = useSelector((state: unknown) =>
     R.path<Record<string, { monitoring?: MonitoringConfig }>>([VALKEY.CONFIG.name], state) ?? {},
   )
@@ -37,17 +34,20 @@ export function MonitorWarningBanner() {
   const { clusterGroups, standaloneConnections } = useMemo(() => {
     const groups: Record<string, { connectionId: string; startedAt: number | null }[]> = {}
     const standalone: { connectionId: string; startedAt: number | null }[] = []
-    for (const conn of runningConnections) {
-      const cId = connectionsState[conn.connectionId]?.connectionDetails?.clusterId
-      if (cId) {
-        if (!groups[cId]) groups[cId] = []
-        groups[cId].push(conn)
-      } else {
-        standalone.push(conn)
-      }
+
+    for (const [clusterId, cluster] of Object.entries(clusters)) {
+      const clusterNodeIds = new Set(Object.keys(cluster.clusterNodes ?? {}))
+      const matching = runningConnections.filter((c) => clusterNodeIds.has(c.connectionId))
+      if (matching.length > 0) groups[clusterId] = matching
     }
+
+    const grouped = new Set(Object.values(groups).flat().map((c) => c.connectionId))
+    for (const conn of runningConnections) {
+      if (!grouped.has(conn.connectionId)) standalone.push(conn)
+    }
+
     return { clusterGroups: groups, standaloneConnections: standalone }
-  }, [runningConnections, connectionsState])
+  }, [runningConnections, clusters])
 
   if (runningConnections.length === 0) return null
 
