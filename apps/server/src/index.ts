@@ -71,7 +71,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const frontendDist = path.join(__dirname, "../../frontend/dist")
 
-app.use(limiter)
+app.use((req, res, next) => {
+  if (req.path.startsWith("/orchestrator")) return next()
+  return limiter(req, res, next)
+})
 app.use(express.static(frontendDist))
 app.use(express.json())
 const metricsRouter = createMetricsOrchestratorRouter()
