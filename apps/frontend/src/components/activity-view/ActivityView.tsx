@@ -14,6 +14,7 @@ import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
 import { Button } from "../ui/button"
+import { Typography } from "../ui/typography"
 import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs, selectCommandLogsNodeErrors } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -157,6 +158,11 @@ export const ActivityView = () => {
         {/* Hot Keys Refresh */}
         {activeTab === "hot-keys" && (
           <div className="flex items-center gap-3">
+            {hotKeysLastCollectedAt && hotKeysData.length > 0 && (
+              <Typography variant="bodyXs">
+                Last collected at: {new Date(hotKeysLastCollectedAt).toLocaleString()}
+              </Typography>
+            )}
             <Button
               onClick={refreshHotKeys}
               size={"sm"}
@@ -192,13 +198,12 @@ export const ActivityView = () => {
       {activeTab === "hot-keys" ? (
         <div className="flex flex-1 h-full overflow-hidden gap-2">
           {/* Hot Keys List */}
-          <div className={selectedKey ? "w-2/3 h-full" : "w-full h-full"}>
-            <div className="flex-1 h-full border border-input rounded-md shadow-xs">
+          <div className={`${selectedKey ? "w-2/3" : "w-full"} h-full min-w-0 overflow-hidden`}>
+            <div className="h-full border border-input rounded-md shadow-xs overflow-hidden">
               <HotKeys
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
                 isCluster={!!clusterId}
-                lastCollectedAt={hotKeysLastCollectedAt}
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}
@@ -210,7 +215,7 @@ export const ActivityView = () => {
           </div>
           {/* Key Details Panel */}
           {selectedKey && (
-            <div className="w-1/3 h-full">
+            <div className="w-1/3 h-full min-w-0">
               <KeyDetails
                 connectionId={id!}
                 readOnly={true}
@@ -223,7 +228,12 @@ export const ActivityView = () => {
         </div>
       ) : (
         <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
-          <CommandLogTable data={getCurrentCommandLogData()} logType={commandLogSubTab} nodeErrors={commandLogsNodeErrors} />
+          <CommandLogTable
+            data={getCurrentCommandLogData()}
+            isCluster={!!clusterId}
+            logType={commandLogSubTab}
+            nodeErrors={commandLogsNodeErrors}
+          />
         </div>
       )}
     </RouteContainer>

@@ -161,7 +161,7 @@ export function KeyBrowser() {
             className="flex-1"
             label="Total Keys"
             tooltip={
-              <TooltipIcon description="Total number of keys sampled" size={14} />
+              <TooltipIcon description={`Total number of keys in the ${clusterId ? "cluster" : "instance"} "DBSIZE"`} size={14} />
             }
             value={totalKeys}
           />

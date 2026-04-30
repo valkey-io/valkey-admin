@@ -49,7 +49,7 @@ export function PasswordPromptModal({
         <Dialog.Content asChild>
           <form className={cn(
             "fixed left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2",
-            "flex flex-col gap-4 w-full max-w-sm p-6 rounded-lg shadow-lg border",
+            "flex flex-col gap-4 w-full max-w-md p-6 rounded-lg shadow-lg border",
             "bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border",
           )} onSubmit={handleSubmit}>
             <div className="flex justify-between">
@@ -64,7 +64,19 @@ export function PasswordPromptModal({
             </div>
             <Dialog.Description asChild>
               <Typography variant="bodySm">
-                Enter password for <strong>{connectionLabel}</strong>
+                Enter password for{" "}
+                <strong>
+                  {connectionLabel.split(".").map((part, i, arr) => (
+                    <span key={i}>
+                      {part}
+                      {i < arr.length - 1 && (
+                        <>
+                          .<wbr />
+                        </>
+                      )}
+                    </span>
+                  ))}
+                </strong>
               </Typography>
             </Dialog.Description>
             {errorMessage && (

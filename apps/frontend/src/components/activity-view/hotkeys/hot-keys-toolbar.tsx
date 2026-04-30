@@ -1,7 +1,6 @@
-import { ChartPie, Clock } from "lucide-react"
+import { ChartPie } from "lucide-react"
 import { Button } from "../../ui/button"
 import { SearchInput } from "../../ui/search-input"
-import { Typography } from "../../ui/typography"
 import { CountRangeFilter } from "./count-range-filter"
 import { NodeFilterDropdown } from "./node-filter-dropdown"
 
@@ -19,7 +18,6 @@ interface HotKeysToolbarProps {
   onCountMaxChange: (v: string) => void
   dataMin: number
   dataMax: number
-  lastCollectedAt?: number | null
   onHeatmapOpen: () => void
 }
 
@@ -29,7 +27,6 @@ export function HotKeysToolbar({
   nodes, selectedNode, onNodeSelect,
   countMin, countMax, onCountMinChange, onCountMaxChange,
   dataMin, dataMax,
-  lastCollectedAt,
   onHeatmapOpen,
 }: HotKeysToolbarProps) {
   return (
@@ -69,14 +66,6 @@ export function HotKeysToolbar({
         onCountMaxChange={onCountMaxChange}
         onCountMinChange={onCountMinChange}
       />
-
-      <div className="ml-auto shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-md
-        border border-input bg-background">
-        <Clock className="shrink-0" size={12} />
-        <Typography variant="bodyXs">
-          {lastCollectedAt && <>Last collected at: {new Date(lastCollectedAt).toLocaleString()}</>}
-        </Typography>
-      </div>
     </div>
   )
 }

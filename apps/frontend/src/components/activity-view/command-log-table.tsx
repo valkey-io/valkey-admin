@@ -9,6 +9,7 @@ import { TableContainer } from "../ui/table-container"
 import { SortableTableHeader, StaticTableHeader } from "../ui/sortable-table-header"
 import { Typography } from "../ui/typography"
 import { CustomTooltip } from "../ui/tooltip"
+import { NodeFilterDropdown } from "./hotkeys/node-filter-dropdown"
 
 type SortOrder = typeof SORT_ORDER.ASC | typeof SORT_ORDER.DESC
 type SortField = typeof SORT_FIELD.TIMESTAMP | typeof SORT_FIELD.METRIC
@@ -44,6 +45,7 @@ interface CommandLogTableProps {
   data: LogGroup[] | null
   logType: LogType
   nodeErrors?: { connectionId: string; error: string }[]
+  isCluster?: boolean
 }
 
 const logTypeConfig = {
@@ -73,10 +75,11 @@ const logTypeConfig = {
   },
 }
 
-export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTableProps) {
+export function CommandLogTable({ data, logType, nodeErrors, isCluster }: CommandLogTableProps) {
   const [sortField, setSortField] = useState<SortField>(SORT_FIELD.TIMESTAMP)
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
   const [nodeErrorsExpanded, setNodeErrorsExpanded] = useState(false)
+  const [selectedNode, setSelectedNode] = useState("all")
   const config = logTypeConfig[logType]
 
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
@@ -120,7 +123,7 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
     }
   }
 
-  const sortedLogs = R.defaultTo([], data)
+  const allLogs = R.defaultTo([], data)
     .flatMap((logGroup) =>
       logGroup.values.map((entry) => ({
         ...entry,
@@ -128,102 +131,124 @@ export function CommandLogTable({ data, logType, nodeErrors }: CommandLogTablePr
         nodeId: (logGroup).nodeId,
       })),
     )
+
+  const uniqueNodes = Array.from(
+    new Set(allLogs.map((entry) => entry.nodeId).filter(Boolean)),
+  ) as string[]
+
+  const sortedLogs = allLogs
+    .filter((entry) => selectedNode === "all" || entry.nodeId === selectedNode)
     .sort((sortOrder === SORT_ORDER.ASC ? R.ascend : R.descend)(
       sortField === SORT_FIELD.TIMESTAMP
         ? R.prop("ts")
         : R.prop(config.metricKey as keyof typeof R.prop),
     ))
 
-  return sortedLogs.length > 0 ? (
-    <>
+  const nodeFilterToolbar = isCluster && (
+    <div className="flex justify-end w-full bg-accent p-2">
+      <div className="w-1/6 flex justify-center">
+        <NodeFilterDropdown
+          align="right"
+          nodes={uniqueNodes}
+          onSelect={setSelectedNode}
+          selectedNode={selectedNode}
+        />
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
       {nodeErrorsBanner}
-      <TableContainer
-        header={
-          <>
-            <StaticTableHeader className="flex-1" label="Command" />
-            <SortableTableHeader
-              active={sortField === SORT_FIELD.METRIC}
-              className="text-center"
-              label={config.metricLabel}
-              onClick={() => toggleSort(SORT_FIELD.METRIC)}
-              sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
-              width="w-1/6"
-            />
-            <SortableTableHeader
-              active={sortField === SORT_FIELD.TIMESTAMP}
-              icon={<Clock className="text-primary" size={16} />}
-              label="Timestamp"
-              onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
-              sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
-              width="w-1/6"
-            />
-            <StaticTableHeader className="text-center" label="Client Address" width="w-1/6" />
-            <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
-          </>
-        }
-      >
-        {sortedLogs.map((entry, index) => {
-          const metricValue = config.metricKey in entry
-            ? entry[config.metricKey as keyof typeof entry] as number
-            : 0
+      {sortedLogs.length > 0 && nodeFilterToolbar}
+      {sortedLogs.length > 0 ? (
+        <div className="flex-1 min-h-0">
+          <TableContainer
+            header={
+              <>
+                <StaticTableHeader className="flex-1" label="Command" />
+                <SortableTableHeader
+                  active={sortField === SORT_FIELD.METRIC}
+                  className="text-center"
+                  label={config.metricLabel}
+                  onClick={() => toggleSort(SORT_FIELD.METRIC)}
+                  sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
+                  width="w-1/6"
+                />
+                <SortableTableHeader
+                  active={sortField === SORT_FIELD.TIMESTAMP}
+                  icon={<Clock className="text-primary" size={16} />}
+                  label="Timestamp"
+                  onClick={() => toggleSort(SORT_FIELD.TIMESTAMP)}
+                  sortOrder={sortOrder === SORT_ORDER.ASC ? "asc" : "desc"}
+                  width="w-1/6"
+                />
+                <StaticTableHeader className="text-center" label="Client Address" width="w-1/6" />
+                <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
+              </>
+            }
+          >
+            {sortedLogs.map((entry, index) => {
+              const metricValue = config.metricKey in entry
+                ? entry[config.metricKey as keyof typeof entry] as number
+                : 0
 
-          return (
-            <tr
-              className="group border-b dark:border-tw-dark-border hover:bg-primary/10"
-              key={`${entry.groupTs}-${entry.id}-${index}`}
-            >
-              {/* command */}
-              <td className="px-4 py-2 flex-1">
-                <CustomTooltip content={entry.argv.join(" ")}>
-                  <Typography
-                    className="bg-primary/30 py-1 px-2 rounded-full"
-                    variant="code"
-                  >
-                    {truncateText(entry.argv.join(" "), 40)}
-                  </Typography>
-                </CustomTooltip>
-              </td>
+              return (
+                <tr
+                  className="group border-b dark:border-tw-dark-border hover:bg-primary/10"
+                  key={`${entry.groupTs}-${entry.id}-${index}`}
+                >
+                  {/* command */}
+                  <td className="px-4 py-2 flex-1">
+                    <CustomTooltip content={entry.argv.join(" ")}>
+                      <Typography
+                        className="bg-primary/30 py-1 px-2 rounded-full"
+                        variant="code"
+                      >
+                        {truncateText(entry.argv.join(" "), 40)}
+                      </Typography>
+                    </CustomTooltip>
+                  </td>
 
-              {/* metric (duration or size) */}
-              <td className="px-4 py-2 w-1/6 text-center">
-                <Typography className="" variant="bodySm">
-                  {config.metricFormat(metricValue)}
-                </Typography>
-              </td>
+                  {/* metric (duration or size) */}
+                  <td className="px-4 py-2 w-1/6 text-center">
+                    <Typography className="" variant="bodySm">
+                      {config.metricFormat(metricValue)}
+                    </Typography>
+                  </td>
 
-              {/* timestamp */}
-              <td className="px-4 py-2 w-1/6 text-center">
-                <Typography variant="bodySm">
-                  {new Date(entry.ts).toLocaleString()}
-                </Typography>
-              </td>
+                  {/* timestamp */}
+                  <td className="px-4 py-2 w-1/6 text-center">
+                    <Typography variant="bodySm">
+                      {new Date(entry.ts).toLocaleString()}
+                    </Typography>
+                  </td>
 
-              {/* client address */}
-              <td className="px-4 py-2 w-1/6 text-center">
-                <CustomTooltip content={entry.addr}>
-                  <Typography variant="code">{truncateText(entry.addr ?? "—")}</Typography>
-                </CustomTooltip>
-              </td>
+                  {/* client address */}
+                  <td className="px-4 py-2 w-1/6 text-center">
+                    <CustomTooltip content={entry.addr}>
+                      <Typography variant="code">{truncateText(entry.addr ?? "—")}</Typography>
+                    </CustomTooltip>
+                  </td>
 
-              {/* node */}
-              <td className="px-4 py-2 w-1/6 text-center">
-                <CustomTooltip content={entry.nodeId}>
-                  <Typography variant="code">{truncateText((entry).nodeId ?? "—")}</Typography>
-                </CustomTooltip>
-              </td>
-            </tr>
-          )
-        })}
-      </TableContainer>
-    </>
-  ) : (
-    <>
-      {nodeErrorsBanner}
-      <EmptyState
-        description={config.emptySubtext}
-        icon={<Clock size={48} />}
-        title={config.emptyMessage}
-      />
-    </>
+                  {/* node */}
+                  <td className="px-4 py-2 w-1/6 text-center">
+                    <CustomTooltip content={entry.nodeId}>
+                      <Typography variant="code">{truncateText((entry).nodeId ?? "—")}</Typography>
+                    </CustomTooltip>
+                  </td>
+                </tr>
+              )
+            })}
+          </TableContainer>
+        </div>
+      ) : (
+        <EmptyState
+          description={config.emptySubtext}
+          icon={<Clock size={48} />}
+          title={config.emptyMessage}
+        />
+      )}
+    </div>
   )
 }
