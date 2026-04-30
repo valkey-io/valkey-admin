@@ -6,7 +6,7 @@ async function main() {
   const TOTAL_KEYS = 100000
   const BATCH_SIZE = 1000
 
-  const client = createClient({ url: "valkey://localhost:6379" })
+  const client = createClient({ url: process.env.VALKEY_URL ?? "valkey://localhost:6379" })
   client.on("error", e => console.error("Valkey error:", e))
   await client.connect()
 
