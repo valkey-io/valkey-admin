@@ -160,7 +160,7 @@ export function CommandLogTable({ data, logType, nodeErrors, isCluster }: Comman
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {nodeErrorsBanner}
-      {nodeFilterToolbar}
+      {sortedLogs.length > 0 && nodeFilterToolbar}
       {sortedLogs.length > 0 ? (
         <div className="flex-1 min-h-0">
           <TableContainer

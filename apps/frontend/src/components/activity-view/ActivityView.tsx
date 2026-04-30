@@ -14,6 +14,7 @@ import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
 import { Button } from "../ui/button"
+import { Typography } from "../ui/typography"
 import type { RootState } from "@/store"
 import { commandLogsRequested, selectCommandLogs, selectCommandLogsNodeErrors } from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -157,6 +158,11 @@ export const ActivityView = () => {
         {/* Hot Keys Refresh */}
         {activeTab === "hot-keys" && (
           <div className="flex items-center gap-3">
+            {hotKeysLastCollectedAt && hotKeysData.length > 0 && (
+              <Typography variant="bodyXs">
+                Last collected at: {new Date(hotKeysLastCollectedAt).toLocaleString()}
+              </Typography>
+            )}
             <Button
               onClick={refreshHotKeys}
               size={"sm"}
@@ -198,7 +204,6 @@ export const ActivityView = () => {
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
                 isCluster={!!clusterId}
-                lastCollectedAt={hotKeysLastCollectedAt}
                 monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}

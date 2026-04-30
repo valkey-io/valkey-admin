@@ -18,7 +18,6 @@ interface HotKeysProps {
   status?: string
   monitorRunning?: boolean
   nodeErrors?: { connectionId: string; error: string }[]
-  lastCollectedAt?: number | null
   isCluster?: boolean
   onKeyClick?: (keyName: string) => void
   onStartMonitoring?: () => void
@@ -26,7 +25,7 @@ interface HotKeysProps {
 }
 
 export function HotKeys({
-  data, errorMessage, status, monitorRunning, nodeErrors, lastCollectedAt,
+  data, errorMessage, status, monitorRunning, nodeErrors,
   isCluster, onKeyClick, onStartMonitoring, selectedKey,
 }: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
@@ -120,9 +119,7 @@ export function HotKeys({
         countMin={countMin}
         dataMax={dataMax}
         dataMin={dataMin}
-        hideLastCollectedAt={!!isCluster && !!selectedKey}
         isCluster={isCluster}
-        lastCollectedAt={lastCollectedAt}
         nodes={uniqueNodes}
         onCountMaxChange={setCountMax}
         onCountMinChange={setCountMin}
