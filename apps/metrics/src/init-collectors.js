@@ -148,7 +148,14 @@ const setupCollectors = async (client, cfg) => {
         },
       }
 
-      const rows = await fn()
+      let rows
+      try {
+        rows = await fn()
+      } catch (err) {
+        console.warn(`[${f.name}] initial fetch failed, skipping collector:`, err.message)
+        nd.close()
+        return
+      }
 
       await sink.appendRows(rows)
       collectorStoppers[f.name] = startCollector({
