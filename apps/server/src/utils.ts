@@ -7,10 +7,8 @@ import {
 } from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
-import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl, VALKEY } from "valkey-common"
-import WebSocket from "ws"
+import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
 import { ClusterNodeMap } from "./metrics-orchestrator"
-import { subscribe } from "./node-watchers"
 export const dns = {
   lookup,
   reverse,
@@ -156,7 +154,7 @@ function isClusterClientEntry(
   return !!entry && entry.client instanceof GlideClusterClient
 }
 
-export async function clusterClientExists(
+export async function getExistingClusterClient(
   discoveredClusterNodes: ClusterNodeMap, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) {
@@ -170,30 +168,6 @@ export async function clusterClientExists(
     : undefined
 
   return existingConnection
-}
-
-export async function returnExistingClusterClient(
-  existingClusterConnection: {client: GlideClusterClient, clusterId?: string},
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-  connectionId: string,
-  connectedNodesByCluster: Map<string, string[]>,
-  clusterNodesRegistry: ClusterRegistry,
-  ws: WebSocket,
-  discoveredClusterNodes: ClusterNodeMap,
-) {
-  const { client: existingClusterClient, clusterId: existingClusterId } = existingClusterConnection
-  clients.set(connectionId, { client: existingClusterClient, clusterId: existingClusterId })
-  clusterNodesRegistry[existingClusterId!] = discoveredClusterNodes
-  if (!connectedNodesByCluster.get(existingClusterId!)?.includes(connectionId)) 
-    connectedNodesByCluster.get(existingClusterId!)?.push(connectionId)
-  subscribe(connectionId, ws)
-  ws.send(
-    JSON.stringify({
-      type: VALKEY.CLUSTER.addCluster,
-      payload: { clusterId: existingClusterId, clusterNodes: discoveredClusterNodes },
-    }),
-  )
-  return existingClusterClient
 }
 
 export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {

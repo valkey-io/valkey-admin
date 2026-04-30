@@ -29,7 +29,11 @@ type ConnectPayload = {
 
 export const connectPending = withDeps<Deps, void>(
   async ({ ws, clients, action, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry }) => {
-    await connectToValkey(ws, action.payload as ConnectPayload, clients, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry)
+    await connectToValkey(
+      { clients, connectedNodesByCluster, clusterNodesRegistry, metricsServerMap },
+      ws,
+      action.payload as ConnectPayload,
+    )
   },
 )
 
@@ -81,6 +85,9 @@ export const closeConnection = withDeps<Deps, void>(
         }
       }
     }
-    teardownConnection(connectionId, clients, metricsServerMap, clusterNodesRegistry)
+    teardownConnection(
+      { clients, clusterNodesRegistry, metricsServerMap },
+      connectionId,
+    )
   },
 )

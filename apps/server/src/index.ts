@@ -71,7 +71,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const frontendDist = path.join(__dirname, "../../frontend/dist")
 
-app.use(limiter)
+app.use((req, res, next) => {
+  if (req.path.startsWith("/orchestrator")) return next()
+  return limiter(req, res, next)
+})
 app.use(express.static(frontendDist))
 app.use(express.json())
 const metricsRouter = createMetricsOrchestratorRouter()
@@ -264,14 +267,22 @@ wss.on("connection", (ws: AliveWebSocket) => {
     for (const connectionId of removedIds) {
       setTimeout(() => {
         if (getWatcherCount(connectionId) === 0) {
-          teardownConnection(connectionId, clients, metricsServerMap, clusterNodesRegistry)
+          teardownConnection(
+            { clients, clusterNodesRegistry, metricsServerMap },
+            connectionId,
+          )
         }
       }, CONNECTION_TEARDOWN_DELAY_MS)
     }
 
     // Clean up any side-entries (e.g., node entries from config endpoint connections)
     for (const [id] of clients) {
-      if (getWatcherCount(id) === 0) teardownConnection(id, clients, metricsServerMap, clusterNodesRegistry)
+      if (getWatcherCount(id) === 0) {
+        teardownConnection(
+          { clients, clusterNodesRegistry, metricsServerMap },
+          id,
+        )
+      }
     }
   })
 })

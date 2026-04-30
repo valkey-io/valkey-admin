@@ -100,6 +100,7 @@ Valkey Admin is configured through environment variables. All variables are opti
 | `TTL` | Metrics server health check timeout (ms) | `60000` |
 | `TOPOLOGY_REFRESH_INTERVAL` | Cluster topology refresh interval (ms) | `30000` |
 | `HOT_KEYS_COUNT` | Maximum number of hot keys returned per query | `50` |
+| `COMMAND_LOGS_COUNT` | Maximum number of command log entries returned per query | `100` |
 
 ### Pre-configured Metrics Collection
 
@@ -181,6 +182,8 @@ When you start monitoring, two settings control the sampling behavior:
 
 - **Duration:** How long each sampling run captures commands (default: 10 seconds). During this window, the `MONITOR` command streams every command executed on the server, and the metrics server counts key access frequency.
 - **Interval:** How long to wait between sampling runs (default: 10 seconds). After each duration completes, the metrics server pauses for the interval before starting the next run.
+- **Max Commands Per Run:** Maximum number of commands captured during each monitoring cycle (default: 1,000,000). If the limit is reached before the duration expires, the cycle ends early. Lower values reduce memory usage on busy clusters.
+- **Cutoff Frequency:** Minimum number of times a key must be accessed during a monitoring cycle to be considered hot (default: 100). Keys accessed fewer times are filtered out. Lower values show more keys; higher values surface only the most active keys.
 
 This creates a repeating cycle: capture for *duration*, pause for *interval*, capture again. The hot keys displayed are from the most recent sampling run.
 
