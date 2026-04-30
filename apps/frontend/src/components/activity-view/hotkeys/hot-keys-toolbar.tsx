@@ -74,7 +74,7 @@ export function HotKeysToolbar({
         border border-input bg-background">
         <Clock className="shrink-0" size={12} />
         <Typography variant="bodyXs">
-          Last collected at: {new Date(lastCollectedAt!).toLocaleString()}
+          {lastCollectedAt && <>Last collected at: {new Date(lastCollectedAt).toLocaleString()}</>}
         </Typography>
       </div>
     </div>
