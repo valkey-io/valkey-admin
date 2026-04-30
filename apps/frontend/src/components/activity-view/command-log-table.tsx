@@ -128,7 +128,7 @@ export function CommandLogTable({ data, logType, nodeErrors, isCluster }: Comman
       logGroup.values.map((entry) => ({
         ...entry,
         groupTs: logGroup.ts,
-        nodeId: (logGroup).nodeId,
+        nodeId: entry.nodeId ?? (logGroup).nodeId,
       })),
     )
 
