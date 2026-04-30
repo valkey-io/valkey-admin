@@ -321,7 +321,7 @@ async function stopMetricsServer(nodeToStop: string) {
       return
     }
     if (entry?.pid) {
-      process?.kill(entry.pid,"SIGTERM")
+      try { process?.kill(entry.pid, "SIGTERM") } catch { /* already dead */ }
       metricsServerMap.delete(nodeToStop)
     }
   }
