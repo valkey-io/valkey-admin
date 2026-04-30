@@ -1,0 +1,4 @@
+{"ts":1777585038115,"metric":"used_cpu_sys","value":482.314278}
+{"ts":1777585038115,"metric":"used_cpu_user","value":32.625686}
+{"ts":1777585038115,"metric":"used_cpu_sys_children","value":0.004324}
+{"ts":1777585038115,"metric":"used_cpu_user_children","value":0.00012}

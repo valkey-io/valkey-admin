@@ -126,14 +126,16 @@ export const commandLogsRequested = withDeps<Deps, void>(
       return
     }
 
-    const allValues = results
-      .flatMap((r) => r.rows.flatMap((row) => (row.values ?? []).map((v) => ({ ...v, nodeId: r.nodeId }))))
-
-    const sortedValues = R.sort(
-      R.descend((v: { duration_us?: number; size?: number; ts: number }) =>
-        v.duration_us ?? v.size ?? v.ts),
-      allValues,
-    )
+    const sortedValues = R.pipe(
+      R.chain(({ rows, nodeId }) => rows.map((row) => ({ row, nodeId }))),
+      R.chain(({ row, nodeId }) => (row.values ?? []).map((v) => ({ ...v, nodeId }))),
+      R.sort(
+        R.descend(
+          (v: { duration_us?: number; size?: number; ts: number }) =>
+            v.duration_us ?? v.size ?? v.ts,
+        ),
+      ),
+    )(results)
 
     const limit = Number(process.env.COMMAND_LOGS_COUNT) || 100
     const limitedValues = sortedValues.slice(0, limit)

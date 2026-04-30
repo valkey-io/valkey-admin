@@ -1,0 +1,10 @@
+{"ts":1777585038710,"metric":"used_memory","value":3843408}
+{"ts":1777585038710,"metric":"allocator_active","value":4338688}
+{"ts":1777585038710,"metric":"allocator_resident","value":4338688}
+{"ts":1777585038710,"metric":"peak_allocated","value":4241152}
+{"ts":1777585038710,"metric":"dataset_bytes","value":812740}
+{"ts":1777585038710,"metric":"overhead_total","value":3030668}
+{"ts":1777585038710,"metric":"dataset_percentage","value":59.96}
+{"ts":1777585038710,"metric":"fragmentation","value":1.15}
+{"ts":1777585038710,"metric":"fragmentation_bytes","value":582800}
+{"ts":1777585038710,"metric":"allocator_rss_ratio","value":1}
