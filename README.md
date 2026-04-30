@@ -77,7 +77,7 @@ In Web and Docker deployment modes, Valkey Admin spawns a metrics server process
 |---|---|
 | 1–5 primaries | 2 vCPU, 2 GB RAM |
 | 5–50 primaries | 4 vCPU, 8 GB RAM |
-| 50–100 primaries | 4 vCPU, 16 GB RAM |
+| 50–100 primaries | 8 vCPU, 16 GB RAM |
 | 100–200 primaries | 16 vCPU, 32 GB RAM |
 | 200–400+ primaries | 32 vCPU, 64 GB RAM |
 
