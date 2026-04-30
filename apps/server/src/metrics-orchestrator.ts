@@ -1,7 +1,6 @@
 import { GlideClient, GlideClusterClient, ConnectionError, ServiceType } from "@valkey/valkey-glide"
 import { ChildProcess, spawn } from "child_process"
 import { fileURLToPath } from "url"
-import * as R from "ramda"
 import { Router, type Request, type Response } from "express"
 import path from "path"
 import { DEPLOYMENT_TYPE, sanitizeUrl } from "valkey-common"
@@ -218,12 +217,12 @@ async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: s
 
 async function startMetricsServers(nodesToStart: ClusterNodeMap, clusterId: string) {
   const password = clusterCredentials.get(clusterId)
-  const entries = Object.entries(nodesToStart).filter(([nodeId]) => !metricsServerMap.has(nodeId))
-  await R.splitEvery(30, entries).reduce(
-    (prev, batch) => prev
-      .then(() => Promise.all(batch.map(([nodeId, nodeInfo]) => startMetricsServer({ ...nodeInfo, password }, nodeId))))
-      .then(() => new Promise((r) => setTimeout(r, 500))),
-    Promise.resolve(),
+  await Promise.all(
+    Object.entries(nodesToStart).map(async ([nodeId, nodeInfo]) => {
+      if (!metricsServerMap.has(nodeId)) {
+        await startMetricsServer({ ...nodeInfo, password }, nodeId)
+      }
+    }),
   )
 }
 
