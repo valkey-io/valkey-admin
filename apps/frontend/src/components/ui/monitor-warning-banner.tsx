@@ -6,7 +6,6 @@ import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
 import * as R from "ramda"
 import { Button } from "./button"
 import { Typography } from "./typography"
-import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
 import { monitorRequested, selectRunningMonitorConnections } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectAllClusters } from "@/state/valkey-features/cluster/clusterSelectors"
@@ -38,11 +37,11 @@ export function MonitorWarningBanner() {
 
     for (const [clusterId, cluster] of Object.entries(clusters)) {
       const clusterNodeIds = new Set(Object.keys(cluster.clusterNodes ?? {}))
-      const matching = runningConnections.filter(c => clusterNodeIds.has(c.connectionId))
+      const matching = runningConnections.filter((c) => clusterNodeIds.has(c.connectionId))
       if (matching.length > 0) groups[clusterId] = matching
     }
 
-    const grouped = new Set(Object.values(groups).flat().map(c => c.connectionId))
+    const grouped = new Set(Object.values(groups).flat().map((c) => c.connectionId))
     for (const conn of runningConnections) {
       if (!grouped.has(conn.connectionId)) standalone.push(conn)
     }
