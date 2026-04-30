@@ -126,20 +126,24 @@ export const commandLogsRequested = withDeps<Deps, void>(
       return
     }
 
-    const aggregatedRows = R.sort(
-      R.descend((row: { values?: Array<{ duration_us?: number; size?: number }>; ts: number }) => {
-        const v = row.values?.[0]
-        return v?.duration_us ?? v?.size ?? row.ts
-      }),
-      results.flatMap((r) => r.rows.map((row) => ({ ...row, nodeId: r.nodeId }))),
-    )
+    const sortedValues = R.pipe(
+      R.chain(({ rows, nodeId }) => rows.map((row) => ({ row, nodeId }))),
+      R.chain(({ row, nodeId }) => (row.values ?? []).map((v) => ({ ...v, nodeId }))),
+      R.sort(
+        R.descend(
+          (v: { duration_us?: number; size?: number; ts: number }) =>
+            v.duration_us ?? v.size ?? v.ts,
+        ),
+      ),
+    )(results)
+
     const limit = Number(process.env.COMMAND_LOGS_COUNT) || 100
-    const limitedRows = aggregatedRows.slice(0, limit)
+    const limitedValues = sortedValues.slice(0, limit)
     const count = results[0]?.count ?? 0
     sendCommandLogsFulfilled(
       ws,
       clusterId as string,
-      { rows: limitedRows, count, checkAt: 0 } as CommandLogResponse,
+      { rows: [{ ts: Date.now(), metric: commandLogType, values: limitedValues }], count, checkAt: 0 } as CommandLogResponse,
       commandLogType,
       nodeErrors,
     )

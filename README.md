@@ -2,6 +2,10 @@
 
 Valkey Admin is a web-based administration tool for [Valkey](https://valkey.io) clusters and standalone instances. It provides an intuitive interface to monitor, manage, and interact with your Valkey deployments.
 
+> **Compatibility:** Valkey Admin works with all versions of Valkey. Some features require newer versions:
+> - **Command Logs** (slow commands, large requests/replies): Valkey 8.1+
+> - **Hot Slots Detection** (via `CLUSTER SLOT-STATS`): Valkey 8.0+ with `cluster-slot-stats-enabled` set to `yes`
+
 ## Features
 
 - **Dashboard:** real-time metrics including memory usage, CPU, connected clients, hit ratio, and command throughput
