@@ -241,8 +241,7 @@ async function scanCluster(
       const keys = value[1]
 
       keys.forEach((k) => {
-        allKeys.add(k)
-        if (allKeys.size >= limit) return 
+        if (allKeys.size < limit) allKeys.add(k)
       })
 
       const [host, portStr] = nodeAddress.split(/:(?=[^:]+$)/) // split on last ":"
@@ -264,7 +263,7 @@ async function scanCluster(
         ) as [string, string[]]
 
         cursor = nextCursor
-        newKeys.forEach((k) => allKeys.add(k))
+        newKeys.forEach((k) => { if (allKeys.size < limit) allKeys.add(k) })
       }
     }),
   )
