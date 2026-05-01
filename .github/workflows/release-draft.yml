@@ -10,7 +10,16 @@ permissions:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+            package_script: package:mac
+          - arch: x64
+            runner: macos-15-intel
+            package_script: package:mac:x64
+    runs-on: ${{ matrix.runner }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -39,8 +48,8 @@ jobs:
         security list-keychain -d user -s "$KEYCHAIN_PATH" \
           $(security list-keychains -d user | tr -d '"') # Adds keychain to user search list
         security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-    - name: Package, sign & notarize mac app
-      run: npm run package:mac
+    - name: Package, sign & notarize mac app (${{ matrix.arch }})
+      run: npm run ${{ matrix.package_script }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -49,11 +58,11 @@ jobs:
     - name: Clean up keychain
       if: always()
       run: security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
-    - name: Upload mac artifacts
+    - name: Upload mac artifacts (${{ matrix.arch }})
       uses: actions/upload-artifact@v4
       with:
-        name: mac-artifacts
-        path: ./release/*-arm64.dmg
+        name: mac-${{ matrix.arch }}-artifacts
+        path: ./release/*-${{ matrix.arch }}.dmg
 
   build-linux:
     strategy:
