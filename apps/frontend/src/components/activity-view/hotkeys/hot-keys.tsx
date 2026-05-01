@@ -107,7 +107,7 @@ export function HotKeys({
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       {banners}
       <HotKeysHeatmapModal
         data={sorted}
@@ -130,20 +130,22 @@ export function HotKeys({
         searchQuery={searchQuery}
         selectedNode={selectedNode}
       />
-      <HotKeysTable
-        dataMax={dataMax}
-        dataMin={dataMin}
-        isCountFiltered={isCountFiltered}
-        onKeyClick={onKeyClick}
-        onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-        parsedCountMax={parsedCountMax}
-        parsedCountMin={parsedCountMin}
-        rows={filtered}
-        searchQuery={searchQuery}
-        selectedKey={selectedKey}
-        selectedNode={selectedNode}
-        sortOrder={sortOrder}
-      />
-    </>
+      <div className="flex-1 min-h-0">
+        <HotKeysTable
+          dataMax={dataMax}
+          dataMin={dataMin}
+          isCountFiltered={isCountFiltered}
+          onKeyClick={onKeyClick}
+          onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+          parsedCountMax={parsedCountMax}
+          parsedCountMin={parsedCountMin}
+          rows={filtered}
+          searchQuery={searchQuery}
+          selectedKey={selectedKey}
+          selectedNode={selectedNode}
+          sortOrder={sortOrder}
+        />
+      </div>
+    </div>
   )
 }

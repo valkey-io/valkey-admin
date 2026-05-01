@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { Alert, AlertDescription } from "../../ui/alert"
 import { Typography } from "../../ui/typography"
@@ -9,11 +9,23 @@ interface NodeErrorsBannerProps {
 
 export function NodeErrorsBanner({ nodeErrors }: NodeErrorsBannerProps) {
   const [expanded, setExpanded] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!expanded) return
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setExpanded(false)
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick)
+    return () => document.removeEventListener("mousedown", handleOutsideClick)
+  }, [expanded])
 
   if (nodeErrors.length === 0) return null
 
   return (
-    <div className="m-3 relative">
+    <div className="m-3 relative" ref={containerRef}>
       <Alert
         className="cursor-pointer"
         onClick={() => setExpanded((prev) => !prev)}
