@@ -18,7 +18,7 @@ export default function LearnMore() {
           rel="noopener noreferrer"
           target="_blank"
         >
-          Valkey Admin Version 0.0.1
+          Valkey Admin Version {__APP_VERSION__}
         </a>
         <Typography variant="bodySm">A dedicated UI for Valkey</Typography>
       </div>
