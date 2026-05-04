@@ -113,3 +113,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Update Docker Hub description
+        if: env.PUBLISH_DOCKERHUB == 'true'
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_REPOSITORY }}
+          readme-filepath: ./docker/description.md
+          short-description: 'Valkey Admin is a web-based administration tool for Valkey clusters and standalone instances.'
+
+      - name: Update ECR Public description
+        if: env.PUBLISH_ECR == 'true'
+        run: |
+          ABOUT=$(cat docker/description.md | head -c 10240 | jq -Rs .)
+          aws ecr-public put-repository-catalog-data \
+            --region us-east-1 \
+            --repository-name "${{ secrets.ECR_REPOSITORY_NAME }}" \
+            --catalog-data "{\"aboutText\":$ABOUT,\"description\":\"Valkey Admin is a web-based administration tool for Valkey clusters and standalone instances.\"}"
