@@ -213,6 +213,82 @@ When hot slots requirements are not met, Valkey Admin prompts you to start monit
 - **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
 
 
+## Getting Started
+
+### Prerequisites
+- nodejs version v20+
+
+### First install the dependencies
+```sh
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs
+```
+
+### Then download source and install dependencies
+```sh
+cd /opt
+git clone https://github.com/valkey-io/valkey-admin.git
+cd valkey-admin
+npm install
+```
+
+### Setting up external access in valkey-admin's apps
+Manually configure valkey-admin's front-end and server.
+
+vite.config.ts
+```sh
+cat > apps/frontend/vite.config.ts << 'EOF'
+import { defineConfig } from "vite"
+import path from "path"
+import tailwindcss from "@tailwindcss/vite"
+import react from "@vitejs/plugin-react"
+
+export default defineConfig({
+  base: "./",
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@common": path.resolve(__dirname, "../../common"),
+    },
+  },
+  server: {
+    host: "0.0.0.0",
+    port: 5173,
+  },
+})
+EOF
+```
+
+server/index.ts
+```sh
+sed -i "s/WebSocketServer({ port: 8080 })/WebSocketServer({ host: '0.0.0.0', port: 8080 })/" \
+    apps/server/src/index.ts
+```
+
+wsEpics.ts (Configure external access in valkey-admin's apps)
+```sh
+sed -i 's|ws://localhost:8080|ws://YOUR_IP:8080|' \
+    apps/frontend/src/state/epics/wsEpics.ts
+```
+
+### Run valkey-admin
+```sh
+# foreground
+npm run dev
+
+# background
+nohup npm run dev > /var/log/valkey-admin.log 2>&1 &
+```
+
+### Access to the valkey-admin
+```sh
+valkey-admin WebUI: http://YOUR_IP:5173
+Connection Settings:
+Host: 127.0.0.1
+Port: 6380 (Valkey port)
+```
+
 ## Contributing
 
 Interested in improving Valkey Admin? See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, architecture guidelines, and the contribution process.
