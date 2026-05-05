@@ -14,6 +14,7 @@ import type { RootState } from "@/store.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateClusterData } from "@/state/valkey-features/cluster/clusterSlice"
+import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function Cluster() {
   const { id, clusterId } = useParams()
@@ -27,6 +28,7 @@ export function Cluster() {
   const connectionStatuses = useSelector((state: RootState) =>
     state.valkeyConnection?.connections || {},
   )
+  const clusterAlias = useSelector(selectClusterAlias(id!))
 
   if (!clusterData?.clusterNodes || !clusterData?.data) {
     return (
@@ -77,7 +79,7 @@ export function Cluster() {
         description={
           <>
             Topology of cluster{" "}
-            <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+            <span className="font-semibold text-primary">{truncateText(clusterAlias || clusterId!)}</span>
           </>
         }
         icon={<Server size={20} />}

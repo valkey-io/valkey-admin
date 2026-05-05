@@ -23,3 +23,6 @@ export const selectEncryptedPassword = (clusterId: string) => (state: RootState)
     (c) => c.connectionDetails?.clusterId === clusterId && R.isNotNil(c.connectionDetails?.password),
   )?.connectionDetails?.password
 
+export const selectClusterAlias = (id: string) => (state: RootState) =>
+  atId(id, state)?.connectionDetails?.alias
+

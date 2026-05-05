@@ -23,7 +23,7 @@ import {
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import { monitorRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
-import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectConnectionDetails, selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
@@ -61,6 +61,7 @@ export const ActivityView = () => {
   const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
   const monitorRunning = useSelector(selectMonitorRunning(id!))
   const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
+  const clusterAlias = useSelector(selectClusterAlias(id!))
   const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
@@ -140,7 +141,7 @@ export const ActivityView = () => {
             Monitor Hot Keys and Command Logs of{" "}
             {clusterId ? (
               <>
-                cluster {" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+                cluster {" "} <span className="font-semibold text-primary">{truncateText(clusterAlias || clusterId!)}</span>
               </>
             ) : (
               <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>

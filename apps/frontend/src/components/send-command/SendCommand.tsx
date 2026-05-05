@@ -20,6 +20,7 @@ import DiffCommands from "@/components/send-command/DiffCommands.tsx"
 import Response from "@/components/send-command/Response.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Typography } from "@/components/ui/typography.tsx"
+import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
@@ -31,6 +32,7 @@ export function SendCommand() {
   const [historyFilter, setHistoryFilter] = useState("")
 
   const { id, clusterId } = useParams()
+  const clusterAlias = useSelector(selectClusterAlias(id!))
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
@@ -68,7 +70,7 @@ export function SendCommand() {
             Send commands and view responses for{" "}
             {clusterId ? (
               <>
-                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterAlias || clusterId!)}</span>
               </>
             ) : (
               <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>

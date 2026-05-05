@@ -38,6 +38,7 @@ import {
   getKeysRequested,
   getKeyTypeRequested
 } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface KeyInfo {
   name: string;
@@ -57,6 +58,7 @@ export function KeyBrowser() {
   const [isDistributionOpen, setIsDistributionOpen] = useState(false)
   const [searchPattern, setSearchPattern] = useState("")
   const [selectedType, setSelectedType] = useState<string>("all")
+  const clusterAlias = useSelector(selectClusterAlias(id!))
   const keyTypes = [
     { value: "all", label: "All Key Types" },
     { value: "string", label: "String" },
@@ -137,7 +139,7 @@ export function KeyBrowser() {
             Add, View and Edit keys of{" "}
             {clusterId ? (
               <>
-                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterAlias || clusterId!)}</span>
               </>
             ) : (
               <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>

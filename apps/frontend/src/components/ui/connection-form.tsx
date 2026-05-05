@@ -67,7 +67,8 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
       host: connectionDetails.host.trim(),
-      alias: connectionDetails.alias?.trim() ?? "",
+      // uses typed alias which falls back to awsReplicationGroupId for AWS IAM auth
+      alias: connectionDetails.alias?.trim() || (connectionDetails.authType === "iam" ? connectionDetails.awsReplicationGroupId : ""),
       username: connectionDetails.username?.trim() ?? "",
       awsRegion: connectionDetails.awsRegion?.trim(),
       awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
