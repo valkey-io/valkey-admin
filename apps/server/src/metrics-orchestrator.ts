@@ -337,7 +337,8 @@ export async function reconcileClusterMetricsServers(
   metricsServerMap: MetricsServerMap, 
   connectionDetails: ConnectionDetails, 
 ) {
-  let clusterIds = Object.keys(clusterNodesRegistry) 
+  let clusterIds = Object.keys(clusterNodesRegistry)
+  // Start metrics server for all nodes if it is preconfigured before manual connection
   if (clusterIds.length === 0 && preConfiguredConnection) {
     try {
       const client = await getInitialClient()
