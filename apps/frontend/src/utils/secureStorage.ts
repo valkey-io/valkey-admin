@@ -1,18 +1,23 @@
 export const secureStorage = {
-  encrypt: async (password: string): Promise<string> => {
-    if (!password) return ""
-    if (window.secureStorage) {
-      return await window.secureStorage.encrypt(password)
-    }
-    return ""
+  encrypt: async (unencrypted: string): Promise<string> => {
+    if (!unencrypted || !window.secureStorage) return ""
+    return await window.secureStorage.encrypt(unencrypted)
   },
 
   decrypt: async (encrypted: string): Promise<string> => {
-    if (!encrypted) return ""
-    if (window.secureStorage) {
-      return await window.secureStorage.decrypt(encrypted)
+    if (!encrypted || !window.secureStorage) return ""
+    return await window.secureStorage.decrypt(encrypted)
+  },
+
+  encryptIfAvailable: async (password: string): Promise<string> => {
+    if (password.length > 0 && secureStorage.isAvailable()) {
+      return await secureStorage.encrypt(password)
     }
-    return ""
+    return password
+  },
+
+  isAvailable: (): boolean => {
+    return window.secureStorage ? true : false
   },
 }
 

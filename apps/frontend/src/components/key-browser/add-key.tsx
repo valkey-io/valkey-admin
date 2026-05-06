@@ -10,6 +10,11 @@ import { HashFields, ListFields, StringFields, SetFields, ZSetFields, StreamFiel
 import { useAppDispatch } from "@/hooks/hooks"
 import { addKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectJsonModuleAvailable } from "@/state/valkey-features/connection/connectionSelectors"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
+import { Typography } from "@/components/ui/typography"
 
 interface AddNewKeyProps {
   onClose: () => void;
@@ -249,11 +254,13 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
             <div className="w-1/2 h-3/4 p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg 
             border flex flex-col">
               <div className="flex justify-between">
-                <Dialog.Title className="text-lg font-semibold">Add Key</Dialog.Title>
+                <Dialog.Title asChild>
+                  <Typography variant="subheading">Add Key</Typography>
+                </Dialog.Title>
                 <Dialog.Close asChild>
-                  <button className="hover:text-tw-primary">
+                  <Button className="hover:text-primary h-auto p-0" variant="ghost">
                     <X size={20} />
-                  </button>
+                  </Button>
                 </Dialog.Close>
               </div>
               <form
@@ -262,11 +269,10 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
               >
                 <div className="flex-shrink-0">
                   <div className="flex w-full justify-between gap-4">
-                    <div className="mt-4 text-sm font-light w-1/2">
+                    <div className="mt-4 text-sm w-1/2">
                       <div className="flex flex-col gap-2">
-                        <label>Select key type</label>
-                        <select
-                          className="border border-tw-dark-border rounded p-2"
+                        <Label htmlFor="key-type">Select key type</Label>
+                        <Select
                           id="key-type"
                           onChange={(e) => setKeyType(e.target.value)}
                           value={keyType}
@@ -278,14 +284,13 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                           <option>{KEY_TYPES.ZSET}</option>
                           <option>{KEY_TYPES.STREAM}</option>
                           <option>{KEY_TYPES.JSON}</option>
-                        </select>
+                        </Select>
                       </div>
                     </div>
-                    <div className="mt-4 text-sm font-light w-1/2">
+                    <div className="mt-4 text-sm w-1/2">
                       <div className="flex flex-col gap-2">
-                        <label>TTL (seconds)</label>
-                        <input
-                          className="border border-tw-dark-border rounded p-2"
+                        <Label htmlFor="ttl">TTL (seconds)</Label>
+                        <Input
                           id="ttl"
                           onChange={(e) => setTtl(e.target.value)}
                           placeholder="Enter TTL, Default: -1 (no expiration)"
@@ -295,11 +300,10 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 text-sm font-light w-full">
+                  <div className="mt-4 text-sm w-full">
                     <div className="flex flex-col gap-2">
-                      <label>Key name *</label>
-                      <input
-                        className="border border-tw-dark-border rounded p-2"
+                      <Label htmlFor="key-name">Key name *</Label>
+                      <Input
                         id="key-name"
                         onChange={(e) => setKeyName(e.target.value)}
                         placeholder="Enter key name"
@@ -308,11 +312,11 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                       />
                     </div>
                   </div>
-                  <div className="mt-6 text-sm font-semibold border-b border-tw-dark-border pb-2">
+                  <Typography className="mt-6 border-b border-tw-dark-border pb-2" variant="bodySm">
                     Key Elements
-                  </div>
+                  </Typography>
                 </div>
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex-1 overflow-y-auto min-h-0 px-1">
                   {keyType === KEY_TYPES.STRING ? (
                     <StringFields setValue={setValue} value={value} />
                   ) : keyType === KEY_TYPES.LIST ? (
@@ -354,31 +358,33 @@ export default function AddNewKey({ onClose }: AddNewKeyProps) {
                   ) : keyType === KEY_TYPES.JSON ? (
                     <JsonFields jsonModuleAvailable={jsonModuleAvailable} setValue={setValue} value={value} />
                   ) : (
-                    <div className="mt-2 text-sm font-light">Select a key type</div>
+                    <Typography className="mt-2 text-gray-500" variant="bodySm">
+                      Select a key type
+                    </Typography>
                   )}
                 </div>
                 <div className="flex-shrink-0">
                   {error && (
-                    <div className="mt-4 text-sm text-red-500 font-medium">
+                    <Typography className="mt-4" variant="bodySm">
                       {error}
-                    </div>
+                    </Typography>
                   )}
 
-                  <div className="pt-2 text-sm flex gap-4">
-                    <button
-                      className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
+                  <div className="pt-2 text-sm flex space-x-1">
+                    <Button
+                      className="w-1/2"
                       disabled={!keyName || (!jsonModuleAvailable && keyType === KEY_TYPES.JSON)}
                       type="submit"
                     >
                       Submit
-                    </button>
-                    <button
-                      className="px-4 py-2 w-full bg-tw-dark-border/50 text-white rounded hover:bg-tw-dark-border"
+                    </Button>
+                    <Button
+                      className="w-1/2"
                       onClick={onClose}
-                      type="button"
+                      variant="outline"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </form>

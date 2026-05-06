@@ -1,6 +1,6 @@
 import { GlideClient, GlideClusterClient, Decoder, RouteByAddress, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
-import { VALKEY } from "../../../common/src/constants"
+import { VALKEY } from "valkey-common"
 import { parseClusterInfo, parseInfo } from "./utils"
 
 export async function setDashboardData(
@@ -55,6 +55,7 @@ export async function setDashboardData(
           payload: {
             connectionId,
             errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
+            shouldRetry: true,
           },
         }),
       )
@@ -91,7 +92,8 @@ export async function setClusterDashboardData(
           type: VALKEY.CONNECTION.connectRejected,
           payload: {
             connectionId,
-            errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
+            errorMessage: `Failed to fetch dashboard data: ${err.message}`,
+            shouldRetry: true,
           },
         }),
       )

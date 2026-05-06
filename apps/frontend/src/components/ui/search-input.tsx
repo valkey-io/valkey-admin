@@ -23,6 +23,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
             "placeholder:text-muted-foreground",
             "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
             "disabled:cursor-not-allowed disabled:opacity-50",
+            "[&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden",
             className,
           )}
           data-slot="search-input"

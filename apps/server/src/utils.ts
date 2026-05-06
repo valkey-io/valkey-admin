@@ -1,8 +1,14 @@
-import { ClusterResponse } from "@valkey/valkey-glide"
+import { 
+  ClusterResponse, 
+  GlideClient, 
+  GlideClusterClient, 
+  InfoOptions
+
+} from "@valkey/valkey-glide"
 import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
-import { sanitizeUrl } from "../../../common/src/url-utils"
-
+import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
+import { ClusterNodeMap } from "./metrics-orchestrator"
 export const dns = {
   lookup,
   reverse,
@@ -119,7 +125,6 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
 // If user connects with IP address and then connects with hostname, we want a single connection
 export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
   const isIP = /^[0-9:.]+$/.test(hostnameOrIP)
-
   const hostnameType = isIP ? "ip" : "hostname"
   try {
     const addresses = isIP
@@ -128,7 +133,67 @@ export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
 
     return { input: hostnameOrIP, hostnameType, addresses }
   } catch (err) {
-    console.log("Unable to resolve hostname or IP:", err)
+    console.warn("Unable to resolve hostname or IP:", err)
     return { input: hostnameOrIP, hostnameType, addresses: [hostnameOrIP] }
   }
 }
+
+export async function isLastConnectedClusterNode(
+  connectionId: string, 
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId? :string }>,
+  connectedNodesByCluster: Map<string, string[]>) 
+{
+  const connection = clients.get(connectionId)
+  const currentClusterId = connection?.clusterId
+  return connectedNodesByCluster.get(currentClusterId!)?.length === 1
+}
+
+function isClusterClientEntry(
+  entry: { client: GlideClient | GlideClusterClient; clusterId?: string } | undefined,
+): entry is { client: GlideClusterClient; clusterId?: string } {
+  return !!entry && entry.client instanceof GlideClusterClient
+}
+
+export async function getExistingClusterClient(
+  discoveredClusterNodes: ClusterNodeMap, 
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+) {
+  // Check if we've already connected to this cluster before 
+  const existingKey = Object.keys(discoveredClusterNodes).find(
+    (key) => isClusterClientEntry(clients.get(key)),
+  )
+
+  const existingConnection = existingKey
+    ? clients.get(existingKey) as { client: GlideClusterClient; clusterId?: string }
+    : undefined
+
+  return existingConnection
+}
+
+export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {
+  let keyEvictionPolicy: KeyEvictionPolicy = KEY_EVICTION_POLICY.NO_EVICTION
+  try {
+    const infoResponse = await client.info([InfoOptions.Memory])
+    // Get the info response on any node in the cluster, since eviction policy is the same across all nodes
+    const anyNode = typeof infoResponse === "string" ? infoResponse : Object.values(infoResponse)[0]
+    const parsed = parseInfo(anyNode)
+    if (parsed["maxmemory_policy"]) {
+      keyEvictionPolicy = parsed["maxmemory_policy"].toLowerCase() as KeyEvictionPolicy
+    }
+  } catch (err) {
+    console.warn("Unable to get key eviction policy: ", err)
+  }
+  return keyEvictionPolicy
+}
+
+export async function getClusterSlotStatsEnabled(clusterClient: GlideClusterClient) {
+  try {
+    const result = await clusterClient.customCommand(["CLUSTER", "SLOT-STATS", "ORDERBY", "KEY-COUNT", "LIMIT", "1"])
+    // cpu-usec is only present when cluster-slot-stats-enabled is yes
+    return JSON.stringify(result).includes("cpu-usec")
+  } catch {
+    console.warn("Cluster slot-stats is not enabled.")
+    return false
+  }
+}
+

@@ -1,15 +1,35 @@
 import { Subject, timer, race, firstValueFrom, defer, of } from "rxjs"
 import { exhaustMap, catchError, map } from "rxjs"
 import Valkey from "iovalkey"
+import { ElastiCacheIAMProvider } from "../utils/elasticache-iam-provider.js"
 
 export const makeMonitorStream = (onLogs = async () => { }, config) => {
   const { monitoringInterval, monitoringDuration, maxCommandsPerRun: maxLogs } = config
-  // URL hardcoded for testing 
-  const url = String(process.env.VALKEY_URL || config.valkey.url || "valkey://host.docker.internal:6379").trim()
+
+  const host = process.env.VALKEY_HOST
+  const port = Number(process.env.VALKEY_PORT)
+
+  const username = process.env.VALKEY_USERNAME
+  const verifyTlsCertificate  = process.env.VALKEY_VERIFY_CERT
+  let tls = undefined
+  if (process.env.VALKEY_TLS === "true") {
+    tls = verifyTlsCertificate === "false" ? { rejectUnauthorized: false } :  {}
+  }
 
   const runMonitorOnce = async () => {
-    const monitorClient = new Valkey(url)
+    const password = process.env.VALKEY_AUTH_TYPE === "iam"
+      ? await new ElastiCacheIAMProvider(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION).getCredentials()
+      : process.env.VALKEY_PASSWORD
+    const monitorClient = new Valkey({
+      host,
+      port,
+      username,
+      password,
+      tls,
+    })
+    monitorClient.on("error", (err) => console.error("[monitor] ioredis client error:", err.message))
     const monitor = await monitorClient.monitor()
+    monitor.on("error", (err) => console.error("[monitor] monitor stream error:", err.message))
 
     const rows = []
     const overflow$ = new Subject()
@@ -37,7 +57,7 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
         monitorClient.disconnect(),
         (async () => { overflow$.complete() })(),
       ])
-      console.info(`Monitor run complete (${monitorCompletionReason}).`)
+      console.debug(`Monitor run complete (${monitorCompletionReason}).`)
     }
 
     if (rows.length > 0) await onLogs(rows)

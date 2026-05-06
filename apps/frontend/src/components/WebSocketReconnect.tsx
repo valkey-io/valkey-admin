@@ -39,7 +39,7 @@ export function WebSocketReconnect() {
         <div className="flex justify-center">
           {status === CONNECTING && reconnect.isRetrying ? (
             <div className="relative">
-              <Loader2 className="w-16 h-16 text-tw-primary animate-spin" />
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
             </div>
           ) : isExhausted ? (
             <ServerOff className="w-12 h-12 text-red-500" />
@@ -95,7 +95,7 @@ export function WebSocketReconnect() {
         {isExhausted && (
           <div className="space-y-2 pt-4">
             <button
-              className="w-full border p-2 rounded bg-tw-primary text-white hover:bg-tw-primary/80 cursor-pointer transition-colors"
+              className="w-full border p-2 rounded bg-primary text-white hover:bg-primary/80 cursor-pointer transition-colors"
               onClick={handleManualReconnect}
             >
               Try Reconnecting

@@ -1,6 +1,6 @@
 import { type WebSocket } from "ws"
-import { VALKEY } from "../../../../common/src/constants"
-import { Deps, withDeps } from "./utils"
+import { VALKEY } from "valkey-common"
+import { Deps, withDeps, fetchWithTimeout } from "./utils"
 
 interface ParsedResponse  {
   success: boolean, 
@@ -10,13 +10,28 @@ interface ParsedResponse  {
 }
 
 export const updateConfig = withDeps<Deps, void>(
-  async ({ ws, metricsServerURIs, action }) => {
-    const { connectionIds, config } = action.payload
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
+    const { connectionId, clusterId, config } = action.payload
+    const connectionIds = clusterId 
+      ? Object.keys(clusterNodesRegistry[clusterId as string] ?? {}).filter((id) => metricsServerMap.has(id))
+      : [connectionId]
+
     const promises = connectionIds.map(async (connectionId: string) => {
-      const metricsServerURI = metricsServerURIs.get(connectionId)
-      const url = new URL("/update-config", metricsServerURI)
+      const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+
+      if (!metricsServerURI) {
+        const normalizedError = {
+          success: false,
+          message: "Metrics server URI not found",
+          data: {},
+        }
+        sendUpdateError(ws, connectionId, normalizedError)
+        return
+      }
+
       try {
-        const response = await fetch(url.toString(), {
+        const url = new URL("/update-config", metricsServerURI)
+        const response = await fetchWithTimeout(url.toString(), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -47,11 +62,13 @@ export const updateConfig = withDeps<Deps, void>(
 
 // TODO: Add frontend component to dispatch this
 export const enableClusterSlotStats = withDeps<Deps, void>(
-  async ({ clients, action }) => {
-    const { connectionIds } = action.payload
+  async ({ clients, action, connectedNodesByCluster }) => {
+    const { connectionId, clusterId } = action.payload
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
+    
     const promises = connectionIds.map(async (connectionId: string) => {
-      const client = clients.get(connectionId)
-      await client?.customCommand(["CONFIG", "SET", "cluster-slot-stats-enabled", "yes"])
+      const connection = clients.get(connectionId)
+      await connection?.client?.customCommand(["CONFIG", "SET", "cluster-slot-stats-enabled", "yes"])
     })
     await Promise.all(promises)
   },

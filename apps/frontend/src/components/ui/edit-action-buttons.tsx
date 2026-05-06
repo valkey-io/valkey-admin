@@ -1,5 +1,5 @@
 import { Check, Pencil, X } from "lucide-react"
-import { CustomTooltip } from "./custom-tooltip"
+import { CustomTooltip } from "./tooltip"
 import { Button } from "./button"
 
 interface EditActionButtonsProps {
@@ -24,9 +24,10 @@ export function EditActionButtons({
   if (isEditable) {
     return (
       <div className="flex gap-1">
-        <CustomTooltip content="Save" side="left">
+        <CustomTooltip content="Save">
           <Button
-            className="text-tw-primary hover:text-tw-primary"
+            aria-label="Save changes"
+            className="text-primary hover:text-primary"
             onClick={onSave}
             variant="secondary"
           >
@@ -34,7 +35,7 @@ export function EditActionButtons({
           </Button>
         </CustomTooltip>
         <CustomTooltip content="Cancel">
-          <Button onClick={onEdit} variant="destructiveGhost">
+          <Button aria-label="Cancel editing" onClick={onEdit} variant="destructiveGhost">
             <X />
           </Button>
         </CustomTooltip>
@@ -45,6 +46,7 @@ export function EditActionButtons({
   return (
     <CustomTooltip content={disabled && disabledTooltip ? disabledTooltip : "Edit"}>
       <Button
+        aria-label="Edit"
         className="mr-1"
         disabled={disabled}
         onClick={onEdit}

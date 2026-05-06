@@ -2,16 +2,19 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import {
   CONNECTED,
   CONNECTING,
+  DISCONNECTING,
   DISCONNECTED,
   ERROR,
   LOCAL_STORAGE,
   NOT_CONNECTED,
   VALKEY,
-  type KeyEvictionPolicy
+  type KeyEvictionPolicy,
+  type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
+import { secureStorage } from "@/utils/secureStorage"
 
-type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED;
+type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED | typeof DISCONNECTING
 type Role = "primary" | "replica";
 
 export interface ConnectionDetails {
@@ -31,6 +34,10 @@ export interface ConnectionDetails {
   clusterSlotStatsEnabled?: boolean
   // JSON module availability check
   jsonModuleAvailable?: boolean;
+  endpointType: EndpointType
+  authType?: "password" | "iam"
+  awsRegion?: string
+  awsReplicationGroupId?: string
 }
 
 interface ReconnectState {
@@ -49,6 +56,7 @@ export interface ConnectionState {
   status: ConnectionStatus;
   errorMessage: string | null;
   connectionDetails: ConnectionDetails;
+  searchableText: string;
   reconnect?: ReconnectState;
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
@@ -58,9 +66,15 @@ export interface ValkeyConnectionsState {
   [connectionId: string]: ConnectionState
 }
 
+const buildSearchableText = (connectionId: string, details: ConnectionDetails) =>
+  [connectionId, details.host, details.port, details.username, details.alias]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
 const currentConnections = R.pipe(
   (v: string) => localStorage.getItem(v),
-  (s) => (s === null ? {} : JSON.parse(s)),
+  (s) => (s === null ? {} : JSON.parse(s) as ValkeyConnectionsState),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
 const connectionSlice = createSlice({
@@ -93,10 +107,14 @@ const connectionSlice = createSlice({
         errorMessage: isRetry && existingConnection?.errorMessage ? existingConnection.errorMessage : null,
         connectionDetails: {
           ...connectionDetails,
+          // Preserve "" (no-password connections) but strip real passwords if secure storage is unavailable
+          password: (R.isNotNil(connectionDetails.password) && secureStorage.isAvailable()) || R.isEmpty(connectionDetails.password)
+            ? connectionDetails.password
+            : undefined,
           clusterSlotStatsEnabled: false,
           jsonModuleAvailable: false,
         },
-
+        searchableText: buildSearchableText(connectionId, connectionDetails),
         wasEdit: isEdit,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
@@ -132,46 +150,27 @@ const connectionSlice = createSlice({
         delete connectionState.wasEdit
       }
     },
-    clusterConnectFulfilled: (
-      state,
-      action: PayloadAction<{
-        connectionId: string;
-        clusterNodes: Record<string, ConnectionDetails>;
-        clusterId: string;
-        keyEvictionPolicy: KeyEvictionPolicy;
-        clusterSlotStatsEnabled: boolean;
-        jsonModuleAvailable: boolean;
-      }>,
-    ) => {
-      const { connectionId, clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = action.payload
+    clusterConnectFulfilled: (state, action) => {
+      const { connectionId, connectionDetails } = action.payload
+      const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = connectionDetails
+
       const connectionState = state.connections[connectionId]
-      if (connectionState) {
-        connectionState.status = CONNECTED
-        connectionState.errorMessage = null
-        connectionState.connectionDetails.clusterId = clusterId
-        connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
-        connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
-        connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
-
-        // Clear retry state on successful connection
-        delete connectionState.reconnect
-
-        // keep track of connection history
-        connectionState.connectionHistory ??= []
-        connectionState.connectionHistory.push({
-          timestamp: Date.now(),
-          event: CONNECTED,
-        })
-        // Clear the wasEdit flag after successful connection
-        delete connectionState.wasEdit
-      }
+      connectionState.status = CONNECTED
+      connectionState.errorMessage = null
+      connectionState.connectionDetails.clusterId = clusterId
+      connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
+      connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
+      connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
+      delete connectionState.reconnect
+      connectionState.connectionHistory ??= []
+      connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })
+      delete connectionState.wasEdit
     },
     connectRejected: (state, action) => {
       const { connectionId, errorMessage } = action.payload
       if (state.connections[connectionId]) {
         const existingConnection = state.connections[connectionId]
         const isRetrying = existingConnection.reconnect?.isRetrying
-
         state.connections[connectionId].status = ERROR
         // Preserve original error message during retry attempts
         if (isRetrying && existingConnection.errorMessage) {
@@ -206,20 +205,32 @@ const connectionSlice = createSlice({
       }
     },
     closeConnection: (state, action) => {
-      console.log(action)
       const { connectionId } = action.payload
-      state.connections[connectionId].status = NOT_CONNECTED
+      state.connections[connectionId].status = DISCONNECTING
       state.connections[connectionId].errorMessage = null
     },
-    updateConnectionDetails: (state, action) => {
+    closeConnectionFulfilled: (state, action) => {
       const { connectionId } = action.payload
-      state.connections[connectionId].connectionDetails = {
-        ...state.connections[connectionId].connectionDetails,
-        ...action.payload,
+      if (state.connections[connectionId]) {
+        state.connections[connectionId].status = NOT_CONNECTED
       }
+
     },
-    deleteConnection: (state, action: PayloadAction<{ connectionId: string; silent?: boolean }>) => {
-      const { connectionId } = action.payload
+    closeConnectionFailed: (state, action) => {
+      const { connectionId, errorMessage } = action.payload
+      state.connections[connectionId].status = ERROR
+      state.connections[connectionId].errorMessage = errorMessage
+    },
+    updateConnectionDetails: (state, action) => {
+      const { connectionId, ...details } = action.payload
+      const merged = {
+        ...state.connections[connectionId].connectionDetails,
+        ...details,
+      }
+      state.connections[connectionId].connectionDetails = merged
+      state.connections[connectionId].searchableText = buildSearchableText(connectionId, merged)
+    },
+    deleteConnection: (state, { payload: { connectionId } }) => {
       return R.dissocPath(["connections", connectionId], state)
     },
   },
@@ -235,6 +246,8 @@ export const {
   closeConnection,
   updateConnectionDetails,
   deleteConnection,
+  closeConnectionFulfilled,
+  closeConnectionFailed,
   startRetry,
   stopRetry,
 } = connectionSlice.actions

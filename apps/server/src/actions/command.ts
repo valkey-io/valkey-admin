@@ -1,6 +1,6 @@
-import { sendValkeyRunCommand } from "../send-command.ts"
-import { VALKEY } from "../../../../common/src/constants.ts"
-import { type Deps, withDeps } from "./utils.ts"
+import { VALKEY } from "valkey-common"
+import { sendValkeyRunCommand } from "../send-command"
+import { type Deps, withDeps } from "./utils"
 
 type CommandAction = {
   command: string
@@ -9,10 +9,10 @@ type CommandAction = {
 
 export const sendRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
-    const client = clients.get(connectionId!)
+    const connection = clients.get(connectionId!)
 
-    if (client) {
-      await sendValkeyRunCommand(client, ws, action.payload as CommandAction)
+    if (connection) {
+      sendValkeyRunCommand(connection.client, ws, action.payload as CommandAction)
       return
     }
 

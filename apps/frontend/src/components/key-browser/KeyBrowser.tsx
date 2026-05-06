@@ -8,10 +8,13 @@ import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import {
   KeyRound,
   RefreshCw,
-  ListFilter
+  ListFilter,
+  ChartPie
 } from "lucide-react"
-import { calculateHitRatio } from "@common/src/cache-hit-ratio"
+import { truncateText } from "@common/src/truncate-text"
 import { AppHeader } from "../ui/app-header"
+import { ChartModal } from "../ui/chart-modal"
+import DonutChart from "../ui/donut-chart"
 import AddNewKey from "./add-key"
 import KeyDetails from "./key-details/key-details"
 import { KeyTree } from "./key-tree"
@@ -21,6 +24,7 @@ import { StatCard } from "../ui/stat-card"
 import { SearchInput } from "../ui/search-input"
 import RouteContainer from "../ui/route-container"
 import { TooltipIcon } from "../ui/tooltip-icon"
+import { Typography } from "../ui/typography"
 import { SplitPanel } from "../ui/split-panel"
 import { Panel } from "../ui/panel"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -34,7 +38,6 @@ import {
   getKeysRequested,
   getKeyTypeRequested
 } from "@/state/valkey-features/keys/keyBrowserSlice"
-import { selectData } from "@/state/valkey-features/info/infoSelectors"
 
 interface KeyInfo {
   name: string;
@@ -47,14 +50,13 @@ interface KeyInfo {
 }
 
 export function KeyBrowser() {
-  const { id } = useParams()
+  const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [isAddKeyOpen, setIsAddKeyOpen] = useState(false)
+  const [isDistributionOpen, setIsDistributionOpen] = useState(false)
   const [searchPattern, setSearchPattern] = useState("")
   const [selectedType, setSelectedType] = useState<string>("all")
-  const infoData = useSelector(selectData(id!)) || {}
-
   const keyTypes = [
     { value: "all", label: "All Key Types" },
     { value: "string", label: "String" },
@@ -127,21 +129,30 @@ export function KeyBrowser() {
     ? keys
     : keys.filter((key) => key.type.toLowerCase() === selectedType.toLowerCase())
 
-  const hitRateData = {
-    keyspace_hits: infoData.keyspace_hits,
-    keyspace_misses: infoData.keyspace_misses,
-  }
-
-  const operationsData = {
-    // infoData.instantaneous_ops_per_sec is another option
-    total_commands : infoData.total_commands_processed,
-  }
-
   return (
     <RouteContainer title="Key Browser">
-      <AppHeader icon={<KeyRound size={20} />} title="Key Browser" />
+      <AppHeader
+        description={
+          <>
+            Add, View and Edit keys of{" "}
+            {clusterId ? (
+              <>
+                cluster{" "} <span className="font-semibold text-primary">{truncateText(clusterId!)}</span>
+              </>
+            ) : (
+              <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
+            )}
+          </>
+        }
+        icon={<KeyRound size={20} />}
+        title="Key Browser"
+      />
 
-      {error && <div className="ml-2">Error loading keys: {error}</div>}
+      {error && (
+        <Typography className="ml-2" variant="bodySm">
+          Error loading keys: {error}
+        </Typography>
+      )}
 
       {/* Total Keys and Key Stats */}
       <TooltipProvider>
@@ -150,7 +161,7 @@ export function KeyBrowser() {
             className="flex-1"
             label="Total Keys"
             tooltip={
-              <TooltipIcon description="Total number of keys in the database" size={14}/>
+              <TooltipIcon description={`Total number of keys in the ${clusterId ? "cluster" : "instance"} "DBSIZE"`} size={14} />
             }
             value={totalKeys}
           />
@@ -158,25 +169,9 @@ export function KeyBrowser() {
             className="flex-1"
             label="Memory Usage"
             tooltip={
-              <TooltipIcon description="Memory used by all keys in the database" size={14}/>
+              <TooltipIcon description="Memory used by keys sampled" size={14} />
             }
             value={formatBytes(totalMemoryUsage)}
-          />
-          <StatCard
-            className="flex-1"
-            label="Operations"
-            tooltip={
-              <TooltipIcon description="Total number of commands processed" size={14}/>
-            }
-            value={operationsData.total_commands}
-          />
-          <StatCard
-            className="flex-1"
-            label="Hit Ratio"
-            tooltip={
-              <TooltipIcon description="Ratio of key lookups that resulted in a cache hit" size={14} />
-            }
-            value={calculateHitRatio(Number(hitRateData.keyspace_hits) || 0, Number(hitRateData.keyspace_misses) || 0)}
           />
         </div>
       </TooltipProvider>
@@ -196,12 +191,22 @@ export function KeyBrowser() {
           ))}
         </Select>
 
+        <Button
+          className="font-normal"
+          disabled={loading}
+          onClick={() => setIsDistributionOpen(true)}
+          type="button"
+          variant={"outline"}
+        >
+          <ChartPie className="text-primary" /> Key Distribution Chart
+        </Button>
+
         <form className="flex-1" onSubmit={handleSearch}>
           <SearchInput
             disabled={loading}
             onChange={(e) => setSearchPattern(e.target.value)}
             onClear={handleClearSearch}
-            placeholder="Search keys (use * to search patterns like user:*)"
+            placeholder="Search keys (use * to search patterns like user:* and press Enter)"
             value={searchPattern}
           />
         </form>
@@ -215,6 +220,7 @@ export function KeyBrowser() {
         </Button>
 
         <Button
+          aria-label="Edit connection settings"
           disabled={loading}
           onClick={handleRefresh}
           size="icon"
@@ -226,6 +232,16 @@ export function KeyBrowser() {
 
       {/* Add Key Modal */}
       {isAddKeyOpen && <AddNewKey onClose={handleAddKeyModal} />}
+
+      {/* Key Type Distribution Modal */}
+      <ChartModal
+        onClose={() => setIsDistributionOpen(false)}
+        open={isDistributionOpen}
+        subtitle="Memory and count breakdown by key type"
+        title="Key Type Distribution"
+      >
+        <DonutChart />
+      </ChartModal>
 
       {/* Key Viewer */}
       <TooltipProvider>
@@ -245,7 +261,7 @@ export function KeyBrowser() {
             </Panel>
           }
           right={
-            <KeyDetails connectionId={id!} readOnly={false} 
+            <KeyDetails connectionId={id!} readOnly={false}
               selectedKey={selectedKey} selectedKeyInfo={selectedKeyInfo} setSelectedKey={setSelectedKey} />
           }
           rightClassName=""

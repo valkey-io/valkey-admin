@@ -2,9 +2,9 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
-            "@common/*": [
-                "common/*"
-            ]
-        }
+            "valkey-common": ["common/src"]
+        },
+        "ignoreDeprecations": "6.0"
     }
+    
 }

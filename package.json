@@ -3,7 +3,7 @@
   "productName": "Valkey Admin",
   "description": "A modern admin interface for Valkey databases",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": {
     "name": "Valkey Admin Team",
     "email": "admin@valkey.io"
@@ -12,7 +12,7 @@
     "apps/frontend",
     "apps/server",
     "apps/metrics",
-    "common/*"
+    "common"
   ],
   "main": "apps/frontend/electron.main.js",
   "devDependencies": {
@@ -35,16 +35,24 @@
     "vitest": "^4.0.15"
   },
   "scripts": {
-    "dev": "concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
+    "dev": "export DEPLOYMENT_MODE=Web VALKEY_ADMIN_ALLOWED_WS_ORIGINS=http://localhost:5173 VITE_VALKEY_ADMIN_WS_URL=ws://localhost:8080 && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
     "build:server": "npm --workspace apps/server run build",
+    "build:vite:server": "npm --workspace apps/server run build:vite",
     "build:frontend": "npm --workspace apps/frontend run build",
     "build:metrics": "npm --workspace apps/metrics run build",
-    "build:all": "npm run build:server && npm run build:frontend && npm run build:metrics",
-    "package:mac": "npm run build:all && npx electron-builder --mac --arm64",
+    "build:common": "npm --workspace common run build",
+    "build:all": "npm run build --workspaces",
+    "build:electron": "npm run build:common && npm run build:vite:server && npm run build:frontend && npm run build:metrics",
+    "package:mac": "npm run build:electron && npx electron-builder --mac --arm64 --publish never",
     "package:mac:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac",
-    "package:linux": "npm run build:all && npx electron-builder --linux --x64",
-    "package:linux:nosign": "set CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
-    "lint": "eslint ."
+    "package:mac:x64": "npm run build:electron && npx electron-builder --mac --x64 --publish never",
+    "package:mac:x64:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:mac:x64",
+    "package:linux": "npm run build:electron && npx electron-builder --linux --x64 --publish never",
+    "package:linux:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux",
+    "package:linux:arm64": "npm run build:electron && npx electron-builder --linux --arm64 --publish never",
+    "package:linux:arm64:nosign": "export CSC_IDENTITY_AUTO_DISCOVERY=false && npm run package:linux:arm64",
+    "lint": "eslint .",
+    "test:integration": "npm --workspace apps/server run test:integration"
   },
   "build": {
     "appId": "com.valkey.admin",
@@ -55,6 +63,7 @@
     "files": [
       "apps/frontend/electron.main.js",
       "apps/frontend/preload.js",
+      "apps/frontend/menu.js",
       "apps/frontend/dist/**/*",
       "package.json"
     ],
@@ -66,8 +75,8 @@
     ],
     "extraResources": [
       {
-        "from": "apps/server/dist/server-bundle.cjs",
-        "to": "server-backend.js"
+        "from": "apps/server/dist/index.cjs",
+        "to": "server-backend.cjs"
       },
       {
         "from": "apps/metrics/dist/index.cjs",
@@ -86,8 +95,16 @@
         "to": "node_modules/@valkey/valkey-glide-darwin-arm64"
       },
       {
-        "from": "node_modules/@valkey/valkey-glide-linux-x64",
-        "to": "node_modules/@valkey/valkey-glide-linux-x64"
+        "from": "node_modules/@valkey/valkey-glide-darwin-x64",
+        "to": "node_modules/@valkey/valkey-glide-darwin-x64"
+      },
+      {
+        "from": "node_modules/@valkey/valkey-glide-linux-x64-gnu",
+        "to": "node_modules/@valkey/valkey-glide-linux-x64-gnu"
+      },
+      {
+        "from": "node_modules/@valkey/valkey-glide-linux-arm64-gnu",
+        "to": "node_modules/@valkey/valkey-glide-linux-arm64-gnu"
       },
       {
         "from": "node_modules/long",
@@ -119,8 +136,13 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "icon": "apps/frontend/assets/img/logo-512.png"
     },
-    "afterSign": "mac_build/notarize.js"
+    "afterSign": "mac_build/notarize.js",
+    "afterAllArtifactBuild": "linux_build/sign.js"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.6"
   }
 }

@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     target: "node22",
-
+    ssr: true,
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       fileName: "server-bundle",
@@ -17,5 +17,8 @@ export default defineConfig({
     },
 
     emptyOutDir: false,
+  },
+  ssr: {
+    noExternal: true,
   },
 })

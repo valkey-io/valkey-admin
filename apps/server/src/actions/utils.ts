@@ -1,11 +1,15 @@
 import { type GlideClient, type GlideClusterClient } from "@valkey/valkey-glide"
+import { FETCH_TIMEOUT_MS } from "valkey-common"
+import { ClusterRegistry, MetricsServerMap } from "../metrics-orchestrator"
 import type WebSocket from "ws"
 
 export type Deps = {
   ws: WebSocket
-  clients: Map<string, GlideClient | GlideClusterClient>
+  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>
   connectionId: string,
-  metricsServerURIs: Map<string, string>,
+  metricsServerMap: MetricsServerMap,
+  connectedNodesByCluster: Map<string, string[]>,
+  clusterNodesRegistry: ClusterRegistry,
 }
 
 export type ReduxAction = {
@@ -34,5 +38,21 @@ export type Handler = (deps: Deps) => (action: ReduxAction) => Promise<void>
 
 export const unknownHandler: Handler = () =>
   async (action: { type: string }) => {
-    console.log("Unknown action type:", action.type)
+    console.warn("Unknown action type:", action.type)
   }
+
+// Helper function to add timeout to fetch requests
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    return response
+  } finally {
+    clearTimeout(timeout)
+  }
+}

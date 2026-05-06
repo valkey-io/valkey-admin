@@ -1,5 +1,6 @@
 import * as R from "ramda"
 import { useState, useMemo, useEffect } from "react"
+import { useSelector } from "react-redux"
 import {
   ChevronDown,
   ChevronRight,
@@ -7,11 +8,13 @@ import {
   PencilIcon,
   CheckIcon,
   XIcon,
-  Plug
+  Plug,
+  Loader2
 } from "lucide-react"
 import { Link } from "react-router"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING } from "@common/src/constants.ts"
 import { ConnectionEntry } from "./ConnectionEntry.tsx"
+import { Input } from "../ui/input.tsx"
 import {
   updateConnectionDetails,
   type ConnectionState,
@@ -20,11 +23,16 @@ import {
 import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Button } from "@/components/ui/button.tsx"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
+import { Typography } from "@/components/ui/typography.tsx"
+import { HighlightSearchMatch } from "@/components/ui/highlight-search-match.tsx"
+import { selectIsAnyConnecting } from "@/state/valkey-features/connection/connectionSelectors"
 
 interface ClusterConnectionGroupProps {
   clusterId: string
   connections: Array<{ connectionId: string; connection: ConnectionState }>
+  highlight?: string
   onEdit?: (connectionId: string) => void
+  onPasswordRequired?: (connectionId: string) => void
 }
 
 // we'll use this function to find the most recent cluster node opened — to reconnect without exploding the dropdown
@@ -37,8 +45,9 @@ const getLatestTimestamp = R.pipe(
 // storage key for persisting open/closed state of cluster groups
 const getStorageKey = (clusterId: string) => `cluster-group-open-${clusterId}`
 
-export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: ClusterConnectionGroupProps) => {
+export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "", onEdit, onPasswordRequired }: ClusterConnectionGroupProps) => {
   const dispatch = useAppDispatch()
+  const isAnyConnecting = useSelector(selectIsAnyConnecting)
   const [isOpen, setIsOpen] = useState(() => {
     const stored = localStorage.getItem(getStorageKey(clusterId))
     return stored ? JSON.parse(stored) : false
@@ -65,6 +74,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
     () => R.reduce(R.maxBy(getLatestTimestamp), null, connections),
     [connections],
   )
+  const isLastOpenedNodeConnecting = lastOpenedNode?.connection.status === CONNECTING
 
   const handleEdit = () => {
     setEditedAlias(firstNodeAlias || "")
@@ -86,45 +96,52 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
     setIsEditing(false)
   }
 
-  const handleConnectLatest = () => lastOpenedNode && dispatch(connectPending({
-    connectionDetails: lastOpenedNode.connection.connectionDetails,
-    connectionId: lastOpenedNode.connectionId,
-    preservedHistory: lastOpenedNode.connection.connectionHistory,
-  }))
+  const handleConnectLatest = () => {
+    if (!lastOpenedNode) return
+    const { password, authType } = lastOpenedNode.connection.connectionDetails
+    if (authType !== "iam" && R.isNil(password) && onPasswordRequired) {
+      onPasswordRequired(lastOpenedNode.connectionId)
+      return
+    }
+    dispatch(connectPending({
+      connectionDetails: lastOpenedNode.connection.connectionDetails,
+      connectionId: lastOpenedNode.connectionId,
+      preservedHistory: lastOpenedNode.connection.connectionHistory,
+    }))
+  }
 
   return (
     <div
-      className="mb-3 border dark:border-tw-dark-border rounded bg-white dark:bg-tw-dark-primary"
+      className="mb-3 border border-input rounded-md shadow-xs bg-white dark:bg-tw-dark-primary"
     >
       {/* cluster head */}
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1">
-          <button
-            className="ml-2 p-2 rounded hover:bg-tw-primary/20"
+          <Button
+            aria-label="Expand/Collapse Cluster"
+            className="ml-2"
             onClick={() => setIsOpen(!isOpen)}
+            variant={"ghost"}
           >
             {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-          </button>
+          </Button>
 
           <div className="flex items-center gap-2 flex-1 p-2">
-            <div className="p-2 bg-tw-primary/10 dark:bg-tw-primary/20 rounded">
-              <Network className="text-tw-primary" size={18} />
+            <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded">
+              <Network className="text-primary" size={18} />
             </div>
             <div className="flex-1 min-w-0">
               {isEditing ? (
                 <div className="flex items-center gap-2">
-                  <input
+                  <Input
                     autoFocus
-                    className="px-2 py-1 text-sm border dark:border-tw-dark-border rounded font-mono mr-1
-                      bg-white dark:bg-tw-primary/20 focus:outline-none focus:ring-2 focus:ring-tw-primary min-w-[100px] max-w-[250px]"
                     onChange={(e) => setEditedAlias(e.target.value)}
                     placeholder={clusterId}
                     style={{ width: `${Math.max(Math.min((editedAlias || clusterId).length * 8 + 20, 250), 100)}px` }}
-                    type="text"
                     value={editedAlias}
                   />
                   <Button onClick={handleSave} size="sm" title="Save" variant="secondary">
-                    <CheckIcon className="text-tw-primary" size={16} />
+                    <CheckIcon className="text-primary" size={16} />
                     Save
                   </Button>
                   <Button onClick={handleCancel} size="sm" title="Cancel" variant="ghost">
@@ -138,19 +155,17 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
-                          <Link
-                            className="block font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              display: "block",
-                            }}
-                            title={firstNodeAlias || clusterId}
-                            to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
+                          <Typography
+                            variant="code"
                           >
-                            {firstNodeAlias || clusterId}
-                          </Link>
+                            <Link
+                              className="hover:underline block truncate"
+                              title={firstNodeAlias || clusterId}
+                              to={`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`}
+                            >
+                              <HighlightSearchMatch query={highlight} text={firstNodeAlias || clusterId} />
+                            </Link>
+                          </Typography>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -159,21 +174,14 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     </Tooltip>
                   ) : (
                     <div className="min-w-0 flex-1 overflow-hidden max-w-[200px]">
-                      <h3
-                        className="
-                          font-mono text-sm text-gray-900 dark:text-white
-                          cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"
+                      <Typography
+                        className="hover:underline block truncate"
                         onClick={() => setIsOpen(!isOpen)}
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          display: "block",
-                        }}
                         title={firstNodeAlias || clusterId}
+                        variant="code"
                       >
-                        {firstNodeAlias || clusterId}
-                      </h3>
+                        <HighlightSearchMatch query={highlight} text={firstNodeAlias || clusterId} />
+                      </Typography>
                     </div>
                   )}
                   <Button
@@ -195,7 +203,11 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                   </Button>
                 </div>
               )}
-              <div className="text-sm pl-2 text-gray-500 dark:text-gray-400 font-mono truncate" title={`${connections.length} instance${connections.length !== 1 ? "s" : ""}${hasConnectedInstance ? ` - ${connectedCount} connected` : ""}`}>
+              <Typography
+                className="pl-2 text-gray-500 dark:text-gray-400 truncate"
+                title={`${connections.length} instance${connections.length !== 1 ? "s" : ""}${hasConnectedInstance ? ` - ${connectedCount} connected` : ""}`}
+                variant="code"
+              >
                 {connections.length} instance{connections.length !== 1 ? "s" : ""}
                 {hasConnectedInstance && (
                   <span className="ml-2 px-2 py-0.5 text-sm bg-teal-100 dark:bg-teal-900/30 text-teal-700
@@ -203,7 +215,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                     {connectedCount} connected
                   </span>
                 )}
-              </div>
+              </Typography>
             </div>
           </div>
         </div>
@@ -211,14 +223,33 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
         <div className="flex items-center text-sm gap-2">
           {
             !hasConnectedInstance && lastOpenedNode ? (
-              <Button
-                className="flex items-center gap-1 p-2 mr-4 rounded-md"
-                onClick={handleConnectLatest}
-                variant="secondary"
-              >
-                <Plug size={16} />
-                Connect
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="flex items-center gap-1 p-2 mr-4 rounded-md"
+                    disabled={isAnyConnecting}
+                    onClick={handleConnectLatest}
+                    variant="secondary"
+                  >
+                    {isLastOpenedNodeConnecting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Plug size={16} />
+                        Connect
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isLastOpenedNodeConnecting
+                    ? "Connecting to the most recent node in this cluster"
+                    : "Connect to the most recent node in this cluster"}
+                </TooltipContent>
+              </Tooltip>
             ) : null
           }
         </div>
@@ -233,9 +264,11 @@ export const ClusterConnectionGroup = ({ clusterId, connections, onEdit }: Clust
                 connection={connection}
                 connectionId={connectionId}
                 hideOpenButton={true}
+                highlight={highlight}
                 isNested={true}
                 key={connectionId}
                 onEdit={onEdit}
+                onPasswordRequired={onPasswordRequired}
               />
             ))}
           </div>

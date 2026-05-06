@@ -1,7 +1,8 @@
-import { X } from "lucide-react"
-import { type FormEvent, useState, useEffect } from "react"
+import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
 import { sanitizeUrl } from "@common/src/url-utils.ts"
+import { CONNECTED } from "@common/src/constants"
+import { ConnectionModal } from "./connection-modal.tsx"
 import {
   updateConnectionDetails,
   connectPending,
@@ -9,17 +10,23 @@ import {
   stopRetry,
   type ConnectionDetails
 } from "@/state/valkey-features/connection/connectionSlice.ts"
-import { selectConnectionDetails, selectConnections } from "@/state/valkey-features/connection/connectionSelectors"
+import {
+  selectConnectionDetails,
+  selectConnections,
+  selectIsAtConnectionLimit
+} from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
+import { secureStorage } from "@/utils/secureStorage.ts"
 
-type EditFormProps = {
-  onClose: () => void;
-  connectionId?: string;
-};
+interface EditFormProps {
+  onClose: () => void
+  connectionId?: string
+}
 
 function EditForm({ onClose, connectionId }: EditFormProps) {
   const dispatch = useAppDispatch()
   const currentConnection = useSelector(selectConnectionDetails(connectionId || ""))
+  const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const allConnections = useSelector(selectConnections)
   const fullConnection = connectionId ? allConnections[connectionId] : null
 
@@ -28,10 +35,13 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     port: "6379",
     username: "",
     password: "",
-    tls: false,
-    verifyTlsCertificate: false,
+    tls: true,
+    verifyTlsCertificate: true,
     alias: "",
+    endpointType: "node" as const,
+    authType: "password",
   })
+  const [passwordChanged, setPasswordChanged] = useState(false)
 
   useEffect(() => {
     if (currentConnection) {
@@ -39,30 +49,65 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         host: currentConnection.host,
         port: currentConnection.port,
         username: currentConnection.username ?? "",
-        password: "",
+        password: currentConnection.password ?? "",
         alias: currentConnection.alias ?? "",
-        tls: currentConnection.tls ?? false,
+        tls: currentConnection.tls ?? true,
         verifyTlsCertificate: currentConnection.verifyTlsCertificate ?? false,
         //TODO: Add handling and UI for uploading cert
         caCertPath: currentConnection.caCertPath ?? "",
+        endpointType: currentConnection.endpointType ?? "node",
+        authType: currentConnection.authType ?? "password",
+        awsRegion: currentConnection.awsRegion ?? "",
+        awsReplicationGroupId: currentConnection.awsReplicationGroupId ?? "",
       })
+      setPasswordChanged(false)
     }
   }, [currentConnection])
+
+  const handleConnectionDetailsChange = useCallback(
+    (updated: ConnectionDetails) => {
+      setConnectionDetails((prev) => {
+        if (updated.password !== prev.password) {
+          setPasswordChanged(true)
+        }
+        return updated
+      })
+    },
+    [],
+  )
 
   const hasCoreChanges = () => {
     if (!currentConnection) return false
     return (
-      connectionDetails !== currentConnection 
+      connectionDetails.host !== currentConnection.host ||
+      connectionDetails.port !== currentConnection.port ||
+      connectionDetails.username !== (currentConnection.username ?? "") ||
+      connectionDetails.tls !== (currentConnection.tls ?? false) ||
+      connectionDetails.verifyTlsCertificate !== (currentConnection.verifyTlsCertificate ?? false) ||
+      connectionDetails.caCertPath !== (currentConnection.caCertPath ?? "") ||
+      connectionDetails.authType !== (currentConnection.authType ?? "password") ||
+      connectionDetails.awsRegion !== (currentConnection.awsRegion ?? "") ||
+      connectionDetails.awsReplicationGroupId !== (currentConnection.awsReplicationGroupId ?? "") ||
+      passwordChanged
     )
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     if (!connectionId || !currentConnection) return
 
+    const trimmed: ConnectionDetails = {
+      ...connectionDetails,
+      host: connectionDetails.host.trim(),
+      alias: connectionDetails.alias?.trim() ?? "",
+      username: connectionDetails.username?.trim() ?? "",
+      awsRegion: connectionDetails.awsRegion?.trim(),
+      awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
+    }
+
     if (hasCoreChanges()) {
-      const newConnectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+      const newConnectionId = sanitizeUrl(`${trimmed.host}-${trimmed.port}`)
 
       // Stop any ongoing retries for the current connection
       dispatch(stopRetry({ connectionId }))
@@ -73,111 +118,52 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       // Always delete the old connection when making core changes
       dispatch(deleteConnection({ connectionId, silent: true }))
 
-      dispatch(connectPending({
-        connectionId: newConnectionId,
-        connectionDetails,
-        isEdit: true,
-        preservedHistory: connectionHistory,
-      }))
+      // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
+      const detailsToDispatch = passwordChanged && connectionDetails.password
+        ? { ...trimmed, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
+        : trimmed
+
+      dispatch(
+        connectPending({
+          connectionId: newConnectionId,
+          connectionDetails: detailsToDispatch,
+          isEdit: true,
+          preservedHistory: connectionHistory,
+        }),
+      )
     } else {
-      dispatch(updateConnectionDetails({
-        connectionId,
-        alias: connectionDetails.alias || undefined,
-      }))
+      dispatch(
+        updateConnectionDetails({
+          connectionId,
+          ...trimmed,
+        }),
+      )
     }
 
     onClose()
   }
 
+  const shouldShowConnectionLimitWarning =
+    isAtConnectionLimit && fullConnection?.status !== CONNECTED
+
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center">
-      <div className="w-full max-w-md p-6 bg-white dark:bg-tw-dark-primary dark:border-tw-dark-border rounded-lg shadow-lg border">
-        <div className="flex justify-between">
-          <h2 className="text-lg font-semibold">Edit Connection</h2>
-          <button className="hover:text-tw-primary" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <span className="text-sm font-light">
-          Modify your server's connection details.
-        </span>
-        <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="block mb-1 text-sm">Host</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, host: e.target.value }))}
-              placeholder="localhost"
-              required
-              type="text"
-              value={connectionDetails.host}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Port</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, port: e.target.value }))}
-              placeholder="6379"
-              required
-              type="number"
-              value={connectionDetails.port}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Alias</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border placeholder:text-xs"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, alias: e.target.value }))}
-              placeholder="Alias of the first cluster node will be the alias of the cluster"
-              type="text"
-              value={connectionDetails.alias}
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Username</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, username: e.target.value }))}
-              type="text"
-              value={connectionDetails.username}
-            />
-          </div>
-
-          <div>
-            <label className="block mb-1 text-sm">Password</label>
-            <input
-              className="w-full px-3 py-2 border rounded dark:border-tw-dark-border"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, password: e.target.value }))}
-              type="password"
-              value={connectionDetails.password}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              checked={connectionDetails.tls}
-              className="h-4 w-4"
-              id="tls"
-              onChange={(e) => setConnectionDetails((prev) => ({ ...prev, tls: e.target.checked }))}
-              type="checkbox"
-            />
-            <label className="text-sm select-none" htmlFor="tls">
-              TLS
-            </label>
-          </div>
-
-          <div className="pt-2 text-sm">
-            <button
-              className="px-4 py-2 w-full bg-tw-primary text-white rounded hover:bg-tw-primary/90"
-              disabled={!connectionDetails.host || !connectionDetails.port}
-              type="submit"
-            >
-              Apply Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <ConnectionModal
+      connectionDetails={connectionDetails}
+      description="Modify your server's connection details."
+      isSubmitDisabled={
+        !connectionDetails.host ||
+        !connectionDetails.port ||
+        shouldShowConnectionLimitWarning
+      }
+      onClose={onClose}
+      onConnectionDetailsChange={handleConnectionDetailsChange}
+      onSubmit={handleSubmit}
+      open
+      showConnectionLimitWarning={shouldShowConnectionLimitWarning}
+      showVerifyTlsCertificate={true}
+      submitButtonText="Apply Changes"
+      title="Edit Connection"
+    />
   )
 }
 

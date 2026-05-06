@@ -1,0 +1,43 @@
+name: Integration
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'latest'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start stack
+        run: docker compose -f docker/docker-compose.test.yml up -d --build --wait
+
+      - name: Wait for app
+        run: npx wait-on -t 120000 http://localhost:8080/
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose -f docker/docker-compose.test.yml logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker/docker-compose.test.yml down -v

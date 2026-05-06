@@ -85,7 +85,7 @@ while [ "$i" -lt 120 ]; do
     for hp in $NODES; do
       host="${hp%%:*}"
       port="${hp##*:}"
-      echo "Setting LFU and enablign cluster slot stats on $host:$port"
+      echo "Setting LFU and enabling cluster slot stats on $host:$port"
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory 100mb
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory-policy allkeys-lfu
       valkey-cli -h "$host" -p "$port" CONFIG SET cluster-slot-stats-enabled yes

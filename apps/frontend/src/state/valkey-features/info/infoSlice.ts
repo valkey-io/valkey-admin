@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import { VALKEY } from "@common/src/constants.ts"
 import * as R from "ramda"
 
@@ -11,6 +11,7 @@ interface ConnectionData {
   server_name: string | null
   tcp_port: number | null
   total_system_memory: number | null
+  maxmemory: number | null
   used_memory: number | null
   used_memory_dataset : number | null
   used_memory_functions : number | null
@@ -76,6 +77,7 @@ const createInitialConnectionState = (): ConnectionState => ({
     server_name: null,
     tcp_port: null,
     total_system_memory: null,
+    maxmemory: null,
     used_memory: null,
     used_memory_dataset : null,
     used_memory_functions : null,
@@ -120,6 +122,8 @@ const createInitialConnectionState = (): ConnectionState => ({
   },
 })
 
+export const updateData = createAction<{connectionId: string, clusterId: string, address: { host: string, port: string }}>("updateData")
+
 const initialState: InfoSliceState = {}
 
 const infoSlice = createSlice({
@@ -147,6 +151,7 @@ const infoSlice = createSlice({
         total_commands_processed: R.path(["info", "total_commands_processed"]),
         connected_clients: R.path(["info", "connected_clients"]),
         total_system_memory: R.path(["info", "total_system_memory"]),
+        maxmemory: R.path(["info", "maxmemory"]),
         used_memory: R.path(["info", "used_memory"]),
         used_memory_dataset : R.path(["info", "used_memory_dataset"]),
         used_memory_functions : R.path(["info", "used_memory_functions"]),

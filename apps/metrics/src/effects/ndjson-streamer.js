@@ -2,14 +2,27 @@ import fs from "node:fs"
 import readline from "node:readline"
 import path from "node:path"
 import { COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, MONITOR } from "../utils/constants.js"
+import { dayStr, parseSeq } from "../utils/helpers.js"
 
 const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data")
 
-const dayStr = (date) => date.toISOString().slice(0, 10).replace(/-/g, "")
+const filePathsFor = async (prefix, dates) => {
+  const dayStrs = new Set(dates.map(dayStr))
+  const allFiles = (await fs.promises.readdir(DATA_DIR))
+    .filter((file) => file.startsWith(`${prefix}_`) && file.endsWith(".ndjson"))
 
-const fileFor = (prefix, date) => {
-  const dataDir = DATA_DIR
-  return path.join(dataDir, `${prefix}_${dayStr(date)}.ndjson`)
+  const withStatsSeq = await Promise.all(
+    allFiles.map(async (file) => {
+      const filePath = path.join(DATA_DIR, file)
+      const stat = await fs.promises.stat(filePath)
+      return { file, filePath, birthtime: stat.birthtime, seq: parseSeq(file) }
+    }),
+  )
+
+  return withStatsSeq
+    .filter(({ birthtime }) => dayStrs.has(dayStr(birthtime)))
+    .sort((a, b) => a.birthtime - b.birthtime || a.seq - b.seq)
+    .map(({ filePath }) => filePath)
 }
 
 // streamNdjson is a transducer-inspired streaming fold, which means you can apply filter, map, reduce to the stream
@@ -36,13 +49,12 @@ export async function streamNdjson(
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
 
-  const files = [fileFor(prefix, yesterday), fileFor(prefix, today)]
+  const files = await filePathsFor(prefix, [yesterday, today])
 
   let acc = seed
   let count = 0
 
   for (const file of files) {
-    if (!fs.existsSync(file)) continue
     let fileStream
     let rl
 

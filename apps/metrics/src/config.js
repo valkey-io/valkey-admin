@@ -9,24 +9,37 @@ const __dirname = path.dirname(__filename)
 const cfgPath = process.env.CONFIG_PATH || path.join(__dirname, "..", "config.yml")
 
 let config = null
+
+/**
+ * Per-epic retention defaults, applied to any epic missing these fields.
+ * @property {number} data_retention_mb   – max disk budget (MB) per epic. Oldest files evicted when exceeded.
+ * @property {number} data_retention_days – files older than this (by birthtime) are deleted in the daily cleanup.
+ */
+const EPIC_DEFAULTS = { data_retention_mb: 10, data_retention_days: 30 }
+
+const DEFAULTS = {
+  backend: { ping_interval: 10000 },
+  valkey: {},
+  server: { port: 3000, data_dir: "/app/data" },
+  collector: { batch_ms: 60000, batch_max: 500 },
+  epics: [],
+}
+
 const loadConfig = () => {
   const text = fs.readFileSync(cfgPath, "utf8")
   const parsed = YAML.parse(text) || {}
 
-  const cfg = {
-    valkey: {},
-    server: { port: 3000, data_dir: "/app/data" },
-    collector: { batch_ms: 60000, batch_max: 500 },
-    epics: [],
-    ...parsed,
+  const cfg = mergeDeepLeft(parsed, DEFAULTS)
+
+  // Type guards
+  for (const key of ["backend", "valkey", "server", "collector"]) {
+    if (typeof cfg[key] !== "object" || Array.isArray(cfg[key])) {
+      cfg[key] = DEFAULTS[key]
+    }
   }
+  if (!Array.isArray(cfg.epics)) cfg.epics = []
+  cfg.epics = cfg.epics.map((e) => ({ ...EPIC_DEFAULTS, ...e }))
 
-  cfg.valkey = cfg.valkey && typeof cfg.valkey === "object" ? cfg.valkey : {}
-  cfg.server = cfg.server && typeof cfg.server === "object" ? cfg.server : { port: 3000, data_dir: "/app/data" }
-  cfg.collector = cfg.collector && typeof cfg.collector === "object" ? cfg.collector : { batch_ms: 60000, batch_max: 500 }
-  cfg.epics = Array.isArray(cfg.epics) ? cfg.epics : []
-
-  if (process.env.VALKEY_URL) cfg.valkey.url = process.env.VALKEY_URL
   if (process.env.PORT) cfg.server.port = Number(process.env.PORT)
   if (process.env.DATA_DIR) cfg.server.data_dir = process.env.DATA_DIR
   if (process.env.BATCH_MS) cfg.collector.batch_ms = Number(process.env.BATCH_MS)
@@ -65,9 +78,27 @@ const updateConfig = (partialConfig) => {
       data: validationError,
     }
   }
-
-  const newConfig = mergeDeepLeft(partialConfig, getConfig())
-  setConfig(newConfig)
+  const cfg = getConfig()
+  
+  if (partialConfig.epic) {
+    // TODO: use zod for validation
+    const { name, ...fields } = partialConfig.epic
+    const epicIndex = cfg.epics.findIndex((e) => e.name === name)
+    if (epicIndex === -1) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: `Unknown epic: ${name}`,
+        data: {},
+      }
+    }
+    const newConfig = structuredClone(cfg)
+    newConfig.epics[epicIndex] = mergeDeepLeft(fields, newConfig.epics[epicIndex])
+    setConfig(newConfig)
+  } else {
+    const newConfig = mergeDeepLeft(partialConfig, cfg)
+    setConfig(newConfig)
+  }
 
   return {
     success: true,
@@ -82,32 +113,36 @@ const validatePartialConfig = (partialConfig) => {
     return new Error("Config update must be an object")
   }
 
-  if (
-    partialConfig.pollingInterval !== undefined &&
-    !isPositiveNumber(partialConfig.pollingInterval)
-  ) {
-    return new Error("pollingInterval must be a positive non-zero number")
-  }
-
-  if (partialConfig.monitoring !== undefined) {
-    if (typeof partialConfig.monitoring !== "object" || Array.isArray(partialConfig.monitoring)) {
-      return new Error("monitoring must be an object")
+  if (partialConfig.epic !== undefined) {
+    if (typeof partialConfig.epic !== "object" || Array.isArray(partialConfig.epic)) {
+      return new Error("epic must be an object")
     }
 
-    const { monitorEnabled, monitorDuration } = partialConfig.monitoring
+    const { name, monitoringDuration, monitoringInterval, maxCommandsPerRun } = partialConfig.epic
 
-    if (
-      monitorEnabled !== undefined &&
-      typeof monitorEnabled !== "boolean"
-    ) {
-      return new Error("monitorEnabled must be a boolean")
+    if (typeof name !== "string" || name.length === 0) {
+      return new Error("epic.name must be a non-empty string")
     }
 
     if (
-      monitorDuration !== undefined &&
-      !isPositiveNumber(monitorDuration)
+      monitoringDuration !== undefined &&
+      !isPositiveNumber(monitoringDuration)
     ) {
-      return new Error("monitorDuration must be a positive non-zero number")
+      return new Error("monitoringDuration must be a positive non-zero number")
+    }
+
+    if (
+      monitoringInterval !== undefined &&
+      !isPositiveNumber(monitoringInterval)
+    ) {
+      return new Error("monitoringInterval must be a positive non-zero number")
+    }
+
+    if (
+      maxCommandsPerRun !== undefined &&
+      !isPositiveNumber(maxCommandsPerRun)
+    ) {
+      return new Error("maxCommandsPerRun must be a positive non-zero number")
     }
   }
 

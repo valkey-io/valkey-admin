@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
+import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -31,7 +32,7 @@ export default function KeyDetailsZSet(
   const [isEditable, setIsEditable] = useState(false)
   const [editedValues, setEditedValues] = useState<number[]>([])
 
-  console.log("selectedKeyInfo:::", selectedKeyInfo)
+  console.debug("selectedKeyInfo:::", selectedKeyInfo)
 
   const handleEdit = () => {
     if (isEditable) {
@@ -76,8 +77,8 @@ export default function KeyDetailsZSet(
     <div className="flex items-center justify-center w-full p-4">
       <div className="w-full">
         <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
-          <div className="font-semibold text-left">Key</div>
-          <div className="col-span-2 font-semibold text-left">Value</div>
+          <Typography className="text-left" variant="label">Key</Typography>
+          <Typography className="col-span-2 text-left" variant="label">Value</Typography>
           <div className="flex justify-end gap-1">
             <EditActionButtons
               isEditable={isEditable}
@@ -88,18 +89,19 @@ export default function KeyDetailsZSet(
           </div>
         </div>
         {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => (
-          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border font-light text-foreground")} key={index}>
-            <div>{element.key}</div>
+          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+            <Typography variant="code">{element.key}</Typography>
             <div className="col-span-3">
               {isEditable ? (
                 <Input
+                  aria-label="Edit zset value"
                   onChange={(e) => handleValueChange(index, e.target.value)}
                   step="any"
                   type="number"
                   value={editedValues[index] !== undefined ? editedValues[index] : element.value}
                 />
               ) : (
-                element.value
+                <Typography variant="code">{element.value}</Typography>
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Typography } from "./typography"
 import { cn } from "@/lib/utils"
 
 interface StatCardProps extends React.ComponentProps<"div"> {
@@ -28,12 +29,12 @@ function StatCard({
     >
       <div className="flex items-center gap-1">
         {icon}
-        <span className="text-2xl font-semibold">{value}</span>
+        <Typography variant="heading">{value}</Typography>
       </div>
-      <span className="font-light text-sm flex items-center gap-1">
+      <Typography className="flex items-center gap-1" variant={"bodySm"}>
         {label}
         {tooltip}
-      </span>
+      </Typography>
     </div>
   )
 }

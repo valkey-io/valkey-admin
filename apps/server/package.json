@@ -4,25 +4,30 @@
   "type": "module",
   "scripts": {
     "dev": "npx tsx --enable-source-maps src/index.ts",
-    "build:ts": "tsc -b",
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
+    "build:vite": "vite build --config vite.config.ts",
     "lint": "eslint .",
-    "build": "vite build --config vite.config.ts",
-    "test": "npx tsx --test src/**/*.test.ts",
-    "test:watch": "npx tsx --test --watch src/**/*.test.ts",
-    "test:coverage": "npx tsx --test --experimental-test-coverage src/**/*.test.ts"
+    "test": "npx tsx --test src/__tests__/**/*.test.ts",
+    "test:watch": "npx tsx --test --watch src/__tests__/**/*.test.ts",
+    "test:coverage": "npx tsx --test --experimental-test-coverage src/__tests__/**/*.test.ts",
+    "test:integration": "npx tsx --test 'src/__integration__/**/*.integration.test.ts'"
   },
   "dependencies": {
-    "@valkey/valkey-glide": "^2.0.1",
+    "@valkey/valkey-glide": "^2.3.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.3.1",
     "p-limit": "^6.1.0",
     "ramda": "^0.31.3",
-    "server": "file:",
+    "valkey-common": "*",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.2.1",
     "@types/ramda": "^0.31.1",
     "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
     "typescript": "~5.8.3",
     "vite": "^7.1.7"
   }

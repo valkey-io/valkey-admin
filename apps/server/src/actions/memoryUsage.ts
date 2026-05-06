@@ -1,6 +1,6 @@
 import { type WebSocket } from "ws"
-import { VALKEY } from "../../../../common/src/constants"
-import { withDeps, Deps } from "./utils"
+import { VALKEY } from "valkey-common"
+import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 interface MemoryMetric {
   description: string
@@ -37,7 +37,7 @@ const sendMemoryUsageError = (
   connectionId: string,
   error: unknown,
 ) => {
-  console.log(error)
+  console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.MEMORY.memoryUsageError,
@@ -50,15 +50,23 @@ const sendMemoryUsageError = (
 }
 
 type RequestPayload = {
-  connectionIds: string[]
+  connectionId: string,
+  clusterId: string,
   timeRange?: string
 }
 
 export const memoryUsageRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerURIs, action }) => {
-    const { connectionIds, timeRange = "12h" } = action.payload as unknown as RequestPayload
+  async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
+    const { connectionId, clusterId, timeRange = "12h" } = action.payload as unknown as RequestPayload
+    const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
     const promises = connectionIds.map(async (connectionId: string) => {
-      const metricsServerURI = metricsServerURIs.get(connectionId)
+      const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+
+      if (!metricsServerURI) {
+        sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        return
+      }
+
       try {
         const hoursInMs = {
           "1h": 1 * 60 * 60 * 1000,
@@ -69,7 +77,7 @@ export const memoryUsageRequested = withDeps<Deps, void>(
 
         const url = `${metricsServerURI}/memory?since=${since}&maxPoints=60`
 
-        const response = await fetch(url)
+        const response = await fetchWithTimeout(url)
         const parsedResponse: MemoryUsageResponse = await response.json() as MemoryUsageResponse
 
         sendMemoryUsageFulfilled(ws, connectionId, parsedResponse)

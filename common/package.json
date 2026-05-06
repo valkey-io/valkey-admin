@@ -1,7 +1,22 @@
+
 {
   "name": "valkey-common",
+  "version": "1.0.0",
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean"
+  },
   "devDependencies": {
+    "tsup": "^7.0.0",
     "typescript": "^5.5.0"
   }
 }

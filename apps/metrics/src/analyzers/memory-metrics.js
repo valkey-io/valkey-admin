@@ -3,7 +3,7 @@ import { downsampleMinMaxOrdered } from "../utils/helpers.js"
 
 export const MEMORY_METRICS = {
   // core usage
-  total_allocated: {
+  used_memory: {
     key: "allocated_bytes",
     description: "How much memory Valkey is actually using for data and internal structures.",
   },
@@ -35,7 +35,7 @@ export const MEMORY_METRICS = {
   },
 
   // fragmentation / waste
-  "allocator-fragmentation_ratio": {
+  fragmentation: {
     key: "fragmentation_ratio",
     description: "Is memory waste growing over time due to fragmentation.",
   },
@@ -43,7 +43,7 @@ export const MEMORY_METRICS = {
     key: "fragmentation_bytes",
     description: "How many bytes are currently wasted because memory is fragmented.",
   },
-  "allocator-rss_ratio": {
+  allocator_rss_ratio: {
     key: "allocator_rss_ratio",
     description: "How efficiently allocated memory maps to actual RAM usage.",
   },
@@ -53,7 +53,7 @@ export const MEMORY_METRICS = {
     key: "keys_count",
     description: "How many keys are currently stored in Valkey.",
   },
-  "keys_bytes-per-key": {
+  keys_bytes_per_key: {
     key: "bytes_per_key",
     description: "On average, how much memory each key consumes.",
   },

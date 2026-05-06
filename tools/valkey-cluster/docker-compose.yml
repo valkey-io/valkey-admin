@@ -222,8 +222,9 @@ services:
         volumes:
             - ./populate.mjs:/app/populate.mjs:ro
         environment:
-            # inside Docker network; on host use 127.0.0.1:7001 instead
+            # inside Docker network; on host use (ipconfig getifaddr en0):7001 instead
             VALKEY_START_NODE: "valkey-7001:7001"
+            ANNOUNCE_HOST: ${ANNOUNCE_HOST}
         networks: [valnet]
         command: >
             sh -c "

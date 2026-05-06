@@ -29,6 +29,14 @@ export const VALKEY = {
     connectRejected: "connectRejected",
     resetConnection: "resetConnection",
     closeConnection: "closeConnection",
+    closeConnectionFulfilled: "closeConnectionFulfilled",
+    closeConnectionFailed: "closeConnectionFailed",
+  } as const),
+  TOPOLOGY: makeNamespace("valkeyTopology", {
+    discoveryEndpointPending: "discoveryEndpointPending",
+    discoveryEndpointFulfilled: "discoveryEndpointFulfilled",
+    discoveryEndpointRejected: "discoveryEndpointRejected",
+    clearEndpointDiscovery: "clearEndpointDiscovery",
   } as const),
   COMMAND: makeNamespace("valkeyCommand", {
     sendFailed: "sendFailed",
@@ -88,7 +96,16 @@ export const VALKEY = {
     memoryUsageFulfilled: "memoryUsageFulfilled",
     memoryUsageError: "memoryUsageError",
   }),
+  MONITOR: makeNamespace("monitor", {
+    monitorRequested: "monitorRequested",
+    monitorFulfilled: "monitorFulfilled",
+    monitorError: "monitorError",
+    saveMonitorSettingsRequested: "saveMonitorSettingsRequested",
+  }),
 } as const
+
+// check truthyness in case process doesn't have env
+const nodeEnv = typeof process !== "undefined" && process.env ? process.env : {}
 
 export const CONNECTED = "Connected"
 export const CONNECTING = "Connecting"
@@ -96,9 +113,15 @@ export const ERROR = "Error"
 export const NOT_CONNECTED = "Not Connected"
 export const DISCONNECTED = "Disconnected"
 export const RECONNECTING = "Reconnecting"
+export const DISCONNECTING = "Disconnecting"
+export const MAX_CONNECTIONS = nodeEnv.MAX_CONNECTIONS
+  ? Number(nodeEnv.MAX_CONNECTIONS)
+  : Infinity
 
 export const PENDING = "Pending"
 export const FULFILLED = "Fulfilled"
+
+export const FETCH_TIMEOUT_MS = 10000
 
 export const LOCAL_STORAGE = {
   VALKEY_CONNECTIONS: "VALKEY_CONNECTIONS",
@@ -126,7 +149,19 @@ export const VALKEY_CLIENT = {
     defaultPayloadPattern: "*",
     defaultCount: 50,
   } ,
+  KEY_VALUE_SIZE_LIMIT: 2048, // 2KiB
+  MESSAGES: {
+    NOT_READABLE: "Not human readable.",
+  },
 }
+export const MONITOR_ACTION = {
+  START: "start",
+  STOP: "stop",
+  STATUS: "status",
+} as const
+
+export type MonitorAction = typeof MONITOR_ACTION[keyof typeof MONITOR_ACTION]
+
 export const COMMANDLOG_TYPE = {
   SLOW: "slow",
   LARGE_REQUEST: "large-request",
@@ -156,6 +191,7 @@ export const KEY_EVICTION_POLICY = {
 
 export type KeyEvictionPolicy =
   typeof KEY_EVICTION_POLICY[keyof typeof KEY_EVICTION_POLICY]
+
 export const KEY_TYPES = {
   STRING: "String",
   LIST: "List",
@@ -164,4 +200,20 @@ export const KEY_TYPES = {
   HASH: "Hash",
   STREAM: "Stream",
   JSON: "JSON",
+}
+
+export const MILLISECONDS_IN_A_DAY = 86_400_000
+
+export const METRICS_EVICTION_POLICY = {
+  INTERVAL: 1 * MILLISECONDS_IN_A_DAY,
+}
+
+export type EndpointType = "node" | "cluster-endpoint"
+
+export const CONNECTION_TEARDOWN_DELAY_MS = Number(nodeEnv.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)
+
+export const DEPLOYMENT_TYPE = {
+  ELECTRON: "Electron",
+  WEB: "Web",
+  K8: "K8",
 }

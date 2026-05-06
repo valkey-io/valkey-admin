@@ -6,9 +6,12 @@ services:
             CONFIG_PATH: "/app/config.yml"
             PORT: "3000"
             DATA_DIR: "/app/data"
-            # VALKEY_URL: "valkey://host.docker.internal:7001" # single URL (router, one seed, or any reachable node)
-            VALKEY_HOST: host.docker.internal
-            VALKEY_PORT: "7001"
+            VALKEY_HOST: ${VALKEY_HOST}
+            VALKEY_PORT: ${VALKEY_PORT}
+            VALKEY_USERNAME: ${VALKEY_USERNAME}
+            VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+            VALKEY_TLS: ${VALKEY_TLS}
+            VALKEY_VERIFY_CERT: ${VALKEY_VERIFY_CERT}
             BATCH_MS: "1000"
             BATCH_MAX: "50"
             DEBUG_METRICS: "1"
@@ -18,7 +21,7 @@ services:
             - ./config.yml:/app/config.yml:ro
             - ./data:/app/data
         ports:
-            - "3000:3000"
+            - "8080:3000"
         extra_hosts:
             - "host.docker.internal:host-gateway"
         restart: unless-stopped

@@ -12,6 +12,11 @@ export const selectCommandLogs =
     (state: RootState) =>
       R.path([VALKEY.COMMANDLOGS.name, connectionId, "logs", type], state)
 
+export const selectCommandLogsNodeErrors =
+  (connectionId: string) =>
+    (state: RootState) =>
+      R.path([VALKEY.COMMANDLOGS.name, connectionId, "nodeErrors"], state) ?? []
+
 interface CommandLogSlowEntry {
   id: string
   ts: number
@@ -50,6 +55,7 @@ interface CommandLogState {
     count: number
     error?: JSONObject | null
     loading?: boolean
+    nodeErrors?: { connectionId: string; error: string }[]
   }
 }
 
@@ -60,7 +66,25 @@ const commandLogsSlice = createSlice({
   initialState: initialCommandLogsState,
   reducers: {
     commandLogsRequested: (state, action) => {
-      const { connectionId } = action.payload
+      const { connectionId, clusterId } = action.payload
+      const id = clusterId ?? connectionId
+      if (!state[id]) {
+        state[id] = {
+          logs: {
+            slow: [],
+            [COMMANDLOG_TYPE.LARGE_REQUEST]: [],
+            [COMMANDLOG_TYPE.LARGE_REPLY]: [],
+          },
+          count: 50,
+          loading: false,
+        }
+      }
+      state[id].loading = true
+    },
+    commandLogsFulfilled: (state, action) => {
+      const { connectionId, parsedResponse, nodeErrors } = action.payload
+      const commandLogType: CommandLogType = action.payload.commandLogType
+      const { rows, count } = parsedResponse
       if (!state[connectionId]) {
         state[connectionId] = {
           logs: {
@@ -72,16 +96,10 @@ const commandLogsSlice = createSlice({
           loading: false,
         }
       }
-      state[connectionId].loading = true
-    },
-    commandLogsFulfilled: (state, action) => {
-      const { connectionId, parsedResponse } = action.payload
-      const commandLogType : CommandLogType = action.payload.commandLogType
-      const { rows, count } = parsedResponse
-
       state[connectionId].logs[commandLogType] = rows
       state[connectionId].count = count
       state[connectionId].loading = false
+      state[connectionId].nodeErrors = nodeErrors ?? []
     },
     commandLogsError: (state, action) => {
       const { connectionId, error } = action.payload

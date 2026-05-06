@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
 
 export interface ReplicaNode {
@@ -11,12 +11,14 @@ export interface PrimaryNode {
   host: string;
   port: number;
   username?: string;
-  password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string
   replicas: ReplicaNode[];
+  authType?: "password" | "iam";
+  awsRegion?: string;
+  awsReplicationGroupId?: string;
 }
 
 export interface ParsedNodeInfo {
@@ -37,9 +39,14 @@ interface ClusterState {
     data: {
       [nodeAddress: string]: ParsedNodeInfo;
     };
+    searchableText: {
+      [nodeAddress: string]: string;
+    };
   };
 }
 const initialClusterState: ClusterState = {}
+
+export const updateClusterData = createAction<{connectionId: string, clusterId: string}>("updateClusterData")
 
 const clusterSlice = createSlice({
   name: "valkeyCluster",
@@ -53,9 +60,10 @@ const clusterSlice = createSlice({
         state.clusters[clusterId] = {
           clusterNodes: {},
           data: {},
+          searchableText: {},
         }
       }
-      state.clusters[clusterId].clusterNodes = clusterNodes 
+      state.clusters[clusterId].clusterNodes = clusterNodes
     },
     updateClusterInfo: (state, action) => {
       const { clusterId, clusterNodes } = action.payload
@@ -89,6 +97,30 @@ const clusterSlice = createSlice({
         result[nodeAddress] = parseNodeInfo(nodeInfo) as ParsedNodeInfo
       }
       state.clusters[clusterId].data = result
+
+      // Precompute searchable text for both primaries and replicas
+      const searchableText: Record<string, string> = {}
+      for (const [primaryKey, primary] of Object.entries(state.clusters[clusterId].clusterNodes)) {
+        const primaryData = result[primaryKey]
+        searchableText[primaryKey] = [
+          primaryKey,
+          primary.host,
+          primary.port.toString(),
+          primaryData?.server_name || "",
+        ].join(" ").toLowerCase()
+
+        for (const replica of primary.replicas) {
+          const replicaKey = `${replica.host}:${replica.port}`
+          const replicaData = result[replicaKey]
+          searchableText[replicaKey] = [
+            replicaKey,
+            replica.host,
+            replica.port.toString(),
+            replicaData?.server_name || "",
+          ].join(" ").toLowerCase()
+        }
+      }
+      state.clusters[clusterId].searchableText = searchableText
     },
   },
 })

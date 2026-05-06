@@ -62,6 +62,7 @@ async function main() {
   }
 
   console.log("All additional string keys created successfully.")
+  console.log(`Connect to your cluster using host: ${process.env.ANNOUNCE_HOST}`)
   await cluster.quit()
 }
 

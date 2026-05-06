@@ -40,7 +40,12 @@ const cpuSlice = createSlice({
     },
     cpuUsageFulfilled: (state, action) => {
       const { connectionId, parsedResponse } = action.payload
-
+      if (!state[connectionId]) {
+        state[connectionId] = {
+          data: [],
+          loading: false,
+        }
+      }
       // Validate that parsedResponse is an array
       if (Array.isArray(parsedResponse)) {
         state[connectionId].data = parsedResponse

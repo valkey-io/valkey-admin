@@ -11,7 +11,7 @@ import {
   retry,
   take
 } from "rxjs/operators"
-import { CONNECTED, VALKEY, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, VALKEY, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { action$ } from "../middleware/rxjsMiddleware/rxjsMiddleware"
 import type { PayloadAction, Store } from "@reduxjs/toolkit"
 import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
@@ -26,6 +26,15 @@ import {
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
+const isElectron = window.location.protocol === "file:"
+const isHttps = window.location.protocol === "https:"
+
+const url =
+  import.meta.env.VITE_VALKEY_ADMIN_WS_URL ||
+  (isElectron
+    ? "ws://localhost:8080"
+    : `${isHttps ? "wss" : "ws"}://${window.location.host}`)
+
 const connect = (store: Store) =>
   action$.pipe(
     filter((action) => action.type === connectPending.type),
@@ -36,7 +45,7 @@ const connect = (store: Store) =>
       }
       const createSocket = () => {
         socket$ = webSocket({
-          url: "ws://localhost:8080",
+          url,
           deserializer: (message) => JSON.parse(message.data),
           serializer: (message) => JSON.stringify(message),
           openObserver: {
@@ -51,9 +60,11 @@ const connect = (store: Store) =>
               const state = store.getState()
               const connections = state[VALKEY.CONNECTION.name]?.connections || {}
 
-              // Mark all connected Valkey connections as broken
+              // Reset both CONNECTED and CONNECTING states on socket close.
+              // CONNECTING entries can get stuck if the socket dies mid-handshake
+              // (e.g., laptop sleep/wake), leaving the UI unable to retry.
               Object.keys(connections).forEach((connectionId) => {
-                if (connections[connectionId].status === CONNECTED) {
+                if (connections[connectionId].status === CONNECTED || connections[connectionId].status === CONNECTING) {
                   console.log(`Dispatching connectionBroken for ${connectionId}`)
                   store.dispatch(connectionBroken({ connectionId }))
                 }

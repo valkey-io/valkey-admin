@@ -1,0 +1,35 @@
+services:
+    valkey-standalone:
+        image: valkey/valkey:latest
+        container_name: valkey-standalone
+        ports: ["6379:6379"]
+        healthcheck:
+            {
+                test: ["CMD", "valkey-cli", "-p", "6379", "PING"],
+                interval: 2s,
+                timeout: 1s,
+                retries: 30,
+            }
+        networks: [valnet]
+
+    populate:
+        image: node:20
+        depends_on:
+            valkey-standalone: { condition: service_healthy }
+        working_dir: /app
+        volumes:
+            - ./populate.mjs:/app/populate.mjs:ro
+        environment:
+            # inside Docker network; on host use valkey://localhost:6379 instead
+            VALKEY_URL: "valkey://valkey-standalone:6379"
+        networks: [valnet]
+        command: >
+            sh -c "
+              npm -s install @valkey/client >/dev/null 2>&1 &&
+              npm -s install ramda >/dev/null 2>&1 &&
+              node populate.mjs
+            "
+        profiles: [populate]
+
+networks:
+    valnet:

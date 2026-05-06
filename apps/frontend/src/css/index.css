@@ -1,3 +1,5 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource/geist-mono";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -31,6 +33,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -45,13 +49,10 @@
   --color-tw-dark-border: var(--tw-dark-border);
   --color-tw-accent: var(--tw-accent);
   --color-tw-accent2: var(--tw-accent2);
-  --color-tw-chart1: var(--tw-chart1);
-  --color-tw-chart2: var(--tw-chart2);
-  --color-tw-chart3: var(--tw-chart3);
-  --color-tw-chart4: var(--tw-chart4);
-  --color-tw-chart5: var(--tw-chart5);
-  --color-tw-chart6: var(--tw-chart6);
-  --color-tw-chart7: var(--tw-chart7);
+
+  /* Font */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
 }
 
 :root {
@@ -62,7 +63,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.6508 0.1841 271.15);
+  --primary: oklch(0.5718 0.2314 270.42);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -74,11 +75,13 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.5718 0.2314 270.42);
+  --chart-2: oklch(0.7351 0.172 44.6);
+  --chart-3: oklch(0.8337 0.1636 80.44);
+  --chart-4: oklch(0.6045 0.1074 183.38);
+  --chart-5: oklch(0.7536 0.1626 130.5);
+  --chart-6: oklch(0.6792 0.2128 36.53);
+  --chart-7: oklch(0.6991 0.157 238.99);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -87,19 +90,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --tw-primary: oklch(0.6508 0.1841 271.15);
-  --tw-primary-light: hsl(229deg 100% 70% / 30%);
   --tw-dark-primary: oklch(21% 0.034 264.665);
   --tw-dark-border: oklch(55.1% 0.027 264.364);
   --tw-accent: rgba(86, 118, 248, 0.5);
-  --tw-accent2: rgba(255, 136, 138, 0.4); 
-  --tw-chart1: var(--tw-primary);
-  --tw-chart2: #FF8042;
-  --tw-chart3: #FFBB28;
-  --tw-chart4: #009688;
-  --tw-chart5: #8BC34A;
-  --tw-chart6: #FF5722;
-  --tw-chart7: #03A9F4;
+  --tw-accent2: rgba(255, 136, 138, 0.4);
 }
 
 .dark {
@@ -121,11 +115,6 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -141,8 +130,63 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
+
+  /* Display & Headings */
+  .text-display {
+    @apply text-4xl font-bold leading-tight tracking-tight;
+  }
+
+  .text-title {
+    @apply text-3xl font-semibold leading-tight tracking-tight;
+  }
+
+  .text-heading {
+    @apply text-2xl font-semibold leading-snug;
+  }
+
+  .text-subheading {
+    @apply text-xl font-semibold leading-snug;
+  }
+
+  .text-label {
+    @apply text-sm font-semibold leading-normal;
+  }
+
+  /* Body Text */
+  .text-body-lg {
+    @apply text-lg leading-relaxed;
+  }
+
+  .text-body {
+    @apply text-base leading-normal;
+  }
+
+  .text-body-sm {
+    @apply text-sm leading-normal;
+  }
+
+  .text-body-xs {
+    @apply text-xs leading-normal;
+  }
+
+  /* Special Purpose */
+  .text-caption {
+    @apply text-sm text-muted-foreground leading-normal;
+  }
+
+  .text-overline {
+    @apply text-xs font-medium uppercase tracking-wide text-muted-foreground;
+  }
+
+  .text-code {
+    @apply font-mono text-sm;
+  }
+
+  .text-code-block {
+  @apply font-mono text-sm block w-full whitespace-pre overflow-x-auto;
+}
 }
 
 @keyframes linearProgress {

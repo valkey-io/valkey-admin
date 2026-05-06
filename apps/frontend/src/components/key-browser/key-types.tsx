@@ -1,5 +1,10 @@
 import { Trash, Check, TriangleAlert } from "lucide-react"
+import { Alert, AlertDescription } from "../ui/alert"
 import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Label } from "../ui/label"
+import { Textarea } from "../ui/textarea"
+import { Typography } from "../ui/typography"
 
 interface StringFieldsProps {
   value: string
@@ -8,11 +13,11 @@ interface StringFieldsProps {
 
 export function StringFields({ value, setValue }: StringFieldsProps) {
   return (
-    <div className="mt-4 text-sm font-light w-full">
+    <div className="mt-4 text-sm w-full">
       <div className="flex flex-col gap-2">
-        <label htmlFor="value">Value *</label>
-        <textarea
-          className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary min-h-[100px]"
+        <Label htmlFor="value">Value *</Label>
+        <Textarea
+          className="min-h-[100px]"
           id="value"
           onChange={(e) => setValue(e.target.value)}
           placeholder="Enter value"
@@ -42,9 +47,8 @@ export function ListFields({ listFields, setListFields, onAdd, onRemove }: ListF
     <div className="flex flex-col w-full gap-2">
       {listFields.map((field, index) => (
         <div className="flex gap-4 items-start mt-4" key={index}>
-          <div className="text-sm font-light w-full">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-full">
+            <Input
               onChange={(e) => updateField(index, e.target.value)}
               placeholder="Value"
               value={field}
@@ -54,7 +58,8 @@ export function ListFields({ listFields, setListFields, onAdd, onRemove }: ListF
             <Button
               className="mt-1"
               onClick={() => onRemove(index)}
-              variant={"destructiveGhost"}
+              size="icon"
+              variant="destructiveGhost"
             >
               <Trash size={14} />
             </Button>
@@ -62,13 +67,13 @@ export function ListFields({ listFields, setListFields, onAdd, onRemove }: ListF
         </div>
       ))}
       <div className="text-end">
-        <button
-          className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+        <Button
           onClick={onAdd}
           type="button"
+          variant="ghost"
         >
           + Add Value
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -92,9 +97,8 @@ export function SetFields({ setFields, setSetFields, onAdd, onRemove }: SetField
     <div className="flex flex-col w-full gap-2">
       {setFields.map((field, index) => (
         <div className="flex gap-4 items-start mt-4" key={index}>
-          <div className="text-sm font-light w-full">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-full">
+            <Input
               onChange={(e) => updateField(index, e.target.value)}
               placeholder="Value"
               value={field}
@@ -104,7 +108,8 @@ export function SetFields({ setFields, setSetFields, onAdd, onRemove }: SetField
             <Button
               className="mt-1"
               onClick={() => onRemove(index)}
-              variant={"destructiveGhost"}
+              size="icon"
+              variant="destructiveGhost"
             >
               <Trash size={14} />
             </Button>
@@ -112,13 +117,13 @@ export function SetFields({ setFields, setSetFields, onAdd, onRemove }: SetField
         </div>
       ))}
       <div className="text-end">
-        <button
-          className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+        <Button
           onClick={onAdd}
           type="button"
+          variant="ghost"
         >
           + Add Value
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -136,17 +141,15 @@ export function HashFields({ hashFields, onUpdate, onAdd, onRemove }: HashFields
     <div className="flex flex-col w-full gap-2">
       {hashFields.map((field, index) => (
         <div className="flex gap-4 items-start mt-4" key={index}>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "field", e.target.value)}
               placeholder="Field"
               value={field.field}
             />
           </div>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "value", e.target.value)}
               placeholder="Value"
               value={field.value}
@@ -156,7 +159,8 @@ export function HashFields({ hashFields, onUpdate, onAdd, onRemove }: HashFields
             <Button
               className="mt-1"
               onClick={() => onRemove(index)}
-              variant={"destructiveGhost"}
+              size="icon"
+              variant="destructiveGhost"
             >
               <Trash size={14} />
             </Button>
@@ -164,13 +168,13 @@ export function HashFields({ hashFields, onUpdate, onAdd, onRemove }: HashFields
         </div>
       ))}
       <div className="text-end">
-        <button
-          className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+        <Button
           onClick={onAdd}
           type="button"
+          variant="ghost"
         >
           + Add Field
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -188,17 +192,15 @@ export function ZSetFields({ zsetFields, onUpdate, onAdd, onRemove }: ZSetFields
     <div className="flex flex-col w-full gap-2">
       {zsetFields.map((field, index) => (
         <div className="flex gap-4 items-start mt-4" key={index}>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "key", e.target.value)}
               placeholder="Key (Member)"
               value={field.key}
             />
           </div>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "value", e.target.value)}
               placeholder="Value (Score)"
               step="any"
@@ -210,7 +212,8 @@ export function ZSetFields({ zsetFields, onUpdate, onAdd, onRemove }: ZSetFields
             <Button
               className="mt-1"
               onClick={() => onRemove(index)}
-              variant={"destructiveGhost"}
+              size="icon"
+              variant="destructiveGhost"
             >
               <Trash size={14} />
             </Button>
@@ -218,13 +221,13 @@ export function ZSetFields({ zsetFields, onUpdate, onAdd, onRemove }: ZSetFields
         </div>
       ))}
       <div className="text-end">
-        <button
-          className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+        <Button
           onClick={onAdd}
           type="button"
+          variant="ghost"
         >
           + Add Member
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -242,11 +245,11 @@ interface StreamFieldsProps {
 export function StreamFields({ streamEntryId, onEntryIdChange, streamFields, onUpdate, onAdd, onRemove }: StreamFieldsProps) {
   return (
     <div className="flex flex-col w-full gap-2">
-      <div className="mt-4 text-sm font-light w-full">
+      <div className="mt-4 text-sm w-full">
         <div className="flex flex-col gap-2">
-          <label>Entry ID (leave empty for auto-generated)</label>
-          <input
-            className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <Label htmlFor="stream-entry-id">Entry ID (leave empty for auto-generated)</Label>
+          <Input
+            id="stream-entry-id"
             onChange={(e) => onEntryIdChange(e.target.value)}
             placeholder="* (auto-generated)"
             type="text"
@@ -256,17 +259,15 @@ export function StreamFields({ streamEntryId, onEntryIdChange, streamFields, onU
       </div>
       {streamFields.map((field, index) => (
         <div className="flex gap-4 items-start mt-4" key={index}>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "field", e.target.value)}
               placeholder="Field"
               value={field.field}
             />
           </div>
-          <div className="text-sm font-light w-1/2">
-            <input
-              className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary w-full"
+          <div className="text-sm w-1/2">
+            <Input
               onChange={(e) => onUpdate(index, "value", e.target.value)}
               placeholder="Value"
               value={field.value}
@@ -276,7 +277,8 @@ export function StreamFields({ streamEntryId, onEntryIdChange, streamFields, onU
             <Button
               className="mt-1"
               onClick={() => onRemove(index)}
-              variant={"destructiveGhost"}
+              size="icon"
+              variant="destructiveGhost"
             >
               <Trash size={14} />
             </Button>
@@ -284,13 +286,13 @@ export function StreamFields({ streamEntryId, onEntryIdChange, streamFields, onU
         </div>
       ))}
       <div className="text-end">
-        <button
-          className="text-tw-primary hover:text-tw-dark-border font-light text-sm"
+        <Button
           onClick={onAdd}
           type="button"
+          variant="ghost"
         >
           + Add Field
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -304,33 +306,29 @@ interface JsonFieldsProps {
 
 export function JsonFields({ value, setValue, jsonModuleAvailable = false }: JsonFieldsProps) {
   return (
-    <div className="mt-4 text-sm font-light w-full">
+    <div className="mt-4 text-sm w-full">
       <div className="flex flex-col gap-2">
-        <label htmlFor="json-value">JSON Value *</label>
+        <Label htmlFor="json-value">JSON Value *</Label>
 
         {/* JSON Module Indicator */}
-        <div className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
-          jsonModuleAvailable
-            ? "bg-tw-primary/20 text-teal-500"
-            : "bg-tw-primary/20 text-red-400"
-        }`}>
-          <span className="font-semibold">{jsonModuleAvailable ? <Check size={14} /> : <TriangleAlert size={14} />}</span>
-          <span>
+        <Alert variant={jsonModuleAvailable ? "success" : "warning"}>
+          {jsonModuleAvailable ? <Check className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
+          <AlertDescription>
             {jsonModuleAvailable
               ? "JSON module is available"
               : "JSON module is not loaded on this Valkey instance"}
-          </span>
-        </div>
+          </AlertDescription>
+        </Alert>
 
-        <textarea
-          className="border border-tw-dark-border rounded p-2 dark:bg-tw-dark-primary min-h-[150px] font-mono text-sm"
+        <Textarea
+          className="min-h-[150px] font-mono text-sm"
           id="json-value"
           onChange={(e) => setValue(e.target.value)}
           placeholder='Enter JSON (e.g., {"name": "John", "age": 30})'
           required
           value={value}
         />
-        <p className="text-xs text-gray-500">Enter valid JSON data</p>
+        <Typography variant="bodyXs">Enter valid JSON data</Typography>
       </div>
     </div>
   )

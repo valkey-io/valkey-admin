@@ -1,37 +1,34 @@
+import { getConfig } from "../config.js"
 import { getCollectorMeta } from "../init-collectors.js"
-import { ACTION, MONITOR, MODE } from "../utils/constants.js"
+import { ACTION, MONITOR } from "../utils/constants.js"
 import { calculateHotKeysFromMonitor } from "../analyzers/calculate-hot-keys.js"
 import { startMonitor, stopMonitor } from "../init-collectors.js"
 import { enrichHotKeys } from "../analyzers/enrich-hot-keys.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
-const readMonitorMetadata = () => getCollectorMeta(MONITOR)
-const toResponse = ({ isRunning, willCompleteAt }) => ({
+
+export const readMonitorMetadata = () => getCollectorMeta(MONITOR)
+
+const toResponse = ({ isRunning, willCompleteAt, startedAt }) => ({
   monitorRunning: isRunning,
   checkAt: willCompleteAt,
+  startedAt: startedAt ?? null,
 })
 
-export const useMonitor = async (req, res, cfg, client) => {
-  let monitorResponse = {}
-  const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR) 
+export const useMonitor = async (res, client, nodeId, limit = 50) => {
+  const cutoff = getConfig().epics.find((e) => e.name === "monitor")?.cutoffFrequency ?? 100
+  const { isRunning, willCompleteAt: checkAt } = getCollectorMeta(MONITOR)
   try {
-    if (!isRunning) {
-      monitorResponse = await monitorHandler(ACTION.START, cfg)
-      return res.json(monitorResponse)
-    }
-    if (Date.now() > checkAt) {
-      const hotKeys = await Streamer.monitor().then(calculateHotKeysFromMonitor).then(enrichHotKeys(client))
-      if (req.query.mode !== MODE.CONTINUOUS) {
-        await monitorHandler(ACTION.STOP, cfg) 
-      }
-      monitorResponse = await monitorHandler(ACTION.STATUS, cfg)
-      return res.json({ hotKeys, ...monitorResponse })
-    }
-    return res.json({ checkAt })
+    if (isRunning && Date.now() <= checkAt) return res.json({ checkAt })
+
+    const rows = await Streamer.monitor()
+    const lastCollectedAt = rows.at(-1)?.ts ? rows.at(-1).ts * 1000 : null
+    const hotKeys = await Promise.resolve(rows).then(calculateHotKeysFromMonitor({ limit, cutoff })).then(enrichHotKeys(client))
+    const monitorMeta = isRunning ? toResponse(getCollectorMeta(MONITOR)) : { monitorRunning: false, checkAt: null, startedAt: null }
+    return res.json({ hotKeys, nodeId, lastCollectedAt, ...monitorMeta })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
 }
-
 export const monitorHandler = async (action, cfg) => {
   try {
     const meta = readMonitorMetadata()
@@ -60,7 +57,7 @@ export const monitorHandler = async (action, cfg) => {
         return { error: "Invalid action. Use ?action=start|stop|status" }
     }
   } catch (e) {
-    console.error(`[monitor] ${action} error:`, e)
+    console.error("[monitor] %s error:", e)
     return { error: e.message }
   }
 }

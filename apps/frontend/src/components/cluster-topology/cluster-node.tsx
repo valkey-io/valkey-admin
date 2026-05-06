@@ -1,132 +1,235 @@
-import { Dot, LayoutDashboard, Terminal, PowerIcon } from "lucide-react"
+import * as R from "ramda"
+import { useState } from "react"
+import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users, Loader2 } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
-import { CONNECTED } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
-import { Card } from "../ui/card"
-import { CustomTooltip } from "../ui/custom-tooltip"
+import { Badge } from "../ui/badge"
+import { CustomTooltip } from "../ui/tooltip"
+import { Button } from "../ui/button"
+import { Typography } from "../ui/typography"
+import { HighlightSearchMatch } from "../ui/highlight-search-match"
+import { PasswordPromptModal } from "../ui/password-prompt-modal"
 import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
+import {
+  selectIsAtConnectionLimit, selectEncryptedPassword
+} from "@/state/valkey-features/connection/connectionSelectors"
+import { secureStorage } from "@/utils/secureStorage.ts"
+import { cn } from "@/lib/utils"
 
 interface ClusterNodeProps {
   primaryKey: string
   primary: PrimaryNode
   primaryData: ParsedNodeInfo
-  allNodeData: Record<string, ParsedNodeInfo>
   clusterId: string
+  highlight?: string
 }
 
-export default function ClusterNode({ primaryKey, primary, primaryData, allNodeData, clusterId }: ClusterNodeProps) {
+export function ClusterNode({
+  primaryKey,
+  primary,
+  primaryData,
+  clusterId,
+  highlight = "",
+}: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-
-  // to check if cluster node is connected
   const connectionId = primaryKey
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
-  const isConnected = connectionStatus === CONNECTED
 
-  const formatRole = (role: string | null) => {
-    if (!role) return "UNKNOWN"
-    const normalized = role.toLowerCase()
-    if (normalized === "master") return "PRIMARY"
-    if (normalized === "slave") return "REPLICA"
-    return role.toUpperCase()
+  const isConnected = connectionStatus === CONNECTED
+  const isConnecting = connectionStatus === CONNECTING
+  const isError = connectionStatus === ERROR
+
+  const isDisabled = useSelector(selectIsAtConnectionLimit)
+
+  // Look up encrypted password from an existing connection in the same cluster.
+  // Available when secureStorage was active during the original connection.
+  const encryptedPassword = useSelector(selectEncryptedPassword(clusterId))
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+
+  const baseDetails: ConnectionDetails = {
+    host: primary.host,
+    port: primary.port.toString(),
+    tls: primary.tls,
+    verifyTlsCertificate: primary.verifyTlsCertificate,
+    endpointType: "node",
   }
 
   const handleNodeConnect = () => {
-    if (!isConnected) {
-      const connectionDetails: ConnectionDetails = {
-        host: primary.host,
-        port: primary.port.toString(),
-        ...(primary.username && primary.password && {
-          username: primary.username,
-          password: primary.password,
-        }),
-        tls: primary.tls,
-        verifyTlsCertificate: primary.verifyTlsCertificate, 
-        //TODO: Add handling and UI for uploading cert
-        ...(primary.caCertPath && {
-          caCertPath: primary.caCertPath,
-        }),
-      }
+    if (isConnected || isConnecting) return
+
+    if (primary.authType === "iam") {
+      // IAM: all fields available from cluster state, no password needed
       dispatch(connectPending({
         connectionId,
-        connectionDetails,
+        connectionDetails: {
+          ...baseDetails,
+          username: primary.username ?? "",
+          authType: "iam",
+          awsRegion: primary.awsRegion,
+          awsReplicationGroupId: primary.awsReplicationGroupId,
+        },
       }))
+    } else if (R.isNotNil(encryptedPassword)) {
+      // Password already encrypted from existing cluster connection — do NOT re-encrypt
+      dispatch(connectPending({
+        connectionId,
+        connectionDetails: {
+          ...baseDetails,
+          username: primary.username ?? "",
+          password: encryptedPassword,
+        },
+      }))
+    } else {
+      // No stored password — prompt for password
+      setShowPasswordModal(true)
     }
   }
 
-  return (
-    <Card className="dark:bg-gray-800">
-      {/* for primary */}
-      <TooltipProvider>
-        <div className="flex items-center justify-between">
-          <span className="font-bold">{formatRole(primaryData?.role)}</span>
-          <CustomTooltip content={`${isConnected ? "Connected" : "Not Connected"}`}>
-            <PowerIcon
-              className={`${isConnected ? "text-green-500 bg-green-100" : "text-gray-400 cursor-pointer bg-gray-100 hover:text-gray-600"} rounded-full p-0.5`}
-              onClick={handleNodeConnect}
-              size={18}
-            />
-          </CustomTooltip>
-        </div>
-      </TooltipProvider>
-      <div className="flex flex-col text-xs text-tw-dark-border"><span>{primaryData?.server_name}</span><span>{`${primary.host}:${primary.port}`}</span></div>
-      <div className="text-xs space-y-1.5">
-        <div className="flex justify-between">
-          <span className="text-tw-dark-border">Memory:</span>
-          <span>{primaryData?.used_memory_human ?? "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-tw-dark-border">CPU (sys):</span>
-          <span>{primaryData?.used_cpu_sys ?? "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-tw-dark-border">Commands:</span>
-          <span>{primaryData?.total_commands_processed ?? "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-tw-dark-border">Clients:</span>
-          <span>{primaryData?.connected_clients ?? "N/A"}</span>
-        </div>
+  const handlePasswordSubmit = async (password: string) => {
+    const encryptedPw = await secureStorage.encryptIfAvailable(password)
+    dispatch(connectPending({
+      connectionId,
+      connectionDetails: {
+        ...baseDetails,
+        username: primary.username ?? "",
+        password: encryptedPw,
+      },
+    }))
+  }
+
+  const NodeDetails = ({ nodeData }: { nodeData: ParsedNodeInfo }) => (
+    <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-1">
+        <MemoryStick className="text-primary" size={14} />
+        <Typography variant="bodyXs">{nodeData?.used_memory_human ?? "N/A"}</Typography>
       </div>
-      <div className="border-b mt-0"></div>
-      {/* for replicas */}
-      {primary.replicas.length > 0 && (
-        <div className="mt-0">
-          <span className="text-xs text-tw-dark-border">REPLICAS ({primary.replicas.length})</span>
-          {primary.replicas.map((replica) => (
-            <div className="bg-tw-primary/10 rounded-sm p-2 text-xs text-tw-dark-border" key={replica.id}>
-              <div className="flex items-center justify-between space-y-1">
-                <div className="">
-                  <span>{`${replica.host}:${replica.port}`}</span>
-                  <div className="flex gap-4">
-                    <span>Mem: {allNodeData[`${replica.host}:${replica.port}`]?.used_memory_human}</span>
-                    <span>Clients: {allNodeData[`${replica.host}:${replica.port}`]?.connected_clients}</span>
-                  </div>
+      <div className="flex items-center gap-1">
+        <Users className="text-primary" size={14} />
+        <Typography variant="bodyXs">{nodeData?.connected_clients ?? "N/A"}</Typography>
+      </div>
+    </div>
+  )
+
+  const powerIconTooltip = isConnected   ? "Connected"
+    : isConnecting ? "Connecting..."
+      : isError      ? "Connection failed — click to retry"
+        : isDisabled   ? `Max connections of ${MAX_CONNECTIONS} reached`
+          :                "Not Connected"
+
+  return (
+    <div className="w-full">
+      <TooltipProvider>
+        <div className="px-4 py-3 border border-input rounded-md shadow-xs hover:border-primary/50">
+          <div className="flex items-stretch gap-4">
+            {/* Primary Node Section */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Server className="text-primary shrink-0" size={18} />
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Typography variant={"label"}>
+                    <HighlightSearchMatch query={highlight} text={primaryData?.server_name || primaryKey} />
+                  </Typography>
+                  <Badge className="text-xs px-2 py-0" variant={isConnected ? "success" : "secondary"}>
+                    PRIMARY
+                  </Badge>
                 </div>
-                <Dot className="text-tw-primary" size={30} />
+                <Typography variant="bodyXs"><HighlightSearchMatch query={highlight} text={`${primary.host}:${primary.port}`} /></Typography>
+                <NodeDetails nodeData={primaryData} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* primary buttons */}
-      <div className="mt-2 flex gap-2 text-xs items-center justify-center">
-        <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
-         ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
-        disabled={!isConnected}
-        onClick={() => { navigate(`/${clusterId}/${connectionId}/dashboard`) }}><LayoutDashboard size={12} /> Dashboard</button>
-        <button className={`w-1/2 flex items-center justify-center gap-1.5 border px-2 py-1 rounded
-         ${isConnected ? "cursor-pointer hover:bg-tw-primary hover:text-white" : "cursor-not-allowed opacity-50"}`}
-        disabled={!isConnected}
-        onClick={() => { navigate(`/${clusterId}/${connectionId}/sendcommand`) }}><Terminal size={12} /> Command</button>
-      </div>
-    </Card>
+            {/* Divider */}
+            {primary.replicas.length > 0 && (
+              <div className="w-px bg-tw-dark-border/30 shrink-0" />
+            )}
+
+            {/* Replicas Section */}
+            {primary.replicas.length > 0 && (
+              <div className="items-center gap-3 overflow-x-auto flex-1">
+                <Badge className="text-xs px-2 py-0 mb-2" variant="secondary">
+                  REPLICA{primary.replicas.length > 1 ? "S" : ""}
+                </Badge>
+                {primary.replicas.map((replica) => {
+                  const replicaKey = `${replica.host}:${replica.port}`
+                  return (
+                    <div className="flex items-center mb-2 gap-1" key={replicaKey}>
+                      <Server className="text-primary shrink-0" size={16} />
+                      <Typography className="underline" variant="bodyXs">
+                        <HighlightSearchMatch query={highlight} text={replicaKey} />
+                      </Typography>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <CustomTooltip content={powerIconTooltip}>
+                {isConnecting ? (
+                  <Loader2
+                    className="animate-spin text-gray-500"
+                    size={21}
+                  />
+                ) : (
+                  <PowerIcon
+                    className={cn(
+                      "rounded-full p-0.5 border-2",
+                      isConnected && "text-green-500 border-green-500",
+                      isError && "text-red-500 cursor-pointer border-red-500",
+                      !isConnected && !isError && isDisabled && "text-gray-300 border-gray-300 cursor-not-allowed",
+                      !isConnected && !isError && !isDisabled && "text-gray-400 border-gray-400 cursor-pointer",
+                    )}
+                    onClick={isDisabled ? undefined : handleNodeConnect}
+                    size={21}
+                  />
+                )}
+              </CustomTooltip>
+              <CustomTooltip content="Dashboard">
+                <Button
+                  aria-label="Dashboard"
+                  className="h-8 w-8 p-0"
+                  disabled={!isConnected}
+                  onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <LayoutDashboard size={16} />
+                </Button>
+              </CustomTooltip>
+              <CustomTooltip content="Command">
+                <Button
+                  aria-label="Command"
+                  className="h-8 w-8 p-0"
+                  disabled={!isConnected}
+                  onClick={() => navigate(`/${clusterId}/${connectionId}/sendcommand`)}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <Terminal size={16} />
+                </Button>
+              </CustomTooltip>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
+      <PasswordPromptModal
+        connectionLabel={`${primary.host}:${primary.port}`}
+        errorMessage={connectionStatus === ERROR ? "Connection failed. Check your password and try again." : undefined}
+        isConnecting={connectionStatus === CONNECTING}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={handlePasswordSubmit}
+        open={showPasswordModal && connectionStatus !== CONNECTED}
+      />
+    </div>
   )
 }

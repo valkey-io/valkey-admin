@@ -1,5 +1,6 @@
 import { type WebSocket } from "ws"
-import { VALKEY, COMMANDLOG_TYPE } from "../../../../common/src/constants"
+import { VALKEY, COMMANDLOG_TYPE } from "valkey-common"
+import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
@@ -38,13 +39,16 @@ type CommandLogsLargeResponse = {
   checkAt: number
 }
 
-type CommandLogResponse = CommandLogsLargeResponse | CommandLogsSlowResponse
+type CommandLogResponse = (CommandLogsLargeResponse | CommandLogsSlowResponse) & { nodeId?: string }
+
+type NodeError = { connectionId: string; error: string }
 
 const sendCommandLogsFulfilled = (
   ws: WebSocket,
   connectionId: string,
   parsedResponse: CommandLogsSlowResponse | CommandLogsLargeResponse,
   commandLogType: CommandLogType,
+  nodeErrors?: NodeError[],
 ) => {
   ws.send(
     JSON.stringify({
@@ -53,6 +57,7 @@ const sendCommandLogsFulfilled = (
         connectionId,
         parsedResponse,
         commandLogType,
+        ...(nodeErrors?.length ? { nodeErrors } : {}),
       },
     }),
   )
@@ -63,7 +68,7 @@ const sendCommandLogsError = (
   connectionId: string,
   error: unknown,
 ) => {
-  console.log(error)
+  console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.COMMANDLOGS.commandLogsError,
@@ -75,39 +80,71 @@ const sendCommandLogsError = (
   )
 }
 
+const fetchCommandLogs = async (metricsServerURI: string, commandLogType: CommandLogType): Promise<CommandLogResponse> => {
+  const count = process.env.COMMAND_LOGS_COUNT || "100"
+  const url = `${metricsServerURI}/commandlog?type=${commandLogType}&count=${count}`
+  const initialResponse = await fetch(url)
+  const parsed: CommandLogResponse = await initialResponse.json() as CommandLogResponse
+  if (parsed.checkAt) {
+    const delay = parsed.checkAt - Date.now()
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    const dataResponse = await fetch(url)
+    return await dataResponse.json() as CommandLogResponse
+  }
+  return parsed
+}
+
 export const commandLogsRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerURIs, action }) => {
-    const { connectionIds } = action.payload
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
+    const { connectionId, clusterId } = action.payload
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
-    const promises = connectionIds.map(async (connectionId: string) => {
-      const metricsServerURI = metricsServerURIs.get(connectionId)
-      try {
-        const url = `${metricsServerURI}/commandlog?type=${commandLogType}`
-        console.log(`[Command Logs ${commandLogType}] Fetching from:`, url)
 
-        const initialResponse = await fetch(url)
-        const initialParsedResponse: CommandLogResponse = await initialResponse.json() as CommandLogResponse
-        if (initialParsedResponse.checkAt) {
-          const delay = initialParsedResponse.checkAt - Date.now()
-          // Schedule the follow-up request for when the monitor cycle finishes
-          setTimeout(async () => {
-            try {
-              const dataResponse = await fetch(`${metricsServerURI}/commandlog?type=${commandLogType}`)
-              const dataParsedResponse = await dataResponse.json() as CommandLogResponse
-              sendCommandLogsFulfilled(ws, connectionId, dataParsedResponse, commandLogType)
-            } catch (error) {
-              sendCommandLogsError(ws, connectionId, error)
-            }
-          }, delay)
-        }
-        else {
-          sendCommandLogsFulfilled(ws, connectionId, initialParsedResponse, commandLogType)
-        }
+    const nodes = typeof clusterId === "string" ? clusterNodesRegistry[clusterId] : undefined
+    const connectionIds = nodes ? Object.keys(nodes) : [connectionId]
 
-      } catch (error) {
-        sendCommandLogsError(ws, connectionId, error)
+    const promises = connectionIds.map(async (nodeId: string) => {
+      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
+      if (!metricsServerURI) {
+        if (!nodes) sendCommandLogsError(ws, nodeId, new Error("Metrics server URI not found"))
+        return { connectionId: nodeId, error: "Metrics server not started" } as NodeError
       }
-      
+      try {
+        console.debug(`[Command Logs ${commandLogType}] Fetching from:`, metricsServerURI)
+        return await fetchCommandLogs(metricsServerURI, commandLogType)
+      } catch (error) {
+        if (!nodes) sendCommandLogsError(ws, nodeId, error)
+        return { connectionId: nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
+      }
     })
-    await Promise.all(promises)
+
+    const settled = await Promise.all(promises)
+    const results = settled.filter((r): r is CommandLogResponse & { connectionId: string } => !!r && "rows" in r)
+    const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
+
+    if (!nodes) {
+      if (results[0]) sendCommandLogsFulfilled(ws, connectionId, results[0], commandLogType)
+      return
+    }
+
+    const sortedValues = R.pipe(
+      R.chain(({ rows, nodeId }) => rows.map((row) => ({ row, nodeId }))),
+      R.chain(({ row, nodeId }) => (row.values ?? []).map((v) => ({ ...v, nodeId }))),
+      R.sort(
+        R.descend(
+          (v: { duration_us?: number; size?: number; ts: number }) =>
+            v.duration_us ?? v.size ?? v.ts,
+        ),
+      ),
+    )(results)
+
+    const limit = Number(process.env.COMMAND_LOGS_COUNT) || 100
+    const limitedValues = sortedValues.slice(0, limit)
+    const count = results[0]?.count ?? 0
+    sendCommandLogsFulfilled(
+      ws,
+      clusterId as string,
+      { rows: [{ ts: Date.now(), metric: commandLogType, values: limitedValues }], count, checkAt: 0 } as CommandLogResponse,
+      commandLogType,
+      nodeErrors,
+    )
   })

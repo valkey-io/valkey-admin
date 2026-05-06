@@ -19,86 +19,101 @@ describe("fetchers", () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    delete process.env.VALKEY_HOST
+    delete process.env.VALKEY_PORT
   })
 
   describe("memory_stats", () => {
-    it("should parse array pairs correctly", async () => {
-      client.customCommand.mockResolvedValue([
-        { key: "peak.allocated", value: 1000000 },
-        { key: "used.memory", value: 800000 },
-        { key: "fragmentation.ratio", value: 1.25 },
-      ])
+    it("should parse INFO MEMORY output correctly", async () => {
+      client.info
+        .mockResolvedValueOnce(
+          `used_memory:800000
+allocator_active:900000
+allocator_resident:1000000
+used_memory_peak:1100000
+used_memory_dataset:500000
+used_memory_overhead:300000
+used_memory_dataset_perc:62.5%
+mem_fragmentation_ratio:1.25
+mem_fragmentation_bytes:250000
+allocator_rss_ratio:1.11`,
+        )
+        .mockResolvedValueOnce("db0:keys=50,expires=0,avg_ttl=0")
 
       const result = await fetcher.memory_stats()
 
-      expect(result).toHaveLength(3)
-      expect(result[0]).toMatchObject({
-        ts: Date.now(),
-        metric: "peak_allocated",
-        value: 1000000,
-      })
-      expect(result[1]).toMatchObject({
-        metric: "used_memory",
-        value: 800000,
-      })
-      expect(result[2]).toMatchObject({
-        metric: "fragmentation_ratio",
-        value: 1.25,
-      })
+      expect(result.find((r) => r.metric === "used_memory")?.value).toBe(800000)
+      expect(result.find((r) => r.metric === "peak_allocated")?.value).toBe(1100000)
+      expect(result.find((r) => r.metric === "dataset_percentage")?.value).toBe(62.5)
+      expect(result.find((r) => r.metric === "fragmentation")?.value).toBe(1.25)
+      expect(result.find((r) => r.metric === "keys_count")?.value).toBe(50)
     })
 
-    it("should convert object responses to rows", async () => {
-      client.customCommand.mockResolvedValue([
-        { key: "peak.allocated", value: 1000000 },
-        { key: "used.memory", value: 800000 },
-      ])
+    it("should derive bytes per key when key count is available", async () => {
+      client.info
+        .mockResolvedValueOnce(
+          `used_memory_dataset:800000
+used_memory:900000`,
+        )
+        .mockResolvedValueOnce("db0:keys=100,expires=0,avg_ttl=0")
 
       const result = await fetcher.memory_stats()
 
-      expect(result).toHaveLength(2)
-      expect(result.find((r) => r.metric === "peak_allocated")).toBeTruthy()
-      expect(result.find((r) => r.metric === "used_memory")).toBeTruthy()
+      expect(result.find((r) => r.metric === "keys_bytes_per_key")?.value).toBe(8000)
     })
 
     it("should filter out non-numeric values", async () => {
-      client.customCommand.mockResolvedValue([
-        { key: "valid.metric", value: 100 },
-        { key: "invalid.metric", value: "not-a-number" },
-        { key: "nan.metric", value: NaN },
-        { key: "null.metric", value: null },  // Note: null converts to 0, which is considered valid
-      ])
+      client.info
+        .mockResolvedValueOnce(
+          `used_memory:800000
+allocator_active:not-a-number
+mem_fragmentation_ratio:1.25`,
+        )
+        .mockResolvedValueOnce("")
 
       const result = await fetcher.memory_stats()
 
-      // Valid metric (100) and null metric (converts to 0) should be returned
       expect(result).toHaveLength(2)
-      expect(result[0].metric).toBe("valid_metric")
-      expect(result[0].value).toBe(100)
-      expect(result[1].metric).toBe("null_metric")
-      expect(result[1].value).toBe(0)  // null converts to 0
+      expect(result.find((r) => r.metric === "used_memory")?.value).toBe(800000)
+      expect(result.find((r) => r.metric === "fragmentation")?.value).toBe(1.25)
     })
 
-    it("should replace dots in metric names with underscores", async () => {
-      client.customCommand.mockResolvedValue([
-        { key: "used.memory.peak", value: 1000 },
-        { key: "another.metric.with.dots", value: 2000 },
-      ])
+    it("should return empty rows when INFO MEMORY is empty", async () => {
+      client.info.mockResolvedValueOnce("").mockResolvedValueOnce("")
 
       const result = await fetcher.memory_stats()
 
-      expect(result[0].metric).toBe("used_memory_peak")
-      expect(result[1].metric).toBe("another_metric_with_dots")
+      expect(result).toEqual([])
     })
 
     it("should add timestamp to all rows", async () => {
-      client.customCommand.mockResolvedValue([
-        { key: "metric1", value: 100 },
-        { key: "metric2", value: 200 },
-      ])
+      client.info
+        .mockResolvedValueOnce("used_memory:100\nused_memory_peak:200")
+        .mockResolvedValueOnce("")
 
       const result = await fetcher.memory_stats()
 
       expect(result.every((r) => r.ts === Date.now())).toBe(true)
+    })
+
+    it("should normalize cluster-mode memory responses to the local node", async () => {
+      process.env.VALKEY_HOST = "valkey-5.valkey-headless.valkey.svc.cluster.local"
+      process.env.VALKEY_PORT = "6379"
+      client.info
+        .mockResolvedValueOnce({
+          "valkey-0.valkey-headless.valkey.svc.cluster.local:6379": "used_memory:100",
+          "valkey-5.valkey-headless.valkey.svc.cluster.local:6379": "used_memory:200",
+        })
+        .mockResolvedValueOnce({
+          "valkey-0.valkey-headless.valkey.svc.cluster.local:6379": "db0:keys=1,expires=0,avg_ttl=0",
+          "valkey-5.valkey-headless.valkey.svc.cluster.local:6379": "db0:keys=2,expires=0,avg_ttl=0",
+        })
+
+      const result = await fetcher.memory_stats()
+
+      expect(result).toHaveLength(2)
+      expect(result.find((r) => r.metric === "used_memory")?.value).toBe(200)
+      expect(result.find((r) => r.metric === "keys_count")?.value).toBe(2)
     })
   })
 
@@ -177,6 +192,21 @@ describe("fetchers", () => {
       expect(result.find((r) => r.metric === "used_cpu_sys")).toBeTruthy()
       expect(result.find((r) => r.metric === "used_cpu_user")).toBeTruthy()
       expect(result.find((r) => r.metric === "invalid_metric")).toBeFalsy()
+    })
+
+    it("should normalize cluster-mode info responses to the local node", async () => {
+      process.env.VALKEY_HOST = "valkey-5.valkey-headless.valkey.svc.cluster.local"
+      process.env.VALKEY_PORT = "6379"
+      client.info.mockResolvedValue({
+        "valkey-0.valkey-headless.valkey.svc.cluster.local:6379": "used_cpu_sys:1.5",
+        "valkey-5.valkey-headless.valkey.svc.cluster.local:6379": "used_cpu_sys:2.5",
+      })
+
+      const result = await fetcher.info_cpu()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].metric).toBe("used_cpu_sys")
+      expect(result[0].value).toBe(2.5)
     })
   })
 

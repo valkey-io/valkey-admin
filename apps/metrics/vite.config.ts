@@ -14,7 +14,7 @@ export default defineConfig({
 
     lib: {
       entry: resolve(__dirname, "src/index.js"),
-      fileName: "index", // Vite will add the correct extension, e.g., .cjs
+      fileName: "index",
       formats: ["cjs"],
     },
 

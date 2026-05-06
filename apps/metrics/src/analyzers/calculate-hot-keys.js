@@ -50,26 +50,34 @@ const ACCESS_COMMANDS = [
   "json.set", "json.del", "json.numincrby",
 ]
 
-const CUT_OFF_FREQUENCY = 1
+const MULTI_KEY_COMMANDS = new Set(["mget", "json.mget"])
+const INTERLEAVED_KEY_COMMANDS = new Set(["mset"])
 
-export const calculateHotKeysFromMonitor = (rows) =>
+export const calculateHotKeysFromMonitor = ({ limit, cutoff }) => (rows) =>
   R.pipe(
     R.reduce((acc, { command }) => {
       const [cmd, ...args] = command.split(" ").filter(Boolean)
-      if (ACCESS_COMMANDS.includes(cmd.trim().toLowerCase())) {
-        args.forEach((key) => {
-          acc[key] = acc[key] ? acc[key] + 1 : 1
-        })
+      const normalizedCmd = cmd.trim().toLowerCase()
+      if (!ACCESS_COMMANDS.includes(normalizedCmd)) return acc
+
+      if (MULTI_KEY_COMMANDS.has(normalizedCmd)) {
+        args.forEach((key) => { acc[key] = (acc[key] ?? 0) + 1 })
+      } else if (INTERLEAVED_KEY_COMMANDS.has(normalizedCmd)) {
+        R.splitEvery(2, args).forEach(([key]) => { acc[key] = (acc[key] ?? 0) + 1 })
+      } else {
+        const key = args[0]
+        if (key) acc[key] = (acc[key] ?? 0) + 1
       }
       return acc
     }, {}),
     R.toPairs,
     R.sort(R.descend(R.last)),
-    R.reject(([, count]) => count <= CUT_OFF_FREQUENCY),
+    R.reject(([, count]) => count <= cutoff),
+    R.take(limit),
   )(rows)
 
 // Must have maxmemory-policy set to lfu*
-export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
+export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) => {
   const hotSlots = await getHotSlots(client)
   const slotPromises = hotSlots.map(async (slot) => {
     const slotId = slot["slotId"]
@@ -79,7 +87,6 @@ export const calculateHotKeysFromHotSlots = async (client, count = 50) => {
 
     do {
       const [nextCursor, scannedKeys] = await client.customCommand(["SCAN", cursor.toString(), "COUNT", "1"])
-      process.send?.({ type: "metrics-hotkeys", payload: { nextCursor, scannedKeys } })
       cursor = nextCursor
       keys.push(...scannedKeys)
       cursorToSlot = Number(cursor) & 0x3FFF

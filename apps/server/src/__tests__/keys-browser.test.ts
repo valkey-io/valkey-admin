@@ -2,8 +2,8 @@
 import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError } from "@valkey/valkey-glide"
-import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser.ts"
-import { VALKEY } from "../../../../common/src/constants.ts"
+import { VALKEY } from "valkey-common"
+import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser"
 
 // Test helper functions
 function createMockWs() {
@@ -58,6 +58,7 @@ describe("getKeyInfo", () => {
 
       assert.strictEqual(result.size, 0)
     })
+
   })
 
   describe("hash keys", () => {
@@ -67,7 +68,7 @@ describe("getKeyInfo", () => {
         TTL: -1,
         MEMORY: 200,
         HLEN: 3,
-        HGETALL: ["field1", "value1", "field2", "value2"],
+        HSCAN: ["0", ["field1", "value1", "field2", "value2"]],
       })
 
       const result = await getKeyInfo(mockClient as any, "myhash")
@@ -77,12 +78,16 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.ttl, -1)
       assert.strictEqual(result.size, 200)
       assert.strictEqual(result.collectionSize, 3)
-      assert.deepStrictEqual(result.elements, ["field1", "value1", "field2", "value2"])
+      assert.deepStrictEqual(result.elements, [
+        { key: "field1", value: "value1" }, 
+        { key: "field2", value: "value2" },
+      ])
     })
+
   })
 
   describe("list keys", () => {
-    it("should get list key info", async () => {
+    it("should get list key info with readable elements", async () => {
       const mockClient = createMockClient({
         TYPE: "list",
         TTL: 0,
@@ -96,8 +101,79 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.name, "mylist")
       assert.strictEqual(result.type, "list")
       assert.strictEqual(result.collectionSize, 2)
+      assert.ok(Array.isArray(result.elements))
       assert.deepStrictEqual(result.elements, ["item1", "item2"])
     })
+
+  })
+
+  describe("zset keys", () => {
+    it("should get zset key info with readable members", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 200,
+        ZCARD: 2,
+        ZRANGE: [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myzset")
+
+      assert.strictEqual(result.name, "myzset")
+      assert.strictEqual(result.type, "zset")
+      assert.strictEqual(result.collectionSize, 2)
+      assert.ok(Array.isArray(result.elements))
+      // RESP3 ZRANGE with WITHSCORES returns [{key: member, value: score}, ...]
+      assert.deepStrictEqual(result.elements, [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }])
+    })
+
+  })
+
+  describe("stream keys", () => {
+    it("should get stream key info with readable entries", async () => {
+      const mockClient = createMockClient({
+        TYPE: "stream",
+        TTL: -1,
+        MEMORY: 300,
+        XLEN: 2,
+        XRANGE: [
+          ["1234567890-0", ["field1", "value1", "field2", "value2"]],
+          ["1234567891-0", ["field3", "value3"]],
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mystream")
+
+      assert.strictEqual(result.name, "mystream")
+      assert.strictEqual(result.type, "stream")
+      assert.strictEqual(result.collectionSize, 2)
+      assert.ok(Array.isArray(result.elements))
+      // Stream entries are nested arrays: [[id, [field, value, ...]], ...]
+      const elements = result.elements as string[][]
+      assert.strictEqual(elements.length, 2)
+      assert.ok(Array.isArray(elements[0]))
+      assert.ok(Array.isArray(elements[1]))
+    })
+
+  })
+
+  describe("json keys", () => {
+    it("should get json key info with readable JSON string", async () => {
+      const jsonValue = "{\"name\":\"test\",\"value\":123}"
+      const mockClient = createMockClient({
+        TYPE: "rejson-rl",
+        TTL: -1,
+        MEMORY: 100,
+        "JSON.GET": jsonValue,
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myjson")
+
+      assert.strictEqual(result.name, "myjson")
+      assert.strictEqual(result.type, "rejson-rl")
+      assert.strictEqual(result.elements, jsonValue)
+    })
+
   })
 
   describe("error handling", () => {
@@ -440,7 +516,7 @@ describe("updateKey", () => {
         value: "newvalue",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.updateKeyFulfilled)
@@ -473,7 +549,7 @@ describe("updateKey", () => {
         ],
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.updateKeyFulfilled)
@@ -492,7 +568,7 @@ describe("updateKey", () => {
         keyType: "string",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       const failMessage = JSON.parse(messages[0])
       assert.strictEqual(failMessage.type, VALKEY.KEYS.updateKeyFailed)
@@ -513,7 +589,7 @@ describe("updateKey", () => {
         value: "newvalue",
       }
 
-      await import("../keys-browser.ts").then((m) => m.updateKey(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.updateKey(mockClient as any, mockWs, payload))
 
       assert.ok(mockWs.send.mock.calls.length >= 2)
       const failMessage = getMessageOfType(messages, VALKEY.KEYS.updateKeyFailed)
@@ -555,7 +631,7 @@ describe("getKeys", () => {
         count: 100,
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeys(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeys(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.getKeysFulfilled)
@@ -577,7 +653,7 @@ describe("getKeys", () => {
         connectionId: "conn-123",
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeys(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeys(mockClient as any, mockWs, payload))
 
       assert.ok(mockWs.send.mock.calls.length >= 2)
       const failMessage = getMessageOfType(messages, VALKEY.KEYS.getKeysFailed)
@@ -614,7 +690,7 @@ describe("getKeyInfoSingle", () => {
         key: "mykey",
       }
 
-      await import("../keys-browser.ts").then((m) => m.getKeyInfoSingle(mockClient as any, mockWs, payload))
+      await import("../keys-browser").then((m) => m.getKeyInfoSingle(mockClient as any, mockWs, payload))
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.getKeyTypeFulfilled)

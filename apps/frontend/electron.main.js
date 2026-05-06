@@ -2,18 +2,22 @@
 const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor } = require("electron")
 const path = require("path")
 const { fork } = require("child_process")
-
-// TODO: import from common
-const sanitizeUrl = (input) => input.replace(/[^a-zA-Z0-9_-]/g, "-")
+const { createApplicationMenu } = require("./menu")
 
 let serverProcess
-const metricsProcesses = new Map()
-
+const ELECTRON = "Electron"
 function startServer() {
   if (app.isPackaged) {
-    const serverPath = path.join(process.resourcesPath, "server-backend.js")
+    const serverPath = path.join(process.resourcesPath, "server-backend.cjs")
     console.log(`Starting backend server from: ${serverPath}`)
-    serverProcess = fork(serverPath)
+    serverProcess = fork(serverPath, [], {
+      env: {
+        ...process.env,
+        DEPLOYMENT_MODE: ELECTRON,
+        PROCESS_RESOURCES_PATH: process.resourcesPath,
+        DATA_DIR: path.join(app.getPath("userData"), "metrics-data"),
+      },
+    })
 
     serverProcess.on("close", (code) => {
       console.log(`Backend server exited with code ${code}`)
@@ -24,121 +28,11 @@ function startServer() {
   }
 }
 
-function startMetricsForClusterNodes(clusterNodes, credentials) {
-  Object.values(clusterNodes).forEach((node) => {
-    const connectionDetails = {
-      host: node.host,
-      port: node.port,
-      username: credentials?.username,
-      password: credentials?.password,
-      tls: node.tls,
-      verifyTlsCertificate: node.verifyTlsCertificate,
-    }
-
-    const connectionId = sanitizeUrl(`${node.host}-${node.port}`)
-    if (!metricsProcesses.has(connectionId)) {
-      startMetrics(connectionId, connectionDetails)
-    }
-  })
-}
-
-function startMetrics(serverConnectionId, serverConnectionDetails) {
-  const dataDir = path.join(app.getPath("userData"), "metrics-data", serverConnectionId)
-
-  let metricsServerPath
-  let configPath
-
-  const { host, port, username, password, tls, verifyTlsCertificate } = serverConnectionDetails
-
-  if (app.isPackaged) {
-    metricsServerPath = path.join(process.resourcesPath, "server-metrics.js")
-    configPath = path.join(process.resourcesPath, "config.yml") // Path for production
-  } else {
-    metricsServerPath = path.join(__dirname, "../../metrics/src/index.js")
-    configPath = path.join(__dirname, "../../metrics/config.yml") // Path for development
-  }
-  // Build the auth part (include password only if it exists)
-  const authPart = username ? (password ? `${username}:${password}@` : `${username}@`) : ""
-
-  // Build the protocol part
-  const protocol = tls ? "valkeys://" : "valkey://"
-
-  // Build query parameters for TLS verification if needed
-  const queryParams = []
-  if (tls) queryParams.push("tls=true")
-  if (verifyTlsCertificate !== undefined) queryParams.push(`insecure=${verifyTlsCertificate}`)
-
-  const queryString = queryParams.length ? `?${queryParams.join("&")}` : ""
-
-  // Combine into full URL
-  const VALKEY_URL = `${protocol}${authPart}${host}:${port}${queryString}`
-  const metricsProcess = fork(metricsServerPath, [], {
-    env: {
-      ...process.env,
-      PORT: 0,
-      DATA_DIR: dataDir,
-      VALKEY_URL,
-      VALKEY_HOST: host,
-      VALKEY_PORT: port,
-      VALKEY_USERNAME: username,
-      VALKEY_PASSWORD: password,
-      VALKEY_TLS: tls,
-      VALKEY_VERIFY_CERT: verifyTlsCertificate,
-      CONFIG_PATH: configPath, // Explicitly provide the config path
-    },
-  })
-
-  metricsProcesses.set(serverConnectionId, metricsProcess)
-
-  metricsProcess.on("message", (message) => {
-    if (message && message.type === "metrics-started") {
-      console.log(`Metrics server for ${serverConnectionId} started successfully on host: ${message.payload.metricsHost} port ${message.payload.metricsPort}`)
-      serverProcess.send?.({
-        ...message,
-        payload: {
-          ...message.payload,
-          serverConnectionId: serverConnectionId,
-        },
-      })
-    }
-  })
-
-  metricsProcess.on("close", (code) => {
-    console.log(`Metrics server for connection ${serverConnectionId} exited with code ${code}`)
-    metricsProcesses.delete(serverConnectionId)
-    serverProcess.send({
-      type: "metrics-closed",
-      payload: {
-        serverConnectionId,
-      },
-    })
-  })
-
-  metricsProcess.on("error", (err) => {
-    console.error(`Metrics server for connection ${serverConnectionId} error: ${err}`)
-  })
-}
-
-// Disconnect functionality in the server has not been implemented. Once that is implemented, this can be used.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function stopMetricServer(serverConnectionId) {
-  metricsProcesses.get(serverConnectionId).kill()
-}
-
-function stopMetricServers() {
-  metricsProcesses.forEach((metricProcess, serverConnectionId) => {
-    try {
-      metricProcess.kill()
-    } catch (e) {
-      console.warn(`Failed to kill metrics server ${serverConnectionId}:`, e)
-    }
-  })
-}
-
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "assets/img/logo-big.png"),
     minWidth: 1200,
     minHeight: 800,
     webPreferences: {
@@ -163,6 +57,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  createApplicationMenu()
   startServer()
   if (serverProcess) {
     serverProcess.on("message", (message) => {
@@ -170,17 +65,11 @@ app.whenReady().then(() => {
         case "websocket-ready":
           createWindow()
           break
-        case "valkeyConnection/standaloneConnectFulfilled":
-          startMetrics(message.payload.connectionId, message.payload.connectionDetails)
-          break
-        case "valkeyConnection/clusterConnectFulfilled":
-          startMetricsForClusterNodes(message.payload.clusterNodes, message.payload.credentials)
-          break
         default:
           try {
-            console.log(`Received unknown server message: ${JSON.stringify(message)}`)
+            console.warn(`Received unknown server message: ${JSON.stringify(message)}`)
           } catch (e) {
-            console.log(`Received unknown server message: ${message}. Error: `, e)
+            console.error(`Received unknown server message: ${message}. Error: `, e)
           }
 
       }
@@ -228,12 +117,12 @@ ipcMain.handle("secure-storage:encrypt", async (event, password) => {
 })
 
 ipcMain.handle("secure-storage:decrypt", async (event, encryptedBase64) => {
-  if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) return ""
+  if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) return encryptedBase64 || ""
   try {
     const encrypted = Buffer.from(encryptedBase64, "base64")
     return safeStorage.decryptString(encrypted)
   } catch {
-    return "" // TODO: Look into this case more closely
+    return encryptedBase64
   }
 })
 
@@ -243,6 +132,4 @@ process.on("SIGTERM", cleanupAndExit)
 function cleanupAndExit() {
   console.log("Cleaning up ...")
   if (serverProcess) serverProcess.kill()
-  if (metricsProcesses.size > 0) stopMetricServers()
-  setTimeout(() => process.exit(0), 100)
 }

@@ -1,11 +1,14 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useNavigate, useParams } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
 import { Loader2, Database, AlertCircle } from "lucide-react"
+import * as R from "ramda"
 import RetryProgress from "./ui/retry-progress"
+import { PasswordPromptModal } from "./ui/password-prompt-modal"
 import type { RootState } from "@/store"
 import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
+import { secureStorage } from "@/utils/secureStorage"
 
 export function ValkeyReconnect() {
   const dispatch = useDispatch()
@@ -17,11 +20,18 @@ export function ValkeyReconnect() {
   )
 
   const { status, errorMessage, reconnect } = connection || {}
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
+  const needsPassword = R.isNil(connection?.connectionDetails.password)
+
+  // Close password prompt on successful connection
+  useEffect(() => {
+    if (status === CONNECTED) setShowPasswordPrompt(false)
+  }, [status])
 
   useEffect(() => {
     // Redirect to dashboard or previous location on successful connection
     if (status === CONNECTED) {
-      const redirectTo = clusterId ? (`${clusterId}/${id}/dashboard`) : sessionStorage.getItem(`valkey-previous-${id}`) || (`/${id}/dashboard`)
+      const redirectTo = clusterId ? (`${clusterId}/${id}/cluster-topology`) : sessionStorage.getItem(`valkey-previous-${id}`) || (`/${id}/dashboard`)
       sessionStorage.removeItem(`valkey-previous-${id}`)
       navigate(redirectTo, { replace: true })
     }
@@ -29,12 +39,29 @@ export function ValkeyReconnect() {
 
   const handleManualReconnect = () => {
     if (!connection) return
-    
+    if (needsPassword) {
+      setShowPasswordPrompt(true)
+      return
+    }
     dispatch(connectPending({
       connectionId: id!,
       connectionDetails: connection.connectionDetails,
     }))
   }
+
+  const handlePasswordSubmit = async (password: string) => {
+    if (!connection) return
+    const encryptedPassword = await secureStorage.encryptIfAvailable(password)
+    dispatch(connectPending({
+      connectionId: id!,
+      connectionDetails: { ...connection.connectionDetails, password: encryptedPassword },
+    }))
+  }
+
+  const connectionLabel = connection
+    ? connection.connectionDetails.alias
+      || `${connection.connectionDetails.host}:${connection.connectionDetails.port}`
+    : ""
 
   const getNextRetrySeconds = () => {
     if (!reconnect?.nextRetryDelay) return 0
@@ -49,7 +76,7 @@ export function ValkeyReconnect() {
         <div className="flex justify-center">
           {status === CONNECTING && reconnect?.isRetrying ? (
             <div className="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
-              <Loader2 className="w-16 h-16 text-tw-primary animate-spin" />
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
             </div>
           ) : isExhausted ? (
             <Database className="w-16 h-16 text-red-500" />
@@ -67,7 +94,7 @@ export function ValkeyReconnect() {
               : "Reconnecting to Valkey..."}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {connection.connectionDetails.host}:{connection.connectionDetails.port}
+            {connectionLabel}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {isExhausted
@@ -108,13 +135,22 @@ export function ValkeyReconnect() {
         {isExhausted && (
           <div className="space-y-2 pt-4">
             <button
-              className="w-full border p-2 rounded bg-tw-primary text-white hover:bg-tw-primary/80 cursor-pointer transition-colors"
+              className="w-full border p-2 rounded bg-primary text-white hover:bg-primary/80 cursor-pointer transition-colors"
               onClick={handleManualReconnect}
             >
               Try Reconnecting to Valkey
             </button>
           </div>
         )}
+
+        <PasswordPromptModal
+          connectionLabel={connectionLabel}
+          errorMessage={errorMessage}
+          isConnecting={status === CONNECTING}
+          onClose={() => setShowPasswordPrompt(false)}
+          onSubmit={handlePasswordSubmit}
+          open={showPasswordPrompt}
+        />
       </div>
     </div>
   )

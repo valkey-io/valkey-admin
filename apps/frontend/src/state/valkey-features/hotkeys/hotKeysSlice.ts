@@ -15,13 +15,21 @@ export const selectHotKeysStatus = (id: string) => (state: RootState) =>
 export const selectHotKeysError = (id: string) => (state: RootState) =>
   R.path([VALKEY.HOTKEYS.name, id, "error"], state)
 
+export const selectHotKeysNodeErrors = (id: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, id, "nodeErrors"], state) ?? []
+
+export const selectHotKeysLastCollectedAt = (id: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, id, "lastCollectedAt"], state) ?? null
+
 interface HotKeysState {
   [connectionId: string]: {
-    hotKeys: [string, number, number | null, number][]
+    hotKeys: [string, number, number | null, number, string?][]
     checkAt: string | null,
     monitorRunning: boolean,
     nodeId: string | null,
+    lastCollectedAt?: number | null,
     error?: JSONObject | null,
+    nodeErrors?: { connectionId: string; error: string }[],
     status: HotKeysStatus,
   }
 }
@@ -33,7 +41,26 @@ const hotKeysSlice = createSlice({
   initialState: initialHotKeysState,
   reducers: {
     hotKeysRequested: (state, action) => {
+      const { connectionId, clusterId } = action.payload
+      const id = clusterId ?? connectionId
+      if (!state[id]) {
+        state[id] = {
+          hotKeys: [],
+          checkAt: null,
+          monitorRunning: false,
+          nodeId: null,
+          status: PENDING,
+        }
+      } else {
+        state[id].status = PENDING
+        state[id].hotKeys = []
+        state[id].error = null
+      }
+    },
+    hotKeysFulfilled: (state, action) => {
+      const { hotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } = action.payload.parsedResponse
       const connectionId = action.payload.connectionId
+      const nodeErrors = action.payload.nodeErrors ?? []
       if (!state[connectionId]) {
         state[connectionId] = {
           hotKeys: [],
@@ -42,18 +69,14 @@ const hotKeysSlice = createSlice({
           nodeId: null,
           status: PENDING,
         }
-      } else {
-        state[connectionId].status = PENDING
       }
-    },
-    hotKeysFulfilled: (state, action) => {
-      const { hotKeys, monitorRunning, checkAt, nodeId } = action.payload.parsedResponse
-      const connectionId = action.payload.connectionId
       state[connectionId] = {
         hotKeys,
         checkAt,
-        monitorRunning, 
+        monitorRunning,
         nodeId,
+        lastCollectedAt,
+        nodeErrors,
         status: FULFILLED,
       }
       
