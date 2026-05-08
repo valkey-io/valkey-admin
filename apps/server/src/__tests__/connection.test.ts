@@ -504,7 +504,7 @@ describe("connectToValkey", () => {
         port: Number(alternate_payload.connectionDetails.port),
       }])
       assert.strictEqual(config.requestTimeout, 5000)
-      assert.strictEqual(config.clientName, "valkey_server_standalone_client")
+      assert.strictEqual(config.clientName, "valkey_admin_standalone_client")
       return mockStandaloneClient as any
     })
 
@@ -537,7 +537,7 @@ describe("connectToValkey", () => {
         port: Number(alternate_payload.connectionDetails.port),
       }])
       assert.strictEqual(config.requestTimeout, 5000)
-      assert.strictEqual(config.clientName, "valkey_server_standalone_client")
+      assert.strictEqual(config.clientName, "valkey_admin_standalone_client")
     } finally {
       GlideClient.createClient = originalCreateClient
     }

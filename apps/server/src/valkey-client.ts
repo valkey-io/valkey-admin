@@ -37,7 +37,7 @@ export const createStandaloneValkeyClient = ({
 }: ClientOptions) =>
   GlideClient.createClient({
     ...buildSharedOptions(options),
-    clientName: "valkey_server_standalone_client",
+    clientName: "valkey_admin_standalone_client",
   })
 
 export const createClusterValkeyClient = ({
@@ -45,7 +45,7 @@ export const createClusterValkeyClient = ({
 }: ClientOptions) =>
   GlideClusterClient.createClient({
     ...buildSharedOptions(options),
-    clientName: "valkey_server_cluster_client",
+    clientName: "valkey_admin_cluster_client",
   })
 
 export const createOrchestratorValkeyClient = ({
@@ -53,5 +53,5 @@ export const createOrchestratorValkeyClient = ({
 }: ClientOptions) =>
   GlideClient.createClient({
     ...buildSharedOptions(options),
-    clientName: "valkey_server_orchestrator_client",
+    clientName: "valkey_admin_orchestrator_client",
   })
