@@ -6,6 +6,9 @@ build/
 dist/
 release/
 
+# Astro build/cache
+.astro/
+
 # Logs
 *.log
 npm-debug.log*
