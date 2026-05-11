@@ -83,6 +83,6 @@ Click any key to view detailed information:
 
 ## Next Steps
 
-- Execute commands with the [Command Interface](/features/command-interface/)
+- Execute commands with the [Send Command interface](/features/send-command/)
 - Monitor key access with [Monitoring tools](/features/monitoring/)
 - Visualize data distribution in [Cluster Topology](/features/cluster-topology/)

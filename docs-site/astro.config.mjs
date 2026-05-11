@@ -31,7 +31,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Dashboard', slug: 'features/dashboard' },
 						{ label: 'Key Browser', slug: 'features/key-browser' },
-						{ label: 'Command Interface', slug: 'features/command-interface' },
+						{ label: 'Send Command', slug: 'features/send-command' },
 						{ label: 'Cluster Topology', slug: 'features/cluster-topology' },
 						{ label: 'Activity', slug: 'features/activity' },
 					],

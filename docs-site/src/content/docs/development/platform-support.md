@@ -89,7 +89,7 @@ The desktop application built with Electron provides the complete Valkey Admin e
 |---------|---------|-----|
 | Dashboard & Metrics | ✅ | ✅ |
 | Key Browser | ✅ | ✅ |
-| Command Interface | ✅ | ✅ |
+| Send Command Interface | ✅ | ✅ |
 | Cluster Topology | ✅ | ✅ |
 | Hot Keys Monitoring | ✅ | ✅ |
 | Command Logs | ✅ | ✅ |

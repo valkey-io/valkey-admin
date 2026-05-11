@@ -46,7 +46,7 @@ Each node row includes action icons on the right side:
 
 - **Power**: Connect to the primary node
 - **Grid**: Go to dashboard of the node
-- **Terminal**: Open a command interface of the node
+- **Terminal**: Open the Send Command interface for the node
 
 ## Replication Structure
 
@@ -65,4 +65,4 @@ Clicking on a replica's address link navigates to that node's detail view.
 
 - Monitor cluster performance on the [Dashboard](/features/dashboard/)
 - Track operations with [Monitoring tools](/features/monitoring/)
-- Execute cluster commands in the [Command Interface](/features/command-interface/)
+- Execute cluster commands in the [Send Command](/features/send-command/)

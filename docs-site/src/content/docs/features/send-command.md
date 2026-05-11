@@ -1,15 +1,15 @@
 ---
-title: Command Interface
+title: Send Command
 description: Execute Valkey commands directly with an interactive terminal
 ---
 
-The Command Interface provides a powerful terminal-like environment for executing Valkey commands directly against your cluster.
+The Send Command interface provides a powerful terminal-like environment for executing Valkey commands directly against your cluster.
 
 ## Overview
 
 Execute any Valkey command with syntax highlighting and command history.
 
-![Command Interface](../../../assets/command.png)
+![Send Command interface](../../../assets/command.png)
 
 ## Basic Usage
 

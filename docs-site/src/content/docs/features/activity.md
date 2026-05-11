@@ -179,6 +179,6 @@ CONFIG SET commandlog-reply-larger-than 1000
 
 ## Next Steps
 
-- Optimize queries found in the [Command Interface](/features/command-interface/)
+- Optimize queries found in the [Send Command](/features/send-command/)
 - Analyze key distribution in [Key Browser](/features/key-browser/)
 - Review cluster health on the [Dashboard](/features/dashboard/)

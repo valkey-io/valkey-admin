@@ -52,5 +52,5 @@ Anomaly detection highlights unusual patterns across these charts, making it eas
 ## Next Steps
 
 - Explore the [Key Browser](/features/key-browser/) for managing your data
-- Use the [Command Interface](/features/command-interface/) to execute operations
+- Use the [Send Command interface](/features/send-command/) to execute operations
 - View [Cluster Topology](/features/cluster-topology/) for node relationships
