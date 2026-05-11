@@ -4,8 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://valkey-io.github.io',
-	base: '/valkey-admin',
+	site: 'https://valkey-admin.valkey.io',
 	integrations: [
 		starlight({
 			title: 'Valkey Admin',
