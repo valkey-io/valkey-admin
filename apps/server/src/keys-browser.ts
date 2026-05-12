@@ -118,8 +118,8 @@ export async function getKeyInfo(
   try {
     const [keyType, ttl, memoryUsage] = await Promise.all([
       client.customCommand(["TYPE", key]) as Promise<string>,
-      client.customCommand(["TTL", key]) as Promise<number>,
-      client.customCommand(["MEMORY", "USAGE", key]) as Promise<number>,
+      client.customCommand(["TTL", key]).catch(() => -1) as Promise<number>,
+      client.customCommand(["MEMORY", "USAGE", key]).catch(() => null) as Promise<number | null>,
     ])
 
     const keyInfo: EnrichedKeyInfo = {
