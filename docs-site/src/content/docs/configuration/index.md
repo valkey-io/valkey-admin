@@ -30,9 +30,16 @@ The server reads everything from environment variables at startup. There is no c
 
 What it cares about:
 
-- Its own listen port (`PORT`)
-- Whether to run in **orchestrator mode** (`USE_CLUSTER_ORCHESTRATOR=true`). In this mode the server connects to a Valkey cluster on its own using `VALKEY_HOST` / `VALKEY_PORT` plus the rest of the `VALKEY_*` credential variables, discovers cluster nodes, and tracks metrics processes that register themselves.
-- In normal mode, the server **spawns** a metrics child process for each connection. When it does, it copies its own environment into the child and overrides a handful of values (`VALKEY_HOST`, `VALKEY_PORT`, credentials, `DATA_DIR`, `CONFIG_PATH`, `CONNECTION_ID`) so each child knows which node it is sampling.
+- Its own listen port (`PORT`).
+- Which mode to run in (`DEPLOYMENT_MODE`).
+   - **You usually do not set this yourself.** The application picks it for you. **Kubernetes is the exception** — your pod spec must export `DEPLOYMENT_MODE=K8` explicitly (see [`examples/k8s/app.yaml`](https://github.com/valkey-io/valkey-admin/blob/main/examples/k8s/app.yaml)).
+   - Accepted values:
+      - `Electron` — spawns a metrics child only for nodes the UI explicitly connects to (Desktop default)
+      - `Web` — spawns metrics children for every cluster node on first successful connection (Docker default)
+      - `K8` — does not spawn children; expects externally-managed metrics sidecars to self-register via `/orchestrator/register` (Kubernetes)
+   - **Note**: In `Web` and `K8` modes, set `VALKEY_HOST` / `VALKEY_PORT` plus the rest of the `VALKEY_*` credential variables so the server can discover cluster nodes on its own.
+   - See [Picking a Mode](/configuration/server/#picking-a-mode) for the full breakdown.
+- In `Electron` and `Web` modes the server **spawns** a metrics child process per node. It copies its own environment into the child and overrides a handful of values (`VALKEY_HOST`, `VALKEY_PORT`, credentials, `DATA_DIR`, `CONFIG_PATH`, `CONNECTION_ID`) so each child knows which node it is sampling.
 
 In short: configure the server, and most of its settings flow through to the metrics children automatically.
 

@@ -47,5 +47,5 @@ Navigate through previously executed commands:
 ## Next Steps
 
 - Browse keys with the [Key Browser](/features/key-browser/)
-- Monitor command performance in [Monitoring](/features/monitoring/)
+- Monitor command performance in [Activity](/features/activity/)
 - Understand cluster layout in [Cluster Topology](/features/cluster-topology/)

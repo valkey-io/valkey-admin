@@ -206,11 +206,11 @@ In both modes, hot keys are aggregated across all monitored nodes and sorted by 
 
 When hot slots requirements are not met, Valkey Admin prompts you to start monitoring to calculate hot keys.
 
-## Notes
-- **No built-in authentication** — relies on external auth (Cognito, reverse proxy) for web deployments
-- **Metrics servers are per-primary only** — no independent monitoring of replica nodes
-- **No RBAC within the app** — any connected user can run any command the Valkey ACL allows
-- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
+## Troubleshooting & Known Limitations
+
+Before deploying, review the project's known limitations and operational caveats — including authentication, ACL/RBAC, replica monitoring, key-browser sampling, mTLS, and ElastiCache Serverless support.
+
+See [Troubleshooting & Known Limitations](https://valkey-admin.valkey.io/reference/troubleshooting/) for the full list and recommended workarounds.
 
 
 ## Contributing

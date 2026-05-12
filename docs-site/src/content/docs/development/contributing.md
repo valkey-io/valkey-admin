@@ -156,7 +156,7 @@ In the root directory, build unsigned AppImage and deb packages:
 
 ### Signed Build
 
-Requires GPG. See [linux_build/README.md](./linux_build/README.md) for key setup.
+Requires GPG. See [linux_build/README.md](https://github.com/valkey-io/valkey-admin/blob/main/linux_build/README.md) for key setup.
 
 - **x64:** `npm run package:linux`
 - **arm64:** `npm run package:linux:arm64`

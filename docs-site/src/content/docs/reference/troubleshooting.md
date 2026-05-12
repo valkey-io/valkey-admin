@@ -33,11 +33,11 @@ This option requires Valkey 8.0 or later, which introduced `cluster-slot-stats-e
 
 ## Intermittent "No primary node found" when connecting to large clusters via discovery endpoint
 
-When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a known issue in Valkey GLIDE where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
+When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a [known issue in Valkey GLIDE](https://github.com/valkey-io/valkey-glide/issues/5809) where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
 
 **Workaround:** Connect using a specific node hostname (e.g., `<replication-group>-0001-001.<replication-group>.<suffix>`) instead of the `clustercfg.*` endpoint. Valkey Admin will discover the full cluster topology from any single node.
 
-**Fix:** This is resolved in GLIDE 2.4 with the new `NodeDiscoveryMode.STATIC` option.
+**Fix:** This is resolved in GLIDE 2.4 with the new `NodeDiscoveryMode.STATIC` option ([PR #5724](https://github.com/valkey-io/valkey-glide/pull/5724)).
 
 ---
 
@@ -49,4 +49,4 @@ When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`
 - **No RBAC within the app** — any connected user can run any command the Valkey ACL allows.
 - **No built-in authentication** — relies on external auth (Cognito, reverse proxy) for web deployments.
 - **Metrics servers are per-primary only** — replica nodes are not independently monitored.
-- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function.
+- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
