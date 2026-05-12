@@ -85,27 +85,7 @@ See the [Metrics Configuration](/configuration/metrics/) page for available opti
 
 ## Resource Sizing
 
-In Docker (Web) mode, Valkey Admin spawns a metrics server process for each primary node in the cluster. Plan resources accordingly.
-
-**Formulas:**
-- **RAM:** `(primary nodes × 150 MB) + 1 GB`
-- **Disk:** `(primary nodes × 50 MB) + 1 GB`
-
-### Approximate Resource Recommendations
-
-| Cluster Size | Recommended Spec |
-|---|---|
-| 1–5 primaries | 2 vCPU, 2 GB RAM |
-| 5–50 primaries | 4 vCPU, 8 GB RAM |
-| 50–100 primaries | 8 vCPU, 16 GB RAM |
-| 100–200 primaries | 16 vCPU, 32 GB RAM |
-| 200–400+ primaries | 32 vCPU, 64 GB RAM |
-
-:::note
-These recommendations are based on default retention settings. If you increase `data_retention_mb` or `data_retention_days`, adjust your resource allocation accordingly.
-:::
-
-For large clusters, consider [Kubernetes deployment](/deployment/kubernetes/) where metrics servers run as sidecars on each Valkey pod, eliminating the memory burden on the main Valkey Admin instance.
+In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
 
 ## Configuration Reference
 

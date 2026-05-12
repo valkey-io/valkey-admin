@@ -44,6 +44,7 @@ export default defineConfig({
 						{ label: 'Docker', slug: 'deployment/docker' },
 						{ label: 'Kubernetes', slug: 'deployment/kubernetes' },
 						{ label: 'AWS ElastiCache', slug: 'deployment/aws-elasticache' },
+						{ label: 'Resource Sizing', slug: 'deployment/resource-sizing' },
 					],
 				},
 				{
@@ -74,6 +75,7 @@ export default defineConfig({
 					items: [
 						{ label: 'License', slug: 'reference/license' },
 						{ label: 'Troubleshooting', slug: 'reference/troubleshooting' },
+						{ label: 'Limitations', slug: 'reference/limitations' },
 						{ label: 'Security', slug: 'reference/security' },
 					],
 				},
