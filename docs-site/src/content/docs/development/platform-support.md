@@ -138,9 +138,9 @@ npm run package:mac
 3. Ubuntu or similar Linux distribution
 
 **Accessing the Web Interface**:
-- The web server runs in WSL but is accessible from Windows browsers
-- Default URL: `http://localhost:5173`
-- WSL networking automatically bridges to Windows
+- The web server runs in WSL2 in a Docker container but is accessible from Windows browsers
+- Default URL: `http://localhost:8080`
+- WSL2 automatically forwards `localhost:8080` to Windows
 
 ## Architecture Support
 
