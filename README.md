@@ -49,11 +49,13 @@ If you run into issues or have questions, open a [GitHub issue](https://github.c
 9. Unusual aspects of your environment or deployment
 10. Log files
 
-## Troubleshooting & Known Limitations
+## Known Limitations
 
-Before deploying, review the project's known limitations and operational caveats — including authentication, ACL/RBAC, replica monitoring, key-browser sampling, mTLS, and ElastiCache Serverless support.
+Before deploying, review the project's [Known Limitations](https://valkey-admin.valkey.io/reference/limitations/) covering authentication, ACL/RBAC, replica monitoring, key-browser sampling, mTLS, and ElastiCache Serverless support.
 
-See [Troubleshooting & Known Limitations](https://valkey-admin.valkey.io/reference/troubleshooting/) for the full list and recommended workarounds.
+## Troubleshooting
+
+For common issues and fixes, see the [Troubleshooting guide](https://valkey-admin.valkey.io/reference/troubleshooting/).
 
 ## Contributing
 

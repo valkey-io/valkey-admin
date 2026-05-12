@@ -7,7 +7,7 @@ description: Common issues and solutions for Valkey Admin
 
 In Web/Docker mode, Valkey Admin spawns a metrics server process for each primary node in the cluster. Each process uses approximately 150 MB of RAM. If your instance doesn't have enough memory, the app will OOM and become unresponsive.
 
-**Fix:** Refer to the [Resource Sizing](/deployment/docker/#resource-sizing) section and ensure your instance meets the recommended spec for your cluster size. Alternatively, deploy with [Kubernetes](/deployment/kubernetes/) where metrics servers run as sidecars on each Valkey pod, eliminating the memory burden on the main Valkey Admin instance.
+**Fix:** Refer to the [Resource Sizing](/deployment/resource-sizing/) page and ensure your instance meets the recommended spec for your cluster size. Alternatively, deploy with [Kubernetes](/deployment/kubernetes/) where metrics servers run as sidecars on each Valkey pod, eliminating the memory burden on the main Valkey Admin instance.
 
 ---
 
@@ -41,12 +41,10 @@ When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`
 
 ---
 
-## Known Limitations
+## Key sampling numbers differ between views
 
-- **mTLS** is not currently supported. Standard TLS with password or IAM authentication is available.
-- **ElastiCache Serverless** is not supported. Only ElastiCache node-based (non-serverless) clusters are supported.
-- **Key sampling numbers** may differ between views. The key browser and distribution chart use separate sampling passes, so counts may not match exactly — this is expected behavior with sampled data.
-- **No RBAC within the app** — any connected user can run any command the Valkey ACL allows.
-- **No built-in authentication** — relies on external auth (Cognito, reverse proxy) for web deployments.
-- **Metrics servers are per-primary only** — replica nodes are not independently monitored.
-- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
+The key browser and the distribution chart use separate sampling passes, so their counts won't always match exactly. This is expected behavior with sampled data — each view samples independently and may pick up a slightly different cross-section of the keyspace.
+
+---
+
+For a list of capabilities and operational caveats that aren't bugs (no built-in auth, no RBAC, mTLS, ElastiCache Serverless, etc.), see [Known Limitations](/reference/limitations/).

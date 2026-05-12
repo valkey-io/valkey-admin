@@ -32,6 +32,34 @@ Each entry in `epics` is also merged with per-epic defaults of `data_retention_m
 
 After the YAML is parsed, a small set of environment variables is allowed to override specific fields — see "YAML Overrides" below. Everything else in the YAML stays as written.
 
+## Per-Epic Settings
+
+Each entry in the `epics` array describes one collector. The fields below apply to every epic; the `monitor` epic adds a few extras for sampling behavior.
+
+### Common fields
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `name` | Identifier used in logs and the orchestrator registry. | required |
+| `type` | Collector implementation. One of `memory_stats`, `info_cpu`, `commandlog_slow`, `commandlog_large_request`, `commandlog_large_reply`, `slowlog_len`, `monitor`. | required |
+| `poll_ms` | How often (ms) the collector runs. | varies per epic |
+| `file_prefix` | Filename prefix for the NDJSON output written under `DATA_DIR`. | required |
+| `data_retention_mb` | Max disk space (MB) this epic's NDJSON files may use. Oldest files are evicted when the budget is exceeded. | `10` |
+| `data_retention_days` | Files older than this (by birthtime) are deleted during the daily cleanup sweep. | `30` |
+
+The `Default` column shows the **fallback defaults applied by the YAML merge**. `apps/metrics/config.yml` overrides these with lower values per epic (3–15 MB, 5 days). See the file itself for the full per-epic configuration.
+
+### Monitor-only fields
+
+These apply only when `type: monitor` and control the `MONITOR`-based hot keys sampling cycle:
+
+| Field | Description | Default |
+|-------|-------------|---------------------------|
+| `monitoringDuration` | How long each sampling run captures commands (ms). | `10000` |
+| `monitoringInterval` | Pause between sampling runs (ms). | `10000` |
+| `maxCommandsPerRun` | Hard cap on commands captured per cycle. Cycle ends early when reached. | `1000000` |
+| `cutoffFrequency` | Minimum access count for a key to appear in results. | `100` |
+
 ## Connecting to Valkey
 
 Connection details come **only** from environment variables. The YAML never carries them, because in the default deployment the server injects them when it spawns a metrics child.

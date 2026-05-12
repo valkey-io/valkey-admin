@@ -76,7 +76,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t3.medium
-    Description: EC2 instance type (see Resource Sizing in README)
+    Description: EC2 instance type (see Resource Sizing docs at https://valkey-admin.valkey.io/deployment/resource-sizing/)
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
