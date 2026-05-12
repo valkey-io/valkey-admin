@@ -45,3 +45,4 @@ packages/
 
 apps/metrics/data/
 docker/data
+apps/server/data/
