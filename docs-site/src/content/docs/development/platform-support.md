@@ -48,14 +48,13 @@ Monitor-based hot keys detection works with any Valkey version.
 - **Minimum Version**: Windows 10 version 2004 or higher (for WSL2)
 
 **Features**:
-- Web interface only
-- No hotkey support
-- No command logs
-- Core management features
-- Real-time monitoring
+- Web interface only — run as the [Docker image](/deployment/docker/) inside WSL2
+- Hot Keys monitoring and Command Logs supported via Docker
+- Core management features and real-time monitoring
+- No native desktop app, and therefore no global keyboard shortcuts menu
 
 :::caution
-Windows users must use WSL2 to run Valkey Admin. The desktop application does not build for Windows, but the web interface provides most core functionality.
+There is no native Windows desktop build. Windows users run the Docker image inside WSL2, which provides the full web feature set (including Hot Keys and Command Logs).
 :::
 
 ### Docker (Web Deployment)
@@ -157,6 +156,9 @@ ARM64 support on Linux is experimental. Apple Silicon Macs are fully supported w
 
 ## Next Steps
 
-- Follow the [installation guide](/getting-started/installation/) for your platform
-- Learn about [deployment modes](/deployment/desktop/)
-- Get started with the [quick start guide](/getting-started/quick-start/)
+Pick the installation guide for your platform:
+
+- [Desktop](/deployment/desktop/) — native app for macOS and Linux
+- [Docker](/deployment/docker/) — web deployment on any host (and the WSL path on Windows)
+- [Kubernetes](/deployment/kubernetes/) — sidecar deployment for large clusters
+- [AWS ElastiCache](/deployment/aws-elasticache/) — managed Valkey on AWS

@@ -33,11 +33,11 @@ This option requires Valkey 8.0 or later, which introduced `cluster-slot-stats-e
 
 ## Intermittent "No primary node found" when connecting to large clusters via discovery endpoint
 
-When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a known issue in Valkey GLIDE where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
+When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a [known issue in Valkey GLIDE](https://github.com/valkey-io/valkey-glide/issues/5809) where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
 
 **Workaround:** Connect using a specific node hostname (e.g., `<replication-group>-0001-001.<replication-group>.<suffix>`) instead of the `clustercfg.*` endpoint. Valkey Admin will discover the full cluster topology from any single node.
 
-**Fix:** This is resolved in GLIDE 2.4 with the new `NodeDiscoveryMode.STATIC` option.
+**Fix:** This is resolved in GLIDE 2.4 with the new `NodeDiscoveryMode.STATIC` option ([PR #5724](https://github.com/valkey-io/valkey-glide/pull/5724)).
 
 ---
 

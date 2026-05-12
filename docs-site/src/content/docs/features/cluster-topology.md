@@ -64,5 +64,5 @@ Clicking on a replica's address link navigates to that node's detail view.
 ## Next Steps
 
 - Monitor cluster performance on the [Dashboard](/features/dashboard/)
-- Track operations with [Monitoring tools](/features/monitoring/)
+- Track operations with [Activity](/features/activity/)
 - Execute cluster commands in the [Send Command](/features/send-command/)

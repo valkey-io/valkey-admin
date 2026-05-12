@@ -40,6 +40,7 @@ Filter keys by data type:
 - **Set**: Unordered unique collections
 - **Sorted Set**: Scored, ordered sets
 - **Stream**: Append-only logs
+- **JSON**: ReJSON-style document values (requires the JSON module)
 
 ## Key Operations
 
@@ -84,5 +85,5 @@ Click any key to view detailed information:
 ## Next Steps
 
 - Execute commands with the [Send Command interface](/features/send-command/)
-- Monitor key access with [Monitoring tools](/features/monitoring/)
+- Monitor key access with [Activity](/features/activity/)
 - Visualize data distribution in [Cluster Topology](/features/cluster-topology/)
