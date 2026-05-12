@@ -49,4 +49,4 @@ When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`
 - **No RBAC within the app** — any connected user can run any command the Valkey ACL allows.
 - **No built-in authentication** — relies on external auth (Cognito, reverse proxy) for web deployments.
 - **Metrics servers are per-primary only** — replica nodes are not independently monitored.
-- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function.
+- **Key browser sample size:** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not displayed but can still be found using the search function, which performs a targeted lookup.
