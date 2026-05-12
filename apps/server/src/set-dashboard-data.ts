@@ -25,7 +25,7 @@ export async function setDashboardData(
     const info = parseInfo(rawInfo as string)
     const rawMemoryStats = (await client.customCommand(["MEMORY", "STATS"], {
       decoder: Decoder.String,
-    })) as Array<{
+    }).catch(() => [])) as Array<{
       key: string;
       value: string;
     }>
