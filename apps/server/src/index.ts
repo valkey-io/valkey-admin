@@ -23,6 +23,7 @@ import { updateConfig, enableClusterSlotStats } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
 import { monitorRequested, saveMonitorSettingsRequested } from "./actions/monitorAction"
+import { analysisRequested } from "./actions/key-analysis"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
@@ -203,6 +204,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
     [VALKEY.MONITOR.monitorRequested]: monitorRequested,
     [VALKEY.MONITOR.saveMonitorSettingsRequested]: saveMonitorSettingsRequested,
+    [VALKEY.KEY_ANALYSIS.analysisRequested]: analysisRequested,
   }
 
   process.on("message", (message: MetricsServerMessage) => {

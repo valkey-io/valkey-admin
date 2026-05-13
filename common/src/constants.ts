@@ -102,6 +102,12 @@ export const VALKEY = {
     monitorError: "monitorError",
     saveMonitorSettingsRequested: "saveMonitorSettingsRequested",
   }),
+  KEY_ANALYSIS: makeNamespace("keyAnalysis", {
+    analysisRequested: "analysisRequested",
+    analysisProgress: "analysisProgress",
+    analysisFulfilled: "analysisFulfilled",
+    analysisError: "analysisError",
+  }),
 } as const
 
 // check truthyness in case process doesn't have env
