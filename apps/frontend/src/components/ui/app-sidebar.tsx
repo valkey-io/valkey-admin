@@ -9,7 +9,8 @@ import {
   Github,
   KeyRound,
   Network,
-  Activity
+  Activity,
+  BarChart3
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
@@ -72,6 +73,11 @@ export function AppSidebar() {
                     to: (clusterId ? `/${clusterId}/${id}/activity` : `/${id}/activity`),
                     title: "Activity",
                     icon: Activity,
+                  },
+                  {
+                    to: (clusterId ? `/${clusterId}/${id}/key-analysis` : `/${id}/key-analysis`),
+                    title: "Key Analysis",
+                    icon: BarChart3,
                   },
                   { to: (clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`), 
                     title: "Send Command", 
