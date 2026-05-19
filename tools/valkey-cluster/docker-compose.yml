@@ -7,6 +7,7 @@ services:
             --port 7001
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7001
@@ -40,6 +41,7 @@ services:
             --port 7002
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7002
@@ -73,6 +75,7 @@ services:
             --port 7003
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7003
@@ -106,6 +109,7 @@ services:
             --port 7004
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7004
@@ -139,6 +143,7 @@ services:
             --port 7005
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7005
@@ -172,6 +177,7 @@ services:
             --port 7006
             --bind 0.0.0.0
             --cluster-enabled yes
+            --cluster-databases 16
             --cluster-config-file nodes.conf
             --cluster-node-timeout 5000
             --cluster-announce-port 7006
