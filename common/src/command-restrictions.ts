@@ -7,12 +7,12 @@ export type CommandRestriction = {
 export const BLOCKED_COMMANDS: CommandRestriction[] = [
   { pattern: ["SHUTDOWN"], reason: "SHUTDOWN stops the server and cannot be undone remotely." },
   { pattern: ["DEBUG"], reason: "DEBUG can cause crashes or data corruption." },
+  { pattern: ["FLUSHALL"], reason: "FLUSHALL deletes all keys in all databases. This cannot be undone." },
+  { pattern: ["FLUSHDB"], reason: "FLUSHDB deletes all keys in the current database. This cannot be undone." },
 ]
 
 // these commands require confirmation before execution because they can cause severe problems or data loss
 export const CONFIRM_COMMANDS: CommandRestriction[] = [
-  { pattern: ["FLUSHALL"], reason: "FLUSHALL deletes all keys in all databases. This cannot be undone." },
-  { pattern: ["FLUSHDB"], reason: "FLUSHDB deletes all keys in the current database. This cannot be undone." },
   { pattern: ["KEYS"], reason: "KEYS can block the server for a long time when many keys exist. Consider using SCAN instead." },
   { pattern: ["CONFIG", "RESETSTAT"], reason: "CONFIG RESETSTAT resets all server statistics." },
   { pattern: ["CONFIG", "REWRITE"], reason: "CONFIG REWRITE overwrites the server configuration file." },
