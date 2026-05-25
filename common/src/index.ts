@@ -1,4 +1,5 @@
 export * from "./bytes-conversion"
+export * from "./command-restrictions"
 export * from "./cache-hit-ratio"
 export * from "./constants"
 export * from "./dashboard-metrics"

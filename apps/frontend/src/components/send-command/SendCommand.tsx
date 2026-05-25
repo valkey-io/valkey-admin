@@ -4,7 +4,9 @@ import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
+import { findBlockedCommand, findConfirmCommand } from "@common/src/command-restrictions"
 import type { JSONObject } from "@common/src/json-utils.ts"
+import { CommandConfirmDialog } from "@/components/send-command/CommandConfirmDialog"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
 import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
 import RouteContainer from "@/components/ui/route-container.tsx"
@@ -30,16 +32,35 @@ export function SendCommand() {
   const [compareWith, setCompareWith] = useState<number | null>(null)
   const [keysFilter, setKeysFilter] = useState("")
   const [historyFilter, setHistoryFilter] = useState("")
+  const [pendingConfirm, setPendingConfirm] = useState<{ command: string; reason: string } | null>(null)
 
   const { id, clusterId } = useParams()
   const clusterAlias = useSelector(selectClusterAlias(id!))
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
-  const onSubmit = (command?: string) => {
-    dispatch(sendRequested({ command: command || text, connectionId: id }))
+  const dispatchCommand = (command: string) => {
+    dispatch(sendRequested({ command, connectionId: id }))
     setCommandIndex(length)
     setText("")
+  }
+
+  const onSubmit = (command?: string) => {
+    const cmd = command || text
+
+    const blocked = findBlockedCommand(cmd)
+    if (blocked) {
+      toast.error(`Command blocked: ${blocked.reason}`)
+      return
+    }
+
+    const confirm = findConfirmCommand(cmd)
+    if (confirm) {
+      setPendingConfirm({ command: cmd, reason: confirm.reason })
+      return
+    }
+
+    dispatchCommand(cmd)
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -236,5 +257,16 @@ export function SendCommand() {
           Send
         </Button>
       </div>
+      {pendingConfirm && (
+        <CommandConfirmDialog
+          command={pendingConfirm.command}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            dispatchCommand(pendingConfirm.command)
+            setPendingConfirm(null)
+          }}
+          reason={pendingConfirm.reason}
+        />
+      )}
     </RouteContainer>)
 }
