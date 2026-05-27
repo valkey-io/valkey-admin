@@ -1,11 +1,13 @@
 import { CopyIcon, GitCompareIcon, RotateCwIcon, Search, SquareTerminal } from "lucide-react"
-import React, { useRef, useState } from "react"
+import React, { useMemo, useRef, useState } from "react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
 import { findBlockedCommand, findConfirmCommand } from "@common/src/command-restrictions"
+import { findCommandMatches, type ValkeyCommand } from "@common/src/valkey-commands"
 import type { JSONObject } from "@common/src/json-utils.ts"
+import { CommandAutocomplete } from "@/components/send-command/CommandAutocomplete"
 import { CommandConfirmDialog } from "@/components/send-command/CommandConfirmDialog"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
 import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
@@ -33,6 +35,14 @@ export function SendCommand() {
   const [keysFilter, setKeysFilter] = useState("")
   const [historyFilter, setHistoryFilter] = useState("")
   const [pendingConfirm, setPendingConfirm] = useState<{ command: string; reason: string } | null>(null)
+  const [suggestionIndex, setSuggestionIndex] = useState(0)
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
+
+  const suggestions = useMemo(
+    () => (text.includes(" ") || text.includes("\n") ? [] : findCommandMatches(text)),
+    [text],
+  )
+  const suggestionsOpen = !suggestionsDismissed && suggestions.length > 0
 
   const { id, clusterId } = useParams()
   const clusterAlias = useSelector(selectClusterAlias(id!))
@@ -43,6 +53,14 @@ export function SendCommand() {
     dispatch(sendRequested({ command, connectionId: id }))
     setCommandIndex(length)
     setText("")
+    setSuggestionsDismissed(false)
+  }
+
+  const acceptSuggestion = (cmd: ValkeyCommand) => {
+    setText(cmd.name + " ")
+    setSuggestionsDismissed(true)
+    setSuggestionIndex(0)
+    textareaRef.current?.focus()
   }
 
   const onSubmit = (command?: string) => {
@@ -64,6 +82,29 @@ export function SendCommand() {
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (suggestionsOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSuggestionIndex((i) => (i + 1) % suggestions.length)
+        return
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSuggestionIndex((i) => (i - 1 + suggestions.length) % suggestions.length)
+        return
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && suggestions[suggestionIndex])) {
+        e.preventDefault()
+        acceptSuggestion(suggestions[suggestionIndex])
+        return
+      }
+      if (e.key === "Escape") {
+        e.preventDefault()
+        setSuggestionsDismissed(true)
+        return
+      }
+    }
+
     if (e.key === "Enter") {
       e.preventDefault()
       if (text.trim().length > 0) {
@@ -238,17 +279,31 @@ export function SendCommand() {
       </div>
 
       <div className="flex items-center w-full gap-2">
-        <Textarea
-          className="flex-1 h-10 min-h-10"
-          onChange={(e) => setText(e.target.value)}
-          onFocus={() => {
-            textareaRef.current?.select()
-          }}
-          onKeyDown={onKeyDown}
-          placeholder="Type your Valkey command here"
-          ref={textareaRef}
-          value={text}
-        />
+        <div className="relative flex-1">
+          {suggestionsOpen && (
+            <CommandAutocomplete
+              matches={suggestions}
+              onHoverIndex={setSuggestionIndex}
+              onSelect={acceptSuggestion}
+              selectedIndex={suggestionIndex}
+            />
+          )}
+          <Textarea
+            className="w-full h-10 min-h-10"
+            onChange={(e) => {
+              setText(e.target.value)
+              setSuggestionsDismissed(false)
+              setSuggestionIndex(0)
+            }}
+            onFocus={() => {
+              textareaRef.current?.select()
+            }}
+            onKeyDown={onKeyDown}
+            placeholder="Type your Valkey command here"
+            ref={textareaRef}
+            value={text}
+          />
+        </div>
         <Button
           disabled={text.trim().length === 0}
           onClick={() => onSubmit()}
