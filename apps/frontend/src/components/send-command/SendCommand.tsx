@@ -5,8 +5,8 @@ import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
 import { findBlockedCommand, findConfirmCommand } from "@common/src/command-restrictions"
-import { findCommandMatches, type ValkeyCommand } from "@common/src/valkey-commands"
 import type { JSONObject } from "@common/src/json-utils.ts"
+import { matchCommands, type MatchResult, type ValkeyCommand } from "@/components/send-command/valkey-command-matching"
 import { CommandAutocomplete } from "@/components/send-command/CommandAutocomplete"
 import { CommandConfirmDialog } from "@/components/send-command/CommandConfirmDialog"
 import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
@@ -38,8 +38,8 @@ export function SendCommand() {
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
 
-  const suggestions = useMemo(
-    () => (text.includes(" ") || text.includes("\n") ? [] : findCommandMatches(text)),
+  const suggestions: MatchResult[] = useMemo(
+    () => (text.includes(" ") || text.includes("\n") ? [] : matchCommands(text)),
     [text],
   )
   const suggestionsOpen = !suggestionsDismissed && suggestions.length > 0
@@ -95,7 +95,7 @@ export function SendCommand() {
       }
       if (e.key === "Tab" || (e.key === "Enter" && suggestions[suggestionIndex])) {
         e.preventDefault()
-        acceptSuggestion(suggestions[suggestionIndex])
+        acceptSuggestion(suggestions[suggestionIndex].command)
         return
       }
       if (e.key === "Escape") {
