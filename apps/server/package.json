@@ -13,7 +13,7 @@
     "test:integration": "npx tsx --test 'src/__integration__/**/*.integration.test.ts'"
   },
   "dependencies": {
-    "@valkey/valkey-glide": "^2.3.1",
+    "@valkey/valkey-glide": "^2.4.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
     "p-limit": "^6.1.0",
