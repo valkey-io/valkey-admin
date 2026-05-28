@@ -1330,6 +1330,4791 @@
     "description": "List all connected clients",
     "tier": "admin",
     "parameters": []
+  },
+  {
+    "name": "HELLO",
+    "syntax": "HELLO [protover [AUTH username password] [SETNAME clientname]]",
+    "category": "connection",
+    "description": "Handshakes with the server.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "protover",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "auth",
+        "type": "value",
+        "required": false,
+        "placeholder": "auth"
+      },
+      {
+        "name": "clientname",
+        "type": "value",
+        "required": false,
+        "placeholder": "clientname"
+      }
+    ]
+  },
+  {
+    "name": "SDIFFSTORE",
+    "syntax": "SDIFFSTORE destination key [key ...]",
+    "category": "set",
+    "description": "Stores the difference of multiple sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SMISMEMBER",
+    "syntax": "SMISMEMBER key member [member ...]",
+    "category": "set",
+    "description": "Determines whether multiple members belong to a set.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "PUNSUBSCRIBE",
+    "syntax": "PUNSUBSCRIBE [pattern [pattern ...]]",
+    "category": "pubsub",
+    "description": "Stops listening to messages published to channels that match one or more patterns.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "XDEL",
+    "syntax": "XDEL key id [id ...]",
+    "category": "stream",
+    "description": "Returns the number of messages after removing them from a stream.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "GETSET",
+    "syntax": "GETSET key value",
+    "category": "string",
+    "description": "Returns the previous string value of a key after setting it to a new value.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "BLMOVE",
+    "syntax": "BLMOVE source destination LEFT|RIGHT LEFT|RIGHT timeout",
+    "category": "list",
+    "description": "Pops an element from a list, pushes it to another list and returns it. Blocks until an element is available otherwise. Deletes the list if the last element was moved.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "wherefrom",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      },
+      {
+        "name": "whereto",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SUNSUBSCRIBE",
+    "syntax": "SUNSUBSCRIBE [shardchannel [shardchannel ...]]",
+    "category": "pubsub",
+    "description": "Stops listening to messages posted to shard channels.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "shardchannel",
+        "type": "value",
+        "required": false,
+        "placeholder": "shardchannel",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "UNSUBSCRIBE",
+    "syntax": "UNSUBSCRIBE [channel [channel ...]]",
+    "category": "pubsub",
+    "description": "Stops listening to messages posted to channels.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "channel",
+        "type": "value",
+        "required": false,
+        "placeholder": "channel",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZRANDMEMBER",
+    "syntax": "ZRANDMEMBER key [count [WITHSCORES]]",
+    "category": "sorted_set",
+    "description": "Returns one or more random members from a sorted set.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "QUIT",
+    "syntax": "QUIT",
+    "category": "connection",
+    "description": "Closes the connection.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "GEOPOS",
+    "syntax": "GEOPOS key [member [member ...]]",
+    "category": "geo",
+    "description": "Returns the longitude and latitude of members from a geospatial index.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": false,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "READONLY",
+    "syntax": "READONLY",
+    "category": "cluster",
+    "description": "Enables read-only queries for a connection to a Valkey replica node.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "GEOSEARCHSTORE",
+    "syntax": "GEOSEARCHSTORE destination source [FROMMEMBER|FROMLONLAT] CIRCLE|BOX|POLYGON [ASC|DESC] [COUNT count [ANY]] [STOREDIST]",
+    "category": "geo",
+    "description": "Queries a geospatial index for members inside an area of a box, a circle, or a polygon, optionally stores the result.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": false,
+        "placeholder": "member"
+      },
+      {
+        "name": "fromlonlat",
+        "type": "value",
+        "required": false,
+        "placeholder": "fromlonlat"
+      },
+      {
+        "name": "circle",
+        "type": "value",
+        "required": true,
+        "placeholder": "circle"
+      },
+      {
+        "name": "box",
+        "type": "value",
+        "required": true,
+        "placeholder": "box"
+      },
+      {
+        "name": "polygon",
+        "type": "value",
+        "required": true,
+        "placeholder": "polygon"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "BLMPOP",
+    "syntax": "BLMPOP timeout numkeys key [key ...] LEFT|RIGHT [COUNT count]",
+    "category": "list",
+    "description": "Pops the first element from one of multiple lists. Blocks until an element is available otherwise. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "where",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "BRPOP",
+    "syntax": "BRPOP key [key ...] timeout",
+    "category": "list",
+    "description": "Removes and returns the last element in a list. Blocks until an element is available otherwise. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "PUBLISH",
+    "syntax": "PUBLISH channel message",
+    "category": "pubsub",
+    "description": "Posts a message to a channel.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "channel",
+        "type": "value",
+        "required": true,
+        "placeholder": "channel"
+      },
+      {
+        "name": "message",
+        "type": "value",
+        "required": true,
+        "placeholder": "message"
+      }
+    ]
+  },
+  {
+    "name": "XREVRANGE",
+    "syntax": "XREVRANGE key end start [COUNT count]",
+    "category": "stream",
+    "description": "Returns the messages from a stream within a range of IDs in reverse order.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "end",
+        "type": "value",
+        "required": true,
+        "placeholder": "end"
+      },
+      {
+        "name": "start",
+        "type": "value",
+        "required": true,
+        "placeholder": "start"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "BGSAVE",
+    "syntax": "BGSAVE [SCHEDULE|CANCEL]",
+    "category": "server",
+    "description": "Asynchronously saves the database(s) to disk.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "operation",
+        "type": "value",
+        "required": false,
+        "placeholder": "SCHEDULE|CANCEL"
+      }
+    ]
+  },
+  {
+    "name": "SINTERCARD",
+    "syntax": "SINTERCARD numkeys key [key ...] [LIMIT limit]",
+    "category": "set",
+    "description": "Returns the number of members of the intersect of multiple sets.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "limit",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GEORADIUS",
+    "syntax": "GEORADIUS key longitude latitude radius M|KM|FT|MI [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count [ANY]] [ASC|DESC] [STORE|STOREDIST]",
+    "category": "geo",
+    "description": "Queries a geospatial index for members within a distance from a coordinate, optionally stores the result.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "longitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "latitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "unit",
+        "type": "value",
+        "required": true,
+        "placeholder": "M|KM|FT|MI"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      },
+      {
+        "name": "storekey",
+        "type": "key",
+        "required": false,
+        "placeholder": "storekey"
+      },
+      {
+        "name": "storedistkey",
+        "type": "key",
+        "required": false,
+        "placeholder": "storedistkey"
+      }
+    ]
+  },
+  {
+    "name": "PFADD",
+    "syntax": "PFADD key [element [element ...]]",
+    "category": "hyperloglog",
+    "description": "Adds elements to a HyperLogLog key. Creates the key if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": false,
+        "placeholder": "element",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "REPLCONF",
+    "syntax": "REPLCONF",
+    "category": "server",
+    "description": "An internal command for configuring the replication stream.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "XINFO",
+    "syntax": "XINFO",
+    "category": "stream",
+    "description": "A container for stream introspection commands.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "XSETID",
+    "syntax": "XSETID key last-id [ENTRIESADDED entries-added] [MAXDELETEDID max-deleted-id]",
+    "category": "stream",
+    "description": "An internal command for replicating stream values.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "last-id",
+        "type": "value",
+        "required": true,
+        "placeholder": "last-id"
+      },
+      {
+        "name": "entries-added",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "max-deleted-id",
+        "type": "value",
+        "required": false,
+        "placeholder": "max-deleted-id"
+      }
+    ]
+  },
+  {
+    "name": "XTRIM",
+    "syntax": "XTRIM key MAXLEN|MINID [=|~] threshold [LIMIT count]",
+    "category": "stream",
+    "description": "Deletes messages from the beginning of a stream.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "strategy",
+        "type": "value",
+        "required": true,
+        "placeholder": "strategy"
+      },
+      {
+        "name": "operator",
+        "type": "value",
+        "required": false,
+        "placeholder": "operator"
+      },
+      {
+        "name": "threshold",
+        "type": "value",
+        "required": true,
+        "placeholder": "threshold"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SETEX",
+    "syntax": "SETEX key seconds value",
+    "category": "string",
+    "description": "Sets the string value and expiration time of a key. Creates the key if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "BITCOUNT",
+    "syntax": "BITCOUNT key [start [end [BYTE|BIT]]]",
+    "category": "bitmap",
+    "description": "Counts the number of set bits (population counting) in a string.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "end-unit-block",
+        "type": "value",
+        "required": false,
+        "placeholder": "end-unit-block"
+      }
+    ]
+  },
+  {
+    "name": "MIGRATE",
+    "syntax": "MIGRATE host port KEY|EMPTY-STRING destination-db timeout [COPY] [REPLACE] [AUTH|AUTH2] [KEYS key [KEYS key ...]]",
+    "category": "generic",
+    "description": "Atomically transfers a key from one instance to another.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "host",
+        "type": "value",
+        "required": true,
+        "placeholder": "host"
+      },
+      {
+        "name": "port",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "destination-db",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "auth",
+        "type": "value",
+        "required": false,
+        "placeholder": "auth"
+      },
+      {
+        "name": "auth2",
+        "type": "value",
+        "required": false,
+        "placeholder": "auth2"
+      },
+      {
+        "name": "keys",
+        "type": "key",
+        "required": false,
+        "placeholder": "keys",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZUNION",
+    "syntax": "ZUNION numkeys key [key ...] [WEIGHTS weight [WEIGHTS weight ...]] [SUM|MIN|MAX] [WITHSCORES]",
+    "category": "sorted_set",
+    "description": "Returns the union of multiple sorted sets.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "weight",
+        "type": "number",
+        "required": false,
+        "placeholder": "0",
+        "repeatable": true
+      },
+      {
+        "name": "aggregate",
+        "type": "value",
+        "required": false,
+        "placeholder": "SUM|MIN|MAX"
+      }
+    ]
+  },
+  {
+    "name": "XADD",
+    "syntax": "XADD key [NOMKSTREAM] [MAXLEN|MINID [=|~] threshold [LIMIT count]] *|ID field value",
+    "category": "stream",
+    "description": "Appends a new message to a stream. Creates the key if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "strategy",
+        "type": "value",
+        "required": false,
+        "placeholder": "strategy"
+      },
+      {
+        "name": "operator",
+        "type": "value",
+        "required": false,
+        "placeholder": "operator"
+      },
+      {
+        "name": "threshold",
+        "type": "value",
+        "required": false,
+        "placeholder": "threshold"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "BITOP",
+    "syntax": "BITOP AND|OR|XOR|NOT destkey key [key ...]",
+    "category": "bitmap",
+    "description": "Performs bitwise operations on multiple strings, and stores the result.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "operation",
+        "type": "value",
+        "required": true,
+        "placeholder": "AND|OR|XOR|NOT"
+      },
+      {
+        "name": "destkey",
+        "type": "key",
+        "required": true,
+        "placeholder": "destkey"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "HPERSIST",
+    "syntax": "HPERSIST key FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Remove the existing expiration on a hash key's field(s).",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "HSETEX",
+    "syntax": "HSETEX key [FNX|FXX] [EX|PX|EXAT|PXAT|KEEPTTL] FIELDS numfields field value",
+    "category": "hash",
+    "description": "Set the value of one or more fields of a given hash key, and optionally set their expiration time.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "fields-condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "FNX|FXX"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "data",
+        "type": "value",
+        "required": true,
+        "placeholder": "data"
+      }
+    ]
+  },
+  {
+    "name": "MONITOR",
+    "syntax": "MONITOR",
+    "category": "server",
+    "description": "Listens for all requests received by the server in real-time.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "ZRANGEBYLEX",
+    "syntax": "ZRANGEBYLEX key min max [LIMIT offset count]",
+    "category": "sorted_set",
+    "description": "Returns members in a sorted set within a lexicographical range.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "value",
+        "required": true,
+        "placeholder": "min"
+      },
+      {
+        "name": "max",
+        "type": "value",
+        "required": true,
+        "placeholder": "max"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "HEXPIRETIME",
+    "syntax": "HEXPIRETIME key FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Returns Unix timestamps in seconds since the epoch at which the given key's field(s) will expire",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "PUBSUB",
+    "syntax": "PUBSUB",
+    "category": "pubsub",
+    "description": "A container for Pub/Sub commands.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "BITFIELD",
+    "syntax": "BITFIELD key [GET|WRITE [GET|WRITE ...]]",
+    "category": "bitmap",
+    "description": "Performs arbitrary bitfield integer operations on strings.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "get-block",
+        "type": "value",
+        "required": false,
+        "placeholder": "get-block"
+      },
+      {
+        "name": "write",
+        "type": "value",
+        "required": false,
+        "placeholder": "write"
+      }
+    ]
+  },
+  {
+    "name": "RPUSHX",
+    "syntax": "RPUSHX key element [element ...]",
+    "category": "list",
+    "description": "Appends one or more elements to a list only when the list exists.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LASTSAVE",
+    "syntax": "LASTSAVE",
+    "category": "server",
+    "description": "Returns the Unix timestamp of the last successful save to disk.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "RANDOMKEY",
+    "syntax": "RANDOMKEY",
+    "category": "generic",
+    "description": "Returns a random key name from the database.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "EVAL",
+    "syntax": "EVAL script numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Executes a server-side Lua script.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "script",
+        "type": "value",
+        "required": true,
+        "placeholder": "script"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZREMRANGEBYRANK",
+    "syntax": "ZREMRANGEBYRANK key start stop",
+    "category": "sorted_set",
+    "description": "Removes members in a sorted set within a range of indexes. Deletes the sorted set if all members were removed.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "stop",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "RESET",
+    "syntax": "RESET",
+    "category": "connection",
+    "description": "Resets the connection.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "GEORADIUSBYMEMBER_RO",
+    "syntax": "GEORADIUSBYMEMBER_RO key member radius M|KM|FT|MI [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count [ANY]] [ASC|DESC]",
+    "category": "geo",
+    "description": "Returns members from a geospatial index that are within a distance from a member.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "unit",
+        "type": "value",
+        "required": true,
+        "placeholder": "M|KM|FT|MI"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      }
+    ]
+  },
+  {
+    "name": "GETEX",
+    "syntax": "GETEX key [EX|PX|EXAT|PXAT|PERSIST]",
+    "category": "string",
+    "description": "Returns the string value of a key after setting its expiration time.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "LMPOP",
+    "syntax": "LMPOP numkeys key [key ...] LEFT|RIGHT [COUNT count]",
+    "category": "list",
+    "description": "Returns multiple elements from a list after removing them. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "where",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GETDEL",
+    "syntax": "GETDEL key",
+    "category": "string",
+    "description": "Returns the string value of a key after deleting the key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "LMOVE",
+    "syntax": "LMOVE source destination LEFT|RIGHT LEFT|RIGHT",
+    "category": "list",
+    "description": "Returns an element after popping it from one list and pushing it to another. Deletes the list if the last element was moved.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "wherefrom",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      },
+      {
+        "name": "whereto",
+        "type": "value",
+        "required": true,
+        "placeholder": "LEFT|RIGHT"
+      }
+    ]
+  },
+  {
+    "name": "TIME",
+    "syntax": "TIME",
+    "category": "server",
+    "description": "Returns the server time.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "XRANGE",
+    "syntax": "XRANGE key start end [COUNT count]",
+    "category": "stream",
+    "description": "Returns the messages from a stream within a range of IDs.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "value",
+        "required": true,
+        "placeholder": "start"
+      },
+      {
+        "name": "end",
+        "type": "value",
+        "required": true,
+        "placeholder": "end"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "DELIFEQ",
+    "syntax": "DELIFEQ key value",
+    "category": "string",
+    "description": "Delete key if value matches string.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "MULTI",
+    "syntax": "MULTI",
+    "category": "transactions",
+    "description": "Starts a transaction.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "BITFIELD_RO",
+    "syntax": "BITFIELD_RO key [GET encoding offset]",
+    "category": "bitmap",
+    "description": "Performs arbitrary read-only bitfield integer operations on strings.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "encoding",
+        "type": "value",
+        "required": false,
+        "placeholder": "encoding"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GEOADD",
+    "syntax": "GEOADD key [NX|XX] [CH] longitude latitude member",
+    "category": "geo",
+    "description": "Adds one or more members to a geospatial index. The key is created if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX"
+      },
+      {
+        "name": "longitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "latitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      }
+    ]
+  },
+  {
+    "name": "HEXPIREAT",
+    "syntax": "HEXPIREAT key unix-time-seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Set expiry time on hash fields.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "unix-time-seconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LPOS",
+    "syntax": "LPOS key element [RANK rank] [COUNT num-matches] [MAXLEN len]",
+    "category": "list",
+    "description": "Returns the index of matching elements in a list.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element"
+      },
+      {
+        "name": "rank",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "num-matches",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "len",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ROLE",
+    "syntax": "ROLE",
+    "category": "server",
+    "description": "Returns the replication role.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "ZLEXCOUNT",
+    "syntax": "ZLEXCOUNT key min max",
+    "category": "sorted_set",
+    "description": "Returns the number of members in a sorted set within a lexicographical range.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "value",
+        "required": true,
+        "placeholder": "min"
+      },
+      {
+        "name": "max",
+        "type": "value",
+        "required": true,
+        "placeholder": "max"
+      }
+    ]
+  },
+  {
+    "name": "XAUTOCLAIM",
+    "syntax": "XAUTOCLAIM key group consumer min-idle-time start [COUNT count] [JUSTID]",
+    "category": "stream",
+    "description": "Changes, or acquires, ownership of messages in a consumer group, as if the messages were delivered to as consumer group member.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "group",
+        "type": "value",
+        "required": true,
+        "placeholder": "group"
+      },
+      {
+        "name": "consumer",
+        "type": "value",
+        "required": true,
+        "placeholder": "consumer"
+      },
+      {
+        "name": "min-idle-time",
+        "type": "value",
+        "required": true,
+        "placeholder": "min-idle-time"
+      },
+      {
+        "name": "start",
+        "type": "value",
+        "required": true,
+        "placeholder": "start"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "BITPOS",
+    "syntax": "BITPOS key bit [start [end [BYTE|BIT]]]",
+    "category": "bitmap",
+    "description": "Finds the first set (1) or clear (0) bit in a string.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "bit",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "end-unit-block",
+        "type": "value",
+        "required": false,
+        "placeholder": "end-unit-block"
+      }
+    ]
+  },
+  {
+    "name": "XACK",
+    "syntax": "XACK key group id [id ...]",
+    "category": "stream",
+    "description": "Returns the number of messages that were successfully acknowledged by the consumer group member of a stream.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "group",
+        "type": "value",
+        "required": true,
+        "placeholder": "group"
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "AUTH",
+    "syntax": "AUTH [username] password",
+    "category": "connection",
+    "description": "Authenticates the connection.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "username",
+        "type": "value",
+        "required": false,
+        "placeholder": "username"
+      },
+      {
+        "name": "password",
+        "type": "value",
+        "required": true,
+        "placeholder": "password"
+      }
+    ]
+  },
+  {
+    "name": "SORT_RO",
+    "syntax": "SORT_RO key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern ...]] [ASC|DESC] [ALPHA]",
+    "category": "generic",
+    "description": "Returns the sorted elements of a list, a set, or a sorted set.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "by-pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "get-pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*",
+        "repeatable": true
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      }
+    ]
+  },
+  {
+    "name": "HINCRBY",
+    "syntax": "HINCRBY key field increment",
+    "category": "hash",
+    "description": "Increments the integer value of a field in a hash by a number. Uses 0 as initial value if the field doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "increment",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "LPUSHX",
+    "syntax": "LPUSHX key element [element ...]",
+    "category": "list",
+    "description": "Prepends one or more elements to a list only when the list exists.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SUBSCRIBE",
+    "syntax": "SUBSCRIBE channel [channel ...]",
+    "category": "pubsub",
+    "description": "Listens for messages published to channels.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "channel",
+        "type": "value",
+        "required": true,
+        "placeholder": "channel",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SWAPDB",
+    "syntax": "SWAPDB index1 index2",
+    "category": "server",
+    "description": "Swaps two databases.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "index1",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "index2",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "EXPIREAT",
+    "syntax": "EXPIREAT key unix-time-seconds [NX|XX|GT|LT]",
+    "category": "generic",
+    "description": "Sets the expiration time of a key to a Unix timestamp.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "unix-time-seconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      }
+    ]
+  },
+  {
+    "name": "HPEXPIREAT",
+    "syntax": "HPEXPIREAT key unix-time-milliseconds [NX|XX|GT|LT] FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Set expiration time on hash field.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZMPOP",
+    "syntax": "ZMPOP numkeys key [key ...] MIN|MAX [COUNT count]",
+    "category": "sorted_set",
+    "description": "Returns the highest- or lowest-scoring members from one or more sorted sets after removing them. Deletes the sorted set if the last member was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "where",
+        "type": "value",
+        "required": true,
+        "placeholder": "MIN|MAX"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ASKING",
+    "syntax": "ASKING",
+    "category": "cluster",
+    "description": "Signals that a cluster client is following an -ASK redirect.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "INCRBY",
+    "syntax": "INCRBY key increment",
+    "category": "string",
+    "description": "Increments the integer value of a key by a number. Uses 0 as initial value if the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "increment",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "READWRITE",
+    "syntax": "READWRITE",
+    "category": "cluster",
+    "description": "Enables read-write queries for a connection to a Valkey replica node.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "HSTRLEN",
+    "syntax": "HSTRLEN key field",
+    "category": "hash",
+    "description": "Returns the length of the value of a field.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      }
+    ]
+  },
+  {
+    "name": "FAILOVER",
+    "syntax": "FAILOVER [TO host port [FORCE]] [ABORT] [TIMEOUT milliseconds]",
+    "category": "server",
+    "description": "Starts a coordinated failover from a server to one of its replicas.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "host",
+        "type": "value",
+        "required": false,
+        "placeholder": "host"
+      },
+      {
+        "name": "port",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "MODULE",
+    "syntax": "MODULE",
+    "category": "server",
+    "description": "A container for module commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "OBJECT",
+    "syntax": "OBJECT",
+    "category": "generic",
+    "description": "A container for object introspection commands.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "WAITAOF",
+    "syntax": "WAITAOF numlocal numreplicas timeout",
+    "category": "generic",
+    "description": "Blocks until all of the preceding write commands sent by the connection are written to the append-only file of the primary and/or replicas.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numlocal",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "numreplicas",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ZDIFFSTORE",
+    "syntax": "ZDIFFSTORE destination numkeys key [key ...]",
+    "category": "sorted_set",
+    "description": "Stores the difference of multiple sorted sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZRANGESTORE",
+    "syntax": "ZRANGESTORE dst src min max [BYSCORE|BYLEX] [REV] [LIMIT offset count]",
+    "category": "sorted_set",
+    "description": "Stores a range of members from sorted set in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "dst",
+        "type": "key",
+        "required": true,
+        "placeholder": "dst"
+      },
+      {
+        "name": "src",
+        "type": "key",
+        "required": true,
+        "placeholder": "src"
+      },
+      {
+        "name": "min",
+        "type": "value",
+        "required": true,
+        "placeholder": "min"
+      },
+      {
+        "name": "max",
+        "type": "value",
+        "required": true,
+        "placeholder": "max"
+      },
+      {
+        "name": "sortby",
+        "type": "value",
+        "required": false,
+        "placeholder": "BYSCORE|BYLEX"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ZREVRANGEBYSCORE",
+    "syntax": "ZREVRANGEBYSCORE key max min [WITHSCORES] [LIMIT offset count]",
+    "category": "sorted_set",
+    "description": "Returns members in a sorted set within a range of scores in reverse order.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "EVALSHA",
+    "syntax": "EVALSHA sha1 numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Executes a server-side Lua script by SHA1 digest.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "sha1",
+        "type": "value",
+        "required": true,
+        "placeholder": "sha1"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "REPLICAOF",
+    "syntax": "REPLICAOF HOST-PORT|NO-ONE",
+    "category": "server",
+    "description": "Configures a server as replica of another, or promotes it to a primary.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "host-port",
+        "type": "value",
+        "required": true,
+        "placeholder": "host-port"
+      },
+      {
+        "name": "no-one",
+        "type": "value",
+        "required": true,
+        "placeholder": "no-one"
+      }
+    ]
+  },
+  {
+    "name": "RESTORE",
+    "syntax": "RESTORE key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]",
+    "category": "generic",
+    "description": "Creates a key from the serialized representation of a value.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "ttl",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "serialized-value",
+        "type": "value",
+        "required": true,
+        "placeholder": "serialized-value"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "frequency",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ACL",
+    "syntax": "ACL",
+    "category": "server",
+    "description": "A container for Access List Control commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "CONFIG",
+    "syntax": "CONFIG",
+    "category": "server",
+    "description": "A container for server configuration commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "INCR",
+    "syntax": "INCR key",
+    "category": "string",
+    "description": "Increments the integer value of a key by one. Uses 0 as initial value if the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "LCS",
+    "syntax": "LCS key1 key2 [LEN] [IDX] [MINMATCHLEN min-match-len] [WITHMATCHLEN]",
+    "category": "string",
+    "description": "Finds the longest common substring.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key1",
+        "type": "key",
+        "required": true,
+        "placeholder": "key1"
+      },
+      {
+        "name": "key2",
+        "type": "key",
+        "required": true,
+        "placeholder": "key2"
+      },
+      {
+        "name": "min-match-len",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ECHO",
+    "syntax": "ECHO message",
+    "category": "connection",
+    "description": "Returns the given string.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "message",
+        "type": "value",
+        "required": true,
+        "placeholder": "message"
+      }
+    ]
+  },
+  {
+    "name": "HGETEX",
+    "syntax": "HGETEX key [EX|PX|EXAT|PXAT|PERSIST] FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Get the value of one or more fields of a given hash key, and optionally set their expiration time or time-to-live (TTL).",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "MEMORY",
+    "syntax": "MEMORY",
+    "category": "server",
+    "description": "A container for memory diagnostics commands.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "ZINTERSTORE",
+    "syntax": "ZINTERSTORE destination numkeys key [key ...] [WEIGHTS weight [WEIGHTS weight ...]] [SUM|MIN|MAX]",
+    "category": "sorted_set",
+    "description": "Stores the intersect of multiple sorted sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "weight",
+        "type": "number",
+        "required": false,
+        "placeholder": "0",
+        "repeatable": true
+      },
+      {
+        "name": "aggregate",
+        "type": "value",
+        "required": false,
+        "placeholder": "SUM|MIN|MAX"
+      }
+    ]
+  },
+  {
+    "name": "ZMSCORE",
+    "syntax": "ZMSCORE key member [member ...]",
+    "category": "sorted_set",
+    "description": "Returns the score of one or more members in a sorted set.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SPUBLISH",
+    "syntax": "SPUBLISH shardchannel message",
+    "category": "pubsub",
+    "description": "Post a message to a shard channel",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "shardchannel",
+        "type": "value",
+        "required": true,
+        "placeholder": "shardchannel"
+      },
+      {
+        "name": "message",
+        "type": "value",
+        "required": true,
+        "placeholder": "message"
+      }
+    ]
+  },
+  {
+    "name": "XLEN",
+    "syntax": "XLEN key",
+    "category": "stream",
+    "description": "Return the number of messages in a stream.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "EXPIRETIME",
+    "syntax": "EXPIRETIME key",
+    "category": "generic",
+    "description": "Returns the expiration time of a key as a Unix timestamp.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "PFSELFTEST",
+    "syntax": "PFSELFTEST",
+    "category": "hyperloglog",
+    "description": "An internal command for testing HyperLogLog values.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "BLPOP",
+    "syntax": "BLPOP key [key ...] timeout",
+    "category": "list",
+    "description": "Removes and returns the first element in a list. Blocks until an element is available otherwise. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "FCALL_RO",
+    "syntax": "FCALL_RO function numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Invokes a read-only function.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "function",
+        "type": "value",
+        "required": true,
+        "placeholder": "function"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "RESTORE-ASKING",
+    "syntax": "RESTORE-ASKING key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]",
+    "category": "server",
+    "description": "An internal command for migrating keys in a cluster.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "ttl",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "serialized-value",
+        "type": "value",
+        "required": true,
+        "placeholder": "serialized-value"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "frequency",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SETBIT",
+    "syntax": "SETBIT key offset value",
+    "category": "bitmap",
+    "description": "Sets or clears the bit at offset of the string value. Creates the key if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "value",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "TOUCH",
+    "syntax": "TOUCH key [key ...]",
+    "category": "generic",
+    "description": "Returns the number of existing keys out of those specified after updating the time they were last accessed.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "FUNCTION",
+    "syntax": "FUNCTION",
+    "category": "scripting",
+    "description": "A container for function commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "SETNX",
+    "syntax": "SETNX key value",
+    "category": "string",
+    "description": "Set the string value of a key only when the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "MOVE",
+    "syntax": "MOVE key db",
+    "category": "generic",
+    "description": "Moves a key to another database.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "db",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GEODIST",
+    "syntax": "GEODIST key member1 member2 [M|KM|FT|MI]",
+    "category": "geo",
+    "description": "Returns the distance between two members of a geospatial index.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member1",
+        "type": "value",
+        "required": true,
+        "placeholder": "member1"
+      },
+      {
+        "name": "member2",
+        "type": "value",
+        "required": true,
+        "placeholder": "member2"
+      },
+      {
+        "name": "unit",
+        "type": "value",
+        "required": false,
+        "placeholder": "M|KM|FT|MI"
+      }
+    ]
+  },
+  {
+    "name": "BZMPOP",
+    "syntax": "BZMPOP timeout numkeys key [key ...] MIN|MAX [COUNT count]",
+    "category": "sorted_set",
+    "description": "Removes and returns a member by score from one or more sorted sets. Blocks until a member is available otherwise. Deletes the sorted set if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "where",
+        "type": "value",
+        "required": true,
+        "placeholder": "MIN|MAX"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ZINTER",
+    "syntax": "ZINTER numkeys key [key ...] [WEIGHTS weight [WEIGHTS weight ...]] [SUM|MIN|MAX] [WITHSCORES]",
+    "category": "sorted_set",
+    "description": "Returns the intersect of multiple sorted sets.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "weight",
+        "type": "number",
+        "required": false,
+        "placeholder": "0",
+        "repeatable": true
+      },
+      {
+        "name": "aggregate",
+        "type": "value",
+        "required": false,
+        "placeholder": "SUM|MIN|MAX"
+      }
+    ]
+  },
+  {
+    "name": "ZREMRANGEBYLEX",
+    "syntax": "ZREMRANGEBYLEX key min max",
+    "category": "sorted_set",
+    "description": "Removes members in a sorted set within a lexicographical range. Deletes the sorted set if all members were removed.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "value",
+        "required": true,
+        "placeholder": "min"
+      },
+      {
+        "name": "max",
+        "type": "value",
+        "required": true,
+        "placeholder": "max"
+      }
+    ]
+  },
+  {
+    "name": "INCRBYFLOAT",
+    "syntax": "INCRBYFLOAT key increment",
+    "category": "string",
+    "description": "Increment the floating point value of a key by a number. Uses 0 as initial value if the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "increment",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "DUMP",
+    "syntax": "DUMP key",
+    "category": "generic",
+    "description": "Returns a serialized representation of the value stored at a key.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "PFCOUNT",
+    "syntax": "PFCOUNT key [key ...]",
+    "category": "hyperloglog",
+    "description": "Returns the approximated cardinality of the set(s) observed by the HyperLogLog key(s).",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "BRPOPLPUSH",
+    "syntax": "BRPOPLPUSH source destination timeout",
+    "category": "list",
+    "description": "Pops an element from a list, pushes it to another list and returns it. Block until an element is available otherwise. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "CLUSTER",
+    "syntax": "CLUSTER",
+    "category": "cluster",
+    "description": "A container for Cluster commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "ZDIFF",
+    "syntax": "ZDIFF numkeys key [key ...] [WITHSCORES]",
+    "category": "sorted_set",
+    "description": "Returns the difference between multiple sorted sets.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "GEORADIUSBYMEMBER",
+    "syntax": "GEORADIUSBYMEMBER key member radius M|KM|FT|MI [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count [ANY]] [ASC|DESC] [STORE|STOREDIST]",
+    "category": "geo",
+    "description": "Queries a geospatial index for members within a distance from a member, optionally stores the result.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": true,
+        "placeholder": "member"
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "unit",
+        "type": "value",
+        "required": true,
+        "placeholder": "M|KM|FT|MI"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      },
+      {
+        "name": "storekey",
+        "type": "key",
+        "required": false,
+        "placeholder": "storekey"
+      },
+      {
+        "name": "storedistkey",
+        "type": "key",
+        "required": false,
+        "placeholder": "storedistkey"
+      }
+    ]
+  },
+  {
+    "name": "GEOSEARCH",
+    "syntax": "GEOSEARCH key [FROMMEMBER|FROMLONLAT] CIRCLE|BOX|POLYGON [ASC|DESC] [COUNT count [ANY]] [WITHCOORD] [WITHDIST] [WITHHASH]",
+    "category": "geo",
+    "description": "Queries a geospatial index for members inside an area of a box, circle, or a polygon.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": false,
+        "placeholder": "member"
+      },
+      {
+        "name": "fromlonlat",
+        "type": "value",
+        "required": false,
+        "placeholder": "fromlonlat"
+      },
+      {
+        "name": "circle",
+        "type": "value",
+        "required": true,
+        "placeholder": "circle"
+      },
+      {
+        "name": "box",
+        "type": "value",
+        "required": true,
+        "placeholder": "box"
+      },
+      {
+        "name": "polygon",
+        "type": "value",
+        "required": true,
+        "placeholder": "polygon"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SSUBSCRIBE",
+    "syntax": "SSUBSCRIBE shardchannel [shardchannel ...]",
+    "category": "pubsub",
+    "description": "Listens for messages published to shard channels.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "shardchannel",
+        "type": "value",
+        "required": true,
+        "placeholder": "shardchannel",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZINTERCARD",
+    "syntax": "ZINTERCARD numkeys key [key ...] [LIMIT limit]",
+    "category": "sorted_set",
+    "description": "Returns the number of members of the intersect of multiple sorted sets.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "limit",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "MSETNX",
+    "syntax": "MSETNX key value",
+    "category": "string",
+    "description": "Atomically modifies the string values of one or more keys only when all keys don't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "LPOP",
+    "syntax": "LPOP key [count]",
+    "category": "list",
+    "description": "Returns and removes one or more elements from the beginning of a list. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SRANDMEMBER",
+    "syntax": "SRANDMEMBER key [count]",
+    "category": "set",
+    "description": "Get one or multiple random members from a set",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "HPEXPIRE",
+    "syntax": "HPEXPIRE key milliseconds [NX|XX|GT|LT] FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Set expiry time on hash object.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "ZREMRANGEBYSCORE",
+    "syntax": "ZREMRANGEBYSCORE key min max",
+    "category": "sorted_set",
+    "description": "Removes members in a sorted set within a range of scores. Deletes the sorted set if all members were removed.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ZUNIONSTORE",
+    "syntax": "ZUNIONSTORE destination numkeys key [key ...] [WEIGHTS weight [WEIGHTS weight ...]] [SUM|MIN|MAX]",
+    "category": "sorted_set",
+    "description": "Stores the union of multiple sorted sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "weight",
+        "type": "number",
+        "required": false,
+        "placeholder": "0",
+        "repeatable": true
+      },
+      {
+        "name": "aggregate",
+        "type": "value",
+        "required": false,
+        "placeholder": "SUM|MIN|MAX"
+      }
+    ]
+  },
+  {
+    "name": "SELECT",
+    "syntax": "SELECT index",
+    "category": "connection",
+    "description": "Changes the selected database.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "index",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "HPTTL",
+    "syntax": "HPTTL key FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Returns the remaining time to live in milliseconds of a hash key's field(s) that have an associated expiration.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LOLWUT",
+    "syntax": "LOLWUT [VERSION version]",
+    "category": "server",
+    "description": "Displays computer art and the server version",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "version",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "ZPOPMAX",
+    "syntax": "ZPOPMAX key [count]",
+    "category": "sorted_set",
+    "description": "Returns the highest-scoring members from a sorted set after removing them. Deletes the sorted set if the last member was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "XREADGROUP",
+    "syntax": "XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]",
+    "category": "stream",
+    "description": "Returns new or historical messages from a stream for a consumer in a group. Blocks until a message is available otherwise.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "group",
+        "type": "value",
+        "required": true,
+        "placeholder": "group"
+      },
+      {
+        "name": "consumer",
+        "type": "value",
+        "required": true,
+        "placeholder": "consumer"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "HSETNX",
+    "syntax": "HSETNX key field value",
+    "category": "hash",
+    "description": "Sets the value of a field in a hash only when the field doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "SORT",
+    "syntax": "SORT key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern ...]] [ASC|DESC] [ALPHA] [STORE destination]",
+    "category": "generic",
+    "description": "Sorts the elements in a list, a set, or a sorted set, optionally storing the result.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "by-pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "get-pattern",
+        "type": "pattern",
+        "required": false,
+        "placeholder": "*",
+        "repeatable": true
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": false,
+        "placeholder": "destination"
+      }
+    ]
+  },
+  {
+    "name": "SYNC",
+    "syntax": "SYNC",
+    "category": "server",
+    "description": "An internal command used in replication.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "BZPOPMIN",
+    "syntax": "BZPOPMIN key [key ...] timeout",
+    "category": "sorted_set",
+    "description": "Removes and returns the member with the lowest score from one or more sorted sets. Blocks until a member is available otherwise. Deletes the sorted set if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "DISCARD",
+    "syntax": "DISCARD",
+    "category": "transactions",
+    "description": "Discards a transaction.",
+    "tier": "read",
+    "parameters": []
+  },
+  {
+    "name": "HMSET",
+    "syntax": "HMSET key field value",
+    "category": "hash",
+    "description": "Sets the values of multiple fields.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "PFDEBUG",
+    "syntax": "PFDEBUG subcommand key",
+    "category": "hyperloglog",
+    "description": "Internal commands for debugging HyperLogLog values.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "subcommand",
+        "type": "value",
+        "required": true,
+        "placeholder": "subcommand"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "SLAVEOF",
+    "syntax": "SLAVEOF HOST-PORT|NO-ONE",
+    "category": "server",
+    "description": "Sets a server as a replica of another, or promotes it to being a primary.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "host-port",
+        "type": "value",
+        "required": true,
+        "placeholder": "host-port"
+      },
+      {
+        "name": "no-one",
+        "type": "value",
+        "required": true,
+        "placeholder": "no-one"
+      }
+    ]
+  },
+  {
+    "name": "GEOHASH",
+    "syntax": "GEOHASH key [member [member ...]]",
+    "category": "geo",
+    "description": "Returns members from a geospatial index as geohash strings.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "member",
+        "type": "value",
+        "required": false,
+        "placeholder": "member",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "HPEXPIRETIME",
+    "syntax": "HPEXPIRETIME key FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Returns the Unix timestamp in milliseconds since Unix epoch at which the given key's field(s) will expire",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SAVE",
+    "syntax": "SAVE",
+    "category": "server",
+    "description": "Synchronously saves the database(s) to disk.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "HINCRBYFLOAT",
+    "syntax": "HINCRBYFLOAT key field increment",
+    "category": "hash",
+    "description": "Increments the floating point value of a field by a number. Uses 0 as initial value if the field doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field"
+      },
+      {
+        "name": "increment",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "DEBUG",
+    "syntax": "DEBUG",
+    "category": "server",
+    "description": "A container for debugging commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "ZREVRANGEBYLEX",
+    "syntax": "ZREVRANGEBYLEX key max min [LIMIT offset count]",
+    "category": "sorted_set",
+    "description": "Returns members in a sorted set within a lexicographical range in reverse order.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "max",
+        "type": "value",
+        "required": true,
+        "placeholder": "max"
+      },
+      {
+        "name": "min",
+        "type": "value",
+        "required": true,
+        "placeholder": "min"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GETBIT",
+    "syntax": "GETBIT key offset",
+    "category": "bitmap",
+    "description": "Returns a bit value by offset.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "HTTL",
+    "syntax": "HTTL key FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Returns the remaining time to live (in seconds) of a hash key's field(s) that have an associated expiration.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "BGREWRITEAOF",
+    "syntax": "BGREWRITEAOF",
+    "category": "server",
+    "description": "Asynchronously rewrites the append-only file to disk.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "SPOP",
+    "syntax": "SPOP key [count]",
+    "category": "set",
+    "description": "Returns one or more random members from a set after removing them. Deletes the set if the last member was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "WATCH",
+    "syntax": "WATCH key [key ...]",
+    "category": "transactions",
+    "description": "Monitors changes to keys to determine the execution of a transaction.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "PEXPIREAT",
+    "syntax": "PEXPIREAT key unix-time-milliseconds [NX|XX|GT|LT]",
+    "category": "generic",
+    "description": "Sets the expiration time of a key to a Unix milliseconds timestamp.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      }
+    ]
+  },
+  {
+    "name": "PSYNC",
+    "syntax": "PSYNC replicationid offset",
+    "category": "server",
+    "description": "An internal command used in replication.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "replicationid",
+        "type": "value",
+        "required": true,
+        "placeholder": "replicationid"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SUBSTR",
+    "syntax": "SUBSTR key start end",
+    "category": "string",
+    "description": "Returns a substring from a string value.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "start",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "end",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "RPOP",
+    "syntax": "RPOP key [count]",
+    "category": "list",
+    "description": "Returns and removes one or more elements from the end of a list. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "BZPOPMAX",
+    "syntax": "BZPOPMAX key [key ...] timeout",
+    "category": "sorted_set",
+    "description": "Removes and returns the member with the highest score from one or more sorted sets. Blocks until a member available otherwise.  Deletes the sorted set if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "HRANDFIELD",
+    "syntax": "HRANDFIELD key [count [WITHVALUES]]",
+    "category": "hash",
+    "description": "Returns one or more random fields from a hash.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "SUNIONSTORE",
+    "syntax": "SUNIONSTORE destination key [key ...]",
+    "category": "set",
+    "description": "Stores the union of multiple sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "LINSERT",
+    "syntax": "LINSERT key BEFORE|AFTER pivot element",
+    "category": "list",
+    "description": "Inserts an element before or after another element in a list.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "where",
+        "type": "value",
+        "required": true,
+        "placeholder": "BEFORE|AFTER"
+      },
+      {
+        "name": "pivot",
+        "type": "value",
+        "required": true,
+        "placeholder": "pivot"
+      },
+      {
+        "name": "element",
+        "type": "value",
+        "required": true,
+        "placeholder": "element"
+      }
+    ]
+  },
+  {
+    "name": "SHUTDOWN",
+    "syntax": "SHUTDOWN [SAVE-SELECTOR-BLOCK|ABORT]",
+    "category": "server",
+    "description": "Synchronously saves the database(s) to disk and shuts down the server.",
+    "tier": "admin",
+    "parameters": [
+      {
+        "name": "save-selector-block",
+        "type": "value",
+        "required": false,
+        "placeholder": "save-selector-block"
+      }
+    ]
+  },
+  {
+    "name": "PSETEX",
+    "syntax": "PSETEX key milliseconds value",
+    "category": "string",
+    "description": "Sets both string value and expiration time in milliseconds of a key. The key is created if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "RENAMENX",
+    "syntax": "RENAMENX key newkey",
+    "category": "generic",
+    "description": "Renames a key only when the target key name doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "newkey",
+        "type": "key",
+        "required": true,
+        "placeholder": "newkey"
+      }
+    ]
+  },
+  {
+    "name": "FCALL",
+    "syntax": "FCALL function numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Invokes a function.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "function",
+        "type": "value",
+        "required": true,
+        "placeholder": "function"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SLOWLOG",
+    "syntax": "SLOWLOG",
+    "category": "server",
+    "description": "A container for slow log commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "SINTERSTORE",
+    "syntax": "SINTERSTORE destination key [key ...]",
+    "category": "set",
+    "description": "Stores the intersect of multiple sets in a key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "SETRANGE",
+    "syntax": "SETRANGE key offset value",
+    "category": "string",
+    "description": "Overwrites a part of a string value with another by an offset. Creates the key if it doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "PEXPIRETIME",
+    "syntax": "PEXPIRETIME key",
+    "category": "generic",
+    "description": "Returns the expiration time of a key as a Unix milliseconds timestamp.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "HEXPIRE",
+    "syntax": "HEXPIRE key seconds [NX|XX|GT|LT] FIELDS numfields field [field ...]",
+    "category": "hash",
+    "description": "Set expiry time on hash fields.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "seconds",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "condition",
+        "type": "value",
+        "required": false,
+        "placeholder": "NX|XX|GT|LT"
+      },
+      {
+        "name": "numfields",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "field",
+        "type": "value",
+        "required": true,
+        "placeholder": "field",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "EVALSHA_RO",
+    "syntax": "EVALSHA_RO sha1 numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Executes a read-only server-side Lua script by SHA1 digest.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "sha1",
+        "type": "value",
+        "required": true,
+        "placeholder": "sha1"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "WAIT",
+    "syntax": "WAIT numreplicas timeout",
+    "category": "generic",
+    "description": "Blocks until the asynchronous replication of all preceding write commands sent by the connection is completed.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "numreplicas",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "COMMAND",
+    "syntax": "COMMAND",
+    "category": "server",
+    "description": "Returns detailed information about all commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "LATENCY",
+    "syntax": "LATENCY",
+    "category": "server",
+    "description": "A container for latency diagnostics commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "ZPOPMIN",
+    "syntax": "ZPOPMIN key [count]",
+    "category": "sorted_set",
+    "description": "Returns the lowest-scoring members from a sorted set after removing them. Deletes the sorted set if the last member was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "XREAD",
+    "syntax": "XREAD [COUNT count] [BLOCK milliseconds] STREAMS key [key ...] id [id ...]",
+    "category": "stream",
+    "description": "Returns messages from multiple streams with IDs greater than the ones requested. Blocks until a message is available otherwise.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "MSET",
+    "syntax": "MSET key value",
+    "category": "string",
+    "description": "Atomically creates or modifies the string values of one or more keys.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "value",
+        "type": "value",
+        "required": true,
+        "placeholder": "value"
+      }
+    ]
+  },
+  {
+    "name": "EXEC",
+    "syntax": "EXEC",
+    "category": "transactions",
+    "description": "Executes all commands in a transaction.",
+    "tier": "mutating",
+    "parameters": []
+  },
+  {
+    "name": "RPOPLPUSH",
+    "syntax": "RPOPLPUSH source destination",
+    "category": "list",
+    "description": "Returns the last element of a list after removing and pushing it to another list. Deletes the list if the last element was popped.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      }
+    ]
+  },
+  {
+    "name": "EVAL_RO",
+    "syntax": "EVAL_RO script numkeys [key [key ...]] [arg [arg ...]]",
+    "category": "scripting",
+    "description": "Executes a read-only server-side Lua script.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "script",
+        "type": "value",
+        "required": true,
+        "placeholder": "script"
+      },
+      {
+        "name": "numkeys",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "key",
+        "type": "key",
+        "required": false,
+        "placeholder": "key",
+        "repeatable": true
+      },
+      {
+        "name": "arg",
+        "type": "value",
+        "required": false,
+        "placeholder": "arg",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "XPENDING",
+    "syntax": "XPENDING key group [[IDLE min-idle-time] start end count [consumer]]",
+    "category": "stream",
+    "description": "Returns the information and entries from a stream consumer group's pending entries list.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "group",
+        "type": "value",
+        "required": true,
+        "placeholder": "group"
+      },
+      {
+        "name": "min-idle-time",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "start",
+        "type": "value",
+        "required": false,
+        "placeholder": "start"
+      },
+      {
+        "name": "end",
+        "type": "value",
+        "required": false,
+        "placeholder": "end"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "consumer",
+        "type": "value",
+        "required": false,
+        "placeholder": "consumer"
+      }
+    ]
+  },
+  {
+    "name": "DECR",
+    "syntax": "DECR key",
+    "category": "string",
+    "description": "Decrements the integer value of a key by one. Uses 0 as initial value if the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      }
+    ]
+  },
+  {
+    "name": "COPY",
+    "syntax": "COPY source destination [DB destination-db] [REPLACE]",
+    "category": "generic",
+    "description": "Copies the value of a key to a new key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "source",
+        "type": "key",
+        "required": true,
+        "placeholder": "source"
+      },
+      {
+        "name": "destination",
+        "type": "key",
+        "required": true,
+        "placeholder": "destination"
+      },
+      {
+        "name": "destination-db",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "PSUBSCRIBE",
+    "syntax": "PSUBSCRIBE pattern [pattern ...]",
+    "category": "pubsub",
+    "description": "Listens for messages published to channels that match one or more patterns.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "pattern",
+        "type": "pattern",
+        "required": true,
+        "placeholder": "*",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "DECRBY",
+    "syntax": "DECRBY key decrement",
+    "category": "string",
+    "description": "Decrements a number from the integer value of a key. Uses 0 as initial value if the key doesn't exist.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "decrement",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      }
+    ]
+  },
+  {
+    "name": "GEORADIUS_RO",
+    "syntax": "GEORADIUS_RO key longitude latitude radius M|KM|FT|MI [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count [ANY]] [ASC|DESC]",
+    "category": "geo",
+    "description": "Returns members from a geospatial index that are within a distance from a coordinate.",
+    "tier": "read",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "longitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "latitude",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "radius",
+        "type": "number",
+        "required": true,
+        "placeholder": "0"
+      },
+      {
+        "name": "unit",
+        "type": "value",
+        "required": true,
+        "placeholder": "M|KM|FT|MI"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "order",
+        "type": "value",
+        "required": false,
+        "placeholder": "ASC|DESC"
+      }
+    ]
+  },
+  {
+    "name": "SCRIPT",
+    "syntax": "SCRIPT",
+    "category": "scripting",
+    "description": "A container for Lua scripts management commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "COMMANDLOG",
+    "syntax": "COMMANDLOG",
+    "category": "server",
+    "description": "A container for command log commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "CLIENT",
+    "syntax": "CLIENT",
+    "category": "connection",
+    "description": "A container for client connection commands.",
+    "tier": "admin",
+    "parameters": []
+  },
+  {
+    "name": "PFMERGE",
+    "syntax": "PFMERGE destkey [sourcekey [sourcekey ...]]",
+    "category": "hyperloglog",
+    "description": "Merges one or more HyperLogLog values into a single key.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "destkey",
+        "type": "key",
+        "required": true,
+        "placeholder": "destkey"
+      },
+      {
+        "name": "sourcekey",
+        "type": "key",
+        "required": false,
+        "placeholder": "sourcekey",
+        "repeatable": true
+      }
+    ]
+  },
+  {
+    "name": "XCLAIM",
+    "syntax": "XCLAIM key group consumer min-idle-time id [id ...] [IDLE ms] [TIME unix-time-milliseconds] [RETRYCOUNT count] [FORCE] [JUSTID] [LASTID lastid]",
+    "category": "stream",
+    "description": "Changes, or acquires, ownership of a message in a consumer group, as if the message was delivered a consumer group member.",
+    "tier": "mutating",
+    "parameters": [
+      {
+        "name": "key",
+        "type": "key",
+        "required": true,
+        "placeholder": "key"
+      },
+      {
+        "name": "group",
+        "type": "value",
+        "required": true,
+        "placeholder": "group"
+      },
+      {
+        "name": "consumer",
+        "type": "value",
+        "required": true,
+        "placeholder": "consumer"
+      },
+      {
+        "name": "min-idle-time",
+        "type": "value",
+        "required": true,
+        "placeholder": "min-idle-time"
+      },
+      {
+        "name": "id",
+        "type": "value",
+        "required": true,
+        "placeholder": "id",
+        "repeatable": true
+      },
+      {
+        "name": "ms",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "unix-time-milliseconds",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "placeholder": "0"
+      },
+      {
+        "name": "lastid",
+        "type": "value",
+        "required": false,
+        "placeholder": "lastid"
+      }
+    ]
+  },
+  {
+    "name": "XGROUP",
+    "syntax": "XGROUP",
+    "category": "stream",
+    "description": "A container for consumer groups commands.",
+    "tier": "mutating",
+    "parameters": []
+  },
+  {
+    "name": "UNWATCH",
+    "syntax": "UNWATCH",
+    "category": "transactions",
+    "description": "Forgets about watched keys of a transaction.",
+    "tier": "read",
+    "parameters": []
   }
 ]
-
