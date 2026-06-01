@@ -74,6 +74,192 @@ async function getScanKeyInfo(
   }
 }
 
+async function getPaginatedListInfo(
+  client: GlideClient | GlideClusterClient,
+  keyInfo: EnrichedKeyInfo,
+  commands: { sizeCmd: string },
+): Promise<EnrichedKeyInfo> {
+  try {
+    const [firstPage, collectionSize] = await Promise.all([
+      client.customCommand(["LRANGE", keyInfo.name, "0", (VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString()]),
+      client.customCommand([commands.sizeCmd, keyInfo.name]),
+    ]) as [string[], number]
+
+    const results: string[] = [...firstPage]
+    let offset = results.length
+
+    while (offset < collectionSize) {
+      const elements = await client.customCommand([
+        "LRANGE", keyInfo.name, offset.toString(), (offset + VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString(),
+      ]) as string[]
+      if (!elements || elements.length === 0) break
+      results.push(...elements)
+      offset += elements.length
+    }
+
+    return { ...keyInfo, collectionSize, elements: results }
+  } catch (err) {
+    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
+    return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+  }
+}
+
+async function getPaginatedStreamInfo(
+  client: GlideClient | GlideClusterClient,
+  keyInfo: EnrichedKeyInfo,
+  commands: { sizeCmd: string },
+): Promise<EnrichedKeyInfo> {
+  try {
+    const [firstPage, collectionSize] = await Promise.all([
+      client.customCommand(["XRANGE", keyInfo.name, "-", "+", "COUNT", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString()]),
+      client.customCommand([commands.sizeCmd, keyInfo.name]),
+    ]) as [GlideReturnType[][], number]
+
+    const results: GlideReturnType[][] = [...firstPage]
+
+    if (firstPage.length === VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
+      const lastId = firstPage[firstPage.length - 1][0] as string
+      let cursor = `(${lastId}`
+
+      while (true) {
+        const entries = await client.customCommand([
+          "XRANGE", keyInfo.name, cursor, "+", "COUNT", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
+        ]) as GlideReturnType[][]
+        if (!entries || entries.length === 0) break
+        results.push(...entries)
+        if (entries.length < VALKEY_CLIENT.ELEMENT_PAGE_SIZE) break
+        cursor = `(${entries[entries.length - 1][0] as string}`
+      }
+    }
+
+    return { ...keyInfo, collectionSize, elements: results }
+  } catch (err) {
+    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
+    return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+  }
+}
+
+type ZSetMember = { key: string; value: string | number }
+
+async function getPaginatedZSetInfo(
+  client: GlideClient | GlideClusterClient,
+  keyInfo: EnrichedKeyInfo,
+  commands: { sizeCmd: string },
+): Promise<EnrichedKeyInfo> {
+  // Builds one "page" query: members from `min` score upward, capped at PAGE_SIZE
+  const range = (min: string): string[] => [
+    "ZRANGE", keyInfo.name, min, "+inf", "BYSCORE", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(), "WITHSCORES",
+  ]
+
+  try {
+    // Grab the first page and the total member count at the same time.
+    const [firstPage, collectionSize] = await Promise.all([
+      client.customCommand(range("-inf")),
+      client.customCommand([commands.sizeCmd, keyInfo.name]),
+    ]) as [ZSetMember[], number]
+
+    const seen = new Set<string>() // member names we've already kept
+    const results: ZSetMember[] = []
+    // Adds only members we haven't seen yet; returns how many were new.
+    const addMembers = (page: ZSetMember[]): number => {
+      let added = 0
+      for (const member of page) {
+        if (!seen.has(member.key)) {
+          seen.add(member.key)
+          results.push(member)
+          added++
+        }
+      }
+      return added
+    }
+
+    addMembers(firstPage)
+    let lastPage = firstPage
+
+    // Keep paging until we have every member, or a page comes back not full (the end).
+    while (results.length < collectionSize && lastPage.length === VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
+      // Next page starts at the last score we saw. Including that score (not skipping it)
+      // means members tied on that score aren't lost — `seen` removes the repeats
+      const lastScore = String(lastPage[lastPage.length - 1].value)
+      const page = await client.customCommand(range(lastScore)) as ZSetMember[]
+      if (!page || page.length === 0) break
+
+      if (addMembers(page) === 0) {
+        // Page had no new members, so skip past this score
+        const next = await client.customCommand(range(`(${lastScore}`)) as ZSetMember[]
+        if (!next || next.length === 0) break
+        addMembers(next)
+        lastPage = next
+      } else {
+        lastPage = page
+      }
+    }
+
+    return { ...keyInfo, collectionSize, elements: results }
+  } catch (err) {
+    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
+    return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+  }
+}
+
+// JSON queries give back the value inside an array, like [value]. This returns just the value
+function unwrapJsonPathResult<T>(result: unknown): T {
+  return (Array.isArray(result) ? result[0] : result) as T
+}
+
+async function getPaginatedJsonInfo(
+  client: GlideClient | GlideClusterClient,
+  keyInfo: EnrichedKeyInfo,
+): Promise<EnrichedKeyInfo> {
+  try {
+    // Check the shape first, then read it the cheapest way
+    const rootType = unwrapJsonPathResult<string>(
+      await client.customCommand(["JSON.TYPE", keyInfo.name, "$"]),
+    )
+
+    // if array read it in slices, a page at a time
+    if (rootType === "array") {
+      const length = unwrapJsonPathResult<number>(
+        await client.customCommand(["JSON.ARRLEN", keyInfo.name, "$"]),
+      )
+      const elements: unknown[] = []
+      for (let start = 0; start < length; start += VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
+        const slice = await client.customCommand([
+          "JSON.GET", keyInfo.name, `$[${start}:${start + VALKEY_CLIENT.ELEMENT_PAGE_SIZE}]`,
+        ]) as string
+        // slice is already a flat array of items, so we don't unwrap it
+        const parsed = JSON.parse(slice) as unknown[]
+        if (!Array.isArray(parsed) || parsed.length === 0) break
+        elements.push(...parsed)
+      }
+      return { ...keyInfo, collectionSize: length, elements: JSON.stringify(elements) }
+    }
+
+    // if object get the field names, then fetch one value at a time
+    if (rootType === "object") {
+      const keys = unwrapJsonPathResult<string[]>(
+        await client.customCommand(["JSON.OBJKEYS", keyInfo.name, "$"]),
+      )
+      const obj: Record<string, unknown> = {}
+      for (const field of keys) {
+        // quote the field name so any characters in it are safe
+        const value = await client.customCommand([
+          "JSON.GET", keyInfo.name, `$[${JSON.stringify(field)}]`,
+        ]) as string
+        obj[field] = unwrapJsonPathResult(JSON.parse(value))
+      }
+      return { ...keyInfo, collectionSize: keys.length, elements: JSON.stringify(obj) }
+    }
+
+    // anything else (string, number, etc.) we just read it in one go
+    const value = await client.customCommand(["JSON.GET", keyInfo.name]) as string
+    return { ...keyInfo, elements: value }
+  } catch (err) {
+    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
+    return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+  }
+}
+
 async function getFullKeyInfo(
   client: GlideClient | GlideClusterClient,
   keyInfo: EnrichedKeyInfo,
@@ -132,16 +318,15 @@ export async function getKeyInfo(
     // Get collection size and elements for each type
     const elementCommands: Record<
       string,
-      { sizeCmd: string; elementsCmd: string[] }
+      { sizeCmd: string; elementsCmd?: string[] }
     > = {
-      list: { sizeCmd: "LLEN", elementsCmd: ["LRANGE", key, "0", "-1"] },
-      zset: {
-        sizeCmd: "ZCARD",
-        elementsCmd: ["ZRANGE", key, "0", "-1", "WITHSCORES"],
-      },
-      stream: { sizeCmd: "XLEN", elementsCmd: ["XRANGE", key, "-", "+"] },
+      // Paginated readers build their own commands, so they only need sizeCmd
+      list: { sizeCmd: "LLEN" },
+      zset: { sizeCmd: "ZCARD" },
+      stream: { sizeCmd: "XLEN" },
+      "rejson-rl": { sizeCmd: "" },
+      
       string: { sizeCmd: "", elementsCmd: ["GET", key] },
-      "rejson-rl": { sizeCmd: "", elementsCmd: ["JSON.GET", key] },
       // Scan
       set: { sizeCmd: "SCARD", elementsCmd: ["SSCAN", keyInfo.name] },
       hash: { sizeCmd: "HLEN", elementsCmd: ["HSCAN", keyInfo.name] },
@@ -165,9 +350,19 @@ export async function getKeyInfo(
     switch (keyType.toLowerCase()) {
       case "set":
       case "hash":
-        return await getScanKeyInfo(client, keyInfo, commands)
+        if (!commands.elementsCmd) return keyInfo
+        return await getScanKeyInfo(client, keyInfo, { ...commands, elementsCmd: commands.elementsCmd })
+      case "list":
+        return await getPaginatedListInfo(client, keyInfo, commands)
+      case "stream":
+        return await getPaginatedStreamInfo(client, keyInfo, commands)
+      case "zset":
+        return await getPaginatedZSetInfo(client, keyInfo, commands)
+      case "rejson-rl":
+        return await getPaginatedJsonInfo(client, keyInfo)
       default:
-        return await getFullKeyInfo(client, keyInfo, commands)
+        if (!commands.elementsCmd) return keyInfo
+        return await getFullKeyInfo(client, keyInfo, { ...commands, elementsCmd: commands.elementsCmd })
     }
 
   } catch (err) {
