@@ -173,6 +173,19 @@ export async function writeBulkKeys(client, dbIndex, totalKeys) {
   }
 }
 
+async function flushCurrentDatabase(client) {
+  if (Array.isArray(client.masters)) {
+    await Promise.all(
+      client.masters.map(async node => {
+        const nodeClient = await client.nodeClient(node)
+        await nodeClient.sendCommand(["FLUSHDB"])
+      }),
+    )
+    return
+  }
+  await client.sendCommand(["FLUSHDB"])
+}
+
 /**
  * Orchestrate a full per-database seed: `FLUSHDB` → sample dataset → bulk load.
  *
@@ -201,7 +214,7 @@ export async function writeBulkKeys(client, dbIndex, totalKeys) {
  */
 export async function seedDatabase(client, dbIndex, { bulkKeys }) {
   console.log(`[db${dbIndex}] flushing database`)
-  await client.flushDb()
+  await flushCurrentDatabase(client)
 
   await writeSampleDataset(client, dbIndex)
 
@@ -254,12 +267,14 @@ export async function selectDatabase(client, dbIndex) {
  */
 export async function assertConfiguredDatabases(client, requestedDbCount, isCluster) {
   const key = isCluster ? "cluster-databases" : "databases"
-  const result = await client.sendCommand(["CONFIG", "GET", key])
+  const result = isCluster
+    ? await client.sendCommand(undefined, false, ["CONFIG", "GET", key])
+    : await client.sendCommand(["CONFIG", "GET", key])
   let configured = parseConfigGetValue(result, key)
   if (configured === undefined && isCluster) {
     // Older cluster configurations may report only "databases" even with
     // cluster mode on. Fall back before giving up.
-    const fallback = await client.sendCommand(["CONFIG", "GET", "databases"])
+    const fallback = await client.sendCommand(undefined, false, ["CONFIG", "GET", "databases"])
     configured = parseConfigGetValue(fallback, "databases")
   }
   if (configured === undefined) {
@@ -297,15 +312,17 @@ export async function assertConfiguredDatabases(client, requestedDbCount, isClus
  * @returns {Promise<void>}
  */
 export async function assertClusterVersion(cluster) {
-  const info = await cluster.sendCommand(["INFO", "server"])
+  const info = await cluster.sendCommand(undefined, false, ["INFO", "server"])
   const body = typeof info === "string" ? info : String(info)
-  const match = /\b(redis|valkey)_version:(\d+)\.(\d+)\.(\d+)/i.exec(body)
+  const match =
+    /\bvalkey_version:(\d+)\.(\d+)\.(\d+)/i.exec(body) ||
+    /\bredis_version:(\d+)\.(\d+)\.(\d+)/i.exec(body)
   if (!match) {
     throw new Error(`Could not parse Valkey version from INFO server output`)
   }
-  const major = match[2]
-  const minor = match[3]
-  const patch = match[4]
+  const major = match[1]
+  const minor = match[2]
+  const patch = match[3]
   const detected = `${major}.${minor}.${patch}`
   if (Number(major) < 9) {
     throw new Error(
