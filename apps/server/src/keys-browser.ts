@@ -180,10 +180,10 @@ async function getPaginatedZSetInfo(
     // members lexicographically with BYLEX, resuming just past the last one we kept.
     // BYLEX can't return scores (WITHSCORES is rejected), but every member in this
     // range shares `score`, so we re-attach it ourselves.
-    const drainTiedScore = async (score: string, afterMember: string, keptAtScore: number): Promise<void> => {
+    const drainTiedScore = async (score: string, lastScannedAtScoreKey: string, keptAtScore: number): Promise<void> => {
       const tiedCount = await client.customCommand(["ZCOUNT", keyInfo.name, score, score]) as number
       let remaining = tiedCount - keptAtScore
-      let lexCursor = `(${afterMember}` // exclusive, so we don't re-read the last kept member
+      let lexCursor = `(${lastScannedAtScoreKey}` // exclusive, so we don't re-read the last kept member
       while (remaining > 0) {
         const members = await client.customCommand([
           ...commands.elementsCmd, lexCursor, "+", "BYLEX", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
@@ -213,12 +213,12 @@ async function getPaginatedZSetInfo(
       if (addMembers(page) === 0) {
         // A full page with no new members means this score is tied beyond the page size.
         // Drain the rest of it lexicographically with BYLEX, then resume past the score.
-        const keptAtScore = results.reduce((n, m) => (String(m.value) === lastScore ? n + 1 : n), 0)
-        await drainTiedScore(lastScore, page[page.length - 1].key, keptAtScore)
-        const next = await client.customCommand(buildZRangeByScoreArgs(`(${lastScore}`)) as ZSetMember[]
-        if (!next || next.length === 0) break
-        addMembers(next)
-        lastPage = next
+        const scannedAtScoreCount = results.reduce((n, m) => (String(m.value) === lastScore ? n + 1 : n), 0)
+        await drainTiedScore(lastScore, page[page.length - 1].key, scannedAtScoreCount)
+        const matchingLastScoreCount = await client.customCommand(buildZRangeByScoreArgs(`(${lastScore}`)) as ZSetMember[]
+        if (!matchingLastScoreCount || matchingLastScoreCount.length === 0) break
+        addMembers(matchingLastScoreCount)
+        lastPage = matchingLastScoreCount
       } else {
         lastPage = page
       }
