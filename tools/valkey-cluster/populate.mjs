@@ -1,69 +1,58 @@
-import * as R from "ramda"
 import { createCluster } from "@valkey/client"
-import { setTimeout as sleep } from "timers/promises"
+import {
+  parseEnv,
+  seedDatabase,
+  assertConfiguredDatabases,
+  assertClusterVersion,
+  wrapDbError,
+} from "../common/populate-helpers.mjs"
+
+const ROOT_NODES = [
+  { url: `valkey://${process.env.VALKEY_START_NODE ?? "valkey-7001:7001"}` },
+]
 
 async function main() {
-  const TOTAL_KEYS = 100000
-  const BATCH_SIZE = 1000
+  const { dbCount, bulkKeys } = parseEnv()
 
-  const startup = process.env.VALKEY_START_NODE || "valkey-node-0:6379"
-  const [host, portStr] = startup.split(":")
-  const port = Number(portStr)
-
-  const cluster = createCluster({
-    rootNodes: [{ url: `valkey://${host}:${port}` }],
-    defaults: { socket: { connectTimeout: 5000 } },
+  // Probe connection: validate the cluster's Valkey version meets the
+  // multi-database baseline and that the deployment is configured for at
+  // least `dbCount` logical databases. The probe pins itself to database 0
+  // so the version/CONFIG queries are safe on pre-multi-DB clusters.
+  const probe = createCluster({
+    rootNodes: ROOT_NODES,
+    defaults: { database: 0, socket: { connectTimeout: 5000 } },
   })
-  cluster.on("error", e => console.error("Valkey error:", e))
-  await cluster.connect()
-
-  const I = R.range(1, 6)
-
-  // --- keep your existing keys ---
-  const geoPoints = [
-    { member: "London",  longitude: -0.1278, latitude:  51.5074 },
-    { member: "Paris",   longitude:  2.3522, latitude:  48.8566 },
-    { member: "NewYork", longitude: -74.0060, latitude: 40.7128 },
-    { member: "Tokyo",   longitude: 139.6917, latitude: 35.6895 },
-    { member: "Sydney",  longitude: 151.2093, latitude: -33.8688 },
-  ]
-
-  await Promise.all([
-    ...I.map(i => cluster.set(`string:${i}`, `value_${i}`)),
-    ...I.map(i => cluster.rPush("list", `item_${i}`)),
-    ...I.map(i => cluster.sAdd("set", `member_${i}`)),
-    ...I.map(i => cluster.hSet("hash", { [`field_${i}`]: `value_${i}` })),
-    ...I.map(i => cluster.zAdd("zset", [{ score: i, value: `zmember_${i}` }])),
-    ...geoPoints.map(p => cluster.geoAdd("geo", p)),
-    ...I.map(i => cluster.setBit("bitmap", i, 1)),
-  ])
-
-  // streams gotta be sequential
-  for (let i = 1; i <= 5; i++) {
-    await cluster.xAdd("stream", "*", { sensor: `${1000 + i}`, value: `${20 + i}` })
-    await sleep(50) // sleep here is to make each xAdd get a unique, increasing timestamp
-
+  probe.on("error", e => console.error("Valkey error:", e))
+  await probe.connect()
+  try {
+    await assertClusterVersion(probe)
+    await assertConfiguredDatabases(probe, dbCount, true)
+  } finally {
+    await probe.quit()
   }
 
-  console.log("Loaded initial entries for all Valkey data types.")
-
-  console.log(`Adding ${TOTAL_KEYS} additional string keys in batches of ${BATCH_SIZE}...`)
-
-  for (let start = 1; start <= TOTAL_KEYS; start += BATCH_SIZE) {
-    const batchEnd = Math.min(start + BATCH_SIZE - 1, TOTAL_KEYS)
-    const promises = []
-
-    for (let i = start; i <= batchEnd; i++) {
-      promises.push(cluster.set(`bulk:key:${i}`, `value_${i}`))
+  // Per-DB seed: reconnect with `defaults.database = d` so every pooled node
+  // connection issues `SELECT d` on connect. The pool is short-lived (one
+  // database's worth of writes), so any reconnects within the pool also
+  // re-select. See design.md → Components and Interfaces / Top-level
+  // orchestration (cluster).
+  for (let d = 0; d < dbCount; d++) {
+    const cluster = createCluster({
+      rootNodes: ROOT_NODES,
+      defaults: { database: d, socket: { connectTimeout: 5000 } },
+    })
+    cluster.on("error", e => console.error(`[db${d}] valkey error:`, e))
+    await cluster.connect()
+    try {
+      await seedDatabase(cluster, d, { bulkKeys })
+    } catch (err) {
+      throw wrapDbError(err, d)
+    } finally {
+      await cluster.quit()
     }
-
-    await Promise.all(promises)
-    console.log(`Created keys ${start} → ${batchEnd}`)
   }
 
-  console.log("All additional string keys created successfully.")
   console.log(`Connect to your cluster using host: ${process.env.ANNOUNCE_HOST}`)
-  await cluster.quit()
 }
 
 main().catch(err => { console.error(err); process.exit(1) })

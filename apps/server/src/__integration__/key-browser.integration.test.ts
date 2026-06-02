@@ -5,8 +5,9 @@ import { sanitizeUrl, VALKEY } from "valkey-common"
 import { WsClient } from "./harness/wsClient"
 import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 
-// Keys seeded by `tools/valkey-cluster/populate.mjs`.
-const SEEDED_STRING_KEYS = ["string:1", "string:2", "string:3", "string:4", "string:5"] as const
+// Keys seeded by `tools/valkey-cluster/populate.mjs` for database 0.
+// Every database `d` carries the same shape under the `db<d>` tag
+const SEEDED_STRING_KEYS = ["string:db0:1", "string:db0:2", "string:db0:3", "string:db0:4", "string:db0:5"] as const
 
 describe("integration / key browser", async () => {
   const ws = await WsClient.connect(WS_URL)

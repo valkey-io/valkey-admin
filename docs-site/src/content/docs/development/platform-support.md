@@ -13,6 +13,7 @@ Valkey Admin works with all versions of Valkey. Some features require newer vers
 |---------|----------------|----------------------|
 | Command Logs (slow commands, large requests/replies) | Valkey 8.1+ | — |
 | Hot Slots Detection | Valkey 8.0+ | `cluster-slot-stats-enabled yes` + LFU eviction policy |
+| Multiple logical databases in cluster mode | Valkey 9.0+ | `--cluster-databases <n>` on every cluster node |
 
 Monitor-based hot keys detection works with any Valkey version.
 

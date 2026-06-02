@@ -23,6 +23,7 @@ services:
       --port 7001
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7001
@@ -54,6 +55,7 @@ services:
       --port 7002
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7002
@@ -85,6 +87,7 @@ services:
       --port 7003
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7003
@@ -116,6 +119,7 @@ services:
       --port 7004
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7004
@@ -147,6 +151,7 @@ services:
       --port 7005
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7005
@@ -178,6 +183,7 @@ services:
       --port 7006
       --bind 0.0.0.0
       --cluster-enabled yes
+      --cluster-databases 16
       --cluster-config-file nodes.conf
       --cluster-node-timeout 5000
       --cluster-announce-port 7006
@@ -224,9 +230,10 @@ services:
     depends_on:
       cluster-init:
         condition: service_completed_successfully
-    working_dir: /app
+    working_dir: /app/valkey-cluster
     volumes:
-      - ../tools/valkey-cluster/populate.mjs:/app/populate.mjs:ro
+      - ../tools/valkey-cluster/populate.mjs:/app/valkey-cluster/populate.mjs:ro
+      - ../tools/common/populate-helpers.mjs:/app/common/populate-helpers.mjs:ro
     environment:
       VALKEY_START_NODE: "valkey-7001:7001"
     networks:
@@ -234,7 +241,6 @@ services:
     command: >
       sh -c "
         npm -s install @valkey/client >/dev/null 2>&1 &&
-        npm -s install ramda >/dev/null 2>&1 &&
         node populate.mjs
       "
 

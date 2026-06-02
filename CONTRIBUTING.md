@@ -133,6 +133,16 @@ cd tools/valkey-cluster
 docker compose down -v
 ```
 
+### Local Valkey seed data
+
+Both `tools/valkey-cluster` and `tools/valkey-standalone` expose **16 logical databases** by default, and the bundled `populate.mjs` scripts iterate every configured database and seed each one with the typed sample dataset (string, list, set, hash, sorted set, geo, bitmap, stream) plus a 100,000-key bulk string load. 
+
+Keys and string values carry a `db<d>` tag (for example `string:db3:1` with value `value_db3_1`, and `bulk:db3:42` with value `value_db3_42`) so each database is visibly distinguishable in the UI. 
+
+To shrink startup cost, set `POPULATE_DB_COUNT` (positive integer, default `16`) to limit how many databases are seeded, and `POPULATE_BULK_KEYS` (non-negative integer, default `100000`; `0` skips the bulk load) to shrink the per-database load. 
+
+See [`tools/README.md`](./tools/README.md) for the full reference.
+
 ## IDE Setup
 
 ### VSCode
