@@ -197,3 +197,82 @@ export async function getClusterSlotStatsEnabled(clusterClient: GlideClusterClie
   }
 }
 
+/**
+ * Parsed Server_Version from `INFO server` (`redis_version` / `valkey_version`).
+ *
+ * `null` is returned when neither field is present or the value is unparseable.
+ * Pre-release suffixes (e.g. `9.0.0-rc1`) are stripped before parsing so a
+ * pre-release of 9.0.0 still parses to `{ major: 9, minor: 0, patch: 0 }`.
+ */
+export type ServerVersion = { major: number; minor: number; patch: number }
+
+/**
+ * Parse a raw version string into `{ major, minor, patch }`.
+ *
+ * Strips anything after the first non-digit/non-dot character before parsing
+ * so pre-release suffixes (e.g. `9.0.0-rc1`) are tolerated. Missing minor/patch
+ * components default to `0`. Returns `null` when no leading digits exist or
+ * any component fails to parse as an integer.
+ */
+export const parseVersionString = (raw: string): ServerVersion | null => {
+  const cleaned = raw.trim().match(/^[0-9.]+/)?.[0]
+  if (!cleaned) return null
+
+  const [majorPart, minorPart, patchPart] = cleaned.split(".")
+  const major = majorPart ? Number(majorPart) : NaN
+  const minor = minorPart ? Number(minorPart) : 0
+  const patch = patchPart ? Number(patchPart) : 0
+
+  if (
+    !Number.isInteger(major) ||
+    !Number.isInteger(minor) ||
+    !Number.isInteger(patch)
+  ) {
+    return null
+  }
+
+  return { major, minor, patch }
+}
+
+/**
+ * Read `INFO server` from the supplied client and return the parsed Server_Version.
+ *
+ * Prefers `valkey_version` because Valkey servers also expose a legacy
+ * `redis_version` field (typically a Redis-compat version like 7.4.0) for
+ * client compatibility, which would underreport the actual server version
+ * for gating purposes. Falls back to `redis_version` for plain Redis servers
+ * that don't emit `valkey_version`. Returns `null` when neither field is
+ * present or the value is unparseable; callers should treat `null` as
+ * "below 9.0.0" via `supportsClusterDb`.
+ */
+export async function getServerVersion(
+  client: GlideClient | GlideClusterClient,
+): Promise<ServerVersion | null> {
+  try {
+    const infoResponse = await client.info([InfoOptions.Server])
+    // Server_Version is identical across cluster nodes, so any node's response works.
+    const anyNode =
+      typeof infoResponse === "string"
+        ? infoResponse
+        : Object.values(infoResponse)[0]
+    if (typeof anyNode !== "string") return null
+
+    const parsed = parseInfo(anyNode)
+    const versionString = parsed["valkey_version"] ?? parsed["redis_version"]
+    if (!versionString) return null
+
+    return parseVersionString(versionString)
+  } catch (err) {
+    console.warn("Unable to get server version: ", err)
+    return null
+  }
+}
+
+/**
+ * Cluster gating helper: cluster mode honors a non-zero Database_Index only on
+ * Valkey/Redis Server_Version `>= 9.0.0`. Returns `true` only when a parsed
+ * version is supplied and its `major` is at least `9`.
+ */
+export const supportsClusterDb = (v: ServerVersion | null): boolean =>
+  v !== null && v.major >= 9
+

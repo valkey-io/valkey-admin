@@ -1,6 +1,6 @@
 import { after, describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { sanitizeUrl, VALKEY } from "valkey-common"
+import { buildConnectionId, VALKEY } from "valkey-common"
 import { WsClient } from "./harness/wsClient"
 import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 
@@ -13,7 +13,7 @@ describe("integration / send command", async () => {
 
   it("PING returns PONG via sendFulfilled", async () => {
     const connectionDetails = defaultConnectionDetails()
-    const connectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+    const connectionId = buildConnectionId(connectionDetails.host, connectionDetails.port, 0)
 
     ws.send({
       type: VALKEY.CONNECTION.connectPending,

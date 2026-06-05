@@ -9,10 +9,10 @@
     "email": "admin@valkey.io"
   },
   "workspaces": [
+    "common",
     "apps/frontend",
     "apps/server",
-    "apps/metrics",
-    "common"
+    "apps/metrics"
   ],
   "main": "apps/frontend/electron.main.js",
   "devDependencies": {

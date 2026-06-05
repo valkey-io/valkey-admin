@@ -25,6 +25,7 @@ async function main() {
       epics: cfg.epics?.map(({ name, type, file_prefix }) => ({ name, type, file_prefix })),
     }))
   }
+
   const client = await createValkeyClient(cfg)
   const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
 

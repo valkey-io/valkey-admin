@@ -11,9 +11,38 @@ volumes:
   valkey-7004:
   valkey-7005:
   valkey-7006:
+  valkey-standalone:
 
 
 services:
+  # ---------------- Standalone Valkey (used by db-aware integration tests) ----------------
+  # A plain (non-cluster) Valkey instance reachable from the app on the same
+  # docker network. The integration test in
+  # `apps/server/src/__integration__/connection.integration.test.ts` connects
+  # to this instance twice with different `db` indices to verify that
+  # `(host, port, db)` triples produce isolated clients.
+  valkey-standalone:
+    image: valkey/valkey:latest
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    command: >
+      valkey-server
+      --port 6379
+      --bind 0.0.0.0
+      --appendonly no
+      --protected-mode no
+      --ignore-warnings ARM64-COW-BUG
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "6379", "PING"]
+      interval: 2s
+      timeout: 1s
+      retries: 30
+    ports: ["6379:6379"]
+    volumes:
+      - valkey-standalone:/data
+    networks:
+      - appnet
+
+
   # ---------------- Valkey Cluster Nodes ----------------
   valkey-7001:
     image: valkey/valkey-bundle:latest
@@ -30,6 +59,7 @@ services:
       --cluster-announce-bus-port 17001
       --cluster-announce-hostname valkey-7001
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -62,6 +92,7 @@ services:
       --cluster-announce-bus-port 17002
       --cluster-announce-hostname valkey-7002
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -94,6 +125,7 @@ services:
       --cluster-announce-bus-port 17003
       --cluster-announce-hostname valkey-7003
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -126,6 +158,7 @@ services:
       --cluster-announce-bus-port 17004
       --cluster-announce-hostname valkey-7004
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -158,6 +191,7 @@ services:
       --cluster-announce-bus-port 17005
       --cluster-announce-hostname valkey-7005
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -190,6 +224,7 @@ services:
       --cluster-announce-bus-port 17006
       --cluster-announce-hostname valkey-7006
       --cluster-preferred-endpoint-type hostname
+      --cluster-databases 16
       --appendonly no
       --protected-mode no
       --ignore-warnings ARM64-COW-BUG
@@ -269,6 +304,7 @@ services:
       - valkey-7004
       - valkey-7005
       - valkey-7006
+      - valkey-standalone
       - cluster-init
       - populate
       

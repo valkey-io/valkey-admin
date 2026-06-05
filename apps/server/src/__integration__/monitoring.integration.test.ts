@@ -1,6 +1,6 @@
 import { after, describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { VALKEY, MONITOR_ACTION, sanitizeUrl } from "valkey-common"
+import { VALKEY, MONITOR_ACTION, buildConnectionId } from "valkey-common"
 import { WsClient } from "./harness/wsClient"
 import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 
@@ -12,7 +12,7 @@ import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 describe("integration / monitoring (cluster fan-out)", async () => {
   const ws = await WsClient.connect(WS_URL)
   const connectionDetails = defaultConnectionDetails()
-  const connectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+  const connectionId = buildConnectionId(connectionDetails.host, connectionDetails.port, 0)
   let clusterId: string | undefined
 
   after(async () => {

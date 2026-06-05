@@ -19,6 +19,14 @@ Valkey Admin works with all supported Valkey versions. Some features are version
 - **Command Logs** (slow commands, large requests/replies) require Valkey 8.1+.
 - **Hot Slots detection** requires Valkey 8.0+ with `cluster-slot-stats-enabled` set to `yes`.
 
+## Connections
+
+The Add Connection modal accepts both single-node and cluster discovery endpoints. Notable fields:
+
+- **Database** — Pick a logical database from the `DB 0` through `DB 15` dropdown (16 options). Defaults to `DB 0`. The field is locked to `DB 0` when the cluster discovery endpoint is selected.
+
+For the full walkthrough see the [connection docs](https://valkey-admin.valkey.io/configuration/shared/).
+
 ## Getting Started
 
 **Documentation:** [valkey-admin.valkey.io](https://valkey-admin.valkey.io/introduction/)

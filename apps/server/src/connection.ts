@@ -2,14 +2,16 @@ import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials, Servic
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { sanitizeUrl } from "valkey-common"
+import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl } from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
   getExistingClusterClient, 
   getClusterSlotStatsEnabled, 
   getKeyEvictionPolicy, 
+  getServerVersion,
   parseInfo, 
-  resolveHostnameOrIpAddress } from "./utils"
+  resolveHostnameOrIpAddress,
+  supportsClusterDb } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { 
@@ -66,6 +68,42 @@ const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
 // Test-only: reset in-flight state between cases.
 export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
 
+/**
+ * Default Valkey/Redis `databases` count when the server's `CONFIG GET databases`
+ * response is missing or unparseable. Mirrors the upstream default (16).
+ */
+const DEFAULT_DATABASES_COUNT = 16
+
+/**
+ * Read the connected standalone server's configured `databases` count via
+ * `CONFIG GET databases`. Returns the parsed integer when present and parseable;
+ * otherwise returns the upstream default of 16.
+ */
+async function getDatabasesCount(client: GlideClient): Promise<number> {
+  try {
+    const raw = (await client.configGet(["databases"]))?.["databases"]
+    const parsed = raw !== undefined ? Number.parseInt(String(raw), 10) : NaN
+    if (Number.isInteger(parsed) && parsed >= 1) return parsed
+  } catch (err) {
+    console.warn("Unable to read `databases` from CONFIG GET; defaulting to 16:", err)
+  }
+  return DEFAULT_DATABASES_COUNT
+}
+
+/**
+ * Typed error used to short-circuit `connectToValkeyLocked` for Database_Index
+ * configuration problems (invalid shape, out of range, cluster gating). The
+ * existing catch block in the locked function performs the cleanup
+ * (close standaloneClient, drop the Client_Map entry, send `connectRejected`),
+ * so callers throw this to preserve those invariants.
+ */
+class ConnectionRejectedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ConnectionRejectedError"
+  }
+}
+
 // Per-connectionId mutex around the entire connectToValkey body. The second connector enters
 // only after the first has fully committed (or failed), at which point the
 // getExistingConnection path below reuses the committed
@@ -114,7 +152,9 @@ async function connectToValkeyLocked(
     host, port, username, password, tls: useTLS,
     verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
   } = payload.connectionDetails
-  
+
+  const db = payload.connectionDetails.db
+
   const { connectionId } = payload
   const addresses = [
     {
@@ -137,6 +177,12 @@ async function connectToValkeyLocked(
   let standaloneClient: GlideClient | undefined
 
   try {
+    if (!isValidDatabaseIndex(db)) {
+      throw new ConnectionRejectedError(
+        "Invalid Database_Index: must be a non-negative integer",
+      )
+    }
+
     // If retrying, we need to close stale client
     if (payload.isRetry) {
       const existing = clients.get(connectionId)
@@ -191,14 +237,30 @@ async function connectToValkeyLocked(
     // The finally block below ensures we close this gate on every exit path.
     clients.set(connectionId, { client: standaloneClient })
 
-    // In K8s or Web, metrics servers register themselves.
-    if (!isKubernetes && !metricsServerMap.has(payload.connectionId)) {
-      await startMetricsServer(payload.connectionDetails, payload.connectionId)
-    }
-      
-    if (await belongsToCluster(standaloneClient)) {
+    // Detect cluster mode and Server_Version on the probe BEFORE issuing any
+    // `SELECT`. This is required for cluster gating: cluster nodes reject
+    // `SELECT N` for any N (even 0), so we cannot bind the probe to a `db`
+    // without losing the chance to surface a friendly version-gating error.
+    const isCluster = await belongsToCluster(standaloneClient)
+    const serverVersion = isCluster ? await getServerVersion(standaloneClient) : null
+
+    if (isCluster) {
       let shouldCloseClusterClientOnError
       let ownInflight: Promise<GlideClusterClient> | undefined
+
+      // Cluster gating: cluster mode honors a non-zero Database_Index only on
+      // Valkey/Redis Server_Version >= 9.0.0. Detect the version
+      // on the discovery client before tearing it down.
+      const clusterDbSupported = supportsClusterDb(serverVersion)
+      if (!clusterDbSupported && db > 0) {
+        const versionLabel = serverVersion
+          ? `${serverVersion.major}.${serverVersion.minor}.${serverVersion.patch}`
+          : "unknown"
+        throw new ConnectionRejectedError(
+          `Cluster server version ${versionLabel} does not support a non-zero Database_Index`,
+        )
+      }
+      const clusterDatabaseId = clusterDbSupported ? db : 0
 
       const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
       standaloneClient.close()
@@ -214,7 +276,13 @@ async function connectToValkeyLocked(
           clusterClient = await inflight
           shouldCloseClusterClientOnError = false
         } else {
-          ownInflight = createClusterValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+          ownInflight = createClusterValkeyClient({
+            addresses,
+            credentials,
+            useTLS,
+            verifyTlsCertificate,
+            databaseId: clusterDatabaseId,
+          })
           inFlightClusterClients.set(clusterId, ownInflight)
           try {
             clusterClient = await ownInflight
@@ -262,6 +330,46 @@ async function connectToValkeyLocked(
           }
         }
       }
+    }
+
+    // Standalone path. Issue `SELECT` against the configured database AFTER
+    // we know the server is standalone (cluster mode rejects `SELECT`). For
+    // db > 0 we need to rebuild the client so Glide binds the connection to
+    // the requested database.
+    if (db > 0) {
+      const previousProbe = standaloneClient
+      // Detach the probe from the registry first so the catch block doesn't
+      // double-close it if recreation fails below.
+      if (clients.get(connectionId)?.client === previousProbe) {
+        clients.delete(connectionId)
+      }
+      try { previousProbe.close() } catch (err) {
+        console.error(`Error closing standalone probe for ${connectionId}:`, err)
+      }
+      standaloneClient = await createStandaloneValkeyClient({
+        addresses,
+        credentials,
+        useTLS,
+        verifyTlsCertificate,
+        databaseId: db,
+      })
+      clients.set(connectionId, { client: standaloneClient })
+    }
+
+    // Range-check the supplied Database_Index against the server's configured
+    // `databases` count. Done after the client is connected
+    // because only the live server knows its `databases` value (different
+    // nodes can be configured differently).
+    const databasesCount = await getDatabasesCount(standaloneClient)
+    if (db >= databasesCount) {
+      throw new ConnectionRejectedError(
+        `Database_Index ${db} is out of range (server allows 0..${databasesCount - 1})`,
+      )
+    }
+
+    // In K8s or Web, metrics servers register themselves.
+    if (!isKubernetes && !metricsServerMap.has(payload.connectionId)) {
+      await startMetricsServer(payload.connectionDetails, payload.connectionId)
     }
 
     console.log("Connected to standalone")
@@ -332,6 +440,10 @@ export async function discoverTopology(
 
   let client: GlideClient | undefined
   try {
+    // Cluster discovery is read-only `CLUSTER SLOTS` against the seed node;
+    // database selection is irrelevant for cluster commands. Skip
+    // `databaseId` entirely so Glide does not issue `SELECT` (cluster nodes
+    // reject `SELECT` even for db 0).
     client = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
     const { discoveredClusterNodes } = await discoverCluster(client, { connectionDetails })
     if (Object.keys(discoveredClusterNodes).length < 1) {
@@ -511,13 +623,14 @@ export async function getExistingConnection(
 
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
   // Prevent duplicate connections: 
-  // 1) True if any resolved host:port is already connected
+  // 1) True if any resolved host:port:db is already connected
   // 2) Or if this connectionId already exists as a standalone connection
 
   if (clients.has(connectionId)) return clients.get(connectionId)
-  
+
+  const db = connectionDetails.db
   const existingConnectionId = resolvedAddresses
-    .map((address) => sanitizeUrl(`${address}:${connectionDetails.port}`))
+    .map((address) => buildConnectionId(address, connectionDetails.port, db))
     .find((key) => clients.has(key))
 
   return existingConnectionId ? clients.get(existingConnectionId) : undefined

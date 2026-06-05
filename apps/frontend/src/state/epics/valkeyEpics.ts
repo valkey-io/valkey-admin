@@ -3,7 +3,7 @@ import { ignoreElements, tap, delay, switchMap, mergeMap, catchError, filter, ta
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
 import { toast } from "sonner"
-import { sanitizeUrl } from "@common/src/url-utils"
+import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
 import {
   standaloneConnectFulfilled,
@@ -131,7 +131,7 @@ export const connectionEpic = (store: Store) =>
         const firstNode = Object.values(clusterNodes)[0]
         if (!firstNode) return
 
-        const connectionId = sanitizeUrl(`${firstNode.host}-${firstNode.port}`)
+        const connectionId = buildConnectionId(firstNode.host, firstNode.port, discovery.connectionDetails.db)
         store.dispatch(connectPending({
           connectionId,
           connectionDetails: {
@@ -156,7 +156,7 @@ export const connectionEpic = (store: Store) =>
         const alias = import.meta.env.VITE_LOCAL_VALKEY_NAME
 
         if (host && port) {
-          const connectionId = sanitizeUrl(`${host}-${port}`)
+          const connectionId = buildConnectionId(host, port, 0)
 
           store.dispatch(connectPending({
             connectionDetails: {
@@ -165,8 +165,10 @@ export const connectionEpic = (store: Store) =>
               username: "",
               password: "",
               tls: false,
-              verifyTlsCertificate: false, 
+              verifyTlsCertificate: false,
               alias: alias || "Valkey Cluster",
+              endpointType: "node",
+              db: 0,
             },
             connectionId,
 

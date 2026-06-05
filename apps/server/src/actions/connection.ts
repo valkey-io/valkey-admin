@@ -19,6 +19,10 @@ export interface ConnectionDetails {
   authType?: "password" | "iam";
   awsRegion?: string;
   awsReplicationGroupId?: string;
+  /**
+   * Logical Valkey database index.
+   */
+  db: number;
 }
 
 type ConnectPayload = {
