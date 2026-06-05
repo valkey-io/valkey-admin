@@ -16,6 +16,9 @@ interface ConnectionFormProps {
   onClose: () => void
 }
 
+const isValidDb = (db: unknown): db is number =>
+  typeof db === "number" && Number.isInteger(db) && db >= 0 && db <= 15
+
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
   const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails>({
@@ -32,6 +35,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [discoveryId, setDiscoveryId] = useState<string | null>(null)
+  const [dbError, setDbError] = useState<string | undefined>(undefined)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const discoveryState = useAppSelector((state) =>
     discoveryId ? state.valkeyTopology.discoveries[discoveryId] : null,
@@ -61,9 +65,23 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     if (discoveryId) dispatch(clearEndpointDiscovery({ discoveryId }))
   }, [discoveryId, dispatch])
 
+  // Coerce db to 0 whenever the form uses cluster-endpoint mode.
+  const handleConnectionDetailsChange = (next: ConnectionDetails) =>
+    setConnectionDetails(
+      next.endpointType === "cluster-endpoint" && next.db !== 0
+        ? { ...next, db: 0 }
+        : next,
+    )
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (isAtConnectionLimit) return
+
+    if (!isValidDb(connectionDetails.db)) {
+      setDbError("Database must be an integer between 0 and 15.")
+      return
+    }
+    setDbError(undefined)
 
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
@@ -96,6 +114,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   return (
     <ConnectionModal
       connectionDetails={connectionDetails}
+      dbError={dbError}
       description="Enter your server's host and port to connect."
       errorMessage={hasError && errorMessage ? errorMessage : undefined}
       isConnecting={isConnecting}
@@ -103,7 +122,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
         !connectionDetails.host || !connectionDetails.port || isConnecting || isAtConnectionLimit
       }
       onClose={onClose}
-      onConnectionDetailsChange={setConnectionDetails}
+      onConnectionDetailsChange={handleConnectionDetailsChange}
       onSubmit={handleSubmit}
       open
       showConnectionLimitWarning={isAtConnectionLimit}

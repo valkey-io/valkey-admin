@@ -5,6 +5,7 @@ import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
+import { Select } from "./select.tsx"
 import { Typography } from "./typography.tsx"
 import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
@@ -25,6 +26,7 @@ interface ConnectionModalProps {
   isConnecting?: boolean
   showConnectionLimitWarning: boolean
   showVerifyTlsCertificate?: boolean
+  dbError?: string
 }
 
 export function ConnectionModal({
@@ -41,6 +43,7 @@ export function ConnectionModal({
   isConnecting = false,
   showConnectionLimitWarning,
   showVerifyTlsCertificate = true,
+  dbError,
 }: ConnectionModalProps) {
 
   return (
@@ -238,6 +241,31 @@ export function ConnectionModal({
                       </div>
                     </div>
                   )}
+
+                  {/* Database */}
+                  <div>
+                    <Label className="block mb-1" htmlFor="db">Database</Label>
+                    <Select
+                      disabled={connectionDetails.endpointType === "cluster-endpoint"}
+                      id="db"
+                      onChange={(e) =>
+                        onConnectionDetailsChange({
+                          ...connectionDetails,
+                          db: Number.parseInt(e.target.value, 10),
+                        })
+                      }
+                      value={String(connectionDetails.db)}
+                    >
+                      {Array.from({ length: 16 }, (_, i) => (
+                        <option key={i} value={i}>{`DB ${i}`}</option>
+                      ))}
+                    </Select>
+                    {dbError && (
+                      <Typography className="text-destructive mt-1" variant="bodySm">
+                        {dbError}
+                      </Typography>
+                    )}
+                  </div>
 
                   {/* TLS options */}
                   <div className="flex items-center gap-6">
