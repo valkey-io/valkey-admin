@@ -47,4 +47,28 @@ The key browser and the distribution chart use separate sampling passes, so thei
 
 ---
 
+## Connection rejected: `Invalid Database_Index: must be a non-negative integer`
+
+The server rejected the connection because the `db` field on the connection payload wasn't a non-negative integer. This typically means a hand-edited or programmatically built payload sent something like `db: -1`, `db: 1.5`, `db: NaN`, `db: "0"`, or `db: null`. Valid values are `0`, `1`, `2`, … up to `databases - 1`.
+
+**Fix:** Set `db` to a non-negative integer and reconnect. The metrics process applies the same rule to its `VALKEY_DB` environment variable, where invalid values cause the process to exit with code `1`. See [Database Index](/configuration/shared/#database-index) and [`VALKEY_DB`](/configuration/metrics/#valkey_db) for the contract.
+
+---
+
+## Connection rejected: `Database_Index N is out of range (server allows 0..M-1)`
+
+The supplied `db` is at or beyond the target server's configured database count. Valkey's `databases` config defaults to `16` (giving `0..15`), but operators can lower or raise it. The server reads this value via `CONFIG GET databases` after the standalone client connects, so the bound depends on what the server is actually configured for, not a fixed constant.
+
+**Fix:** Pick a `db` within `[0, databases - 1]`. To check or change the server's bound, run `CONFIG GET databases` against the target node, and `CONFIG SET databases <N>` (or update `valkey.conf` / `redis.conf` and restart) if you need more logical databases. Note that ElastiCache and other managed services may not allow changing `databases`, in which case you must stay within the operator-set limit.
+
+---
+
+## Connection rejected: `Cluster server version V does not support a non-zero Database_Index`
+
+The connection target is a cluster running a Valkey/Redis server below `9.0.0`, and the request asked for a non-zero `db`. Multi-database cluster mode is a Valkey 9.0.0+ feature; older cluster servers only support `db: 0`.
+
+**Fix:** Either upgrade the cluster to Valkey 9.0.0 or later, or set `db: 0` for that connection. Standalone connections to the same server version are unaffected — only cluster mode is gated, because cluster servers below 9.0.0 don't expose multiple logical databases at all. See [Database Index](/configuration/shared/#database-index) for the full version contract.
+
+---
+
 For a list of capabilities and operational caveats that aren't bugs (no built-in auth, no RBAC, mTLS, ElastiCache Serverless, etc.), see [Known Limitations](/reference/limitations/).

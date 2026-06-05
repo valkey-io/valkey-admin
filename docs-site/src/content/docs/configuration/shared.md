@@ -77,3 +77,21 @@ How often the metrics eviction sweep runs. The default of one day is appropriate
 The browser `localStorage` key under which the frontend persists saved connections. Only worth changing if you are running two builds of Valkey Admin against the same origin and need them to keep separate connection lists.
 
 - **Default:** `"VALKEY_CONNECTIONS"`
+
+## Database Index
+
+Each connection carries a `db` field on its `ConnectionDetails` payload — the logical Valkey database the client binds to. The server creates a separate client per `(host, port, db)` triple, so switching to a different `db` opens a fresh connection rather than mutating an existing one. The connection identifier the server uses to key its in-memory client map is built by `buildConnectionId(host, port, db)` from `common/src/connection-id.ts`; both the frontend and the server import the same helper so identical inputs always produce identical keys.
+
+- **Type:** non-negative integer
+- **Default:** `0` (Valkey's default database)
+- **Valid range:** `0` through `databases - 1`, where `databases` is whatever the target Valkey server reports for its `databases` config (Valkey's default is `16`, giving `0..15`). Out-of-range values are rejected with a `connectRejected` error.
+- **Cluster mode:** servers at Valkey/Redis `9.0.0` or higher honor a non-zero `db`. Older cluster servers only support `db: 0` and the server rejects non-zero values for those clusters with a clear error.
+
+### Connection form
+
+The "Add Connection" modal in the frontend exposes `db` as a **Database** dropdown next to the Auth and TLS fields.
+
+- **Options:** exactly 16 entries, labeled `DB 0` through `DB 15`, mapping to the integer values `0..15`.
+- **Default:** `DB 0`, matching the `db: 0` default that ships in `ConnectionDetails`.
+- **Cluster discovery endpoint:** when the user picks the cluster discovery endpoint (i.e. `endpointType === "cluster-endpoint"`, including the implicit switch triggered by typing a host containing `cfg`), the dropdown is disabled and the form coerces `db` back to `0` before dispatching. This pinning is intentional — most cluster deployments do not support a non-zero database index, and the server-side gating described above will reject those connections anyway.
+- **Validation:** before dispatching `connectPending` or `discoveryEndpointPending`, the form re-checks that `db` is an integer in `0..15`. With the fixed dropdown plus cluster coercion this branch should never trigger from normal use; it exists as a defensive guard against state injection and surfaces an inline error under the Database field if it does.

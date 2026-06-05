@@ -81,6 +81,9 @@ Click any key to view detailed information:
 - **Table View**: Hash, List, Set, Stream, and Zset types
 - **Json View**: JSON data
 
+## Switching Databases
+
+Each `(host, port, db)` triple maps to its own client connection on the server, so the Key Browser is always scoped to the database you connected to. Switching to a different `db` opens a new client side-by-side with the existing one rather than issuing `SELECT` against an existing client, so operations like `KEYS`, `SET`, and `DEL` against one database never affect keys in another database on the same node. For cluster connections this only applies when the Valkey server is at version `9.0.0` or higher; earlier cluster servers always operate on `db` `0` and a non-zero `db` is rejected at connect time.
 
 ## Next Steps
 

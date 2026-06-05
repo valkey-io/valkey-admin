@@ -43,6 +43,9 @@ Keep boundaries clear:
 * Normalize API and Valkey responses at ingestion boundaries: server handlers, middleware, reducers, or shared parsers.
 * Prefer reusing existing types over copying shapes. Reuse API/schema/domain types for component props when the component truly consumes that shape.
 
+### Connection Tracking
+The Server keeps active Valkey clients in an in-memory Client_Map maintained by the Connection_Manager (`apps/server/src/connection.ts`). Each Client_Map entry is keyed by `buildConnectionId(host, port, db)` exported from `common/src/connection-id.ts`. Do not reconstruct this identifier elsewhere.
+
 ### State Management & Components
 * **RTK as Source of Truth:** RTK slices and selectors are the source of truth for app/domain state.
 * **Intent Actions:** Components should dispatch intent actions and consume selectors. Avoid anonymous `useSelector((state) => ...)` in components.
