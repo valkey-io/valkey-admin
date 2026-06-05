@@ -64,6 +64,7 @@ export const initialConnectionDetails: ConnectionDetails = {
   authType: process.env.VALKEY_AUTH_TYPE === "iam" ? "iam" : "password",
   awsRegion: process.env.VALKEY_AWS_REGION,
   awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
+  db: Number(process.env.VALKEY_DB ?? 0),
 }
 
 const ttl = Number(process.env.TTL) || 60000
@@ -154,7 +155,7 @@ export async function getInitialClient() {
 }
 
 async function createClient(connectionDetails: ConnectionDetails) {
-  const { host, port, username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = connectionDetails
+  const { host, port, username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId, db } = connectionDetails
   const addresses = [{ host, port: Number(port) }]
   const credentials =
     authType === "iam"
@@ -168,7 +169,7 @@ async function createClient(connectionDetails: ConnectionDetails) {
       }
       : password ? { username, password } : undefined
 
-  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate })
+  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, databaseId: db })
 }
 
 async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {

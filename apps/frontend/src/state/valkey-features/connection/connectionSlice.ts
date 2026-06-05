@@ -38,6 +38,10 @@ export interface ConnectionDetails {
   authType?: "password" | "iam"
   awsRegion?: string
   awsReplicationGroupId?: string
+  /**
+   * Logical Valkey database index.
+   */
+  db: number
 }
 
 interface ReconnectState {
@@ -74,7 +78,22 @@ const buildSearchableText = (connectionId: string, details: ConnectionDetails) =
 
 const currentConnections = R.pipe(
   (v: string) => localStorage.getItem(v),
-  (s) => (s === null ? {} : JSON.parse(s) as ValkeyConnectionsState),
+  // Older payloads written before `db` existed deserialize without it. Parse
+  // through a "persisted" shape that allows `db?: number`, then normalize once
+  // here so every downstream consumer can rely on `connectionDetails.db` being
+  // a number.
+  (s) => (s === null
+    ? {}
+    : JSON.parse(s) as Record<string, ConnectionState & {
+      connectionDetails: Omit<ConnectionDetails, "db"> & { db?: number };
+    }>),
+  R.mapObjIndexed((conn): ConnectionState => ({
+    ...conn,
+    connectionDetails: {
+      ...conn.connectionDetails,
+      db: conn.connectionDetails.db ?? 0,
+    },
+  })),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
 const connectionSlice = createSlice({

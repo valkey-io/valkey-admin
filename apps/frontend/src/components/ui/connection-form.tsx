@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { sanitizeUrl } from "@common/src/url-utils.ts"
+import { buildConnectionId } from "@common/src/connection-id.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
@@ -28,6 +28,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     alias: "",
     endpointType: "node" as const,
     authType: "password",
+    db: 0,
   })
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [discoveryId, setDiscoveryId] = useState<string | null>(null)
@@ -79,14 +80,14 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
       : trimmed
 
     if (trimmed.endpointType === "cluster-endpoint") {
-      const newDiscoveryId = `discovery-${sanitizeUrl(`${trimmed.host}-${trimmed.port}`)}`
+      const newDiscoveryId = `discovery-${buildConnectionId(trimmed.host, trimmed.port, 0)}`
       setDiscoveryId(newDiscoveryId)
       setConnectionId(null)
       dispatch(discoveryEndpointPending({ discoveryId: newDiscoveryId, connectionDetails: detailsToDispatch }))
       return
     }
 
-    const newConnectionId = sanitizeUrl(`${trimmed.host}-${trimmed.port}`)
+    const newConnectionId = buildConnectionId(trimmed.host, trimmed.port, trimmed.db)
     setConnectionId(newConnectionId)
     setDiscoveryId(null)
     dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch }))

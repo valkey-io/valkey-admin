@@ -1,7 +1,7 @@
 import { after, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
-import { sanitizeUrl, VALKEY } from "valkey-common"
+import { buildConnectionId, VALKEY } from "valkey-common"
 import { WsClient } from "./harness/wsClient"
 import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 
@@ -11,7 +11,7 @@ const SEEDED_STRING_KEYS = ["string:1", "string:2", "string:3", "string:4", "str
 describe("integration / key browser", async () => {
   const ws = await WsClient.connect(WS_URL)
   const connectionDetails = defaultConnectionDetails()
-  const connectionId = sanitizeUrl(`${connectionDetails.host}-${connectionDetails.port}`)
+  const connectionId = buildConnectionId(connectionDetails.host, connectionDetails.port, 0)
   const testKey = `it:${randomUUID()}:roundtrip`
 
   after(async () => {

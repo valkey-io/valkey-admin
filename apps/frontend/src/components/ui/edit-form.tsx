@@ -1,6 +1,6 @@
 import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
-import { sanitizeUrl } from "@common/src/url-utils.ts"
+import { buildConnectionId } from "@common/src/connection-id.ts"
 import { CONNECTED } from "@common/src/constants"
 import { ConnectionModal } from "./connection-modal.tsx"
 import {
@@ -40,6 +40,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     alias: "",
     endpointType: "node" as const,
     authType: "password",
+    db: 0,
   })
   const [passwordChanged, setPasswordChanged] = useState(false)
 
@@ -59,6 +60,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         authType: currentConnection.authType ?? "password",
         awsRegion: currentConnection.awsRegion ?? "",
         awsReplicationGroupId: currentConnection.awsReplicationGroupId ?? "",
+        db: currentConnection.db,
       })
       setPasswordChanged(false)
     }
@@ -107,7 +109,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     }
 
     if (hasCoreChanges()) {
-      const newConnectionId = sanitizeUrl(`${trimmed.host}-${trimmed.port}`)
+      const newConnectionId = buildConnectionId(trimmed.host, trimmed.port, trimmed.db)
 
       // Stop any ongoing retries for the current connection
       dispatch(stopRetry({ connectionId }))

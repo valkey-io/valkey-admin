@@ -12,5 +12,17 @@ export const defaultConnectionDetails = () => {
     tls: false,
     verifyTlsCertificate: false,
     endpointType: "node" as const,
+    db: 0,
+  }
+}
+
+export const defaultStandaloneConnectionDetails = (db: number = 0) => {
+  return {
+    host: "valkey-standalone",
+    port: "6379",
+    tls: false,
+    verifyTlsCertificate: false,
+    endpointType: "node" as const,
+    db,
   }
 }
