@@ -13,7 +13,7 @@ import {
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
-import { type MetricsServerMap } from "../metrics-orchestrator"
+import { toMetricsNodeId, type MetricsServerMap } from "../metrics-orchestrator"
 import { _reset as resetNodeWatchers } from "../node-watchers"
 
 const DEFAULT_PAYLOAD = {
@@ -135,7 +135,10 @@ describe("connectToValkey", () => {
     clients = new Map()
     connectedNodesByCluster = new Map()
     metricsServerMap = new Map()
-    metricsServerMap.set(DEFAULT_PAYLOAD.connectionId, {
+    // metricsServerMap is keyed by metrics-node-id; the empty Connection_Identifier
+    // strips to the empty string, which matches the empty connectionId used by
+    // the default payload in these tests.
+    metricsServerMap.set(toMetricsNodeId(DEFAULT_PAYLOAD.connectionId), {
       metricsURI: "http://localhost:1234",
       pid: 12345,
       lastSeen: Date.now(),

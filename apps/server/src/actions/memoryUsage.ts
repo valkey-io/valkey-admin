@@ -1,6 +1,7 @@
 import { type WebSocket } from "ws"
 import { VALKEY } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
+import { toMetricsNodeId } from "../metrics-orchestrator"
 
 interface MemoryMetric {
   description: string
@@ -60,7 +61,9 @@ export const memoryUsageRequested = withDeps<Deps, void>(
     const { connectionId, clusterId, timeRange = "12h" } = action.payload as unknown as RequestPayload
     const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
     const promises = connectionIds.map(async (connectionId: string) => {
-      const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
+      // Idempotent on the cluster-fan-out path where ids already lack `-db`.
+      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(connectionId))?.metricsURI
 
       if (!metricsServerURI) {
         sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"))

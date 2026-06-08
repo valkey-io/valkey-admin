@@ -2,6 +2,7 @@ import { type WebSocket } from "ws"
 import { VALKEY, COMMANDLOG_TYPE } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
+import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
 
@@ -103,7 +104,9 @@ export const commandLogsRequested = withDeps<Deps, void>(
     const connectionIds = nodes ? Object.keys(nodes) : [connectionId]
 
     const promises = connectionIds.map(async (nodeId: string) => {
-      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
+      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
+      // Idempotent on the cluster-fan-out path where ids already lack `-db`.
+      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(nodeId))?.metricsURI
       if (!metricsServerURI) {
         if (!nodes) sendCommandLogsError(ws, nodeId, new Error("Metrics server URI not found"))
         return { connectionId: nodeId, error: "Metrics server not started" } as NodeError
