@@ -195,7 +195,7 @@ const infoSlice = createSlice({
         pubsub_patterns : R.path(["info", "pubsub_patterns"]),
       })(action.payload)
     },
-    setError: (state, action) => {
+    error: (state, action) => {
       const { connectionId, error } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = createInitialConnectionState()
@@ -206,4 +206,5 @@ const infoSlice = createSlice({
 })
 
 export default infoSlice.reducer
-export const { setLastUpdated, setData, setError } = infoSlice.actions
+export const { setLastUpdated, setData } = infoSlice.actions
+export const setError = infoSlice.actions.error

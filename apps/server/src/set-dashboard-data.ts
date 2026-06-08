@@ -1,65 +1,68 @@
-import { GlideClient, GlideClusterClient, Decoder, RouteByAddress, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
+import { GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { parseClusterInfo, parseInfo } from "./utils"
+import { parseClusterInfo } from "./utils"
+import { fetchWithTimeout } from "./actions/utils"
+
+type DashboardInfo = {
+  info: Record<string, string>
+  memory: Record<string, string>
+}
+
+const sendSetDataFulfilled = (
+  ws: WebSocket,
+  connectionId: string,
+  { info, memory }: DashboardInfo,
+) => {
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.STATS.setData,
+      payload: {
+        connectionId,
+        info,
+        memory,
+      },
+    }),
+  )
+}
+
+const sendSetDataError = (
+  ws: WebSocket,
+  connectionId: string,
+  error: unknown,
+) => {
+  console.error(error)
+  ws.send(
+    JSON.stringify({
+      type: VALKEY.STATS.setError,
+      payload: {
+        connectionId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    }),
+  )
+}
 
 export async function setDashboardData(
   connectionId: string,
-  client: GlideClient | GlideClusterClient,
+  metricsServerURI: string | undefined,
   ws: WebSocket,
-  address?: {host: string, port: number},
 ) {
+  if (!metricsServerURI) {
+    sendSetDataError(ws, connectionId, new Error("Metrics server URI not found"))
+    return
+  }
+
   try {
-    let rawInfo
-    if (client instanceof GlideClusterClient){
-      const routeByAddressWithPortInHost: RouteByAddress = {
-        type: "routeByAddress",
-        host: `${address?.host}:${address?.port}`,
-      }
+    const response = await fetchWithTimeout(`${metricsServerURI}/info`)
+    if (!response.ok) {
+      throw new Error(`Metrics server responded with ${response.status}`)
+    }
+    const parsedResponse = (await response.json()) as DashboardInfo
 
-      rawInfo = await client.info({ route: routeByAddressWithPortInHost })
-    }
-    else {
-      rawInfo = await client.info()
-    }
-    const info = parseInfo(rawInfo as string)
-    const rawMemoryStats = (await client.customCommand(["MEMORY", "STATS"], {
-      decoder: Decoder.String,
-    }).catch(() => [])) as Array<{
-      key: string;
-      value: string;
-    }>
-
-    const memoryStats = rawMemoryStats.reduce((acc, { key, value }) => {
-      acc[key] = value
-      return acc
-    }, {} as Record<string, string>)
-    ws.send(
-      JSON.stringify({
-        type: VALKEY.STATS.setData,
-        payload: {
-          connectionId,
-          info: info,
-          memory: memoryStats,
-        },
-      }),
-    )
-  } catch (err) {
-    if (
-      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
-    ) {
-      console.error(`Valkey connection error for ${connectionId}:`, err)
-      ws.send(
-        JSON.stringify({
-          type: VALKEY.CONNECTION.connectRejected,
-          payload: {
-            connectionId,
-            errorMessage: "Failed to fetch dashboard data - Valkey instance could be down",
-            shouldRetry: true,
-          },
-        }),
-      )
-    }
+    sendSetDataFulfilled(ws, connectionId, parsedResponse)
+  } catch (error) {
+    sendSetDataError(ws, connectionId, error)
   }
 }
 
