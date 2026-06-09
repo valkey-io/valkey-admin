@@ -3,6 +3,7 @@ import { VALKEY, type MonitorAction } from "valkey-common"
 import { withDeps, type Deps, fetchWithTimeout, type ReduxAction } from "./utils"
 import { updateConfig } from "./config"
 import { getOtherWatchers } from "../node-watchers"
+import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type MonitorResponse = {
   monitorRunning: boolean
@@ -53,7 +54,9 @@ export const monitorRequested = withDeps<Deps, void>(
       : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
-      const metricsServerURI = metricsServerMap.get(connectionId)?.metricsURI
+      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
+      // Idempotent on the cluster-fan-out path where ids already lack `-db`.
+      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(connectionId))?.metricsURI
 
       if (!metricsServerURI) {
         sendMonitorError(ws, connectionId, new Error("Metrics server URI not found"))
