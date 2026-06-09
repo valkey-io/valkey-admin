@@ -4,6 +4,7 @@ import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users, Loade
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { buildConnectionId } from "@common/src/connection-id.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Badge } from "../ui/badge"
 import { CustomTooltip } from "../ui/tooltip"
@@ -16,7 +17,7 @@ import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluste
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
-  selectIsAtConnectionLimit, selectEncryptedPassword
+  selectIsAtConnectionLimit, selectEncryptedPassword, selectClusterDb
 } from "@/state/valkey-features/connection/connectionSelectors"
 import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
@@ -38,7 +39,15 @@ export function ClusterNode({
 }: ClusterNodeProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const connectionId = primaryKey
+  // Inherit the parent cluster's Database_Index so node connections target the
+  // same logical database (defaults to 0 when no cluster connection is found).
+  const clusterDb = useSelector(selectClusterDb(clusterId))
+
+  // Match the db-aware id scheme from buildConnectionId so the seed node
+  // resolves to its status here, and node connects reuse that id
+  // instead of creating a db id less duplicate.
+  const connectionId = buildConnectionId(primary.host, primary.port, clusterDb)
+
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
   )
@@ -61,6 +70,7 @@ export function ClusterNode({
     tls: primary.tls,
     verifyTlsCertificate: primary.verifyTlsCertificate,
     endpointType: "node",
+    db: clusterDb,
   }
 
   const handleNodeConnect = () => {

@@ -3,11 +3,12 @@ import { useSelector } from "react-redux"
 import { useState, useRef, useEffect, type ReactNode } from "react"
 import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight, Search } from "lucide-react"
 import { CONNECTED } from "@common/src/constants.ts"
+import { buildConnectionId } from "@common/src/connection-id.ts"
 import { Badge } from "./badge"
 import { Input } from "./input"
 import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
-import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors.ts"
+import { selectConnectionDetails, selectClusterDb } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { cn } from "@/lib/utils.ts"
 
@@ -26,6 +27,10 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
   const { host, port, username, alias } = useSelector(selectConnectionDetails(id!))
   const clusterData = useSelector(selectCluster(clusterId!))
+  // The app reuses one shared cluster client per cluster (single databaseId), so
+  // every node connection uses the same db. Connections are stored under
+  // buildConnectionId(host, port, db), used here for status + navigation.
+  const clusterDb = useSelector(selectClusterDb(clusterId!))
   const ToggleIcon = isOpen ? CircleChevronUp : CircleChevronDown
 
   const { pathname } = useLocation()
@@ -40,8 +45,8 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
     state.valkeyConnection?.connections,
   )
 
-  const handleNavigate = (primaryKey: string) => {
-    navigate(`/${clusterId}/${primaryKey}/dashboard`)
+  const handleNavigate = (connectionId: string) => {
+    navigate(`/${clusterId}/${connectionId}/dashboard`)
     setIsOpen(false)
     setSearch("")
   }
@@ -158,14 +163,15 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
                     )}
                     {/* TODO: Remove extra defensiveness */}
                     {nodesToRender.map(([primaryKey, primary]) => {
-                      const nodeIsConnected = allConnections?.[primaryKey]?.status === CONNECTED
+                      const connectionId = buildConnectionId(primary.host, primary.port, clusterDb)
+                      const nodeIsConnected = allConnections?.[connectionId]?.status === CONNECTED
 
                       return (
                         <li className="flex flex-col gap-1" key={primaryKey}>
                           <button
                             className="flex items-center cursor-pointer hover:bg-primary/20"
                             disabled={!nodeIsConnected}
-                            onClick={() => handleNavigate(primaryKey)}
+                            onClick={() => handleNavigate(connectionId)}
                           >
                             <Dot
                               className={nodeIsConnected ? "text-green-500" : "text-gray-400"}

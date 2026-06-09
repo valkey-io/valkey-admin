@@ -3,6 +3,7 @@ import { useSelector } from "react-redux"
 import { Server, CheckCircle2 } from "lucide-react"
 import { useParams } from "react-router"
 import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { buildConnectionId } from "@common/src/connection-id.ts"
 import { truncateText } from "@common/src/truncate-text.ts"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
@@ -14,7 +15,7 @@ import type { RootState } from "@/store.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateClusterData } from "@/state/valkey-features/cluster/clusterSlice"
-import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectClusterAlias, selectClusterDb } from "@/state/valkey-features/connection/connectionSelectors"
 
 export function Cluster() {
   const { id, clusterId } = useParams()
@@ -29,6 +30,10 @@ export function Cluster() {
     state.valkeyConnection?.connections || {},
   )
   const clusterAlias = useSelector(selectClusterAlias(id!))
+  // The app reuses one shared cluster client per cluster (single databaseId), so
+  // every node connection uses the same db. Connections are stored under
+  // buildConnectionId(host, port, db), so resolve node status by that id.
+  const clusterDb = useSelector(selectClusterDb(clusterId!))
 
   if (!clusterData?.clusterNodes || !clusterData?.data) {
     return (
@@ -47,8 +52,8 @@ export function Cluster() {
 
   // cluster stats
   const totalNodes = clusterEntries.length
-  const connectedNodes = clusterEntries.filter(([primaryKey]) =>
-    connectionStatuses[primaryKey]?.status === CONNECTED,
+  const connectedNodes = clusterEntries.filter(([, primary]) =>
+    connectionStatuses[buildConnectionId(primary.host, primary.port, clusterDb)]?.status === CONNECTED,
   ).length
   const totalReplicas = clusterEntries.reduce((sum, [, primary]) =>
     sum + primary.replicas.length, 0,
