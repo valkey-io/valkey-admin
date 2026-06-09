@@ -8,6 +8,7 @@ import {
   reconcileClusterMetricsServers,
   clients,
   clusterNodesRegistry,
+  toMetricsNodeId,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
@@ -97,6 +98,30 @@ describe("metrics-orchestrator", () => {
       assert.strictEqual(Object.keys(nodesToAdd).length, 0)
     })
 
+    it("should NOT remove a node whose only client is keyed `-db<N>`", async () => {
+      // N:1 invariant: a single metrics process can serve many user-visible
+      // connections under different `db`s. The reconciler must not evict it
+      // just because the client is keyed by Connection_Identifier (with `-db`)
+      // while the metrics map is keyed by metrics-node-id (without `-db`).
+      const now = Date.now()
+
+      const metricsMap: MetricsServerMap = new Map([
+        ["127-0-0-1-6379", { metricsURI: "uri", pid: 123, lastSeen: now }],
+      ])
+
+      const clusterNodes: ClusterNodeMap = {
+        // intentionally missing — standalone, not in any cluster
+      }
+
+      // simulate a user connection on db 5 against the same node
+      clients.set("127-0-0-1-6379-db5", { client })
+
+      const { nodesToAdd, nodesToRemove } = await __test__.findDiff(metricsMap, clusterNodes)
+
+      assert.strictEqual(nodesToRemove.includes("127-0-0-1-6379"), false)
+      assert.strictEqual(Object.keys(nodesToAdd).length, 0)
+    })
+
     // We only store data from primary nodes. This can be a TODO
     // it("should keep replica metrics servers because replicas belong to the cluster map", async () => {
     //   const now = Date.now()
@@ -181,7 +206,7 @@ describe("metrics-orchestrator", () => {
           }
         },
       )
-      await __test__.startMetricsServers({ node1: nodes })
+      await __test__.startMetricsServers({ node1: nodes }, "cluster-1")
 
       // Assert that the node was added to metricsServerMap
       assert.strictEqual(metricsServerMap.has("node1"), true)
@@ -218,7 +243,7 @@ describe("metrics-orchestrator", () => {
 
     beforeEach(() => {
       metricsServerMap.clear()
-      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node" }
+      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node", db: 0 }
 
       // Mock all side-effectful internal functions
       mock.method(__test__, "createClient", async () => ({}))
@@ -251,6 +276,34 @@ describe("metrics-orchestrator", () => {
       await reconcileClusterMetricsServers(
         mockClusterNodesRegistry,metricsServerMap, connectionDetails)
       // updateMetricsServers should not be called because nothing changed
+    })
+  })
+
+  describe("toMetricsNodeId", () => {
+    // The boundary helper between Connection_Identifier-keyed `clients` and
+    // metrics-node-id-keyed `metricsServerMap`.
+    it("strips a trailing -db0 suffix", () => {
+      assert.strictEqual(toMetricsNodeId("127-0-0-1-6379-db0"), "127-0-0-1-6379")
+    })
+
+    it("strips a trailing -db15 suffix (multi-digit)", () => {
+      assert.strictEqual(toMetricsNodeId("valkey-7001-7001-db15"), "valkey-7001-7001")
+    })
+
+    it("is idempotent on already-stripped ids", () => {
+      assert.strictEqual(toMetricsNodeId("valkey-7001-7001"), "valkey-7001-7001")
+    })
+
+    it("does not touch a non-trailing -db<N> token", () => {
+      assert.strictEqual(toMetricsNodeId("dbserver-db5-host-6379"), "dbserver-db5-host-6379")
+    })
+
+    it("does not strip when -db is followed by non-digits", () => {
+      assert.strictEqual(toMetricsNodeId("host-6379-dbx"), "host-6379-dbx")
+    })
+
+    it("returns the empty string unchanged", () => {
+      assert.strictEqual(toMetricsNodeId(""), "")
     })
   })
 })
