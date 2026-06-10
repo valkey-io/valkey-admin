@@ -5,3 +5,9 @@ import type { RootState } from "@/store.ts"
 export const selectData = (id: string) => (state: RootState) =>
   R.path([VALKEY.STATS.name, id, "data"], state)
 
+export const selectMetricsStarting = (id: string) => (state: RootState) =>
+  Boolean(R.path([VALKEY.STATS.name, id, "metricsStarting"], state))
+
+export const selectError = (id: string) => (state: RootState) =>
+  R.path([VALKEY.STATS.name, id, "error"], state) as string | null
+

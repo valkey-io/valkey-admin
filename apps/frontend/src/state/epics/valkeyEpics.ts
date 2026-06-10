@@ -1,7 +1,9 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, mergeMap, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, takeUntil, 
+  catchError, filter, take, finalize } from "rxjs/operators"
 import * as R from "ramda"
-import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay } from "@common/src/constants.ts"
+import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay, METRICS_SERVER_NOT_READY, 
+  METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
@@ -25,7 +27,8 @@ import {
   discoveryNodeConnecting
 } from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
-import { setData, updateData } from "../valkey-features/info/infoSlice"
+import { setData, setError, updateData } from "../valkey-features/info/infoSlice"
+import { selectMetricsStarting, selectError } from "../valkey-features/info/infoSelectors.ts"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
@@ -37,7 +40,7 @@ import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { monitorRequested, saveMonitorSettingsRequested } from "../valkey-features/monitor/monitorSlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
-import { selectIsAtConnectionLimit } from "../valkey-features/connection/connectionSelectors.ts"
+import { selectIsAtConnectionLimit, selectConnectionDetails } from "../valkey-features/connection/connectionSelectors.ts"
 import type { Store } from "@reduxjs/toolkit"
 
 const getCurrentConnections = () => R.pipe(
@@ -520,6 +523,58 @@ export const monitorEpic = () =>
       }
     }),
     ignoreElements(),
+  )
+
+// metric server not ready retry epic for dashboad data
+export const metricsReadinessRetryEpic = (store: Store) =>
+  action$.pipe(
+    select(setError),
+    filter((action) =>
+      action.payload.errorKind === METRICS_SERVER_NOT_READY &&
+      // Don't start retries if there's already an error for this connection
+      !selectError(action.payload.connectionId)(store.getState()),
+    ),
+    groupBy((action) => action.payload.connectionId),
+    // Already retrying this connection? Ignore repeat errors so the count doesn't reset.
+    mergeMap((group$) =>
+      group$.pipe(
+        exhaustMap(({ payload: { connectionId } }) =>
+          timer(METRICS_RETRY_INTERVAL_MS, METRICS_RETRY_INTERVAL_MS).pipe(
+            take(METRICS_MAX_RETRIES),
+            tap(() => {
+              const details = selectConnectionDetails(connectionId)(store.getState())
+              store.dispatch(updateData({
+                connectionId,
+                clusterId: details?.clusterId ?? "",
+                address: { host: details?.host ?? "", port: details?.port ?? "" },
+              }))
+            }),
+            // Stop once data loads, and re-fetch CPU/memory usage
+            takeUntil(
+              action$.pipe(
+                select(setData),
+                filter((a) => a.payload.connectionId === connectionId),
+                tap(() => {
+                  const clusterId = selectConnectionDetails(connectionId)(store.getState())?.clusterId
+                  store.dispatch(cpuUsageRequested({ connectionId, clusterId, timeRange: "1h" }))
+                  store.dispatch(memoryUsageRequested({ connectionId, clusterId, timeRange: "1h" }))
+                }),
+              ),
+            ),
+            // After max retries, if metrics still isn't ready, show an error
+            finalize(() => {
+              if (selectMetricsStarting(connectionId)(store.getState())) {
+                store.dispatch(setError({
+                  connectionId,
+                  error: "Could not register metrics server. Please try reconnecting.",
+                }))
+              }
+            }),
+            ignoreElements(),
+          ),
+        ),
+      ),
+    ),
   )
 
 export const saveMonitorSettingsEpic = () =>

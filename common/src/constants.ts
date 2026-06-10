@@ -107,6 +107,11 @@ export const VALKEY = {
 // check truthyness in case process doesn't have env
 const nodeEnv = typeof process !== "undefined" && process.env ? process.env : {}
 
+// Metrics server constants and not ready state handling
+export const METRICS_SERVER_NOT_READY = "METRICS_SERVER_NOT_READY"
+export const METRICS_RETRY_INTERVAL_MS = 1000
+export const METRICS_MAX_RETRIES = 10
+
 export const CONNECTED = "Connected"
 export const CONNECTING = "Connecting"
 export const ERROR = "Error"

@@ -4,6 +4,7 @@ import { getConfig, updateConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors, stopCollectors } from "./init-collectors.js"
 import { getCommandLogs } from "./handlers/commandlog-handler.js"
+import { getDashboardInfo } from "./handlers/info-handler.js"
 import { monitorHandler, readMonitorMetadata, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
@@ -55,6 +56,16 @@ async function main() {
       const series = await Streamer.info_cpu(cpuFold({ maxPoints, tolerance, since, until }))
       res.json(series)
     } catch (e) {
+      res.status(500).json({ error: e.message })
+    }
+  })
+
+  app.get("/info", async (req, res) => {
+    try {
+      const data = await getDashboardInfo(client)
+      res.json(data)
+    } catch (e) {
+      console.error(e)
       res.status(500).json({ error: e.message })
     }
   })

@@ -14,7 +14,8 @@ import {
   getCpuUsageEpic,
   getMemoryUsageEpic,
   monitorEpic,
-  saveMonitorSettingsEpic
+  saveMonitorSettingsEpic,
+  metricsReadinessRetryEpic
 } from "./valkeyEpics"
 import { keyBrowserEpic } from "./keyBrowserEpic"
 import type { Store } from "@reduxjs/toolkit"
@@ -37,6 +38,7 @@ export const registerEpics = (store: Store) => {
     getMemoryUsageEpic(),
     monitorEpic(),
     saveMonitorSettingsEpic(),
+    metricsReadinessRetryEpic(store),
   ).subscribe({
     error: (err) => console.error("Epic error:", err),
   })
