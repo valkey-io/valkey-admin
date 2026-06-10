@@ -1,5 +1,6 @@
 import { merge, timer, EMPTY } from "rxjs"
-import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, takeUntil, catchError, filter, take } from "rxjs/operators"
+import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, takeUntil, 
+  catchError, filter, take, finalize } from "rxjs/operators"
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay, METRICS_SERVER_NOT_READY, 
   METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS } from "@common/src/constants.ts"
@@ -27,6 +28,7 @@ import {
 } from "../valkey-features/topology/topologySlice"
 import { sendRequested } from "../valkey-features/command/commandSlice"
 import { setData, setError, updateData } from "../valkey-features/info/infoSlice"
+import { selectMetricsStarting, selectError } from "../valkey-features/info/infoSelectors.ts"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
@@ -527,7 +529,11 @@ export const monitorEpic = () =>
 export const metricsReadinessRetryEpic = (store: Store) =>
   action$.pipe(
     select(setError),
-    filter((action) => action.payload.errorKind === METRICS_SERVER_NOT_READY),
+    filter((action) =>
+      action.payload.errorKind === METRICS_SERVER_NOT_READY &&
+      // Don't start retries if there's already an error for this connection
+      !selectError(action.payload.connectionId)(store.getState()),
+    ),
     groupBy((action) => action.payload.connectionId),
     // Already retrying this connection? Ignore repeat errors so the count doesn't reset.
     mergeMap((group$) =>
@@ -555,6 +561,15 @@ export const metricsReadinessRetryEpic = (store: Store) =>
                 }),
               ),
             ),
+            // After max retries, if metrics still isn't ready, show an error
+            finalize(() => {
+              if (selectMetricsStarting(connectionId)(store.getState())) {
+                store.dispatch(setError({
+                  connectionId,
+                  error: "Could not register metrics server. Please try reconnecting.",
+                }))
+              }
+            }),
             ignoreElements(),
           ),
         ),

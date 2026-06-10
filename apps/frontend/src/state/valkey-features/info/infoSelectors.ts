@@ -8,3 +8,6 @@ export const selectData = (id: string) => (state: RootState) =>
 export const selectMetricsStarting = (id: string) => (state: RootState) =>
   Boolean(R.path([VALKEY.STATS.name, id, "metricsStarting"], state))
 
+export const selectError = (id: string) => (state: RootState) =>
+  R.path([VALKEY.STATS.name, id, "error"], state) as string | null
+
