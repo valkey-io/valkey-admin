@@ -1,5 +1,5 @@
 import { createAction, createSlice } from "@reduxjs/toolkit"
-import { VALKEY } from "@common/src/constants.ts"
+import { VALKEY, METRICS_SERVER_NOT_READY } from "@common/src/constants.ts"
 import * as R from "ramda"
 
 interface ConnectionData {
@@ -57,6 +57,8 @@ interface ConnectionData {
 
 interface ConnectionState {
   error: string | null
+  // True while the metrics server is still starting up. Not an error, just not ready yet.
+  metricsStarting: boolean
   lastUpdated: number | null
   data: ConnectionData
 }
@@ -67,6 +69,7 @@ interface InfoSliceState {
 
 const createInitialConnectionState = (): ConnectionState => ({
   error: null,
+  metricsStarting: false,
   lastUpdated: null,
   data: {
     total_commands_processed: null,
@@ -142,6 +145,9 @@ const infoSlice = createSlice({
       if (!state[connectionId]) {
         state[connectionId] = createInitialConnectionState()
       }
+      // Data arrived, so we're no longer starting or in error.
+      state[connectionId].metricsStarting = false
+      state[connectionId].error = null
       state[connectionId].data = R.applySpec({
         dataset_bytes: R.path(["memory", "dataset.bytes"]),
         keys_count: R.path(["memory", "keys.count"]),
@@ -196,10 +202,16 @@ const infoSlice = createSlice({
       })(action.payload)
     },
     error: (state, action) => {
-      const { connectionId, error } = action.payload
+      const { connectionId, error, errorKind } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = createInitialConnectionState()
       }
+      // Metrics server still starting: show "starting" and let the epic retry, not a real error.
+      if (errorKind === METRICS_SERVER_NOT_READY) {
+        state[connectionId].metricsStarting = true
+        return
+      }
+      state[connectionId].metricsStarting = false
       state[connectionId].error = error
     },
   },

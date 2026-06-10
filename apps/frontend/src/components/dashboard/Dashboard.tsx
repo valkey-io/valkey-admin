@@ -16,8 +16,8 @@ import { Input } from "../ui/input"
 import { StatCard } from "../ui/stat-card"
 import { TooltipIcon } from "../ui/tooltip-icon"
 import RouteContainer from "../ui/route-container"
-import { Typography } from "../ui/typography"
-import { selectData } from "@/state/valkey-features/info/infoSelectors.ts"
+import { MetricsStartingModal } from "../ui/metrics-starting-modal"
+import { selectData, selectMetricsStarting } from "@/state/valkey-features/info/infoSelectors.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateData } from "@/state/valkey-features/info/infoSlice"
 import { selectConnectionDetails } from "@/state/valkey-features/connection/connectionSelectors"
@@ -31,23 +31,8 @@ export function Dashboard() {
     dispatch(updateData({ connectionId: id!, clusterId: clusterId!, address: { host: connectionDetails.host, port: connectionDetails.port } }))
   }, [id, clusterId, dispatch, connectionDetails.host, connectionDetails.port])
   const infoData = useSelector(selectData(id!)) || {}
+  const metricsStarting = useSelector(selectMetricsStarting(id!))
   const [searchQuery, setSearchQuery] = useState("")
-
-  if (!infoData) {
-    return (
-      <div className="flex flex-col h-screen p-4">
-        <AppHeader
-          icon={<LayoutDashboard size={20} />}
-          title="Dashboard"
-        />
-        <div className="flex flex-1 items-center justify-center">
-          <Typography className="text-gray-500" variant="body">
-            Loading metrics…
-          </Typography>
-        </div>
-      </div>
-    )
-  }
 
   const memoryUsageMetrics = {
     used_memory: infoData.used_memory,
@@ -128,6 +113,8 @@ export function Dashboard() {
 
   return (
     <RouteContainer title="Dashboard">
+      {/* show starting modal while metrics are loading */}
+      <MetricsStartingModal open={metricsStarting} />
       <AppHeader
         description={
           <>

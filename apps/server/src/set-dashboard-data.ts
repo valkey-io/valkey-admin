@@ -1,6 +1,6 @@
 import { GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
-import { VALKEY } from "valkey-common"
+import { VALKEY, METRICS_SERVER_NOT_READY } from "valkey-common"
 import { parseClusterInfo } from "./utils"
 import { fetchWithTimeout } from "./actions/utils"
 
@@ -30,6 +30,7 @@ const sendSetDataError = (
   ws: WebSocket,
   connectionId: string,
   error: unknown,
+  errorKind?: string, // distinguish "not ready yet" from "real error" for better UI handling
 ) => {
   console.error(error)
   ws.send(
@@ -38,6 +39,7 @@ const sendSetDataError = (
       payload: {
         connectionId,
         error: error instanceof Error ? error.message : String(error),
+        errorKind,
       },
     }),
   )
@@ -49,7 +51,7 @@ export async function setDashboardData(
   ws: WebSocket,
 ) {
   if (!metricsServerURI) {
-    sendSetDataError(ws, connectionId, new Error("Metrics server URI not found"))
+    sendSetDataError(ws, connectionId, new Error("Metrics server URI not found"), METRICS_SERVER_NOT_READY)
     return
   }
 
