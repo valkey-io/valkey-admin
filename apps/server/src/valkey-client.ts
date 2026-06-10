@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, type ServerCredentials } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, NodeDiscoveryMode, type ServerCredentials } from "@valkey/valkey-glide"
 
 type Address = {
   host: string
@@ -46,6 +46,7 @@ export const createStandaloneValkeyClient = ({
   GlideClient.createClient({
     ...buildSharedOptions(options),
     clientName: "valkey_admin_standalone_client",
+    nodeDiscoveryMode: NodeDiscoveryMode.Static
   })
 
 export const createClusterValkeyClient = ({
@@ -62,4 +63,5 @@ export const createOrchestratorValkeyClient = ({
   GlideClient.createClient({
     ...buildSharedOptions(options),
     clientName: "valkey_admin_orchestrator_client",
+    nodeDiscoveryMode: NodeDiscoveryMode.Static
   })
