@@ -1,7 +1,5 @@
 import { Skeleton } from "../ui/skeleton"
 
-// Placeholder shown while the metrics server is starting up and no data has
-// arrived yet. Mirrors the real dashboard layout so content doesn't shift in.
 export function DashboardSkeleton() {
   return (
     <div className="flex-1 overflow-y-auto" data-slot="dashboard-skeleton">
