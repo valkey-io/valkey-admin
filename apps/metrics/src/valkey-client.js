@@ -60,6 +60,6 @@ export const createValkeyClient = async (cfg = {}) => {
     : GlideClient.createClient({
       ...sharedOptions,
       clientName: "valkey_admin_metrics_standalone_client",
-      nodeDiscoveryMode: NodeDiscoveryMode.Static
+      nodeDiscoveryMode: NodeDiscoveryMode.Static,
     })
 }

@@ -46,7 +46,7 @@ export const createStandaloneValkeyClient = ({
   GlideClient.createClient({
     ...buildSharedOptions(options),
     clientName: "valkey_admin_standalone_client",
-    nodeDiscoveryMode: NodeDiscoveryMode.Static
+    nodeDiscoveryMode: NodeDiscoveryMode.Static,
   })
 
 export const createClusterValkeyClient = ({
@@ -63,5 +63,5 @@ export const createOrchestratorValkeyClient = ({
   GlideClient.createClient({
     ...buildSharedOptions(options),
     clientName: "valkey_admin_orchestrator_client",
-    nodeDiscoveryMode: NodeDiscoveryMode.Static
+    nodeDiscoveryMode: NodeDiscoveryMode.Static,
   })

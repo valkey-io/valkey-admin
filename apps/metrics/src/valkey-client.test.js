@@ -12,6 +12,7 @@ vi.mock("@valkey/valkey-glide", () => ({
   GlideClusterClient: {
     createClient: glideMocks.clusterCreateClient,
   },
+  NodeDiscoveryMode: { Standard: 0, Static: 1, DiscoverAll: 2 }
 }))
 
 describe("valkey client mode selection", () => {
