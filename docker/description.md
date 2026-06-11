@@ -81,6 +81,7 @@ Here are all the relevant environment variables for configuration
 | `VALKEY_AUTH_TYPE` | Authentication type (`password`, `iam`) | `password` |
 | `HOT_KEYS_COUNT` | Maximum hot keys returned per query | `50` |
 | `COMMAND_LOGS_COUNT` | Maximum command log entries returned per query | `100` |
+| `KEY_VALUE_SIZE_LIMIT_BYTES` | Max value size (bytes) shown in the Key Browser before a size warning | `2048` |
 | `CONFIG_PATH` | Path to custom metrics config.yml | — |
 
 ### Custom metrics configuration

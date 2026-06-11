@@ -156,7 +156,7 @@ export const VALKEY_CLIENT = {
   } ,
   // chunk size for paginating elements to avoid blocking due to keys with too many elements
   ELEMENT_PAGE_SIZE: 50, 
-  KEY_VALUE_SIZE_LIMIT: 2048, // 2KiB
+  KEY_VALUE_SIZE_LIMIT_BYTES: 2048, // 2KiB
   MESSAGES: {
     NOT_READABLE: "Not human readable.",
   },

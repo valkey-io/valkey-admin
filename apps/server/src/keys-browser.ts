@@ -14,6 +14,10 @@ import { VALKEY, VALKEY_CLIENT } from "valkey-common"
 import { formatBytes } from "valkey-common"
 import { buildScanCommandArgs } from "./valkey-client-commands"
 
+// Largest value the Key Browser renders before showing a size warning; override via env.
+const keyValueSizeLimitBytes =
+  Number(process.env.KEY_VALUE_SIZE_LIMIT_BYTES) || VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT_BYTES
+
 interface EnrichedKeyInfo {
   name: string;
   type: string;
@@ -366,11 +370,11 @@ export async function getKeyInfo(
       return keyInfo
     }
 
-    if (memoryUsage > VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT) {
+    if (memoryUsage > keyValueSizeLimitBytes) {
       if (commands.sizeCmd){
         keyInfo.collectionSize = await (client.customCommand([commands.sizeCmd, key])) as number
       }
-      keyInfo.elementsWarning = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT)}.`
+      keyInfo.elementsWarning = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(keyValueSizeLimitBytes)}.`
 
       return keyInfo
     }
