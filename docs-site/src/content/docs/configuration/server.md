@@ -174,6 +174,13 @@ Maximum number of command log entries (slow logs, large requests, large replies)
 - **Default:** `100`
 - **Read in:** `apps/server/src/actions/commandLogs.ts`
 
+### `KEY_VALUE_SIZE_LIMIT_BYTES`
+
+Maximum value size (in bytes) the Key Browser will render. Keys larger than this show a size warning instead of their contents.
+
+- **Default:** `2048`
+- **Read in:** `apps/server/src/keys-browser.ts`
+
 ## Electron Packaging
 
 This variable is set automatically when the server runs as part of the Electron desktop app. It tells the server where to find bundled assets that live outside the workspace `node_modules` layout. You generally do not need to touch it by hand.
