@@ -1,4 +1,4 @@
-import { GlideClient, GlideClusterClient, ServiceType } from "@valkey/valkey-glide"
+import { GlideClient, GlideClusterClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
 
 const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
 
@@ -60,5 +60,6 @@ export const createValkeyClient = async (cfg = {}) => {
     : GlideClient.createClient({
       ...sharedOptions,
       clientName: "valkey_admin_metrics_standalone_client",
+      nodeDiscoveryMode: NodeDiscoveryMode.Static,
     })
 }
