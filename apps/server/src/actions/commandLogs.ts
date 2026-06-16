@@ -85,6 +85,10 @@ const fetchCommandLogs = async (metricsServerURI: string, commandLogType: Comman
   const count = process.env.COMMAND_LOGS_COUNT || "100"
   const url = `${metricsServerURI}/commandlog?type=${commandLogType}&count=${count}`
   const initialResponse = await fetch(url)
+  if (!initialResponse.ok) {
+    const body = await initialResponse.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error ?? `HTTP ${initialResponse.status}`)
+  }
   const parsed: CommandLogResponse = await initialResponse.json() as CommandLogResponse
   if (parsed.checkAt) {
     const delay = parsed.checkAt - Date.now()
