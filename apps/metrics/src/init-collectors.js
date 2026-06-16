@@ -153,6 +153,7 @@ const setupCollectors = async (client, cfg) => {
         rows = await fn()
       } catch (err) {
         console.warn(`[${f.name}] initial fetch failed, skipping collector:`, err.message)
+        updateCollectorMeta(f.name, { isRunning: false, error: err.message })
         nd.close()
         return
       }

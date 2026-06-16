@@ -30,7 +30,11 @@ const getCommandLogRows = async (commandlogType) => {
 export const getCommandLogs = async (req, res, nodeId) => {
   try {
     const commandlogType = req.query.type
-    const { lastUpdatedAt, nextCycleAt } = getCollectorMeta(commandlogType) || {}
+    const meta = getCollectorMeta(commandlogType)
+    if (meta?.error) {
+      return res.status(503).json({ error: meta.error })
+    }
+    const { lastUpdatedAt, nextCycleAt } = meta || {}
     if (lastUpdatedAt !== null) {
       const count = Number(req.query.count) || 100
       const rows = await getCommandLogRows(commandlogType)
