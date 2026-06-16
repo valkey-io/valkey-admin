@@ -22,7 +22,7 @@ import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
-import { monitorRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning, selectMonitorError } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails, selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
@@ -60,6 +60,7 @@ export const ActivityView = () => {
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(hotKeysId)(state))
   const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
   const monitorRunning = useSelector(selectMonitorRunning(id!))
+  const monitorError = useSelector(selectMonitorError(id!))
   const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
   const clusterAlias = useSelector(selectClusterAlias(id!))
   const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
@@ -206,6 +207,7 @@ export const ActivityView = () => {
                 errorMessage={hotKeysErrorMessage as string | null}
                 isCluster={!!clusterId}
                 monitorRunning={monitorRunning}
+                monitorError={monitorError}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}
                 onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}

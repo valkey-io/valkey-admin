@@ -17,6 +17,7 @@ interface HotKeysProps {
   errorMessage: string | null
   status?: string
   monitorRunning?: boolean
+  monitorError?: string | null
   nodeErrors?: { connectionId: string; error: string }[]
   isCluster?: boolean
   onKeyClick?: (keyName: string) => void
@@ -25,7 +26,7 @@ interface HotKeysProps {
 }
 
 export function HotKeys({
-  data, errorMessage, status, monitorRunning, nodeErrors,
+  data, errorMessage, status, monitorRunning, monitorError, nodeErrors,
   isCluster, onKeyClick, onStartMonitoring, selectedKey,
 }: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
@@ -63,7 +64,7 @@ export function HotKeys({
   const banners = (
     <>
       {!monitorRunning && onStartMonitoring && (
-        <MonitorNotRunningBanner onStartMonitoring={onStartMonitoring} />
+        <MonitorNotRunningBanner onStartMonitoring={onStartMonitoring} error={monitorError} />
       )}
       {nodeErrors && nodeErrors.length > 0 && (
         <NodeErrorsBanner nodeErrors={nodeErrors} />

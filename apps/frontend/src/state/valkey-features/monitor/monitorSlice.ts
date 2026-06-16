@@ -13,6 +13,11 @@ export const selectMonitorLoading =
     (state: RootState) =>
       R.path<boolean>([VALKEY.MONITOR.name, connectionId, "loading"], state) ?? false
 
+export const selectMonitorError =
+  (connectionId: string) =>
+    (state: RootState) =>
+      R.path<string | null>([VALKEY.MONITOR.name, connectionId, "error"], state) ?? null
+
 export const selectRunningMonitorConnections =
   (state: RootState): { connectionId: string; startedAt: number | null }[] => {
     const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
