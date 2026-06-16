@@ -13,7 +13,8 @@ export async function sendValkeyRunCommand(
   payload: { command: string; connectionId: string },
 ) {
   try {
-    const response = await client.customCommand(payload.command.split(" "))
+    // split on whitespace, ignoring extra/leading/trailing spaces
+    const response = await client.customCommand(payload.command.trim().split(/\s+/))
     const isError = isRequestError(response)
 
     ws.send(
