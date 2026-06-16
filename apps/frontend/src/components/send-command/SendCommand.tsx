@@ -57,7 +57,9 @@ export function SendCommand() {
   }
 
   const acceptSuggestion = (cmd: ValkeyCommand) => {
-    setText(cmd.name + " ")
+    // add a trailing space only when the command actually has paramters
+    const needsArgs = cmd.parameters.some((p) => p.required)
+    setText(needsArgs ? cmd.name + " " : cmd.name)
     setSuggestionsDismissed(true)
     setSuggestionIndex(0)
     textareaRef.current?.focus()
