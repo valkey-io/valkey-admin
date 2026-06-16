@@ -68,7 +68,7 @@ const monitorSlice = createSlice({
       state[connectionId].checkAt = parsedResponse.checkAt ?? null
       state[connectionId].startedAt = parsedResponse.startedAt ?? null
       state[connectionId].loading = false
-      state[connectionId].error = null
+      if (parsedResponse.monitorRunning) state[connectionId].error = null
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     saveMonitorSettingsRequested: (state, action) => {
