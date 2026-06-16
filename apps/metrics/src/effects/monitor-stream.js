@@ -68,6 +68,9 @@ export const makeMonitorStream = (onLogs = async () => { }, config) => {
       defer(runMonitorOnce).pipe(
         catchError((err) => {
           console.error("Monitor cycle failed", err)
+          if (err.message?.includes("unknown command")) {
+            throw err
+          }
           return of([])
         }),
       ),
