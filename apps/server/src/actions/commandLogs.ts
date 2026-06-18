@@ -42,7 +42,7 @@ type CommandLogsLargeResponse = {
 
 type CommandLogResponse = (CommandLogsLargeResponse | CommandLogsSlowResponse) & { nodeId?: string }
 
-type NodeError = { connectionId: string; error: string }
+type NodeError = { nodeId: string; error: string }
 
 const sendCommandLogsFulfilled = (
   ws: WebSocket,
@@ -109,14 +109,14 @@ export const commandLogsRequested = withDeps<Deps, void>(
       const metricsServerURI = metricsServerMap.get(toMetricsNodeId(nodeId))?.metricsURI
       if (!metricsServerURI) {
         if (!nodes) sendCommandLogsError(ws, nodeId, new Error("Metrics server URI not found"))
-        return { connectionId: nodeId, error: "Metrics server not started" } as NodeError
+        return { nodeId, error: "Metrics server not started" } as NodeError
       }
       try {
         console.debug(`[Command Logs ${commandLogType}] Fetching from:`, metricsServerURI)
         return await fetchCommandLogs(metricsServerURI, commandLogType)
       } catch (error) {
         if (!nodes) sendCommandLogsError(ws, nodeId, error)
-        return { connectionId: nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
+        return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
       }
     })
 

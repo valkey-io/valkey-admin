@@ -55,7 +55,7 @@ interface CommandLogState {
     count: number
     error?: JSONObject | null
     loading?: boolean
-    nodeErrors?: { connectionId: string; error: string }[]
+    nodeErrors?: { nodeId: string; error: string }[]
   }
 }
 

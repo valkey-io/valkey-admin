@@ -29,7 +29,7 @@ interface HotKeysState {
     nodeId: string | null,
     lastCollectedAt?: number | null,
     error?: JSONObject | null,
-    nodeErrors?: { connectionId: string; error: string }[],
+    nodeErrors?: { nodeId: string; error: string }[],
     status: HotKeysStatus,
   }
 }
