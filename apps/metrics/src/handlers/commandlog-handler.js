@@ -1,6 +1,12 @@
-import { COMMANDLOG_TYPE } from "../utils/constants.js"
+import { COMMANDLOG_TYPE, COMMANDLOG_SLOW, COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST } from "../utils/constants.js"
 import { getCollectorMeta } from "../init-collectors.js"
 import * as Streamer from "../effects/ndjson-streamer.js"
+
+const collectorNameByType = {
+  [COMMANDLOG_TYPE.SLOW]: COMMANDLOG_SLOW,
+  [COMMANDLOG_TYPE.LARGE_REQUEST]: COMMANDLOG_LARGE_REQUEST,
+  [COMMANDLOG_TYPE.LARGE_REPLY]: COMMANDLOG_LARGE_REPLY,
+}
 
 const latestByTsFold = () => ({
   seed: null,
@@ -30,7 +36,7 @@ const getCommandLogRows = async (commandlogType) => {
 export const getCommandLogs = async (req, res, nodeId) => {
   try {
     const commandlogType = req.query.type
-    const meta = getCollectorMeta(commandlogType)
+    const meta = getCollectorMeta(collectorNameByType[commandlogType])
     if (meta?.error) {
       return res.status(503).json({ error: meta.error })
     }
