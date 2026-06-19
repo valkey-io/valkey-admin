@@ -7,5 +7,7 @@ interface KeyInfo {
 }
 
 export function calculateTotalMemoryUsage (keys: KeyInfo[]) {
-  return keys.reduce((total, key) => total + (key.size || 0), 0)
+  const validKeys = keys.filter((key) => key.size > 0)
+  if (validKeys.length === 0) return -1
+  return validKeys.reduce((total, key) => total + key.size, 0)
 };

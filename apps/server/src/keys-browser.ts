@@ -346,7 +346,7 @@ export async function getKeyInfo(
       name: key,
       type: keyType,
       ttl: ttl,
-      size: memoryUsage || 0,
+      size: memoryUsage || -1,
     }
 
     // Get collection size and elements for each type
