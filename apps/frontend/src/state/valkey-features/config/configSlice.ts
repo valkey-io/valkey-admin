@@ -43,9 +43,13 @@ const configSlice = createSlice({
   initialState,
   reducers: {
     setConfig: (state, action) => {
-      const { connectionId, connectionDetails: { keyEvictionPolicy, clusterSlotStatsEnabled } } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({
+      const { connectionId, connectionDetails: { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled } } = action.payload
+      // `setConfig` seeds local config from connection identity (not a server
+      // reply), so its clusterId lives under connectionDetails. Key by clusterId
+      // for clusters or connectionId for standalone.
+      const key = clusterId ?? connectionId
+      if (!state[key]) {
+        state[key] = defaultConfig({
           keyEvictionPolicy,
           clusterSlotStatsEnabled: clusterSlotStatsEnabled ?? false,
         })
@@ -53,19 +57,20 @@ const configSlice = createSlice({
     },
 
     updateConfig: (state, action) => {
-      const { connectionId } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({ status: "updating" })
+      const key = action.payload.clusterId ?? action.payload.connectionId
+      if (!state[key]) {
+        state[key] = defaultConfig({ status: "updating" })
         return
       }
-      state[connectionId].status = "updating"
-      state[connectionId].errorMessage = null // reset any previous error
+      state[key].status = "updating"
+      state[key].errorMessage = null // reset any previous error
     },
 
     updateConfigFulfilled: (state, action) => {
-      const { connectionId, response } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig()
+      const { connectionId, clusterId, response } = action.payload
+      const key = clusterId ?? connectionId
+      if (!state[key]) {
+        state[key] = defaultConfig()
       }
 
       if (response.data?.epic) {
@@ -73,24 +78,25 @@ const configSlice = createSlice({
           Object.keys(defaultConfig().monitoring),
           response.data.epic,
         )
-        state[connectionId].monitoring = {
-          ...state[connectionId].monitoring,
+        state[key].monitoring = {
+          ...state[key].monitoring,
           ...updatedMonitoringConfig,
         }
       }
 
-      state[connectionId].status = "updated"
-      state[connectionId].errorMessage = null
+      state[key].status = "updated"
+      state[key].errorMessage = null
     },
 
     updateConfigFailed: (state, action) => {
-      const { connectionId, response } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({ status: "failed", errorMessage: response.errorMessage })
+      const { response } = action.payload
+      const key = action.payload.clusterId ?? action.payload.connectionId
+      if (!state[key]) {
+        state[key] = defaultConfig({ status: "failed", errorMessage: response.errorMessage })
         return
       }
-      state[connectionId].status = "failed"
-      state[connectionId].errorMessage = response.errorMessage
+      state[key].status = "failed"
+      state[key].errorMessage = response.errorMessage
     },
   },
 })

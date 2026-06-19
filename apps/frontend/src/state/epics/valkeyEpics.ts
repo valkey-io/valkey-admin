@@ -395,7 +395,7 @@ export const setDataEpic = (store: Store) =>
         connectionDetails: { clusterId },
       } = action.payload as unknown as { connectionId:string, connectionDetails: { clusterId?: string } }
 
-      store.dispatch(setConfig( action.payload))
+      store.dispatch(setConfig(action.payload))
 
       if (action.type === clusterConnectFulfilled.type) {
         socket.next({ type: setClusterData.type, payload: { clusterId, connectionId } })

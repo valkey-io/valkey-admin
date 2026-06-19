@@ -82,11 +82,12 @@ const commandLogsSlice = createSlice({
       state[id].loading = true
     },
     commandLogsFulfilled: (state, action) => {
-      const { connectionId, parsedResponse, nodeErrors } = action.payload
+      const { parsedResponse, nodeErrors } = action.payload
+      const key = action.payload.clusterId ?? action.payload.connectionId
       const commandLogType: CommandLogType = action.payload.commandLogType
       const { rows, count } = parsedResponse
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      if (!state[key]) {
+        state[key] = {
           logs: {
             slow: [],
             [COMMANDLOG_TYPE.LARGE_REQUEST]: [],
@@ -96,16 +97,17 @@ const commandLogsSlice = createSlice({
           loading: false,
         }
       }
-      state[connectionId].logs[commandLogType] = rows
-      state[connectionId].count = count
-      state[connectionId].loading = false
-      state[connectionId].nodeErrors = nodeErrors ?? []
+      state[key].logs[commandLogType] = rows
+      state[key].count = count
+      state[key].loading = false
+      state[key].nodeErrors = nodeErrors ?? []
     },
     commandLogsError: (state, action) => {
-      const { connectionId, error } = action.payload
-      if (state[connectionId]) {
-        state[connectionId].error = error
-        state[connectionId].loading = false
+      const { error } = action.payload
+      const key = action.payload.clusterId ?? action.payload.connectionId
+      if (state[key]) {
+        state[key].error = error
+        state[key].loading = false
       }
     },
   },

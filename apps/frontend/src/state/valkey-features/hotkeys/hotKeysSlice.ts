@@ -59,10 +59,10 @@ const hotKeysSlice = createSlice({
     },
     hotKeysFulfilled: (state, action) => {
       const { hotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } = action.payload.parsedResponse
-      const connectionId = action.payload.connectionId
+      const key = action.payload.clusterId ?? action.payload.connectionId
       const nodeErrors = action.payload.nodeErrors ?? []
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      if (!state[key]) {
+        state[key] = {
           hotKeys: [],
           checkAt: null,
           monitorRunning: false,
@@ -70,7 +70,7 @@ const hotKeysSlice = createSlice({
           status: PENDING,
         }
       }
-      state[connectionId] = {
+      state[key] = {
         hotKeys,
         checkAt,
         monitorRunning,
@@ -82,9 +82,10 @@ const hotKeysSlice = createSlice({
       
     },
     hotKeysError: (state, action) => {
-      const { connectionId, error } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      const { error } = action.payload
+      const key = action.payload.clusterId ?? action.payload.connectionId
+      if (!state[key]) {
+        state[key] = {
           hotKeys: [],
           checkAt: null, 
           monitorRunning: false,
@@ -92,8 +93,8 @@ const hotKeysSlice = createSlice({
           status: ERROR,
         }
       }
-      state[connectionId].error = error
-      state[connectionId].status = ERROR
+      state[key].error = error
+      state[key].status = ERROR
     },
   },
 })
