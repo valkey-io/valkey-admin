@@ -276,6 +276,9 @@ describe("init-collectors", () => {
     })
 
     it("should update metadata when monitor starts", async () => {
+      const mockSubject = new Subject()
+      makeMonitorStream.mockReturnValue(mockSubject)
+
       const monitorConfig = createMockConfig({
         epics: [
           { name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 },
@@ -283,7 +286,11 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      const promise = startMonitor(monitorConfig)
+
+      // Emit first successful cycle to resolve the promise
+      mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
+      await promise
 
       const meta = getCollectorMeta("monitor")
       expect(meta.isRunning).toBe(true)
@@ -300,10 +307,11 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      const promise = startMonitor(monitorConfig)
 
       // Emit a next event
       mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
+      await promise
 
       const meta = getCollectorMeta("monitor")
       expect(meta.lastUpdatedAt).toBe(Date.now())
@@ -318,10 +326,12 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      const promise = startMonitor(monitorConfig)
 
       // Emit an error
       mockSubject.error(new Error("Monitor error"))
+
+      await expect(promise).rejects.toThrow("Monitor error")
 
       const meta = getCollectorMeta("monitor")
       expect(meta.isRunning).toBe(false)
@@ -430,7 +440,10 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, stopMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      const promise = startMonitor(monitorConfig)
+
+      mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
+      await promise
 
       await stopMonitor()
 
