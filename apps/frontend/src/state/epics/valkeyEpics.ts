@@ -99,7 +99,7 @@ export const connectionEpic = (store: Store) =>
           currentConnections[payload.connectionId] = connectionToSave
           localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
 
-          if (payload.connectionId?.includes(".serverless.")) {
+          if (baseConnectionDetails?.host?.includes(".serverless.")) {
             toast.warning(
               "Connected to an ElastiCache Serverless cache. Some features like Dashboard metrics, Command Logs, and Monitor are not available. Key Browser and Send Command work as expected.",
               { duration: 10000 },
