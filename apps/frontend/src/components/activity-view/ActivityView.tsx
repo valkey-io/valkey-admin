@@ -206,8 +206,8 @@ export const ActivityView = () => {
                 data={hotKeysData}
                 errorMessage={hotKeysErrorMessage as string | null}
                 isCluster={!!clusterId}
-                monitorRunning={monitorRunning}
                 monitorError={monitorError}
+                monitorRunning={monitorRunning}
                 nodeErrors={hotKeysNodeErrors}
                 onKeyClick={handleKeyClick}
                 onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}

@@ -101,7 +101,9 @@ export const connectionEpic = (store: Store) =>
 
           if (baseConnectionDetails?.host?.includes(".serverless.")) {
             toast.warning(
-              "Connected to an ElastiCache Serverless cache. Some features like Dashboard metrics, Command Logs, and Monitor are not available. Key Browser and Send Command work as expected.",
+              `Connected to an ElastiCache Serverless cache. 
+              Some features like Dashboard metrics, Command Logs, and Monitor are not available. 
+              Key Browser and Send Command work as expected.`,
               { duration: 10000 },
             )
           } else {
