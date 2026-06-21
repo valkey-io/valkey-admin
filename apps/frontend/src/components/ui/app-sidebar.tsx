@@ -9,7 +9,8 @@ import {
   Github,
   KeyRound,
   Network,
-  Activity
+  Activity,
+  BrainCircuit
 } from "lucide-react"
 import { Link, useLocation, useParams } from "react-router"
 import { useState } from "react"
@@ -72,6 +73,11 @@ export function AppSidebar() {
                     to: (clusterId ? `/${clusterId}/${id}/activity` : `/${id}/activity`),
                     title: "Activity",
                     icon: Activity,
+                  },
+                  {
+                    to: (clusterId ? `/${clusterId}/${id}/ai-copilot` : `/${id}/ai-copilot`),
+                    title: "AI Copilot",
+                    icon: BrainCircuit,
                   },
                   { to: (clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`), 
                     title: "Send Command", 

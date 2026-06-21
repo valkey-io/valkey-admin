@@ -40,6 +40,7 @@ import {
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
+import { detectIntent, llmHealth, getModel } from "./ai-intent"
 import type { Request, Response } from "express"
 
 interface AliveWebSocket extends WebSocket {
@@ -79,6 +80,142 @@ app.use(express.static(frontendDist))
 app.use(express.json())
 const metricsRouter = createMetricsOrchestratorRouter()
 app.use("/orchestrator", metricsRouter)
+
+// ── AI Copilot Backend Endpoints (Breeth integration) ────────────────────────
+const BREETH_API_URL = "https://api.thebreeth.com"
+const BREETH_API_KEY = process.env.BREETH_API_KEY
+const BREETH_GROUP_ID = "valkey-admin-copilot"
+
+// Guard: every AI Copilot route requires the server-side Breeth API key.
+function requireBreethKey(res: Response): boolean {
+  if (!BREETH_API_KEY) {
+    console.error("BREETH_API_KEY is not set. AI Copilot memory features are disabled.")
+    res.status(500).json({
+      ok: false,
+      error: "Breeth integration is not configured. Set the BREETH_API_KEY environment variable on the server.",
+    })
+    return false
+  }
+  return true
+}
+
+async function breethPost(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch(`${BREETH_API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${BREETH_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText })) as Record<string, string>
+    throw new Error(err.message || err.error || `Breeth API ${response.status}`)
+  }
+  return response.json() as Promise<Record<string, unknown>>
+}
+
+// Save an analysis to Breeth
+app.post("/api/ai-copilot/save-analysis", async (req: Request, res: Response) => {
+  if (!requireBreethKey(res)) return
+  try {
+    const { timestamp, healthScore, rootCause, riskAssessment, issues, recommendations, optimizations, metricsSnapshot, query } = req.body
+
+    const content = [
+      `Valkey health analysis at ${timestamp}.`,
+      `Health Score: ${healthScore}/100.`,
+      `Root Cause: ${rootCause}`,
+      `Risk: ${riskAssessment}`,
+      issues?.length > 0 ? `Issues: ${issues.join(". ")}.` : "No issues detected.",
+      `Recommendations: ${recommendations?.join(". ")}.`,
+      `Optimizations: ${optimizations?.join(". ")}.`,
+      metricsSnapshot ? `Memory: ${metricsSnapshot.used_memory ?? "unknown"} bytes. Clients: ${metricsSnapshot.connected_clients ?? "unknown"}. Hit ratio: ${metricsSnapshot.hitRatio ?? "unknown"}.` : "",
+      query ? `User query: ${query}` : "",
+    ].filter(Boolean).join(" ")
+
+    const data = await breethPost("/v1/episodes", {
+      content,
+      group_id: BREETH_GROUP_ID,
+      source_description: "valkey-admin-ai-copilot",
+      extract_intent: true,
+    })
+
+    res.json({ ok: true, episode_name: data.episode_name, extracted: data.extracted })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to save analysis"
+    console.error("AI Copilot save-analysis error:", message)
+    res.status(502).json({ ok: false, error: message })
+  }
+})
+
+// Retrieve analysis history from Breeth
+app.get("/api/ai-copilot/history", async (_req: Request, res: Response) => {
+  if (!requireBreethKey(res)) return
+  try {
+    const data = await breethPost("/v1/search", {
+      query: "Valkey health analysis score root cause recommendations",
+      group_id: BREETH_GROUP_ID,
+      limit: 10,
+    })
+    const edges = Array.isArray(data.edges) ? data.edges : []
+    res.json({ ok: true, edges })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to load history"
+    console.error("AI Copilot history error:", message)
+    res.status(502).json({ ok: false, edges: [], error: message })
+  }
+})
+
+// Search for similar incidents
+app.post("/api/ai-copilot/search-similar", async (req: Request, res: Response) => {
+  if (!requireBreethKey(res)) return
+  try {
+    const { query, limit } = req.body
+    if (!query) {
+      res.status(400).json({ ok: false, edges: [], error: "query is required" })
+      return
+    }
+    const data = await breethPost("/v1/search", {
+      query,
+      group_id: BREETH_GROUP_ID,
+      limit: limit || 5,
+    })
+    const edges = Array.isArray(data.edges) ? data.edges : []
+    res.json({ ok: true, edges })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to search"
+    console.error("AI Copilot search-similar error:", message)
+    res.status(502).json({ ok: false, edges: [], error: message })
+  }
+})
+
+// Natural-language → intent → safe command ("Ask Valkey")
+app.post("/api/ai-copilot/interpret", async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body
+    if (!query || typeof query !== "string") {
+      res.status(400).json({ ok: false, error: "query is required" })
+      return
+    }
+    const result = await detectIntent(query)
+    console.log(
+      `[AskValkey] query="${result.query}" → intent=${result.intent} ` +
+      `confidence=${result.confidence} source=${result.source}` +
+      (result.parseError ? ` parseError="${result.parseError}"` : ""),
+    )
+    res.json({ ok: true, ...result })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Intent detection failed"
+    console.error("AI Copilot interpret error:", message)
+    res.status(500).json({ ok: false, error: message })
+  }
+})
+
+// LLM health check — confirms key presence and API reachability (never returns the key)
+app.get("/api/ai-copilot/llm-health", async (_req: Request, res: Response) => {
+  const health = await llmHealth()
+  res.json(health)
+})
 
 // Fallback to index.html for SPA routing
 app.get("*", (_req: Request, res: Response) => {
@@ -141,6 +278,9 @@ async function updateRegistryforK8() {
 
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
+  // AI Copilot startup health check (never logs the actual keys).
+  console.log(`[AICopilot] BREETH_API_KEY ${process.env.BREETH_API_KEY ? "configured" : "MISSING"}`)
+  console.log(`[AICopilot] GROQ_API_KEY ${process.env.GROQ_API_KEY ? "configured" : "MISSING"} (model: ${getModel()})`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }
