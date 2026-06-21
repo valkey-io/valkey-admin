@@ -100,19 +100,46 @@ function requireBreethKey(res: Response): boolean {
 }
 
 async function breethPost(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const response = await fetch(`${BREETH_API_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${BREETH_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: response.statusText })) as Record<string, string>
-    throw new Error(err.message || err.error || `Breeth API ${response.status}`)
+  const maxAttempts = 3
+  let lastErr: unknown
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    try {
+      const response = await fetch(`${BREETH_API_URL}${path}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${BREETH_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: response.statusText })) as Record<string, string>
+        throw new Error(err.message || err.error || `Breeth API ${response.status}`)
+      }
+      return response.json() as Promise<Record<string, unknown>>
+    } catch (err) {
+      clearTimeout(timeout)
+      lastErr = err
+      const message = err instanceof Error ? err.message : String(err)
+      // Retry only on transient network/timeout errors, not on API errors.
+      const transient = message === "fetch failed" || message.includes("aborted") || message.includes("timeout") || message.includes("ECONNRESET") || message.includes("ENOTFOUND")
+      if (!transient || attempt === maxAttempts) break
+      console.warn(`Breeth ${path} attempt ${attempt} failed (${message}); retrying...`)
+      await new Promise((r) => setTimeout(r, 300 * attempt))
+    }
   }
-  return response.json() as Promise<Record<string, unknown>>
+
+  const message = lastErr instanceof Error ? lastErr.message : String(lastErr)
+  throw new Error(
+    message === "fetch failed"
+      ? "Could not reach Breeth (network error). Please retry."
+      : message,
+  )
 }
 
 // Save an analysis to Breeth

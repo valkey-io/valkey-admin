@@ -10,6 +10,7 @@ import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateHitRatio } from "@common/src/cache-hit-ratio"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
+import { ParticleWave } from "../ui/particle-wave"
 import { selectData } from "@/state/valkey-features/info/infoSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateData } from "@/state/valkey-features/info/infoSlice"
@@ -180,7 +181,8 @@ export function AICopilot() {
       : `${Math.floor(uptimeSeconds / 60)}m`
 
   return (
-    <RouteContainer>
+    <RouteContainer className="relative">
+      <ParticleWave />
       <AppHeader icon={<BrainCircuit size={22} />} title="AI Copilot" />
 
       <div className="flex flex-col gap-6 overflow-y-auto pb-6">
