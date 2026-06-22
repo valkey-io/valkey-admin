@@ -2,7 +2,7 @@ import { type KeyEvictionPolicy } from "@common/src/constants"
 import { createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
 import { VALKEY } from "@common/src/constants"
-import { type RootState } from "@/store"
+import type { RootState } from "@/store"
 
 type UpdateStatus = "updating" | "updated" | "failed"
 export const selectConfig = (id: string) => (state: RootState) =>
