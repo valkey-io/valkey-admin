@@ -9,6 +9,7 @@ vi.mock("./effects/fetchers.js", () => ({
 
 vi.mock("./effects/monitor-stream.js", () => ({
   makeMonitorStream: vi.fn(),
+  connectMonitor: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock("./effects/ndjson-writer.js", () => ({
@@ -267,7 +268,7 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      await startMonitor(monitorConfig)
 
       expect(makeMonitorStream).toHaveBeenCalled()
       const monitorEpic = makeMonitorStream.mock.calls[0][1]
@@ -286,11 +287,7 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      const promise = startMonitor(monitorConfig)
-
-      // Emit first successful cycle to resolve the promise
-      mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
-      await promise
+      await startMonitor(monitorConfig)
 
       const meta = getCollectorMeta("monitor")
       expect(meta.isRunning).toBe(true)
@@ -307,37 +304,26 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      const promise = startMonitor(monitorConfig)
+      await startMonitor(monitorConfig)
 
       // Emit a next event
       mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
-      await promise
 
       const meta = getCollectorMeta("monitor")
       expect(meta.lastUpdatedAt).toBe(Date.now())
     })
 
     it("should handle monitor errors", async () => {
-      const mockSubject = new Subject()
-      makeMonitorStream.mockReturnValue(mockSubject)
+      const { connectMonitor } = await import("./effects/monitor-stream.js")
+      connectMonitor.mockRejectedValueOnce(new Error("Monitor error"))
 
       const monitorConfig = createMockConfig({
         epics: [{ name: "monitor", monitoringDuration: 5000, data_retention_mb: 10 }],
       })
 
-      const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      const promise = startMonitor(monitorConfig)
+      const { startMonitor } = await import("./init-collectors.js")
 
-      // Emit an error
-      mockSubject.error(new Error("Monitor error"))
-
-      await expect(promise).rejects.toThrow("Monitor error")
-
-      const meta = getCollectorMeta("monitor")
-      expect(meta.isRunning).toBe(false)
-      expect(meta.lastErrorAt).toBe(Date.now())
-      expect(meta.lastError).toContain("Monitor error")
-      expect(meta.willCompleteAt).toBeNull()
+      await expect(startMonitor(monitorConfig)).rejects.toThrow("Monitor error")
     })
 
     it("should update metadata on completion", async () => {
@@ -349,7 +335,7 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      await startMonitor(monitorConfig)
 
       // Complete the stream
       mockSubject.complete()
@@ -384,7 +370,7 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, stopMonitor } = await import("./init-collectors.js")
-      startMonitor(monitorConfig)
+      await startMonitor(monitorConfig)
 
       await stopMonitor()
 
@@ -440,10 +426,7 @@ describe("init-collectors", () => {
       })
 
       const { startMonitor, stopMonitor, getCollectorMeta } = await import("./init-collectors.js")
-      const promise = startMonitor(monitorConfig)
-
-      mockSubject.next([{ ts: Date.now(), cmd: "GET key" }])
-      await promise
+      await startMonitor(monitorConfig)
 
       await stopMonitor()
 

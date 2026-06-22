@@ -1,5 +1,5 @@
 import { makeFetcher } from "./effects/fetchers.js"
-import { makeMonitorStream } from "./effects/monitor-stream.js"
+import { makeMonitorStream, connectMonitor } from "./effects/monitor-stream.js"
 import { makeNdjsonWriter } from "./effects/ndjson-writer.js"
 import { startCollector } from "./epics/collector-rx.js"
 import { MONITOR } from "./utils/constants.js"
@@ -41,8 +41,13 @@ let monitorStopper
 updateCollectorMeta(MONITOR, {
   isRunning: false,
 })
-const startMonitor = (cfg) => {
+const startMonitor = async (cfg) => {
   const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
+
+  // Phase 1: Verify MONITOR command is supported (fast — throws if not)
+  await connectMonitor()
+
+  // Command works — set up collection
   const { maxFiles, maxFileSize } = computeCapacity(monitorEpic.data_retention_mb)
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
@@ -59,62 +64,52 @@ const startMonitor = (cfg) => {
     close: nd.close,
   }
 
+  updateCollectorMeta(monitorEpic.name, {
+    isRunning: true,
+    startedAt: Date.now(),
+    willCompleteAt: Date.now() + monitorEpic.monitoringDuration,
+  })
+
+  // Phase 2: Start background collection stream
   const stream$ = makeMonitorStream(async (logs) => {
     await sink.appendRows(logs)
   }, monitorEpic)
 
-  return new Promise((resolve, reject) => {
-    let settled = false
-
-    const subscription = stream$.subscribe({
-      next: (logs) => {
-        if (!settled) {
-          settled = true
-          updateCollectorMeta(monitorEpic.name, {
-            isRunning: true,
-            startedAt: Date.now(),
-            willCompleteAt: Date.now() + monitorEpic.monitoringDuration,
-          })
-          resolve()
-        }
-        updateCollectorMeta(monitorEpic.name, {
-          lastUpdatedAt: Date.now(),
-        })
-        console.debug(`[${monitorEpic.name}] monitor cycle complete (${logs.length} logs)`)
-      },
-      error: (err) => {
-        updateCollectorMeta(monitorEpic.name, {
-          isRunning: false,
-          lastErrorAt: Date.now(),
-          lastError: String(err),
-          willCompleteAt: null,
-        })
-        console.error(`[${monitorEpic.name}] monitor error:`, err)
-        if (!settled) {
-          settled = true
-          reject(err)
-        }
-      },
-      complete: () => {
-        updateCollectorMeta(monitorEpic.name, {
-          completedAt: Date.now(),
-          isRunning: false,
-        })
-        console.debug(`[${monitorEpic.name}] monitor completed`)
-      },
-    })
-
-    monitorStopper = async () => {
-      console.debug(`[${monitorEpic.name}] stopping monitor...`)
+  const subscription = stream$.subscribe({
+    next: (logs) => {
       updateCollectorMeta(monitorEpic.name, {
-        stoppedAt: Date.now(),
+        lastUpdatedAt: Date.now(),
+      })
+      console.debug(`[${monitorEpic.name}] monitor cycle complete (${logs.length} logs)`)
+    },
+    error: (err) => {
+      updateCollectorMeta(monitorEpic.name, {
         isRunning: false,
+        lastErrorAt: Date.now(),
+        lastError: String(err),
         willCompleteAt: null,
       })
-      subscription.unsubscribe()
-      await sink.close()
-    }
+      console.error(`[${monitorEpic.name}] monitor error:`, err)
+    },
+    complete: () => {
+      updateCollectorMeta(monitorEpic.name, {
+        completedAt: Date.now(),
+        isRunning: false,
+      })
+      console.debug(`[${monitorEpic.name}] monitor completed`)
+    },
   })
+
+  monitorStopper = async () => {
+    console.debug(`[${monitorEpic.name}] stopping monitor...`)
+    updateCollectorMeta(monitorEpic.name, {
+      stoppedAt: Date.now(),
+      isRunning: false,
+      willCompleteAt: null,
+    })
+    subscription.unsubscribe()
+    await sink.close()
+  }
 }
 
 const stopMonitor = async () => await monitorStopper()
