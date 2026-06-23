@@ -1,8 +1,7 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type HotKeysResponse = {
   nodeId: string
@@ -37,7 +36,7 @@ const sendHotKeysFulfilled = (
 
 const sendHotKeysError = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   error: unknown,
 ) => {
   console.error(error)
@@ -45,7 +44,7 @@ const sendHotKeysError = (
     JSON.stringify({
       type: VALKEY.HOTKEYS.hotKeysError,
       payload: {
-        connectionId,
+        nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
     }),
@@ -61,7 +60,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
       ? clusterNodesRegistry[clusterId] 
       : undefined
 
-    const nodeIds = nodes ? Object.keys(nodes) : [toMetricsNodeId(connectionId)]
+    const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
 
     const promises = nodeIds.map(async (nodeId: string) => {
       const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
@@ -81,7 +80,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         if (!initialResponse.ok) {
           const errorBody = await initialResponse.json() as { error?: string }
           if (!nodes) {
-            sendHotKeysError(ws, connectionId, errorBody.error ?? `HTTP ${initialResponse.status}`)
+            sendHotKeysError(ws, nodeId, errorBody.error ?? `HTTP ${initialResponse.status}`)
             return
           }
           return { nodeId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
@@ -99,7 +98,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         }
       } catch (error) {
         if (!nodes) {
-          sendHotKeysError(ws, connectionId, error)
+          sendHotKeysError(ws, nodeId, error)
           return
         }
         return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
@@ -119,7 +118,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
     }
 
     if (!nodes) {
-      sendHotKeysFulfilled(ws, { connectionId }, results[0])
+      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0])
       return
     }
 

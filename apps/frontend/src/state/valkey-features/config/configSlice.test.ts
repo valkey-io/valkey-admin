@@ -11,17 +11,31 @@ describe("configSlice", () => {
   const initialState = {}
 
   describe("setConfig (seed on connect)", () => {
-    it("keys standalone config by connectionId", () => {
+    it("keys standalone config by the db-less nodeId", () => {
       const state = configReducer(
         initialState,
         setConfig({
           connectionId: "host-6379-db0",
-          connectionDetails: { keyEvictionPolicy: "noeviction", clusterSlotStatsEnabled: false },
+          connectionDetails: {},
         }),
       )
 
-      expect(state["host-6379-db0"]).toBeDefined()
-      expect(state["host-6379-db0"].keyEvictionPolicy).toBe("noeviction")
+      // Seeded under the db-less nodeId, not the db-suffixed connectionId.
+      expect(state["host-6379"]).toBeDefined()
+      expect(state["host-6379-db0"]).toBeUndefined()
+    })
+
+    it("collapses two connections to the same node on different dbs into one entry", () => {
+      const afterDb0 = configReducer(
+        initialState,
+        setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
+      )
+      const afterDb1 = configReducer(
+        afterDb0,
+        setConfig({ connectionId: "host-6379-db1", connectionDetails: {} }),
+      )
+
+      expect(Object.keys(afterDb1)).toEqual(["host-6379"])
     })
 
     it("keys cluster config by clusterId (nested in connectionDetails)", () => {
@@ -29,14 +43,45 @@ describe("configSlice", () => {
         initialState,
         setConfig({
           connectionId: "node-1-db0",
-          connectionDetails: { clusterId: "cluster-1", keyEvictionPolicy: "allkeys-lfu", clusterSlotStatsEnabled: true },
+          connectionDetails: { clusterId: "cluster-1" },
         }),
       )
 
       // Seeded under clusterId, NOT the db-suffixed connectionId.
       expect(state["cluster-1"]).toBeDefined()
       expect(state["node-1-db0"]).toBeUndefined()
-      expect(state["cluster-1"].clusterSlotStatsEnabled).toBe(true)
+    })
+
+    it("seeds only monitoring/status/errorMessage (no dead fields)", () => {
+      const state = configReducer(
+        initialState,
+        setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
+      )
+
+      const entry = state["host-6379"]
+      // ConfigEntry shape is exactly monitoring/status/errorMessage.
+      expect(Object.keys(entry).sort()).toEqual(["errorMessage", "monitoring", "status"])
+      expect(Object.keys(entry.monitoring).sort()).toEqual(
+        ["cutoffFrequency", "maxCommandsPerRun", "monitoringDuration", "monitoringInterval"],
+      )
+      // Removed dead fields are not present.
+      expect(entry).not.toHaveProperty("darkMode")
+      expect(entry).not.toHaveProperty("keyEvictionPolicy")
+      expect(entry).not.toHaveProperty("clusterSlotStatsEnabled")
+    })
+
+    it("does not copy connection details into config state", () => {
+      const state = configReducer(
+        initialState,
+        setConfig({
+          connectionId: "host-6379-db0",
+          connectionDetails: { keyEvictionPolicy: "allkeys-lfu", clusterSlotStatsEnabled: true },
+        }),
+      )
+
+      const entry = state["host-6379"]
+      expect(entry).not.toHaveProperty("keyEvictionPolicy")
+      expect(entry).not.toHaveProperty("clusterSlotStatsEnabled")
     })
   })
 
@@ -46,7 +91,7 @@ describe("configSlice", () => {
         initialState,
         setConfig({
           connectionId: "node-1-db0",
-          connectionDetails: { clusterId: "cluster-1", clusterSlotStatsEnabled: false },
+          connectionDetails: { clusterId: "cluster-1" },
         }),
       )
 
@@ -64,16 +109,16 @@ describe("configSlice", () => {
       expect(state["cluster-1"].status).toBe("updated")
     })
 
-    it("applies standalone monitoring settings keyed by connectionId", () => {
+    it("applies standalone monitoring settings keyed by nodeId", () => {
       const state = configReducer(
         initialState,
         updateConfigFulfilled({
-          connectionId: "host-6379-db0",
+          nodeId: "host-6379",
           response: { data: { epic: { name: "monitor", monitoringDuration: 1234 } } },
         }),
       )
 
-      expect(state["host-6379-db0"].monitoring.monitoringDuration).toBe(1234)
+      expect(state["host-6379"].monitoring.monitoringDuration).toBe(1234)
     })
   })
 
@@ -87,24 +132,48 @@ describe("configSlice", () => {
       expect(state["cluster-1"].status).toBe("failed")
       expect(state["cluster-1"].errorMessage).toBe("bad config")
     })
+
+    it("sets failed status on the standalone entry keyed by nodeId", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({ nodeId: "host-6379", response: { errorMessage: "nope" } }),
+      )
+
+      expect(state["host-6379"].status).toBe("failed")
+      expect(state["host-6379"].errorMessage).toBe("nope")
+    })
   })
 
-  describe("updateConfig (optimistic, dead path aligned for future use)", () => {
+  describe("updateConfig (optimistic)", () => {
     it("keys by clusterId when present", () => {
-      const state = configReducer(initialState, updateConfig({ clusterId: "cluster-1", connectionId: "node-1-db0" }))
+      const state = configReducer(initialState, updateConfig({ clusterId: "cluster-1", nodeId: "node-1" }))
       expect(state["cluster-1"].status).toBe("updating")
-      expect(state["node-1-db0"]).toBeUndefined()
+      expect(state["node-1"]).toBeUndefined()
+    })
+
+    it("keys by nodeId when no clusterId", () => {
+      const state = configReducer(initialState, updateConfig({ nodeId: "host-6379" }))
+      expect(state["host-6379"].status).toBe("updating")
     })
   })
 
   describe("selectConfig", () => {
-    it("reads the cluster entry via clusterId ?? id", () => {
+    it("reads the cluster entry via clusterId", () => {
       const seeded = configReducer(
         initialState,
         setConfig({ connectionId: "node-1-db0", connectionDetails: { clusterId: "cluster-1" } }),
       )
       const rootState = { config: seeded } as never
       expect(selectConfig("cluster-1")(rootState)).toBeDefined()
+    })
+
+    it("reads the standalone entry via nodeId", () => {
+      const seeded = configReducer(
+        initialState,
+        setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
+      )
+      const rootState = { config: seeded } as never
+      expect(selectConfig("host-6379")(rootState)).toBeDefined()
     })
   })
 })

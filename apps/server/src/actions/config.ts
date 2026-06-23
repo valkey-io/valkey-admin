@@ -1,7 +1,6 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId } from "valkey-common"
 import { Deps, withDeps, fetchWithTimeout } from "./utils"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 interface ParsedResponse  {
   success: boolean, 
@@ -56,12 +55,12 @@ export const updateConfig = withDeps<Deps, void>(
       return
     }
 
-    const nodeId = toMetricsNodeId(connectionId)
+    const nodeId = toNodeId(connectionId)
     const response = await postConfigToNode(metricsServerMap.get(nodeId)?.metricsURI, config)
     if (response.success) {
-      sendUpdateFulfilled(ws, { connectionId }, response)
+      sendUpdateFulfilled(ws, { nodeId }, response)
     } else {
-      sendUpdateError(ws, { connectionId }, response)
+      sendUpdateError(ws, { nodeId }, response)
     }
   },  
 )

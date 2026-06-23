@@ -2,7 +2,7 @@ import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials, Servic
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl } from "valkey-common"
+import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl, toNodeId } from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
   getExistingClusterClient, 
@@ -22,7 +22,6 @@ import {
   clusterCredentials, 
   reconcileClusterMetricsServers, 
   isKubernetes, 
-  toMetricsNodeId, 
   ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
@@ -370,10 +369,10 @@ async function connectToValkeyLocked(
 
     // In K8s or Web, metrics servers register themselves.
     if (!isKubernetes) {
-      // `metricsServerMap` is keyed by metrics-node-id, not Connection_Identifier.
+      // `metricsServerMap` is keyed by node-id, not Connection_Identifier.
       // Strip the `-db<N>` suffix so a second user connection on a different
       // db reuses the existing metrics process for the same node (N:1).
-      const metricsNodeId = toMetricsNodeId(payload.connectionId)
+      const metricsNodeId = toNodeId(payload.connectionId)
       if (!metricsServerMap.has(metricsNodeId)) {
         await startMetricsServer(payload.connectionDetails, metricsNodeId)
       }
@@ -649,7 +648,7 @@ export async function closeMetricsServer(
   clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>,
 ) {
   // Map Connection_Identifier → metrics-node-id at the boundary.
-  const metricsNodeId = toMetricsNodeId(connectionId)
+  const nodeId = toNodeId(connectionId)
 
   // N:1 invariant: many user-visible connections may share one metrics
   // process for the same (host, port). Only close when this is the LAST
@@ -658,11 +657,11 @@ export async function closeMetricsServer(
   // removed `connectionId` from `clients`; teardownConnection currently
   // removes first, so this is belt-and-suspenders.
   const stillReferenced = [...clients.keys()].some(
-    (id) => id !== connectionId && toMetricsNodeId(id) === metricsNodeId,
+    (id) => id !== connectionId && toNodeId(id) === nodeId,
   )
   if (stillReferenced) return
 
-  const metricsServerUri = metricsServerMap.get(metricsNodeId)?.metricsURI
+  const metricsServerUri = metricsServerMap.get(nodeId)?.metricsURI
   if (metricsServerUri) {
     const res = await fetch(`${metricsServerUri}/connection/close`, 
       { method: "POST",
@@ -670,8 +669,8 @@ export async function closeMetricsServer(
         body: JSON.stringify({ connectionId }), 
       })
     if (res.ok) {
-      metricsServerMap.delete(metricsNodeId)
-      console.log(`Metrics server for ${metricsNodeId} closed successfully`)
+      metricsServerMap.delete(nodeId)
+      console.log(`Metrics server for ${nodeId} closed successfully`)
     }
     else console.warn("Could not kill metrics server process")
   }

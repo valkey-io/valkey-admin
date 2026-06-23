@@ -8,7 +8,6 @@ import {
   reconcileClusterMetricsServers,
   clients,
   clusterNodesRegistry,
-  toMetricsNodeId,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
@@ -276,34 +275,6 @@ describe("metrics-orchestrator", () => {
       await reconcileClusterMetricsServers(
         mockClusterNodesRegistry,metricsServerMap, connectionDetails)
       // updateMetricsServers should not be called because nothing changed
-    })
-  })
-
-  describe("toMetricsNodeId", () => {
-    // The boundary helper between Connection_Identifier-keyed `clients` and
-    // metrics-node-id-keyed `metricsServerMap`.
-    it("strips a trailing -db0 suffix", () => {
-      assert.strictEqual(toMetricsNodeId("127-0-0-1-6379-db0"), "127-0-0-1-6379")
-    })
-
-    it("strips a trailing -db15 suffix (multi-digit)", () => {
-      assert.strictEqual(toMetricsNodeId("valkey-7001-7001-db15"), "valkey-7001-7001")
-    })
-
-    it("is idempotent on already-stripped ids", () => {
-      assert.strictEqual(toMetricsNodeId("valkey-7001-7001"), "valkey-7001-7001")
-    })
-
-    it("does not touch a non-trailing -db<N> token", () => {
-      assert.strictEqual(toMetricsNodeId("dbserver-db5-host-6379"), "dbserver-db5-host-6379")
-    })
-
-    it("does not strip when -db is followed by non-digits", () => {
-      assert.strictEqual(toMetricsNodeId("host-6379-dbx"), "host-6379-dbx")
-    })
-
-    it("returns the empty string unchanged", () => {
-      assert.strictEqual(toMetricsNodeId(""), "")
     })
   })
 })

@@ -1,28 +1,32 @@
 import { createSlice } from "@reduxjs/toolkit"
 import { type JSONObject } from "@common/src/json-utils"
 import { ERROR, FULFILLED, PENDING, VALKEY } from "@common/src/constants.ts"
+import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
 import type { RootState } from "@/store.ts"
 
 type HotKeysStatus = typeof PENDING | typeof FULFILLED | typeof ERROR
 
-export const selectHotKeys = (id: string) => (state: RootState) =>
-  R.path([VALKEY.HOTKEYS.name, id, "hotKeys"], state)
+// `targetId` is the state key: `clusterId` for a cluster aggregate or the
+// db-less `nodeId` for a standalone node.
+export const selectHotKeys = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, targetId, "hotKeys"], state)
 
-export const selectHotKeysStatus = (id: string) => (state: RootState) =>
-  R.path([VALKEY.HOTKEYS.name, id, "status"], state)
+export const selectHotKeysStatus = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, targetId, "status"], state)
 
-export const selectHotKeysError = (id: string) => (state: RootState) =>
-  R.path([VALKEY.HOTKEYS.name, id, "error"], state)
+export const selectHotKeysError = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, targetId, "error"], state)
 
-export const selectHotKeysNodeErrors = (id: string) => (state: RootState) =>
-  R.path([VALKEY.HOTKEYS.name, id, "nodeErrors"], state) ?? []
+export const selectHotKeysNodeErrors = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, targetId, "nodeErrors"], state) ?? []
 
-export const selectHotKeysLastCollectedAt = (id: string) => (state: RootState) =>
-  R.path([VALKEY.HOTKEYS.name, id, "lastCollectedAt"], state) ?? null
+export const selectHotKeysLastCollectedAt = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.HOTKEYS.name, targetId, "lastCollectedAt"], state) ?? null
 
 interface HotKeysState {
-  [connectionId: string]: {
+  // Keyed by `targetId`: `clusterId` (cluster) or db-less `nodeId` (standalone).
+  [targetId: string]: {
     hotKeys: [string, number, number | null, number, string?][]
     checkAt: string | null,
     monitorRunning: boolean,
@@ -42,9 +46,10 @@ const hotKeysSlice = createSlice({
   reducers: {
     hotKeysRequested: (state, action) => {
       const { connectionId, clusterId } = action.payload
-      const id = clusterId ?? connectionId
-      if (!state[id]) {
-        state[id] = {
+      // Standalone hot keys state is node-level.
+      const targetId = clusterId ?? toNodeId(connectionId)
+      if (!state[targetId]) {
+        state[targetId] = {
           hotKeys: [],
           checkAt: null,
           monitorRunning: false,
@@ -52,25 +57,16 @@ const hotKeysSlice = createSlice({
           status: PENDING,
         }
       } else {
-        state[id].status = PENDING
-        state[id].hotKeys = []
-        state[id].error = null
+        state[targetId].status = PENDING
+        state[targetId].hotKeys = []
+        state[targetId].error = null
       }
     },
     hotKeysFulfilled: (state, action) => {
       const { hotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } = action.payload.parsedResponse
-      const key = action.payload.clusterId ?? action.payload.connectionId
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
       const nodeErrors = action.payload.nodeErrors ?? []
-      if (!state[key]) {
-        state[key] = {
-          hotKeys: [],
-          checkAt: null,
-          monitorRunning: false,
-          nodeId: null,
-          status: PENDING,
-        }
-      }
-      state[key] = {
+      state[targetId] = {
         hotKeys,
         checkAt,
         monitorRunning,
@@ -79,13 +75,12 @@ const hotKeysSlice = createSlice({
         nodeErrors,
         status: FULFILLED,
       }
-      
     },
     hotKeysError: (state, action) => {
       const { error } = action.payload
-      const key = action.payload.clusterId ?? action.payload.connectionId
-      if (!state[key]) {
-        state[key] = {
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      if (!state[targetId]) {
+        state[targetId] = {
           hotKeys: [],
           checkAt: null, 
           monitorRunning: false,
@@ -93,8 +88,8 @@ const hotKeysSlice = createSlice({
           status: ERROR,
         }
       }
-      state[key].error = error
-      state[key].status = ERROR
+      state[targetId].error = error
+      state[targetId].status = ERROR
     },
   },
 })

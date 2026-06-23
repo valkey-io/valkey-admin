@@ -1,9 +1,8 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type MonitorAction, type NodeReplyId } from "valkey-common"
+import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId } from "valkey-common"
 import { withDeps, type Deps, fetchWithTimeout, type ReduxAction } from "./utils"
 import { updateConfig } from "./config"
 import { getOtherWatchers } from "../node-watchers"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type MonitorResponse = {
   monitorRunning: boolean
@@ -55,9 +54,10 @@ export const monitorRequested = withDeps<Deps, void>(
         runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { clusterId, nodeId }, nodeId),
       ))
     } else {
-      // Standalone path
-    const nodeId = toMetricsNodeId(connectionId)
-    await runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { connectionId }, connectionId)
+      // Standalone path. Monitor state is keyed by the db-less nodeId, so the
+      // reply carries { nodeId }.
+      const nodeId = toNodeId(connectionId)
+      await runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { nodeId }, connectionId)
     }
   })
 
