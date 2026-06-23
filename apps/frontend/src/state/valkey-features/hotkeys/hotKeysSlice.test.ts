@@ -3,7 +3,7 @@ import { PENDING, FULFILLED, ERROR } from "@common/src/constants.ts"
 import hotKeysReducer, {
   hotKeysRequested,
   hotKeysFulfilled,
-  hotKeysError,
+  hotKeysError
 } from "./hotKeysSlice"
 
 describe("hotKeysSlice", () => {

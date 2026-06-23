@@ -4,7 +4,7 @@ import configReducer, {
   updateConfig,
   updateConfigFulfilled,
   updateConfigFailed,
-  selectConfig,
+  selectConfig
 } from "./configSlice"
 
 describe("configSlice", () => {

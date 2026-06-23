@@ -3,7 +3,7 @@ import { COMMANDLOG_TYPE } from "@common/src/constants.ts"
 import commandLogsReducer, {
   commandLogsRequested,
   commandLogsFulfilled,
-  commandLogsError,
+  commandLogsError
 } from "./commandLogsSlice"
 
 describe("commandLogsSlice", () => {

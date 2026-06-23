@@ -57,8 +57,8 @@ export const hotKeysRequested = withDeps<Deps, void>(
 
     const nodes =
       typeof clusterId === "string" 
-      ? clusterNodesRegistry[clusterId] 
-      : undefined
+        ? clusterNodesRegistry[clusterId] 
+        : undefined
 
     const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
 

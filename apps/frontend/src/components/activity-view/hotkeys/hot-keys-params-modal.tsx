@@ -10,10 +10,10 @@ import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
+import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig } from "@/state/valkey-features/config/configSlice"
 import { saveMonitorSettingsRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
-import type { RootState } from "@/store"
 
 interface HotKeysConfigModalProps {
   open: boolean
