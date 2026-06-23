@@ -65,10 +65,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const promises = nodeIds.map(async (nodeId: string) => {
       const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
       if (!metricsServerURI) {
-        if (!nodes) {
-          console.warn("Metrics server not started for node: ", nodeId)
-          return
-        }
+        console.warn("Metrics server not started for node: ", nodeId)
         return { nodeId, error: "Metrics server not started" } as NodeError
       }
       const url = new URL("/hot-keys", metricsServerURI)
@@ -79,10 +76,6 @@ export const hotKeysRequested = withDeps<Deps, void>(
         const initialResponse = await fetch(url)
         if (!initialResponse.ok) {
           const errorBody = await initialResponse.json() as { error?: string }
-          if (!nodes) {
-            sendHotKeysError(ws, nodeId, errorBody.error ?? `HTTP ${initialResponse.status}`)
-            return
-          }
           return { nodeId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
         }
         const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
@@ -97,25 +90,28 @@ export const hotKeysRequested = withDeps<Deps, void>(
           return initialParsedResponse
         }
       } catch (error) {
-        if (!nodes) {
-          sendHotKeysError(ws, nodeId, error)
-          return
-        }
         return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
       }
     })
 
     const settled = await Promise.all(promises)
     const results = settled.filter((r): r is HotKeysResponse => !!r && "hotKeys" in r)
-    const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
+    const nodeErrors = settled.filter((r): r is NodeError => !!r && "error" in r)
 
     if (results.length === 0) {
-      const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
       if (nodes) {
+        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
         sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
+        return
+      }
+      // Standalone: surface the node's error if it failed; otherwise emit an
+      // empty fulfilled so the request still terminates (clears the spinner).
+      if (nodeErrors[0]) {
+        sendHotKeysError(ws, toNodeId(connectionId), nodeErrors[0].error)
       } else {
-        // standalone
-        sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, emptyResponse, nodeErrors)
+        const nodeId = toNodeId(connectionId)
+        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId } as unknown as HotKeysResponse
+        sendHotKeysFulfilled(ws, { nodeId }, emptyResponse)
       }
       return
     }
