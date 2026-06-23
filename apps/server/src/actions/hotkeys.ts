@@ -110,9 +110,12 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
 
     if (results.length === 0) {
+      const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
       if (nodes) {
-        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
         sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
+      } else {
+        // standalone
+        sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, emptyResponse, nodeErrors)
       }
       return
     }
