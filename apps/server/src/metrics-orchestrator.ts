@@ -9,7 +9,7 @@
  * The relationship is N:1 (many Connection_Identifiers per metrics-node-id):
  * a metrics process is one OS process per Valkey node, and the data it
  * collects (INFO, MEMORY STATS, MONITOR, COMMANDLOG) is server-global, not
- * db-scoped. Use `toMetricsNodeId` at every boundary; never use the metrics
+ * db-scoped. Use `toNodeId` at every boundary; never use the metrics
  * map directly with a Connection_Identifier.
  */
 import { GlideClient, GlideClusterClient, ConnectionError, ServiceType } from "@valkey/valkey-glide"
@@ -17,32 +17,10 @@ import { ChildProcess, spawn } from "child_process"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
-import { DEPLOYMENT_TYPE, sanitizeUrl } from "valkey-common"
+import { DEPLOYMENT_TYPE, sanitizeUrl, toNodeId } from "valkey-common"
 import { discoverCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
-
-/**
- * Strip the `-db<N>` suffix from a Connection_Identifier so it matches the
- * metrics-node-id format used as a key in `metricsServerMap`.
- *
- * Why this helper exists:
- *   - `clients` keys carry `db` because each (host, port, db) is a distinct
- *     user-visible connection with its own Glide client.
- *   - `metricsServerMap` keys do NOT carry `db`. A metrics process is one OS
- *     process per Valkey node (host, port); the data it collects is
- *     server-global, not db-scoped.
- *   - The two maps therefore have an N:1 relationship: many user-visible
- *     connections under one metrics process. Use this helper at every
- *     boundary that turns a Connection_Identifier into the matching
- *     metrics-node-id.
- *
- * Idempotent — calling it on an already-stripped id returns the same id.
- * The `$` anchor only strips a trailing `-db<digits>` group, never random
- * text earlier in the id.
- */
-export const toMetricsNodeId = (connectionId: string): string =>
-  connectionId.replace(/-db\d+$/, "")
 
 // Assumes nodeId is unique among all clusters
 export type MetricsServerMap = Map<string,
@@ -145,7 +123,7 @@ export function createMetricsOrchestratorRouter() {
     // so any open user-visible connection under this node counts as a valid
     // client.
     const nodeConnected = [...clients.keys()].some(
-      (id) => toMetricsNodeId(id) === nodeId,
+      (id) => toNodeId(id) === nodeId,
     )
 
     if (nodeBelongsToCluster || nodeConnected)  {
@@ -253,7 +231,7 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
       // down to this node (N:1). Avoids evicting standalone metrics whose
       // owner connection is keyed `-db<N>`.
       const knownToClients = [...clients.keys()].some(
-        (id) => toMetricsNodeId(id) === key,
+        (id) => toNodeId(id) === key,
       )
       return (!clusterNodes[key] && !knownToClients) || (now - value.lastSeen) > ttl
     })

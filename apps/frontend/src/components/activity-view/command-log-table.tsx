@@ -44,7 +44,7 @@ type LogType = "slow" | "large-request" | "large-reply"
 interface CommandLogTableProps {
   data: LogGroup[] | null
   logType: LogType
-  nodeErrors?: { connectionId: string; error: string }[]
+  nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
 }
 
@@ -102,10 +102,10 @@ export function CommandLogTable({ data, logType, nodeErrors, isCluster }: Comman
       {nodeErrorsExpanded && (
         <ul className="absolute z-50 left-0 mt-0.5 right-0 p-3 max-h-40 overflow-y-auto space-y-0.5
            rounded-md border bg-accent shadow-sm">
-          {nodeErrors.map(({ connectionId, error }) => (
-            <li key={connectionId}>
+          {nodeErrors.map(({ nodeId, error }) => (
+            <li key={nodeId}>
               <Typography variant="bodySm">
-                <span className="font-mono">{connectionId}</span>: {error}
+                <span className="font-mono">{nodeId}</span>: {error}
               </Typography>
             </li>
           ))}

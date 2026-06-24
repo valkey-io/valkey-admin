@@ -1,21 +1,24 @@
 import { createSlice } from "@reduxjs/toolkit"
 import { type JSONObject } from "@common/src/json-utils"
 import { VALKEY } from "@common/src/constants.ts"
+import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
 import { COMMANDLOG_TYPE } from "@common/src/constants.ts"
 import type { RootState } from "@/store.ts"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
 
+// `targetId` is the state key: `clusterId` for a cluster aggregate or the
+// db-less `nodeId` for a standalone node.
 export const selectCommandLogs =
-  (connectionId: string, type: CommandLogType) =>
+  (targetId: string, type: CommandLogType) =>
     (state: RootState) =>
-      R.path([VALKEY.COMMANDLOGS.name, connectionId, "logs", type], state)
+      R.path([VALKEY.COMMANDLOGS.name, targetId, "logs", type], state)
 
 export const selectCommandLogsNodeErrors =
-  (connectionId: string) =>
+  (targetId: string) =>
     (state: RootState) =>
-      R.path([VALKEY.COMMANDLOGS.name, connectionId, "nodeErrors"], state) ?? []
+      R.path([VALKEY.COMMANDLOGS.name, targetId, "nodeErrors"], state) ?? []
 
 interface CommandLogSlowEntry {
   id: string
@@ -42,7 +45,8 @@ interface CommandLogEntry {
 }
 
 interface CommandLogState {
-  [connectionId: string]: {
+  // Keyed by `targetId`: `clusterId` (cluster) or `nodeId` (standalone).
+  [targetId: string]: {
     logs: {
       slow: Array<{
         ts: number
@@ -55,7 +59,7 @@ interface CommandLogState {
     count: number
     error?: JSONObject | null
     loading?: boolean
-    nodeErrors?: { connectionId: string; error: string }[]
+    nodeErrors?: { nodeId: string; error: string }[]
   }
 }
 
@@ -67,9 +71,10 @@ const commandLogsSlice = createSlice({
   reducers: {
     commandLogsRequested: (state, action) => {
       const { connectionId, clusterId } = action.payload
-      const id = clusterId ?? connectionId
-      if (!state[id]) {
-        state[id] = {
+      // Standalone command logs state is node-level.
+      const targetId = clusterId ?? toNodeId(connectionId)
+      if (!state[targetId]) {
+        state[targetId] = {
           logs: {
             slow: [],
             [COMMANDLOG_TYPE.LARGE_REQUEST]: [],
@@ -79,14 +84,15 @@ const commandLogsSlice = createSlice({
           loading: false,
         }
       }
-      state[id].loading = true
+      state[targetId].loading = true
     },
     commandLogsFulfilled: (state, action) => {
-      const { connectionId, parsedResponse, nodeErrors } = action.payload
+      const { parsedResponse, nodeErrors } = action.payload
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
       const commandLogType: CommandLogType = action.payload.commandLogType
       const { rows, count } = parsedResponse
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      if (!state[targetId]) {
+        state[targetId] = {
           logs: {
             slow: [],
             [COMMANDLOG_TYPE.LARGE_REQUEST]: [],
@@ -96,16 +102,17 @@ const commandLogsSlice = createSlice({
           loading: false,
         }
       }
-      state[connectionId].logs[commandLogType] = rows
-      state[connectionId].count = count
-      state[connectionId].loading = false
-      state[connectionId].nodeErrors = nodeErrors ?? []
+      state[targetId].logs[commandLogType] = rows
+      state[targetId].count = count
+      state[targetId].loading = false
+      state[targetId].nodeErrors = nodeErrors ?? []
     },
     commandLogsError: (state, action) => {
-      const { connectionId, error } = action.payload
-      if (state[connectionId]) {
-        state[connectionId].error = error
-        state[connectionId].loading = false
+      const { error } = action.payload
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      if (state[targetId]) {
+        state[targetId].error = error
+        state[targetId].loading = false
       }
     },
   },
