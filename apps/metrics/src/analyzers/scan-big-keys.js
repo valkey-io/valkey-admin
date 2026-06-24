@@ -3,7 +3,7 @@ import { Heap } from "heap-js"
 export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchSize = 100 } = {}) => {
   const heap = new Heap((a, b) => a.sizeBytes - b.sizeBytes)
 
-   const totalKeys = Number(await client.customCommand(["DBSIZE"]))
+  const totalKeys = Number(await client.customCommand(["DBSIZE"]))
 
   let cursor = "0"
   let scanned = 0
