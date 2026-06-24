@@ -31,7 +31,7 @@ export const connectMonitor = async () => {
   const { host, port, username, tls } = getConnectionOptions()
   const password = await getPassword()
   const client = new Valkey({ host, port, username, password, tls })
-  client.on("error", (err) => console.error("[monitor] ioredis client error:", err.message))
+  client.on("error", (err) => console.error("[monitor] iovalkey client error:", err.message))
   const monitor = await client.monitor()
   monitor.on("error", (err) => console.error("[monitor] monitor stream error:", err.message))
   return { client, monitor }
