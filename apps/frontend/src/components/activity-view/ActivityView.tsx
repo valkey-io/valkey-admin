@@ -5,6 +5,7 @@ import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
 import { MONITOR_ACTION } from "@common/src/constants"
+import { toNodeId } from "@common/src/connection-id.ts"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
@@ -22,7 +23,7 @@ import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
-import { monitorRequested, selectMonitorRunning, selectMonitorError } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning, selectClusterMonitorRunning, selectMonitorError } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails, selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
@@ -48,18 +49,23 @@ export const ActivityView = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [configOpen, setConfigOpen] = useState(false)
 
-  const commandLogsId = clusterId ?? id!
-  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.SLOW)(state))
-  const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
-  const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(commandLogsId, COMMANDLOG_TYPE.LARGE_REPLY)(state))
-  const commandLogsNodeErrors = useSelector((state: RootState) => selectCommandLogsNodeErrors(commandLogsId)(state))
-  const hotKeysId = clusterId ?? id!
-  const hotKeysData = useSelector((state: RootState) => selectHotKeys(hotKeysId)(state))
-  const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(hotKeysId)(state))
-  const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(hotKeysId)(state))
-  const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(hotKeysId)(state))
-  const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(hotKeysId)(state))
-  const monitorRunning = useSelector(selectMonitorRunning(id!))
+  // `targetId` keys node-level metrics state: `clusterId` for a cluster, else
+  // the db-less `nodeId`. (Connection-scoped state below still uses `id`, the
+  // db-suffixed connectionId.)
+  const nodeId = toNodeId(id!)
+  const targetId = clusterId ?? nodeId
+  const commandLogsSlowData = useSelector((state: RootState) => selectCommandLogs(targetId, COMMANDLOG_TYPE.SLOW)(state))
+  const commandLogsLargeRequestData = useSelector((state: RootState) => selectCommandLogs(targetId, COMMANDLOG_TYPE.LARGE_REQUEST)(state))
+  const commandLogsLargeReplyData = useSelector((state: RootState) => selectCommandLogs(targetId, COMMANDLOG_TYPE.LARGE_REPLY)(state))
+  const commandLogsNodeErrors = useSelector((state: RootState) => selectCommandLogsNodeErrors(targetId)(state))
+  const hotKeysData = useSelector((state: RootState) => selectHotKeys(targetId)(state))
+  const hotKeysStatus = useSelector((state: RootState) => selectHotKeysStatus(targetId)(state))
+  const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(targetId)(state))
+  const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(targetId)(state))
+  const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(targetId)(state))
+  const monitorRunning = useSelector((state: RootState) =>
+    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(nodeId)(state),
+  )
   const monitorError = useSelector(selectMonitorError(id!))
   const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
   const clusterAlias = useSelector(selectClusterAlias(id!))

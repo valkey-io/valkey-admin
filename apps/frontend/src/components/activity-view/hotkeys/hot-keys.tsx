@@ -18,7 +18,7 @@ interface HotKeysProps {
   status?: string
   monitorRunning?: boolean
   monitorError?: string | null
-  nodeErrors?: { connectionId: string; error: string }[]
+  nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
   onKeyClick?: (keyName: string) => void
   onStartMonitoring?: () => void

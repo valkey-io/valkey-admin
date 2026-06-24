@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "../../ui/alert"
 import { Typography } from "../../ui/typography"
 
 interface NodeErrorsBannerProps {
-  nodeErrors: { connectionId: string; error: string }[]
+  nodeErrors: { nodeId: string; error: string }[]
 }
 
 export function NodeErrorsBanner({ nodeErrors }: NodeErrorsBannerProps) {
@@ -44,10 +44,10 @@ export function NodeErrorsBanner({ nodeErrors }: NodeErrorsBannerProps) {
       {expanded && (
         <ul className="absolute z-50 left-0 right-0 mt-0.5 p-3 max-h-40 overflow-y-auto space-y-0.5
            rounded-md border bg-accent shadow-sm">
-          {nodeErrors.map(({ connectionId, error }) => (
-            <li key={connectionId}>
+          {nodeErrors.map(({ nodeId, error }) => (
+            <li key={nodeId}>
               <Typography variant="bodySm">
-                <span className="font-mono">{connectionId}</span>: {error}
+                <span className="font-mono">{nodeId}</span>: {error}
               </Typography>
             </li>
           ))}

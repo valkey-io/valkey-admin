@@ -1,12 +1,14 @@
-import { type KeyEvictionPolicy } from "@common/src/constants"
 import { createSlice } from "@reduxjs/toolkit"
 import * as R from "ramda"
 import { VALKEY } from "@common/src/constants"
-import { type RootState } from "@/store"
+import { toNodeId } from "@common/src/connection-id.ts"
+import type { RootState } from "@/store"
 
 type UpdateStatus = "updating" | "updated" | "failed"
-export const selectConfig = (id: string) => (state: RootState) =>
-  R.path([VALKEY.CONFIG.name, id], state)
+// `targetId` is the state key: `clusterId` for a cluster or the db-less
+// `nodeId` for a standalone node.
+export const selectConfig = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.CONFIG.name, targetId], state)
 
 interface MonitorConfig {
   // How long to monitor before stopping (ms)
@@ -19,11 +21,9 @@ interface MonitorConfig {
   cutoffFrequency: number,
 }
 interface ConfigState {
-  [connectionId: string]: {
-    darkMode: boolean,
-    // Valkey related. TODO: find best way to expose to user
-    keyEvictionPolicy?: KeyEvictionPolicy
-    clusterSlotStatsEnabled?: boolean,
+  // Node-level metrics config keyed by `targetId`: `clusterId` (cluster) or the
+  // db-less `nodeId` (standalone).
+  [targetId: string]: {
     monitoring: MonitorConfig
     status: UpdateStatus
     errorMessage?: string | null
@@ -31,7 +31,6 @@ interface ConfigState {
 }
 const initialState: ConfigState = {}
 const defaultConfig = (partial?: Partial<ConfigState[string]>): ConfigState[string] => ({
-  darkMode: false,
   monitoring: { monitoringDuration: 10000, monitoringInterval: 10000, maxCommandsPerRun: 1000000, cutoffFrequency: 100 },
   status: "updated",
   errorMessage: null,
@@ -43,29 +42,31 @@ const configSlice = createSlice({
   initialState,
   reducers: {
     setConfig: (state, action) => {
-      const { connectionId, connectionDetails: { keyEvictionPolicy, clusterSlotStatsEnabled } } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({
-          keyEvictionPolicy,
-          clusterSlotStatsEnabled: clusterSlotStatsEnabled ?? false,
-        })
+      const { connectionId, connectionDetails: { clusterId } } = action.payload
+      // `setConfig` seeds local config from connection identity (not a server
+      // reply). Config is node-level, so key by clusterId for clusters or
+      // nodeId for standalone.
+      const targetId = clusterId ?? toNodeId(connectionId)
+      if (!state[targetId]) {
+        state[targetId] = defaultConfig()
       }
     },
 
     updateConfig: (state, action) => {
-      const { connectionId } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({ status: "updating" })
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      if (!state[targetId]) {
+        state[targetId] = defaultConfig({ status: "updating" })
         return
       }
-      state[connectionId].status = "updating"
-      state[connectionId].errorMessage = null // reset any previous error
+      state[targetId].status = "updating"
+      state[targetId].errorMessage = null // reset any previous error
     },
 
     updateConfigFulfilled: (state, action) => {
-      const { connectionId, response } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig()
+      const { nodeId, clusterId, response } = action.payload
+      const targetId = clusterId ?? nodeId
+      if (!state[targetId]) {
+        state[targetId] = defaultConfig()
       }
 
       if (response.data?.epic) {
@@ -73,24 +74,25 @@ const configSlice = createSlice({
           Object.keys(defaultConfig().monitoring),
           response.data.epic,
         )
-        state[connectionId].monitoring = {
-          ...state[connectionId].monitoring,
+        state[targetId].monitoring = {
+          ...state[targetId].monitoring,
           ...updatedMonitoringConfig,
         }
       }
 
-      state[connectionId].status = "updated"
-      state[connectionId].errorMessage = null
+      state[targetId].status = "updated"
+      state[targetId].errorMessage = null
     },
 
     updateConfigFailed: (state, action) => {
-      const { connectionId, response } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = defaultConfig({ status: "failed", errorMessage: response.errorMessage })
+      const { response } = action.payload
+      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      if (!state[targetId]) {
+        state[targetId] = defaultConfig({ status: "failed", errorMessage: response.errorMessage })
         return
       }
-      state[connectionId].status = "failed"
-      state[connectionId].errorMessage = response.errorMessage
+      state[targetId].status = "failed"
+      state[targetId].errorMessage = response.errorMessage
     },
   },
 })

@@ -1,8 +1,7 @@
 import { type WebSocket } from "ws"
-import { VALKEY, COMMANDLOG_TYPE } from "valkey-common"
+import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, toNodeId } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
 
@@ -42,11 +41,11 @@ type CommandLogsLargeResponse = {
 
 type CommandLogResponse = (CommandLogsLargeResponse | CommandLogsSlowResponse) & { nodeId?: string }
 
-type NodeError = { connectionId: string; error: string }
+type NodeError = { nodeId: string; error: string }
 
 const sendCommandLogsFulfilled = (
   ws: WebSocket,
-  connectionId: string,
+  replyId: AggregateReplyId, // Commandlogs aggregates all cluster nodes into one result
   parsedResponse: CommandLogsSlowResponse | CommandLogsLargeResponse,
   commandLogType: CommandLogType,
   nodeErrors?: NodeError[],
@@ -55,7 +54,7 @@ const sendCommandLogsFulfilled = (
     JSON.stringify({
       type: VALKEY.COMMANDLOGS.commandLogsFulfilled,
       payload: {
-        connectionId,
+        ...replyId,
         parsedResponse,
         commandLogType,
         ...(nodeErrors?.length ? { nodeErrors } : {}),
@@ -66,7 +65,7 @@ const sendCommandLogsFulfilled = (
 
 const sendCommandLogsError = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   error: unknown,
 ) => {
   console.error(error)
@@ -74,7 +73,7 @@ const sendCommandLogsError = (
     JSON.stringify({
       type: VALKEY.COMMANDLOGS.commandLogsError,
       payload: {
-        connectionId,
+        nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
     }),
@@ -105,36 +104,34 @@ export const commandLogsRequested = withDeps<Deps, void>(
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
 
     const nodes = typeof clusterId === "string" ? clusterNodesRegistry[clusterId] : undefined
-    const connectionIds = nodes ? Object.keys(nodes) : [connectionId]
+    const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
 
-    const promises = connectionIds.map(async (nodeId: string) => {
-      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
-      // Idempotent on the cluster-fan-out path where ids already lack `-db`.
-      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(nodeId))?.metricsURI
+    const promises = nodeIds.map(async (nodeId: string) => {
+      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
       if (!metricsServerURI) {
         if (!nodes) sendCommandLogsError(ws, nodeId, new Error("Metrics server URI not found"))
-        return { connectionId: nodeId, error: "Metrics server not started" } as NodeError
+        return { nodeId, error: "Metrics server not started" } as NodeError
       }
       try {
         console.debug(`[Command Logs ${commandLogType}] Fetching from:`, metricsServerURI)
         return await fetchCommandLogs(metricsServerURI, commandLogType)
       } catch (error) {
         if (!nodes) sendCommandLogsError(ws, nodeId, error)
-        return { connectionId: nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
+        return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
       }
     })
 
     const settled = await Promise.all(promises)
-    const results = settled.filter((r): r is CommandLogResponse & { connectionId: string } => !!r && "rows" in r)
+    const results = settled.filter((r): r is CommandLogResponse => !!r && "rows" in r)
     const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
 
     if (!nodes) {
-      if (results[0]) sendCommandLogsFulfilled(ws, connectionId, results[0], commandLogType)
+      if (results[0]) sendCommandLogsFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0], commandLogType)
       return
     }
 
     const sortedValues = R.pipe(
-      R.chain(({ rows, nodeId }) => rows.map((row) => ({ row, nodeId }))),
+      R.chain((r: CommandLogResponse) => (r.rows ?? []).map((row) => ({ row, nodeId: r.nodeId }))),
       R.chain(({ row, nodeId }) => (row.values ?? []).map((v) => ({ ...v, nodeId }))),
       R.sort(
         R.descend(
@@ -149,7 +146,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
     const count = results[0]?.count ?? 0
     sendCommandLogsFulfilled(
       ws,
-      clusterId as string,
+      { clusterId: clusterId as string },
       { rows: [{ ts: Date.now(), metric: commandLogType, values: limitedValues }], count, checkAt: 0 } as CommandLogResponse,
       commandLogType,
       nodeErrors,
