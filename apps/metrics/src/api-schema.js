@@ -60,3 +60,10 @@ export const cpuQuerySchema = z.object({
   since: optionalInt(),
   until: optionalInt(),
 })
+
+// absent or invalid values fall back to the defaults defined in scanBigKeys
+export const bigKeysQuerySchema = z.object({
+  scanLimit: optionalInt({ min: 1, abs: true }),
+  topN: optionalInt({ min: 1, abs: true }),
+  batchSize: optionalInt({ min: 1, abs: true }),
+})

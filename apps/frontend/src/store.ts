@@ -9,6 +9,7 @@ import valkeyCommandReducer from "@/state/valkey-features/command/commandSlice.t
 import valkeyInfoReducer from "@/state/valkey-features/info/infoSlice.ts"
 import keyBrowserReducer from "@/state/valkey-features/keys/keyBrowserSlice.ts"
 import hotKeysReducer from "@/state/valkey-features/hotkeys/hotKeysSlice.ts"
+import bigKeysReducer from "@/state/valkey-features/bigkeys/bigKeysSlice.ts"
 import commandLogsReducer from "@/state/valkey-features/commandlogs/commandLogsSlice"
 import configReducer from "@/state/valkey-features/config/configSlice"
 import cpuReducer from "@/state/valkey-features/cpu/cpuSlice.ts"
@@ -25,6 +26,7 @@ export const store = configureStore({
     [VALKEY.KEYS.name]: keyBrowserReducer,
     [VALKEY.CLUSTER.name]: clusterReducer,
     [VALKEY.HOTKEYS.name]: hotKeysReducer,
+    [VALKEY.BIGKEYS.name]: bigKeysReducer,
     [VALKEY.COMMANDLOGS.name]: commandLogsReducer,
     [VALKEY.CONFIG.name]: configReducer,
     [VALKEY.CPU.name]: cpuReducer,

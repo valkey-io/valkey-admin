@@ -18,6 +18,7 @@ import {
   updateKeyRequested
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
+import { bigKeysRequested } from "./actions/bigkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
 import { updateConfig, enableClusterSlotStats } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
@@ -197,6 +198,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
     [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
+    [VALKEY.BIGKEYS.bigKeysRequested]: bigKeysRequested,
     [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
     [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,

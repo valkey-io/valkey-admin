@@ -32,6 +32,7 @@ import { selectMetricsStarting, selectError } from "../valkey-features/info/info
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
+import { bigKeysRequested } from "../valkey-features/bigkeys/bigKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history from "../../history.ts"
 import { setClusterData, updateClusterData } from "../valkey-features/cluster/clusterSlice.ts"
@@ -442,6 +443,24 @@ export const getCommandLogsEpic = () =>
         })
       } catch (error) {
         console.error("[getCommandLogsEpic] Error sending action:", error)
+      }
+    }),
+    ignoreElements(),
+  )
+
+export const getBigKeysEpic = () =>
+  action$.pipe(
+    select(bigKeysRequested),
+    tap((action) => {
+      try {
+        const { connectionId, clusterId } = action.payload
+        const socket = getSocket()
+        socket.next({
+          type: action.type,
+          payload: { connectionId, clusterId },
+        })
+      } catch (error) {
+        console.error("[getBigKeysEpic] Error sending action:", error)
       }
     }),
     ignoreElements(),
