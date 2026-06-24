@@ -12,28 +12,18 @@ import { copyToClipboard } from "@/lib/utils"
 
 interface BigKeyRowProps {
   entry: BigKey
-  isSelected: boolean
-  onKeyClick?: (keyName: string) => void
 }
 
-function BigKeyRow({ entry, isSelected, onKeyClick }: BigKeyRowProps) {
+function BigKeyRow({ entry }: BigKeyRowProps) {
   const { key, sizeBytes, type, ttl, nodeId } = entry
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleCopy = () => {
     copyToClipboard(key)
     toast.success("Key name copied!")
   }
 
   return (
-    <tr
-      className={`group border-b dark:border-tw-dark-border transition-all duration-200 cursor-pointer
-        ${isSelected
-      ? "bg-primary/10 hover:bg-primary/10"
-      : "hover:bg-gray-50 dark:hover:bg-neutral-800/50"
-    }`}
-      onClick={() => onKeyClick?.(key)}
-    >
+    <tr className="group border-b dark:border-tw-dark-border transition-all duration-200 hover:bg-gray-50 dark:hover:bg-neutral-800/50">
       <td className="px-4 py-3 w-1/3">
         <div className="flex items-center gap-2">
           <Typography className="truncate" variant="code">{key}</Typography>
@@ -93,12 +83,10 @@ interface BigKeysTableProps {
   onToggleSort: () => void
   searchQuery: string
   selectedNode: string
-  selectedKey?: string | null
-  onKeyClick?: (keyName: string) => void
 }
 
 export function BigKeysTable({
-  rows, sortOrder, onToggleSort, searchQuery, selectedNode, selectedKey, onKeyClick,
+  rows, sortOrder, onToggleSort, searchQuery, selectedNode,
 }: BigKeysTableProps) {
   return (
     <TableContainer
@@ -129,9 +117,7 @@ export function BigKeysTable({
         rows.map((entry, index) => (
           <BigKeyRow
             entry={entry}
-            isSelected={selectedKey === entry.key}
             key={`${entry.key}-${index}`}
-            onKeyClick={onKeyClick}
           />
         ))
       )}

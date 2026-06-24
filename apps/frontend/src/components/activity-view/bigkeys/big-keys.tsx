@@ -15,14 +15,12 @@ interface BigKeysProps {
   data: BigKey[] | null
   errorMessage: string | null
   status?: string
-  nodeErrors?: { connectionId: string; error: string }[]
+  nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
-  onKeyClick?: (keyName: string) => void
-  selectedKey?: string | null
 }
 
 export function BigKeys({
-  data, errorMessage, status, nodeErrors, isCluster, onKeyClick, selectedKey,
+  data, errorMessage, status, nodeErrors, isCluster,
 }: BigKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
@@ -88,11 +86,9 @@ export function BigKeys({
       </div>
       <div className="flex-1 min-h-0">
         <BigKeysTable
-          onKeyClick={onKeyClick}
           onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
           rows={filtered}
           searchQuery={searchQuery}
-          selectedKey={selectedKey}
           selectedNode={selectedNode}
           sortOrder={sortOrder}
         />

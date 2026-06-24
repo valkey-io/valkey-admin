@@ -68,15 +68,12 @@ export const ActivityView = () => {
   const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(targetId)(state))
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(targetId)(state))
   const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(targetId)(state))
-  // NOTE: bigKeys state is still keyed by the db-suffixed connectionId (`id`),
-  // unlike the node-level metrics above which main migrated to `targetId`.
-  const bigKeysId = clusterId ?? id!
-  const bigKeysData = useSelector((state: RootState) => selectBigKeys(bigKeysId)(state))
-  const bigKeysStatus = useSelector((state: RootState) => selectBigKeysStatus(bigKeysId)(state))
-  const bigKeysErrorMessage = useSelector((state: RootState) => selectBigKeysError(bigKeysId)(state))
-  const bigKeysNodeErrors = useSelector((state: RootState) => selectBigKeysNodeErrors(bigKeysId)(state))
-  const bigKeysScanned = useSelector((state: RootState) => selectBigKeysScanned(bigKeysId)(state))
-  const bigKeysTotalKeys = useSelector((state: RootState) => selectBigKeysTotalKeys(bigKeysId)(state))
+  const bigKeysData = useSelector((state: RootState) => selectBigKeys(targetId)(state))
+  const bigKeysStatus = useSelector((state: RootState) => selectBigKeysStatus(targetId)(state))
+  const bigKeysErrorMessage = useSelector((state: RootState) => selectBigKeysError(targetId)(state))
+  const bigKeysNodeErrors = useSelector((state: RootState) => selectBigKeysNodeErrors(targetId)(state))
+  const bigKeysScanned = useSelector((state: RootState) => selectBigKeysScanned(targetId)(state))
+  const bigKeysTotalKeys = useSelector((state: RootState) => selectBigKeysTotalKeys(targetId)(state))
   const monitorRunning = useSelector((state: RootState) =>
     clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(nodeId)(state),
   )
@@ -153,6 +150,9 @@ export const ActivityView = () => {
   const selectedKeyInfo = selectedKey
     ? keys.find((k) => k.name === selectedKey) ?? null
     : null
+
+  // Big keys can exceed the readable size limit, so details are hot-keys only.
+  const showKeyDetails = activeTab === "hot-keys" && !!selectedKey
 
   const tabs = [
     { id: "hot-keys" as TabType, label: "Hot Keys" },
@@ -260,7 +260,7 @@ export const ActivityView = () => {
       ) : (
         <div className="flex flex-1 h-full overflow-hidden gap-2">
           {/* Keys List (hot keys or big keys) */}
-          <div className={`${selectedKey ? "w-2/3" : "w-full"} h-full min-w-0 overflow-hidden`}>
+          <div className={`${showKeyDetails ? "w-2/3" : "w-full"} h-full min-w-0 overflow-hidden`}>
             <div className="h-full border border-input rounded-md shadow-xs overflow-hidden">
               {activeTab === "hot-keys" ? (
                 <HotKeys
@@ -280,15 +280,13 @@ export const ActivityView = () => {
                   errorMessage={bigKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
                   nodeErrors={bigKeysNodeErrors}
-                  onKeyClick={handleKeyClick}
-                  selectedKey={selectedKey}
                   status={bigKeysStatus as string | undefined}
                 />
               )}
             </div>
           </div>
-          {/* Key Details Panel */}
-          {selectedKey && (
+          {/* Key Details Panel (hot keys only; big keys can exceed the readable size limit) */}
+          {showKeyDetails && (
             <div className="w-1/3 h-full min-w-0">
               <KeyDetails
                 connectionId={id!}
