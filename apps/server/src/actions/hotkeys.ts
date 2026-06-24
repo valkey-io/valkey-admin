@@ -1,8 +1,7 @@
 import { type WebSocket } from "ws"
-import { VALKEY } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type HotKeysResponse = {
   nodeId: string
@@ -13,13 +12,13 @@ type HotKeysResponse = {
 }
 
 type NodeError = {
-  connectionId: string
+  nodeId: string
   error: string
 }
 
 const sendHotKeysFulfilled = (
   ws: WebSocket,
-  connectionId: string,
+  replyId: AggregateReplyId, // Hotkeys aggregates all cluster nodes into one result
   parsedResponse: HotKeysResponse,
   nodeErrors?: NodeError[],
 ) => {
@@ -27,7 +26,7 @@ const sendHotKeysFulfilled = (
     JSON.stringify({
       type: VALKEY.HOTKEYS.hotKeysFulfilled,
       payload: {
-        connectionId,
+        ...replyId,
         parsedResponse,
         ...(nodeErrors?.length ? { nodeErrors } : {}),
       },
@@ -37,7 +36,7 @@ const sendHotKeysFulfilled = (
 
 const sendHotKeysError = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   error: unknown,
 ) => {
   console.error(error)
@@ -45,7 +44,7 @@ const sendHotKeysError = (
     JSON.stringify({
       type: VALKEY.HOTKEYS.hotKeysError,
       payload: {
-        connectionId,
+        nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
     }),
@@ -55,26 +54,19 @@ const sendHotKeysError = (
 export const hotKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
-    
+
     const nodes =
-      typeof clusterId === "string"
-        ? clusterNodesRegistry[clusterId]
+      typeof clusterId === "string" 
+        ? clusterNodesRegistry[clusterId] 
         : undefined
 
-    const connectionIds = nodes
-      ? Object.keys(nodes)
-      : [connectionId]
-    
-    const promises = connectionIds.map(async (connectionId: string) => {
-      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
-      // Idempotent on the cluster-fan-out path where ids already lack `-db`.
-      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(connectionId))?.metricsURI
+    const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
+
+    const promises = nodeIds.map(async (nodeId: string) => {
+      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
       if (!metricsServerURI) {
-        if (!nodes) {
-          console.warn("Metrics server not started for node: ", connectionId)
-          return
-        }
-        return { connectionId, error: "Metrics server not started" } as NodeError
+        console.warn("Metrics server not started for node: ", nodeId)
+        return { nodeId, error: "Metrics server not started" } as NodeError
       }
       const url = new URL("/hot-keys", metricsServerURI)
       if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
@@ -84,11 +76,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         const initialResponse = await fetch(url)
         if (!initialResponse.ok) {
           const errorBody = await initialResponse.json() as { error?: string }
-          if (!nodes) {
-            sendHotKeysError(ws, connectionId, errorBody.error ?? `HTTP ${initialResponse.status}`)
-            return
-          }
-          return { connectionId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
+          return { nodeId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
         }
         const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
         // Reads monitor data and returns when to fetch results (`checkAt`).
@@ -102,28 +90,34 @@ export const hotKeysRequested = withDeps<Deps, void>(
           return initialParsedResponse
         }
       } catch (error) {
-        if (!nodes) {
-          sendHotKeysError(ws, connectionId, error)
-          return
-        }
-        return { connectionId, error: error instanceof Error ? error.message : String(error) } as NodeError
+        return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
       }
     })
 
     const settled = await Promise.all(promises)
     const results = settled.filter((r): r is HotKeysResponse => !!r && "hotKeys" in r)
-    const nodeErrors = nodes ? settled.filter((r): r is NodeError => !!r && "error" in r) : []
+    const nodeErrors = settled.filter((r): r is NodeError => !!r && "error" in r)
 
     if (results.length === 0) {
       if (nodes) {
         const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
-        sendHotKeysFulfilled(ws, clusterId as string, emptyResponse, nodeErrors)
+        sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
+        return
+      }
+      // Standalone: surface the node's error if it failed; otherwise emit an
+      // empty fulfilled so the request still terminates (clears the spinner).
+      if (nodeErrors[0]) {
+        sendHotKeysError(ws, toNodeId(connectionId), nodeErrors[0].error)
+      } else {
+        const nodeId = toNodeId(connectionId)
+        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId } as unknown as HotKeysResponse
+        sendHotKeysFulfilled(ws, { nodeId }, emptyResponse)
       }
       return
     }
 
     if (!nodes) {
-      sendHotKeysFulfilled(ws, connectionId, results[0])
+      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0])
       return
     }
 
@@ -146,5 +140,5 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const monitorRunning = results.every((r) => r.monitorRunning)
     const lastCollectedAt = results.reduce((max, r) => Math.max(max, r.lastCollectedAt ?? 0), 0) || null
     const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } as unknown as HotKeysResponse
-    sendHotKeysFulfilled(ws, clusterId as string, aggregatedResponse, nodeErrors)
+    sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, aggregatedResponse, nodeErrors)
   })

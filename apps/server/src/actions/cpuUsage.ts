@@ -1,7 +1,6 @@
 import { type WebSocket } from "ws"
-import { VALKEY } from "valkey-common"
+import { VALKEY, toNodeId } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
-import { toMetricsNodeId } from "../metrics-orchestrator"
 
 type CpuUsageResponse = Array<{
   timestamp: number
@@ -55,9 +54,9 @@ export const cpuUsageRequested = withDeps<Deps, void>(
     const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
-      // metricsServerMap is keyed by metrics-node-id; map at the boundary.
+      // metricsServerMap is keyed by metrics-node-id.
       // Idempotent on the cluster-fan-out path where ids already lack `-db`.
-      const metricsServerURI = metricsServerMap.get(toMetricsNodeId(connectionId))?.metricsURI
+      const metricsServerURI = metricsServerMap.get(toNodeId(connectionId))?.metricsURI
 
       if (!metricsServerURI) {
         sendCpuUsageError(ws, connectionId, new Error("Metrics server URI not found"))

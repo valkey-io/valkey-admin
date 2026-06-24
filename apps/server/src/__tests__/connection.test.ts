@@ -2,7 +2,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
-import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY } from "valkey-common"
+import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey-common"
 import {
   _resetConnectInFlight,
   _resetInFlightClusterClients,
@@ -13,7 +13,7 @@ import {
 import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
-import { toMetricsNodeId, type MetricsServerMap } from "../metrics-orchestrator"
+import { type MetricsServerMap } from "../metrics-orchestrator"
 import { _reset as resetNodeWatchers } from "../node-watchers"
 
 const DEFAULT_PAYLOAD = {
@@ -138,7 +138,7 @@ describe("connectToValkey", () => {
     // metricsServerMap is keyed by metrics-node-id; the empty Connection_Identifier
     // strips to the empty string, which matches the empty connectionId used by
     // the default payload in these tests.
-    metricsServerMap.set(toMetricsNodeId(DEFAULT_PAYLOAD.connectionId), {
+    metricsServerMap.set(toNodeId(DEFAULT_PAYLOAD.connectionId), {
       metricsURI: "http://localhost:1234",
       pid: 12345,
       lastSeen: Date.now(),

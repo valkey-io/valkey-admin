@@ -19,6 +19,25 @@ export const buildConnectionId = (
 ): string => `${sanitizeUrl(`${host}-${port}`)}-db${db}`
 
 /**
+ * Strip the trailing `-db<N>` suffix from a Connection_Identifier so it
+ * matches the db-less metrics-node-id (`nodeId`) format.
+ *
+ * Why this helper exists:
+ *   - Connection_Identifiers (`<host>-<port>-db<N>`) carry `db` because each
+ *     (host, port, db) is a distinct user-visible connection with its own
+ *     Glide client.
+ *   - Node-level metrics state (monitor status, sampler config, hot keys,
+ *     command logs) and `metricsServerMap` are keyed by the db-less
+ *     `<host>-<port>` because a metrics process is one OS process per Valkey
+ *     node.
+ *
+ * Idempotent.
+ *
+ * @param id - A Connection_Identifier (or an already-db-less node id).
+ */
+export const toNodeId = (id: string): string => id.replace(/-db\d+$/, "")
+
+/**
  * Type guard for the Database_Index. Returns true only for non-negative
  * integers; rejects negatives, non-integers, NaN, and non-numbers.
  */

@@ -4,14 +4,16 @@ import { useParams } from "react-router"
 import { AlertTriangle } from "lucide-react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { MONITOR_ACTION } from "@common/src/constants"
+import { toNodeId } from "@common/src/connection-id.ts"
 import { ChartModal } from "../../ui/chart-modal"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
+import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig } from "@/state/valkey-features/config/configSlice"
-import { saveMonitorSettingsRequested, selectMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { saveMonitorSettingsRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
 
 interface HotKeysConfigModalProps {
   open: boolean
@@ -21,8 +23,11 @@ interface HotKeysConfigModalProps {
 export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
   const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
-  const config = useSelector(selectConfig(id!))
-  const monitorRunning = useSelector(selectMonitorRunning(id!))
+  // Config and monitor state are cluster-keyed for clusters, node-keyed otherwise.
+  const config = useSelector(selectConfig(clusterId ?? toNodeId(id!)))
+  const monitorRunning = useSelector((state: RootState) =>
+    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(toNodeId(id!))(state),
+  )
 
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
   const [monitorInterval, setMonitorInterval] = useState(config?.monitoring?.monitoringInterval ?? 10000)

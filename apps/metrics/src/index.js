@@ -29,7 +29,7 @@ async function main() {
   }
 
   const client = await createValkeyClient(cfg)
-  const ownConnectionId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
+  const ownNodeId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
 
   await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
@@ -75,14 +75,14 @@ async function main() {
     try {
       // scanLimit, topN and batchSize are optional - scanBigKeys applies the defaults
       const result = await scanBigKeys(client, parseQuery(bigKeysQuerySchema)(req.query))
-      res.json({ ...result, nodeId: ownConnectionId })
+      res.json({ ...result, nodeId: ownNodeId })
     } catch (e) {
       console.error(e)
       res.status(500).json({ error: e.message })
     }
   })
 
-  app.get("/commandlog", (req, res) => getCommandLogs(req, res, ownConnectionId))
+  app.get("/commandlog", (req, res) => getCommandLogs(req, res, ownNodeId))
 
   app.get("/slowlog_len", async (req, res) => {
     try {
@@ -102,9 +102,9 @@ async function main() {
   app.get("/hot-keys", async (req, res) => {
     if (req.query.useHotSlots === "true") {
       const hotKeys = await calculateHotKeysFromHotSlots(client, { count: Number(req.query.count) || 50 }).then(enrichHotKeys(client))
-      return res.json({ hotKeys, nodeId: ownConnectionId })
+      return res.json({ hotKeys, nodeId: ownNodeId })
     }
-    else useMonitor(res, client, ownConnectionId, Number(req.query.count) || 50)
+    else useMonitor(res, client, ownNodeId, Number(req.query.count) || 50)
   })
 
   app.post("/update-config", async (req, res) => {
@@ -133,7 +133,7 @@ async function main() {
   app.post("/connection/close", async (req, res) => {
     try {
       const { connectionId } = req.body
-      if (connectionId !== ownConnectionId) {
+      if (connectionId !== ownNodeId) {
         return res.status(400).json({
           ok: false,
           error: "Invalid connectionId",
@@ -178,7 +178,7 @@ async function main() {
               body: JSON.stringify({
                 metricsServerUri: `http://${metricsAdvertiseHost}:${metricsAdvertisePort}`,
                 pid: process.pid,
-                nodeId: ownConnectionId,
+                nodeId: ownNodeId,
               }),
             },
           )
@@ -223,7 +223,7 @@ async function main() {
         const response = await fetch(`http://${backendServerHost}:${backendServerPort}/orchestrator/ping`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nodeId: ownConnectionId }),
+          body: JSON.stringify({ nodeId: ownNodeId }),
         })
 
         if (!response.ok) {
@@ -233,7 +233,7 @@ async function main() {
             await registerWithServer()
           }
         } else {
-          console.debug(`Ping successful for node: ${ownConnectionId}`)
+          console.debug(`Ping successful for node: ${ownNodeId}`)
         }
       } catch (err) {
         console.debug("Ping request error:", err)
