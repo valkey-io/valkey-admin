@@ -14,6 +14,11 @@ export const selectMonitorLoading =
     (state: RootState) =>
       R.path<boolean>([VALKEY.MONITOR.name, nodeId, "loading"], state) ?? false
 
+export const selectMonitorError =
+  (connectionId: string) =>
+    (state: RootState) =>
+      R.path<string | null>([VALKEY.MONITOR.name, connectionId, "error"], state) ?? null
+
 export const selectRunningMonitorConnections =
   (state: RootState): { nodeId: string; clusterId?: string; startedAt: number | null }[] => {
     const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
@@ -100,7 +105,7 @@ const monitorSlice = createSlice({
       state[nodeId].checkAt = parsedResponse.checkAt ?? null
       state[nodeId].startedAt = parsedResponse.startedAt ?? null
       state[nodeId].loading = false
-      state[nodeId].error = null
+      if (parsedResponse.monitorRunning) state[nodeId].error = null
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     saveMonitorSettingsRequested: (_state, _action) => {

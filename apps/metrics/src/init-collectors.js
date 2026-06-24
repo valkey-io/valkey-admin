@@ -1,5 +1,5 @@
 import { makeFetcher } from "./effects/fetchers.js"
-import { makeMonitorStream } from "./effects/monitor-stream.js"
+import { makeMonitorStream, connectMonitor } from "./effects/monitor-stream.js"
 import { makeNdjsonWriter } from "./effects/ndjson-writer.js"
 import { startCollector } from "./epics/collector-rx.js"
 import { MONITOR } from "./utils/constants.js"
@@ -41,8 +41,13 @@ let monitorStopper
 updateCollectorMeta(MONITOR, {
   isRunning: false,
 })
-const startMonitor = (cfg) => {
+const startMonitor = async (cfg) => {
   const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
+
+  // Phase 1: Verify MONITOR command is supported (fast — throws if not)
+  await connectMonitor()
+
+  // Command works — set up collection
   const { maxFiles, maxFileSize } = computeCapacity(monitorEpic.data_retention_mb)
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
@@ -65,6 +70,7 @@ const startMonitor = (cfg) => {
     willCompleteAt: Date.now() + monitorEpic.monitoringDuration,
   })
 
+  // Phase 2: Start background collection stream
   const stream$ = makeMonitorStream(async (logs) => {
     await sink.appendRows(logs)
   }, monitorEpic)
@@ -153,6 +159,7 @@ const setupCollectors = async (client, cfg) => {
         rows = await fn()
       } catch (err) {
         console.warn(`[${f.name}] initial fetch failed, skipping collector:`, err.message)
+        updateCollectorMeta(f.name, { isRunning: false, error: err.message })
         nd.close()
         return
       }

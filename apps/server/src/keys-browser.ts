@@ -346,7 +346,7 @@ export async function getKeyInfo(
       name: key,
       type: keyType,
       ttl: ttl,
-      size: memoryUsage || 0,
+      size: memoryUsage || -1,
     }
 
     // Get collection size and elements for each type
@@ -401,7 +401,7 @@ export async function getKeyInfo(
       name: key,
       type: "unknown",
       ttl: -1,
-      size: 0,
+      size: -1,
     }
   }
 }
@@ -517,7 +517,7 @@ export async function getKeys(
             name: k,
             type: "unknown",
             ttl: -1,
-            size: 0,
+            size: -1,
           })),
         ),
       ),
