@@ -28,24 +28,26 @@ export function BigKeys({
 
   if (status === "Pending") return <LoadingState message="Scanning for big keys..." />
 
-  const sorted = R.sort<BigKey>(
-    (sortOrder === "asc" ? R.ascend : R.descend)((k) => k.sizeBytes),
-    R.defaultTo([], data),
-  )
+  const allKeys = R.defaultTo([], data)
 
   const uniqueNodes = Array.from(
-    new Set(sorted.map((k) => k.nodeId).filter(Boolean)),
+    new Set(allKeys.map((k) => k.nodeId).filter(Boolean)),
   ) as string[]
 
-  const filtered = sorted.filter((k) => {
+  const filtered = allKeys.filter((k) => {
     const matchesSearch = !searchQuery || k.key.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesNode = selectedNode === "all" || k.nodeId === selectedNode
     return matchesSearch && matchesNode
   })
 
+  const sorted = R.sort<BigKey>(
+    (sortOrder === "asc" ? R.ascend : R.descend)((k) => k.sizeBytes),
+    filtered,
+  )
+
   const banner = nodeErrors && nodeErrors.length > 0 && <NodeErrorsBanner nodeErrors={nodeErrors} />
 
-  if (sorted.length === 0) {
+  if (allKeys.length === 0) {
     return (
       <>
         {banner}
@@ -87,7 +89,7 @@ export function BigKeys({
       <div className="flex-1 min-h-0">
         <BigKeysTable
           onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-          rows={filtered}
+          rows={sorted}
           searchQuery={searchQuery}
           selectedNode={selectedNode}
           sortOrder={sortOrder}
