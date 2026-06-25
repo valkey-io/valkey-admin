@@ -56,7 +56,7 @@ describe("getKeyInfo", () => {
 
       const result = await getKeyInfo(mockClient as any, "mykey")
 
-      assert.strictEqual(result.size, 0)
+      assert.strictEqual(result.size, -1)
     })
 
   })
@@ -189,7 +189,7 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.name, "failkey")
       assert.strictEqual(result.type, "unknown")
       assert.strictEqual(result.ttl, -1)
-      assert.strictEqual(result.size, 0)
+      assert.strictEqual(result.size, -1)
     })
   })
 })
@@ -724,7 +724,7 @@ describe("getKeyInfoSingle", () => {
       assert.strictEqual(sentMessage.payload.key, "mykey")
       assert.strictEqual(sentMessage.payload.type, "unknown")
       assert.strictEqual(sentMessage.payload.ttl, -1)
-      assert.strictEqual(sentMessage.payload.size, 0)
+      assert.strictEqual(sentMessage.payload.size, -1)
     })
   })
 })
