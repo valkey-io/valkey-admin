@@ -11,6 +11,7 @@ import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
 import { HotKeys } from "./hotkeys/hot-keys"
 import { HotKeysParamsModal } from "./hotkeys/hot-keys-params-modal"
+import { BigKeys } from "./bigkeys/big-keys"
 import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
@@ -23,17 +24,21 @@ import {
   hotKeysRequested, selectHotKeys, selectHotKeysStatus, selectHotKeysError,
   selectHotKeysNodeErrors, selectHotKeysLastCollectedAt
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
-import { 
-  monitorRequested, 
-  selectMonitorRunning, 
-  selectClusterMonitorRunning, 
-  selectMonitorError 
+import {
+  bigKeysRequested, selectBigKeys, selectBigKeysStatus, selectBigKeysError,
+  selectBigKeysNodeErrors, selectBigKeysScanned, selectBigKeysTotalKeys
+} from "@/state/valkey-features/bigkeys/bigKeysSlice"
+import {
+  monitorRequested,
+  selectMonitorRunning,
+  selectClusterMonitorRunning,
+  selectMonitorError
 } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails, selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 import { getKeyTypeRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
 
-type TabType = "hot-keys" | "command-logs"
+type TabType = "hot-keys" | "big-keys" | "command-logs"
 type CommandLogSubTab = "slow" | "large-request" | "large-reply"
 
 interface KeyInfo {
@@ -68,6 +73,12 @@ export const ActivityView = () => {
   const hotKeysErrorMessage = useSelector((state: RootState) => selectHotKeysError(targetId)(state))
   const hotKeysNodeErrors = useSelector((state: RootState) => selectHotKeysNodeErrors(targetId)(state))
   const hotKeysLastCollectedAt = useSelector((state: RootState) => selectHotKeysLastCollectedAt(targetId)(state))
+  const bigKeysData = useSelector((state: RootState) => selectBigKeys(targetId)(state))
+  const bigKeysStatus = useSelector((state: RootState) => selectBigKeysStatus(targetId)(state))
+  const bigKeysErrorMessage = useSelector((state: RootState) => selectBigKeysError(targetId)(state))
+  const bigKeysNodeErrors = useSelector((state: RootState) => selectBigKeysNodeErrors(targetId)(state))
+  const bigKeysScanned = useSelector((state: RootState) => selectBigKeysScanned(targetId)(state))
+  const bigKeysTotalKeys = useSelector((state: RootState) => selectBigKeysTotalKeys(targetId)(state))
   const monitorRunning = useSelector((state: RootState) =>
     clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(nodeId)(state),
   )
@@ -107,6 +118,19 @@ export const ActivityView = () => {
     }
   }
 
+  // Big keys are scanned on demand - they get fetched when the tab is opened
+  useEffect(() => {
+    if (id && activeTab === "big-keys" && bigKeysStatus === undefined) {
+      dispatch(bigKeysRequested({ connectionId: id, clusterId }))
+    }
+  }, [activeTab, bigKeysStatus, id, clusterId, dispatch])
+
+  const refreshBigKeys = () => {
+    if (id) {
+      dispatch(bigKeysRequested({ connectionId: id, clusterId }))
+    }
+  }
+
   const getCurrentCommandLogData = () => {
     switch (commandLogSubTab) {
       case "slow":
@@ -133,8 +157,12 @@ export const ActivityView = () => {
     ? keys.find((k) => k.name === selectedKey) ?? null
     : null
 
+  // Big keys can exceed the readable size limit, so details are hot-keys only.
+  const showKeyDetails = activeTab === "hot-keys" && !!selectedKey
+
   const tabs = [
     { id: "hot-keys" as TabType, label: "Hot Keys" },
+    { id: "big-keys" as TabType, label: "Big Keys" },
     { id: "command-logs" as TabType, label: "Command Logs" },
   ]
 
@@ -150,7 +178,7 @@ export const ActivityView = () => {
       <AppHeader
         description={
           <>
-            Monitor Hot Keys and Command Logs of{" "}
+            Monitor Hot Keys, Big Keys and Command Logs of{" "}
             {clusterId ? (
               <>
                 cluster {" "} <span className="font-semibold text-primary">{truncateText(clusterAlias || clusterId!)}</span>
@@ -186,6 +214,24 @@ export const ActivityView = () => {
           </div>
         )}
 
+        {/* Big Keys Refresh */}
+        {activeTab === "big-keys" && (
+          <div className="flex items-center gap-3">
+            {bigKeysScanned !== null && bigKeysTotalKeys !== null && (
+              <Typography variant="bodyXs">
+                Scanned {bigKeysScanned.toLocaleString()} of {bigKeysTotalKeys.toLocaleString()} keys
+              </Typography>
+            )}
+            <Button
+              onClick={refreshBigKeys}
+              size={"sm"}
+              variant={"outline"}
+            >
+              Refresh <RefreshCcw className="hover:text-primary" size={15} />
+            </Button>
+          </div>
+        )}
+
         {/* Command Log Sub-tabs and Refresh */}
         {activeTab === "command-logs" && (
           <div className="flex items-center gap-3">
@@ -208,27 +254,46 @@ export const ActivityView = () => {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "hot-keys" ? (
+      {activeTab === "command-logs" ? (
+        <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
+          <CommandLogTable
+            data={getCurrentCommandLogData()}
+            isCluster={!!clusterId}
+            logType={commandLogSubTab}
+            nodeErrors={commandLogsNodeErrors}
+          />
+        </div>
+      ) : (
         <div className="flex flex-1 h-full overflow-hidden gap-2">
-          {/* Hot Keys List */}
-          <div className={`${selectedKey ? "w-2/3" : "w-full"} h-full min-w-0 overflow-hidden`}>
+          {/* Keys List (hot keys or big keys) */}
+          <div className={`${showKeyDetails ? "w-2/3" : "w-full"} h-full min-w-0 overflow-hidden`}>
             <div className="h-full border border-input rounded-md shadow-xs overflow-hidden">
-              <HotKeys
-                data={hotKeysData}
-                errorMessage={hotKeysErrorMessage as string | null}
-                isCluster={!!clusterId}
-                monitorError={monitorError}
-                monitorRunning={monitorRunning}
-                nodeErrors={hotKeysNodeErrors}
-                onKeyClick={handleKeyClick}
-                onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}
-                selectedKey={selectedKey}
-                status={hotKeysStatus}
-              />
+              {activeTab === "hot-keys" ? (
+                <HotKeys
+                  data={hotKeysData}
+                  errorMessage={hotKeysErrorMessage as string | null}
+                  isCluster={!!clusterId}
+                  monitorError={monitorError}
+                  monitorRunning={monitorRunning}
+                  nodeErrors={hotKeysNodeErrors}
+                  onKeyClick={handleKeyClick}
+                  onStartMonitoring={useHotSlots ? undefined : () => setConfigOpen(true)}
+                  selectedKey={selectedKey}
+                  status={hotKeysStatus}
+                />
+              ) : (
+                <BigKeys
+                  data={bigKeysData}
+                  errorMessage={bigKeysErrorMessage as string | null}
+                  isCluster={!!clusterId}
+                  nodeErrors={bigKeysNodeErrors}
+                  status={bigKeysStatus as string | undefined}
+                />
+              )}
             </div>
           </div>
-          {/* Key Details Panel */}
-          {selectedKey && (
+          {/* Key Details Panel (hot keys only; big keys can exceed the readable size limit) */}
+          {showKeyDetails && (
             <div className="w-1/3 h-full min-w-0">
               <KeyDetails
                 connectionId={id!}
@@ -239,15 +304,6 @@ export const ActivityView = () => {
               />
             </div>
           )}
-        </div>
-      ) : (
-        <div className="flex-1 h-full overflow-hidden border border-input rounded-md shadow-xs">
-          <CommandLogTable
-            data={getCurrentCommandLogData()}
-            isCluster={!!clusterId}
-            logType={commandLogSubTab}
-            nodeErrors={commandLogsNodeErrors}
-          />
         </div>
       )}
     </RouteContainer>

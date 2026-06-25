@@ -10,11 +10,12 @@ import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
 import memoryFold from "./analyzers/memory-metrics.js"
-import { cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
+import { bigKeysQuerySchema, cpuQuerySchema, memoryQuerySchema, parseQuery } from "./api-schema.js"
 import { sanitizeUrl } from "./utils/helpers.js"
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 import { createValkeyClient } from "./valkey-client.js"
 import { ACTION, MONITOR } from "./utils/constants.js"
+import { scanBigKeys } from "./analyzers/scan-big-keys.js"
 
 async function main() {
   const cfg = getConfig()
@@ -64,6 +65,17 @@ async function main() {
     try {
       const data = await getDashboardInfo(client)
       res.json(data)
+    } catch (e) {
+      console.error(e)
+      res.status(500).json({ error: e.message })
+    }
+  })
+
+  app.get("/big-keys", async (req, res) => {
+    try {
+      // scanLimit, topN and batchSize are optional - scanBigKeys applies the defaults
+      const result = await scanBigKeys(client, parseQuery(bigKeysQuerySchema)(req.query))
+      res.json({ ...result, nodeId: ownNodeId })
     } catch (e) {
       console.error(e)
       res.status(500).json({ error: e.message })
