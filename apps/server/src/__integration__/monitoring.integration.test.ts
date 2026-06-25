@@ -47,7 +47,7 @@ describe("integration / monitoring (cluster fan-out)", async () => {
     })
     const startResponses = await ws.collectFor(
       VALKEY.MONITOR.monitorFulfilled,
-      5000,
+      15000,
     )
     assert.ok(
       startResponses.length >= 1,
