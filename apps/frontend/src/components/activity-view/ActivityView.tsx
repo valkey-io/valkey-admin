@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Activity, RefreshCcw } from "lucide-react"
+import { Activity, RefreshCcw, Settings } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
@@ -12,6 +12,7 @@ import { ButtonGroup } from "../ui/button-group"
 import { HotKeys } from "./hotkeys/hot-keys"
 import { HotKeysParamsModal } from "./hotkeys/hot-keys-params-modal"
 import { BigKeys } from "./bigkeys/big-keys"
+import { BigKeysParamsModal } from "./bigkeys/big-keys-params-modal"
 import { CommandLogTable } from "./command-log-table"
 import KeyDetails from "../key-browser/key-details/key-details"
 import RouteContainer from "../ui/route-container"
@@ -58,6 +59,10 @@ export const ActivityView = () => {
   const [commandLogSubTab, setCommandLogSubTab] = useState<CommandLogSubTab>("slow")
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [configOpen, setConfigOpen] = useState(false)
+  const [bigKeysConfigOpen, setBigKeysConfigOpen] = useState(false)
+  // config values for big keys scan settings, which can be adjusted in the modal
+  const [bigKeysScanLimit, setBigKeysScanLimit] = useState(10000)
+  const [bigKeysTopN, setBigKeysTopN] = useState(50)
 
   // `targetId` keys node-level metrics state: `clusterId` for a cluster, else
   // the db-less `nodeId`. (Connection-scoped state below still uses `id`, the
@@ -121,13 +126,21 @@ export const ActivityView = () => {
   // Big keys are scanned on demand - they get fetched when the tab is opened
   useEffect(() => {
     if (id && activeTab === "big-keys" && bigKeysStatus === undefined) {
-      dispatch(bigKeysRequested({ connectionId: id, clusterId }))
+      dispatch(bigKeysRequested({ connectionId: id, clusterId, scanLimit: bigKeysScanLimit, topN: bigKeysTopN }))
     }
-  }, [activeTab, bigKeysStatus, id, clusterId, dispatch])
+  }, [activeTab, bigKeysStatus, id, clusterId, bigKeysScanLimit, bigKeysTopN, dispatch])
 
   const refreshBigKeys = () => {
     if (id) {
-      dispatch(bigKeysRequested({ connectionId: id, clusterId }))
+      dispatch(bigKeysRequested({ connectionId: id, clusterId, scanLimit: bigKeysScanLimit, topN: bigKeysTopN }))
+    }
+  }
+
+  const scanBigKeys = ({ scanLimit, topN }: { scanLimit: number; topN: number }) => {
+    setBigKeysScanLimit(scanLimit)
+    setBigKeysTopN(topN)
+    if (id) {
+      dispatch(bigKeysRequested({ connectionId: id, clusterId, scanLimit, topN }))
     }
   }
 
@@ -175,6 +188,13 @@ export const ActivityView = () => {
   return (
     <RouteContainer title="Activity">
       <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
+      <BigKeysParamsModal
+        onClose={() => setBigKeysConfigOpen(false)}
+        onScan={scanBigKeys}
+        open={bigKeysConfigOpen}
+        scanLimit={bigKeysScanLimit}
+        topN={bigKeysTopN}
+      />
       <AppHeader
         description={
           <>
@@ -220,8 +240,19 @@ export const ActivityView = () => {
             {bigKeysScanned !== null && bigKeysTotalKeys !== null && (
               <Typography variant="bodyXs">
                 Scanned {bigKeysScanned.toLocaleString()} of {bigKeysTotalKeys.toLocaleString()} keys
+                {bigKeysData.length >= bigKeysTopN
+                  ? ` | showing top ${bigKeysTopN}`
+                  : ` | showing all ${bigKeysData.length}`}
               </Typography>
             )}
+            <Button
+              aria-label="Scan settings"
+              onClick={() => setBigKeysConfigOpen(true)}
+              size={"sm"}
+              variant={"outline"}
+            >
+              Configure<Settings className="hover:text-primary" size={15} />
+            </Button>
             <Button
               onClick={refreshBigKeys}
               size={"sm"}
