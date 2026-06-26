@@ -462,11 +462,11 @@ export const getBigKeysEpic = () =>
     select(bigKeysRequested),
     tap((action) => {
       try {
-        const { connectionId, clusterId } = action.payload
+        const { connectionId, clusterId, scanLimit, topN } = action.payload
         const socket = getSocket()
         socket.next({
           type: action.type,
-          payload: { connectionId, clusterId },
+          payload: { connectionId, clusterId, scanLimit, topN },
         })
       } catch (error) {
         console.error("[getBigKeysEpic] Error sending action:", error)
