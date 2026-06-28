@@ -15,6 +15,7 @@ import { WebSocketReconnect } from "./components/WebSocketReconnect.tsx"
 import { ValkeyReconnect } from "./components/ValkeyReconnect.tsx"
 import { SendCommand } from "@/components/send-command/SendCommand.tsx"
 import { ActivityView } from "@/components/activity-view/ActivityView.tsx"
+import { AICopilot } from "@/components/ai-copilot/AICopilot.tsx"
 import { Connection } from "@/components/connection/Connection.tsx"
 import "./css/index.css"
 
@@ -48,6 +49,7 @@ const AppWithHistory = () => {
           <Route element={<KeyBrowser />} path="/:clusterId/:id/browse" />
           <Route element={<Cluster />} path="/:clusterId/:id/cluster-topology" />
           <Route element={<ActivityView />} path="/:clusterId/:id/activity" />
+          <Route element={<AICopilot />} path="/:clusterId/:id/ai-copilot" />
           <Route element={<Settings />} path="/:clusterId/:id/settings" />
         </Route>
 
@@ -58,6 +60,7 @@ const AppWithHistory = () => {
           <Route element={<SendCommand />} path="/:id/sendcommand" />
           <Route element={<KeyBrowser />} path="/:id/browse" />
           <Route element={<ActivityView />} path="/:id/activity" />
+          <Route element={<AICopilot />} path="/:id/ai-copilot" />
           <Route element={<Settings />} path="/:id/settings" />
           <Route element={<LearnMore />} path="/:id/learnmore" />
         </Route>

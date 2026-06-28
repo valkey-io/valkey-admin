@@ -199,3 +199,31 @@
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
+
+
+/* ── AI Copilot Utilities ──────────────────────────────────────────────────── */
+
+.section-title {
+  @apply text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3;
+}
+
+.card {
+  @apply border border-gray-200 dark:border-tw-dark-border rounded-lg p-4;
+}
+
+.btn-primary {
+  @apply px-5 py-2.5 bg-primary text-white rounded-lg font-medium
+    hover:bg-primary/90 transition-colors disabled:opacity-50
+    disabled:cursor-not-allowed flex items-center gap-2 text-sm;
+}
+
+.btn-success {
+  @apply px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-medium
+    hover:bg-emerald-700 transition-colors disabled:opacity-50
+    disabled:cursor-not-allowed flex items-center gap-2 text-sm;
+}
+
+.empty-state {
+  @apply border border-dashed border-gray-300 dark:border-tw-dark-border
+    rounded-lg p-8 text-center text-gray-500 dark:text-gray-400;
+}

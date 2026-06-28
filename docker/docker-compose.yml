@@ -8,3 +8,23 @@ services:
     environment:
       NODE_ENV: production
       KEY_VALUE_SIZE_LIMIT_BYTES: 2048
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_TLS: "false"
+      VALKEY_ENDPOINT_TYPE: node
+      # AI Copilot — Breeth memory integration. Set in your shell or a .env file.
+      BREETH_API_KEY: ${BREETH_API_KEY}
+      # AI Copilot — Groq intent detection for "Ask Valkey".
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    networks:
+      - default
+
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - default
+
+networks:
+  default:
