@@ -18,7 +18,7 @@ import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
 import { DEPLOYMENT_TYPE, sanitizeUrl, toNodeId } from "valkey-common"
-import { discoverCluster } from "./connection"
+import { discoverCluster, belongsToCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
 
@@ -31,7 +31,7 @@ export type MetricsServerMap = Map<string,
   }
 >
 
-type ClusterNodeInfo = {
+type NodeInfo = {
   host: string;
   port: number | string;
   username?: string;
@@ -44,7 +44,7 @@ type ClusterNodeInfo = {
   awsReplicationGroupId?: string;
 }
 
-export type ClusterNodeMap = Record<string, ClusterNodeInfo>;
+export type ClusterNodeMap = Record<string, NodeInfo>;
 
 export interface ClusterRegistry {
   [clusterId: string]: ClusterNodeMap
@@ -280,7 +280,7 @@ export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
   metricsMap.clear()
 }
 
-export async function startMetricsServer(nodeToStart: ClusterNodeInfo, nodeId: string) {
+export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) {
   const processResourcesPath = process.env.PROCESS_RESOURCES_PATH  ?? ""
   const metricsServerPath = isElectron
     ? path.join(processResourcesPath, "server-metrics.js")
@@ -363,39 +363,58 @@ async function stopMetricsServer(nodeToStop: string) {
 export async function reconcileClusterMetricsServers(
   clusterNodesRegistry: ClusterRegistry, 
   metricsServerMap: MetricsServerMap, 
-  connectionDetails: ConnectionDetails, 
 ) {
-  let clusterIds = Object.keys(clusterNodesRegistry)
-  // Start metrics server for all nodes if it is preconfigured before manual connection
-  if (clusterIds.length === 0 && preConfiguredConnection) {
-    try {
-      const client = await getInitialClient()
-      const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
-      if (clusterId && discoveredClusterNodes) {
-        clusterNodesRegistry[clusterId] = discoveredClusterNodes 
-        if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
-      } 
-      clusterIds = Object.keys(clusterNodesRegistry)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-  else if (clusterIds.length > 0) {
-    await Promise.all(
-      clusterIds.map(async (clusterId) => {
-        try {
-          const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry[clusterId])
-          // Early return if nothing has changed
-          if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
-            console.debug("Cluster nodes and metrics servers are in sync")
-            return
-          }
-          await internals.updateMetricsServers(nodesToAdd, nodesToRemove, clusterId)
-        } catch (err) {
-          console.error(`Failed to reconcile metrics servers for cluster ${clusterId}:`, err)
+  const clusterIds = Object.keys(clusterNodesRegistry)
+  if (clusterIds.length === 0) return
+
+  await Promise.all(
+    clusterIds.map(async (clusterId) => {
+      try {
+        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry[clusterId])
+        // Early return if nothing has changed
+        if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
+          console.debug("Cluster nodes and metrics servers are in sync")
+          return
         }
-      }),
-    )
+        await internals.updateMetricsServers(nodesToAdd, nodesToRemove, clusterId)
+      } catch (err) {
+        console.error(`Failed to reconcile metrics servers for cluster ${clusterId}:`, err)
+      }
+    }),
+  )
+}
+
+export async function startPreconfiguredStandaloneMetricsServer() {
+  const nodeId = sanitizeUrl(`${initialConnectionDetails.host}-${initialConnectionDetails.port}`)
+  await startMetricsServer(initialConnectionDetails, nodeId)
+}
+
+export async function startPreconfiguredMetricsServers() {
+  const client = await getInitialClient()
+  if (await belongsToCluster(client)) {
+    if (isWebMode) {
+      const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, initialConnectionDetails)
+      if (clusterId && discoveredClusterNodes) {
+        clusterNodesRegistry[clusterId] = discoveredClusterNodes
+        if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
+      }
+      runReconcileLoop()
+    }
+  } else if (!isKubernetes) {
+    await startPreconfiguredStandaloneMetricsServer()
+  }
+}
+
+export async function runReconcileLoop() {
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
+  while (true) {
+    try {
+      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap)
+      await delay(10000)
+    } catch (err) {
+      console.error("Failed to reconcile metrics servers", err)
+      await delay(10000)
+    }
   }
 }
 

@@ -30,14 +30,14 @@ import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
-  reconcileClusterMetricsServers,
+  startPreconfiguredMetricsServers,
   metricsServerMap,
   clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
   clients,
-  isWebMode,
   isKubernetes,
+  preConfiguredConnection,
   getInitialClient,
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
@@ -109,19 +109,6 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
-async function runReconcileLoop() {
-
-  while (true) {
-    try {
-      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails)
-      await delay(10000)
-    } catch (err) {
-      console.error("Failed to reconcile metrics servers", err)
-      await delay(10000)
-    }
-  }
-}
-
 async function refreshAllClusterRegistries() {
   await Promise.all(
     Object.entries(clusterNodesRegistry).map(async ([clusterId]) => {
@@ -166,10 +153,10 @@ server.listen(port, () => {
   }
   refreshAllClusterRegistriesLoop()
 
-  if (isWebMode) {
-    runReconcileLoop()
+  if (preConfiguredConnection) {
+    startPreconfiguredMetricsServers()
   }
-  else if (isKubernetes) {
+  if (isKubernetes) {
     updateRegistryforK8()
   }
 })

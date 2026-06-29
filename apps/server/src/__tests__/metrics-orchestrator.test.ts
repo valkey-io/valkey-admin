@@ -238,11 +238,9 @@ describe("metrics-orchestrator", () => {
   })
 
   describe("reconcileClusterMetricsServers", () => {
-    let connectionDetails: ConnectionDetails
 
     beforeEach(() => {
       metricsServerMap.clear()
-      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node", db: 0 }
 
       // Mock all side-effectful internal functions
       mock.method(__test__, "createClient", async () => ({}))
@@ -260,10 +258,11 @@ describe("metrics-orchestrator", () => {
       mock.restoreAll()
     })
 
-    it("should discover cluster if registry is empty", async () => {
+    it("should early return if registry is empty", async () => {
+      const emptyRegistry = {}
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
-      assert.ok(mockClusterNodesRegistry["cluster-1"])
+        emptyRegistry, metricsServerMap)
+      assert.strictEqual(Object.keys(emptyRegistry).length, 0)
     })
 
     it("should early return if nothing changed", async () => {
@@ -273,7 +272,7 @@ describe("metrics-orchestrator", () => {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       }
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
+        mockClusterNodesRegistry,metricsServerMap)
       // updateMetricsServers should not be called because nothing changed
     })
   })

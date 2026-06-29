@@ -301,7 +301,7 @@ async function connectToValkeyLocked(
         clusterNodesRegistry[clusterId] = discoveredClusterNodes
 
         if (isWebMode) {
-          reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, payload.connectionDetails)
+          reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap)
         }
 
         await commitClusterConnection(ctx, ws, {
