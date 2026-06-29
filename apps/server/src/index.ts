@@ -1,5 +1,6 @@
 import { WebSocket, WebSocketServer } from "ws"
 import express from "express"
+import helmet from "helmet"
 import path from "path"
 import http from "http"
 import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
@@ -76,6 +77,24 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/orchestrator")) return next()
   return limiter(req, res, next)
 })
+
+// Content Security Policy via helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+}))
+
 app.use(express.static(frontendDist))
 app.use(express.json())
 const metricsRouter = createMetricsOrchestratorRouter()

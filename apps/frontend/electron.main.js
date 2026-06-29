@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor } = require("electron")
+const { app, BrowserWindow, ipcMain, safeStorage, shell, powerMonitor, session } = require("electron")
 const path = require("path")
 const { fork } = require("child_process")
 const { createApplicationMenu } = require("./menu")
@@ -57,6 +57,22 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Enforce Content Security Policy for the renderer
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          "default-src 'self'; script-src 'self'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "connect-src 'self'; " +
+          "img-src 'self' data:; font-src 'self'; " +
+          "object-src 'none'; base-uri 'self'; form-action 'self';",
+        ],
+      },
+    })
+  })
+
   createApplicationMenu()
   startServer()
   if (serverProcess) {
