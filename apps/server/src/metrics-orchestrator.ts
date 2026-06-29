@@ -83,15 +83,6 @@ export const initialConnectionDetails: ConnectionDetails = {
 
 const ttl = Number(process.env.TTL) || 60000
 
-function isKnownClusterNode(nodeId: string) {
-  return Object.values(clusterNodesRegistry).some((clusterNodes) =>
-    Object.entries(clusterNodes).some(([primaryNodeId, primaryNode]) =>
-      primaryNodeId === nodeId ||
-      primaryNode.replicas?.some((replica) => sanitizeUrl(`${replica.host}-${replica.port}`) === nodeId),
-    ),
-  )
-}
-
 // Reconciliation works on flat node ids, but cluster discovery stores replicas under their primary.
 function flattenClusterNodeMap(clusterNodeMap: ClusterNodeMap): ClusterNodeMap {
   return Object.entries(clusterNodeMap).reduce((acc, [primaryNodeId, primaryNode]) => {
@@ -117,16 +108,7 @@ export function createMetricsOrchestratorRouter() {
   router.post("/register", (req: Request, res: Response) => {
     const { metricsServerUri, nodeId, pid } = req.body
 
-    const nodeBelongsToCluster = isKnownClusterNode(nodeId)
-    // `clients` keys are Connection_Identifiers with `-db<N>`; the incoming
-    // `nodeId` is a metrics-node-id with no `db`. Match on the stripped form
-    // so any open user-visible connection under this node counts as a valid
-    // client.
-    const nodeConnected = [...clients.keys()].some(
-      (id) => toNodeId(id) === nodeId,
-    )
-
-    if (nodeBelongsToCluster || nodeConnected)  {
+    if (metricsServerMap.has(nodeId))  {
       const now = Date.now()  
       const entry = metricsServerMap.get(nodeId)
       console.log(`Metrics server registered for ${nodeId} at ${metricsServerUri}`)
@@ -435,7 +417,6 @@ const internals =  {
   getClusterTopology,
   updateClusterNodeRegistry,
   findDiff,
-  isKnownClusterNode,
   flattenClusterNodeMap,
   updateMetricsServers,
   stopMetricsServers,
