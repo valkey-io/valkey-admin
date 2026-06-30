@@ -15,7 +15,13 @@ Choose the desktop app when you:
 
 ## Installation
 
-Download the latest release from [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases):
+On macOS, install with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask valkey-admin
+```
+
+Or download the latest release from [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases):
 
 - **macOS:** Download the `.dmg` file, open it, and drag Valkey Admin to Applications
 - **Linux:** Download the `.AppImage` or `.deb` package
