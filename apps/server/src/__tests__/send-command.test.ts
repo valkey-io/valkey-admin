@@ -3,7 +3,7 @@ import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError, TimeoutError, ClosingError } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
-import { sendValkeyRunCommand } from "../send-command"
+import { sendValkeyRunCommand, parseCommandArgs } from "../send-command"
 
 describe("sendValkeyRunCommand", () => {
   let mockWs: any
@@ -194,5 +194,50 @@ describe("sendValkeyRunCommand", () => {
     assert.deepStrictEqual(mockClient.customCommand.mock.calls[0].arguments, [
       ["SET", "mykey", "myvalue", "EX", "3600"],
     ])
+  })
+})
+
+describe("parseCommandArgs", () => {
+  it("should split simple commands on whitespace", () => {
+    assert.deepStrictEqual(parseCommandArgs("GET mykey"), ["GET", "mykey"])
+    assert.deepStrictEqual(parseCommandArgs("SET key value"), ["SET", "key", "value"])
+  })
+
+  it("should handle double-quoted arguments", () => {
+    assert.deepStrictEqual(
+      parseCommandArgs("TYPE \"seatmap:RIPC-UJGD-KLZC-ULGG:General:IZ\""),
+      ["TYPE", "seatmap:RIPC-UJGD-KLZC-ULGG:General:IZ"],
+    )
+  })
+
+  it("should handle keys with spaces inside quotes", () => {
+    assert.deepStrictEqual(parseCommandArgs("GET \"my key\""), ["GET", "my key"])
+  })
+
+  it("should handle single-quoted arguments", () => {
+    assert.deepStrictEqual(parseCommandArgs("SET 'my key' 'my value'"), ["SET", "my key", "my value"])
+  })
+
+  it("should handle escaped quotes within quoted strings", () => {
+    assert.deepStrictEqual(
+      parseCommandArgs("SET key \"hello\\\"world\""),
+      ["SET", "key", "hello\"world"],
+    )
+  })
+
+  it("should handle extra whitespace", () => {
+    assert.deepStrictEqual(parseCommandArgs("  GET   mykey  "), ["GET", "mykey"])
+  })
+
+  it("should return empty array for empty string", () => {
+    assert.deepStrictEqual(parseCommandArgs(""), [])
+    assert.deepStrictEqual(parseCommandArgs("   "), [])
+  })
+
+  it("should handle commands with multiple arguments", () => {
+    assert.deepStrictEqual(
+      parseCommandArgs("MSET key1 val1 key2 val2"),
+      ["MSET", "key1", "val1", "key2", "val2"],
+    )
   })
 })

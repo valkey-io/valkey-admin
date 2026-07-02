@@ -59,6 +59,31 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.size, -1)
     })
 
+    it("should display binary values as hex when decoding fails", async () => {
+      const mockClient = {
+        customCommand: mock.fn(async (cmd: string[], options?: any) => {
+          const key = cmd[0]
+          if (key === "TYPE") return "string"
+          if (key === "TTL") return -1
+          if (key === "MEMORY") return 4
+          if (key === "GET") {
+            if (options?.decoder !== undefined) {
+              // Second call with Decoder.Bytes — return a Buffer
+              return Buffer.from([0x80, 0x00, 0x80, 0x88])
+            }
+            // First call with default decoder — throw decoding error
+            throw new Error("Decoding error: 'Error: invalid utf-8 sequence of 1 bytes from index 0'")
+          }
+          return null
+        }),
+      }
+
+      const result = await getKeyInfo(mockClient as any, "mykey")
+
+      assert.strictEqual(result.elements, "\\x80\\x00\\x80\\x88")
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
+
   })
 
   describe("hash keys", () => {
