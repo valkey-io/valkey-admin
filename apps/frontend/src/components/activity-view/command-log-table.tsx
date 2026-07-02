@@ -76,7 +76,7 @@ const logTypeConfig = {
 }
 
 export function CommandLogTable({ data, logType, nodeErrors, isCluster }: CommandLogTableProps) {
-  const [sortField, setSortField] = useState<SortField>(SORT_FIELD.TIMESTAMP)
+  const [sortField, setSortField] = useState<SortField>(SORT_FIELD.METRIC)
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
   const [nodeErrorsExpanded, setNodeErrorsExpanded] = useState(false)
   const [selectedNode, setSelectedNode] = useState("all")

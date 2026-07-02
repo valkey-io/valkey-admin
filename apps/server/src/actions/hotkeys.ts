@@ -54,6 +54,7 @@ const sendHotKeysError = (
 export const hotKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
+    const count = Number(action.payload.count) || Number(process.env.HOT_KEYS_COUNT) || 50
 
     const nodes =
       typeof clusterId === "string" 
@@ -70,7 +71,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
       }
       const url = new URL("/hot-keys", metricsServerURI)
       if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
-      if (process.env.HOT_KEYS_COUNT) url.searchParams.set("count", process.env.HOT_KEYS_COUNT)
+      url.searchParams.set("count", String(count))
       try {
         console.debug("[Hot keys] Fetching from:", url.href)
         const initialResponse = await fetch(url)
@@ -134,7 +135,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
       }), {}),
       R.values,
       R.sort(R.descend(R.nth(1) as (x: HotKeyTuple) => number)),
-      R.take(Number(process.env.HOT_KEYS_COUNT) || 50),
+      R.take(count),
     )(results)
     const { checkAt, nodeId } = results[0]
     const monitorRunning = results.every((r) => r.monitorRunning)

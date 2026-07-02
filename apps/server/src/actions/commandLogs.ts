@@ -80,8 +80,7 @@ const sendCommandLogsError = (
   )
 }
 
-const fetchCommandLogs = async (metricsServerURI: string, commandLogType: CommandLogType): Promise<CommandLogResponse> => {
-  const count = process.env.COMMAND_LOGS_COUNT || "100"
+const fetchCommandLogs = async (metricsServerURI: string, commandLogType: CommandLogType, count: number): Promise<CommandLogResponse> => {
   const url = `${metricsServerURI}/commandlog?type=${commandLogType}&count=${count}`
   const initialResponse = await fetch(url)
   if (!initialResponse.ok) {
@@ -102,6 +101,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId } = action.payload
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
+    const count = Number(action.payload.count) || Number(process.env.COMMAND_LOGS_COUNT) || 100
 
     const nodes = typeof clusterId === "string" ? clusterNodesRegistry[clusterId] : undefined
     const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
@@ -114,7 +114,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
       }
       try {
         console.debug(`[Command Logs ${commandLogType}] Fetching from:`, metricsServerURI)
-        return await fetchCommandLogs(metricsServerURI, commandLogType)
+        return await fetchCommandLogs(metricsServerURI, commandLogType, count)
       } catch (error) {
         if (!nodes) sendCommandLogsError(ws, nodeId, error)
         return { nodeId, error: error instanceof Error ? error.message : String(error) } as NodeError
@@ -141,13 +141,12 @@ export const commandLogsRequested = withDeps<Deps, void>(
       ),
     )(results)
 
-    const limit = Number(process.env.COMMAND_LOGS_COUNT) || 100
-    const limitedValues = sortedValues.slice(0, limit)
-    const count = results[0]?.count ?? 0
+    const limitedValues = sortedValues.slice(0, count)
+    const totalCount = results[0]?.count ?? 0
     sendCommandLogsFulfilled(
       ws,
       { clusterId: clusterId as string },
-      { rows: [{ ts: Date.now(), metric: commandLogType, values: limitedValues }], count, checkAt: 0 } as CommandLogResponse,
+      { rows: [{ ts: Date.now(), metric: commandLogType, values: limitedValues }], count: totalCount, checkAt: 0 } as CommandLogResponse,
       commandLogType,
       nodeErrors,
     )
