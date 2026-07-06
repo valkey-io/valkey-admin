@@ -12,6 +12,7 @@ export interface BigKey {
   sizeBytes: number
   type: string
   ttl: number
+  freq: number | null
   nodeId?: string
 }
 

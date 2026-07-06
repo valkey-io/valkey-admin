@@ -12,10 +12,11 @@ import { copyToClipboard } from "@/lib/utils"
 
 interface BigKeyRowProps {
   entry: BigKey
+  showFrequency: boolean
 }
 
-function BigKeyRow({ entry }: BigKeyRowProps) {
-  const { key, sizeBytes, type, ttl, nodeId } = entry
+function BigKeyRow({ entry, showFrequency }: BigKeyRowProps) {
+  const { key, sizeBytes, type, ttl, freq, nodeId } = entry
 
   const handleCopy = () => {
     copyToClipboard(key)
@@ -24,7 +25,7 @@ function BigKeyRow({ entry }: BigKeyRowProps) {
 
   return (
     <tr className="group border-b dark:border-tw-dark-border transition-all duration-200 hover:bg-gray-50 dark:hover:bg-neutral-800/50">
-      <td className="px-4 py-3 w-1/3">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Typography className="truncate" variant="code">{key}</Typography>
           <button
@@ -36,16 +37,21 @@ function BigKeyRow({ entry }: BigKeyRowProps) {
           </button>
         </div>
       </td>
-      <td className="px-4 py-3 w-1/6 text-center">
+      <td className="px-4 py-3 w-[15%] text-center">
         <Typography variant="code">{type}</Typography>
       </td>
-      <td className="px-4 py-3 w-1/6 text-center">
+      <td className="px-4 py-3 w-[15%] text-center">
         <Typography variant="bodySm">{formatBytes(sizeBytes)}</Typography>
       </td>
-      <td className="px-4 py-3 w-1/6 text-center">
+      {showFrequency && (
+        <td className="px-4 py-3 w-[15%] text-center">
+          <Typography variant="bodySm">{freq ?? "—"}</Typography>
+        </td>
+      )}
+      <td className="px-4 py-3 w-[15%] text-center">
         <Typography variant="bodySm">{convertTTL(ttl)}</Typography>
       </td>
-      <td className="px-4 py-3 w-1/6 text-center">
+      <td className="px-4 py-3 w-[15%] text-center">
         <CustomTooltip content={nodeId ?? "-"}>
           <Typography variant="code">{truncateText(nodeId ?? "—")}</Typography>
         </CustomTooltip>
@@ -62,7 +68,7 @@ interface NoMatchRowProps {
 function NoMatchRow({ searchQuery, selectedNode }: NoMatchRowProps) {
   return (
     <tr>
-      <td className="px-4 py-8 text-center" colSpan={5}>
+      <td className="px-4 py-8 text-center" colSpan={6}>
         <Typography variant="bodySm">
           No keys match
           {searchQuery && (
@@ -83,10 +89,11 @@ interface BigKeysTableProps {
   onToggleSort: () => void
   searchQuery: string
   selectedNode: string
+  showFrequency: boolean
 }
 
 export function BigKeysTable({
-  rows, sortOrder, onToggleSort, searchQuery, selectedNode,
+  rows, sortOrder, onToggleSort, searchQuery, selectedNode, showFrequency,
 }: BigKeysTableProps) {
   return (
     <TableContainer
@@ -95,19 +102,22 @@ export function BigKeysTable({
           <StaticTableHeader
             icon={<KeyRound className="text-primary" size={16} />}
             label="Key Name"
-            width="w-1/3"
+            width="flex-1"
           />
-          <StaticTableHeader className="text-center" label="Type" width="w-1/6" />
+          <StaticTableHeader className="text-center" label="Type" width="w-[15%]" />
           <SortableTableHeader
             active={true}
             className="text-center"
             label="Size"
             onClick={onToggleSort}
             sortOrder={sortOrder}
-            width="w-1/6"
+            width="w-[15%]"
           />
-          <StaticTableHeader className="text-center" label="TTL" width="w-1/6" />
-          <StaticTableHeader className="text-center" label="Node" width="w-1/6" />
+          {showFrequency && (
+            <StaticTableHeader className="text-center" label="Frequency" width="w-[15%]" />
+          )}
+          <StaticTableHeader className="text-center" label="TTL" width="w-[15%]" />
+          <StaticTableHeader className="text-center" label="Node" width="w-[15%]" />
         </>
       }
     >
@@ -118,6 +128,7 @@ export function BigKeysTable({
           <BigKeyRow
             entry={entry}
             key={`${entry.key}-${index}`}
+            showFrequency={showFrequency}
           />
         ))
       )}

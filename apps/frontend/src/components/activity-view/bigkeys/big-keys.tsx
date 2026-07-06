@@ -29,6 +29,7 @@ export function BigKeys({
   if (status === "Pending") return <LoadingState message="Scanning for big keys..." />
 
   const allKeys = R.defaultTo([], data)
+  const showFrequency = allKeys.some((bigKey) => bigKey.freq !== null)
 
   const uniqueNodes = Array.from(
     new Set(allKeys.map((k) => k.nodeId).filter(Boolean)),
@@ -92,6 +93,7 @@ export function BigKeys({
           rows={sorted}
           searchQuery={searchQuery}
           selectedNode={selectedNode}
+          showFrequency={showFrequency}
           sortOrder={sortOrder}
         />
       </div>
