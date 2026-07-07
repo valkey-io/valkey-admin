@@ -155,7 +155,7 @@ export function HotKeysTable({
             label={
               isHotSlots ? (
                 <span className="flex items-center gap-1">
-                  Access Count
+                  Frequency
                   <TooltipIcon
                     description="Access frequency from OBJECT FREQ (Valkey's LFU counter, 0–255). 
                     Higher means accessed more often — a relative, decaying estimate, not a raw hit count."
