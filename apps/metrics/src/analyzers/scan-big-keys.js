@@ -40,11 +40,11 @@ export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchS
   // OBJECT FREQ requires an LFU maxmemory-policy, if not set, freq will be null
   const keys = await Promise.all(topKeys.map(async (entry) => {
     try {
-      return { ...entry, freq: parseInt(await client.customCommand(["OBJECT", "FREQ", entry.key])) }
+      return { ...entry, freq: Number(await client.customCommand(["OBJECT", "FREQ", entry.key])) }
     } catch {
       return { ...entry, freq: null }
     }
   }))
 
-  return { keys, scanned, totalKeys }
+  return { keys, scanned, totalKeys, scannedAt: Date.now() }
 }

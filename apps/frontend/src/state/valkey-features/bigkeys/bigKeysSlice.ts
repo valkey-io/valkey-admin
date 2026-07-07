@@ -34,6 +34,9 @@ export const selectBigKeysScanned = (targetId: string) => (state: RootState) =>
 export const selectBigKeysTotalKeys = (targetId: string) => (state: RootState) =>
   R.path([VALKEY.BIGKEYS.name, targetId, "totalKeys"], state) ?? null
 
+export const selectBigKeysLastScannedAt = (targetId: string) => (state: RootState) =>
+  R.path([VALKEY.BIGKEYS.name, targetId, "lastScannedAt"], state) ?? null
+
 interface BigKeysState {
   // Keyed by `targetId`: `clusterId` (cluster) or db-less `nodeId` (standalone).
   [targetId: string]: {
@@ -41,6 +44,7 @@ interface BigKeysState {
     scanned: number | null
     totalKeys: number | null
     nodeId: string | null
+    lastScannedAt: number | null
     error?: JSONObject | null
     nodeErrors?: { nodeId: string; error: string }[]
     status: BigKeysStatus
@@ -54,6 +58,7 @@ const emptyEntry = (status: BigKeysStatus): BigKeysState[string] => ({
   scanned: null,
   totalKeys: null,
   nodeId: null,
+  lastScannedAt: null,
   status,
 })
 
@@ -73,7 +78,7 @@ const bigKeysSlice = createSlice({
       }
     },
     bigKeysFulfilled: (state, action) => {
-      const { keys, scanned, totalKeys, nodeId } = action.payload.parsedResponse
+      const { keys, scanned, totalKeys, nodeId, scannedAt } = action.payload.parsedResponse
       const targetId = action.payload.clusterId ?? action.payload.nodeId
       const nodeErrors = action.payload.nodeErrors ?? []
       state[targetId] = {
@@ -82,6 +87,7 @@ const bigKeysSlice = createSlice({
         totalKeys,
         nodeId,
         nodeErrors,
+        lastScannedAt: scannedAt ?? null,
         status: FULFILLED,
       }
     },

@@ -17,6 +17,7 @@ type BigKeysResponse = {
   keys: BigKey[]
   scanned: number
   totalKeys: number
+  scannedAt: number
 }
 
 type NodeError = {
@@ -107,7 +108,7 @@ export const bigKeysRequested = withDeps<Deps, void>(
 
     if (results.length === 0) {
       if (nodes) {
-        const emptyResponse: BigKeysResponse = { keys: [], scanned: 0, totalKeys: 0, nodeId: "" }
+        const emptyResponse: BigKeysResponse = { keys: [], scanned: 0, totalKeys: 0, nodeId: "", scannedAt: Date.now() }
         sendBigKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
         return
       }
@@ -115,7 +116,7 @@ export const bigKeysRequested = withDeps<Deps, void>(
       if (nodeErrors[0]) {
         sendBigKeysError(ws, nodeId, nodeErrors[0].error)
       } else {
-        const emptyResponse: BigKeysResponse = { keys: [], scanned: 0, totalKeys: 0, nodeId }
+        const emptyResponse: BigKeysResponse = { keys: [], scanned: 0, totalKeys: 0, nodeId, scannedAt: Date.now() }
         sendBigKeysFulfilled(ws, { nodeId }, emptyResponse)
       }
       return
@@ -137,6 +138,7 @@ export const bigKeysRequested = withDeps<Deps, void>(
     )(results) as BigKey[]
     const scanned = R.sum(results.map((r) => r.scanned))
     const totalKeys = R.sum(results.map((r) => r.totalKeys))
-    const aggregatedResponse: BigKeysResponse = { keys: mergedKeys, scanned, totalKeys, nodeId: clusterId as string }
+    const scannedAt = Math.max(...results.map((r) => r.scannedAt))
+    const aggregatedResponse: BigKeysResponse = { keys: mergedKeys, scanned, totalKeys, nodeId: clusterId as string, scannedAt }
     sendBigKeysFulfilled(ws, { clusterId: clusterId as string }, aggregatedResponse, nodeErrors)
   })

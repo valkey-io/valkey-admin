@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { Activity, RefreshCcw, Settings } from "lucide-react"
 import { useParams } from "react-router"
-import { COMMANDLOG_TYPE } from "@common/src/constants"
+import { COMMANDLOG_TYPE, PENDING } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
 import { MONITOR_ACTION } from "@common/src/constants"
 import { toNodeId } from "@common/src/connection-id.ts"
@@ -29,7 +29,7 @@ import {
 } from "@/state/valkey-features/hotkeys/hotKeysSlice"
 import {
   bigKeysRequested, selectBigKeys, selectBigKeysStatus, selectBigKeysError,
-  selectBigKeysNodeErrors, selectBigKeysScanned, selectBigKeysTotalKeys
+  selectBigKeysNodeErrors, selectBigKeysScanned, selectBigKeysTotalKeys, selectBigKeysLastScannedAt
 } from "@/state/valkey-features/bigkeys/bigKeysSlice"
 import {
   monitorRequested,
@@ -90,6 +90,7 @@ export const ActivityView = () => {
   const bigKeysNodeErrors = useSelector((state: RootState) => selectBigKeysNodeErrors(targetId)(state))
   const bigKeysScanned = useSelector((state: RootState) => selectBigKeysScanned(targetId)(state))
   const bigKeysTotalKeys = useSelector((state: RootState) => selectBigKeysTotalKeys(targetId)(state))
+  const bigKeysLastScannedAt = useSelector((state: RootState) => selectBigKeysLastScannedAt(targetId)(state))
   const monitorRunning = useSelector((state: RootState) =>
     clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(nodeId)(state),
   )
@@ -269,16 +270,25 @@ export const ActivityView = () => {
         {/* Big Keys Refresh */}
         {activeTab === "big-keys" && (
           <div className="flex items-center gap-3">
-            {bigKeysScanned !== null && bigKeysTotalKeys !== null && (
+            {bigKeysStatus === PENDING ? (
               <Typography variant="bodyXs">
-                Scanned {bigKeysScanned.toLocaleString()} of {bigKeysTotalKeys.toLocaleString()} keys
-                {bigKeysData.length >= bigKeysTopN
-                  ? ` | showing top ${bigKeysTopN}`
-                  : ` | showing all ${bigKeysData.length}`}
+                Scanning keys…
               </Typography>
+            ) : (
+              bigKeysScanned !== null && bigKeysTotalKeys !== null && (
+                <Typography variant="bodyXs">
+                  Scanned {bigKeysScanned.toLocaleString()} of {bigKeysTotalKeys.toLocaleString()} keys
+                  {bigKeysData.length >= bigKeysTopN
+                    ? ` | showing top ${bigKeysTopN}`
+                    : ` | showing all ${bigKeysData.length}`}
+                  {bigKeysLastScannedAt && bigKeysData.length > 0 &&
+                    ` | Last scanned at: ${new Date(bigKeysLastScannedAt).toLocaleString()}`}
+                </Typography>
+              )
             )}
             <Button
               aria-label="Scan settings"
+              disabled={bigKeysStatus === PENDING}
               onClick={() => setBigKeysConfigOpen(true)}
               size={"sm"}
               variant={"outline"}
@@ -286,11 +296,15 @@ export const ActivityView = () => {
               <Settings className="hover:text-primary" size={15} />
             </Button>
             <Button
+              disabled={bigKeysStatus === PENDING}
               onClick={refreshBigKeys}
               size={"sm"}
               variant={"outline"}
             >
-              <RefreshCcw className="hover:text-primary" size={15} />
+              <RefreshCcw
+                className={`hover:text-primary ${bigKeysStatus === PENDING ? "animate-spin" : ""}`}
+                size={15}
+              />
             </Button>
           </div>
         )}
@@ -344,6 +358,7 @@ export const ActivityView = () => {
                   data={hotKeysData}
                   errorMessage={hotKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
+                  isHotSlots={!!useHotSlots}
                   monitorError={monitorError}
                   monitorRunning={monitorRunning}
                   nodeErrors={hotKeysNodeErrors}

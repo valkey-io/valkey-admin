@@ -8,7 +8,7 @@ import { SearchInput } from "../../ui/search-input"
 import { type SortOrder } from "../../ui/sortable-table-header"
 import { NodeErrorsBanner } from "../hotkeys/hot-keys-banners"
 import { NodeFilterDropdown } from "../hotkeys/node-filter-dropdown"
-import { BigKeysTable } from "./big-keys-table"
+import { BigKeysTable, type BigKeysSortKey } from "./big-keys-table"
 import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
 
 interface BigKeysProps {
@@ -22,9 +22,19 @@ interface BigKeysProps {
 export function BigKeys({
   data, errorMessage, status, nodeErrors, isCluster,
 }: BigKeysProps) {
+  const [sortKey, setSortKey] = useState<BigKeysSortKey>("sizeBytes")
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedNode, setSelectedNode] = useState("all")
+
+  const handleSort = (key: BigKeysSortKey) => {
+    if (key === sortKey) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortKey(key)
+      setSortOrder("desc")
+    }
+  }
 
   if (status === "Pending") return <LoadingState message="Scanning for big keys..." />
 
@@ -41,8 +51,9 @@ export function BigKeys({
     return matchesSearch && matchesNode
   })
 
+  const sortValue = (k: BigKey) => (sortKey === "freq" ? k.freq ?? -1 : k.sizeBytes)
   const sorted = R.sort<BigKey>(
-    (sortOrder === "asc" ? R.ascend : R.descend)((k) => k.sizeBytes),
+    (sortOrder === "asc" ? R.ascend : R.descend)(sortValue),
     filtered,
   )
 
@@ -89,11 +100,12 @@ export function BigKeys({
       </div>
       <div className="flex-1 min-h-0">
         <BigKeysTable
-          onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+          onSort={handleSort}
           rows={sorted}
           searchQuery={searchQuery}
           selectedNode={selectedNode}
           showFrequency={showFrequency}
+          sortKey={sortKey}
           sortOrder={sortOrder}
         />
       </div>

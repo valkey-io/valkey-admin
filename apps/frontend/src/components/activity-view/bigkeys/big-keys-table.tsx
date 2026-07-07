@@ -7,6 +7,7 @@ import { TableContainer } from "../../ui/table-container"
 import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../../ui/sortable-table-header"
 import { Typography } from "../../ui/typography"
 import { CustomTooltip } from "../../ui/tooltip"
+import { TooltipIcon } from "../../ui/tooltip-icon"
 import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
 import { copyToClipboard } from "@/lib/utils"
 
@@ -83,17 +84,20 @@ function NoMatchRow({ searchQuery, selectedNode }: NoMatchRowProps) {
   )
 }
 
+export type BigKeysSortKey = "sizeBytes" | "freq"
+
 interface BigKeysTableProps {
   rows: BigKey[]
+  sortKey: BigKeysSortKey
   sortOrder: SortOrder
-  onToggleSort: () => void
+  onSort: (key: BigKeysSortKey) => void
   searchQuery: string
   selectedNode: string
   showFrequency: boolean
 }
 
 export function BigKeysTable({
-  rows, sortOrder, onToggleSort, searchQuery, selectedNode, showFrequency,
+  rows, sortKey, sortOrder, onSort, searchQuery, selectedNode, showFrequency,
 }: BigKeysTableProps) {
   return (
     <TableContainer
@@ -106,15 +110,31 @@ export function BigKeysTable({
           />
           <StaticTableHeader className="text-center" label="Type" width="w-[15%]" />
           <SortableTableHeader
-            active={true}
+            active={sortKey === "sizeBytes"}
             className="text-center"
             label="Size"
-            onClick={onToggleSort}
+            onClick={() => onSort("sizeBytes")}
             sortOrder={sortOrder}
             width="w-[15%]"
           />
           {showFrequency && (
-            <StaticTableHeader className="text-center" label="Frequency" width="w-[15%]" />
+            <SortableTableHeader
+              active={sortKey === "freq"}
+              className="text-center"
+              label={
+                <span className="flex items-center gap-1">
+                  Frequency
+                  <TooltipIcon
+                    description="Access frequency from OBJECT FREQ. Higher means accessed more often. 
+                    Requires an LFU maxmemory-policy; otherwise unavailable."
+                    size={14}
+                  />
+                </span>
+              }
+              onClick={() => onSort("freq")}
+              sortOrder={sortOrder}
+              width="w-[15%]"
+            />
           )}
           <StaticTableHeader className="text-center" label="TTL" width="w-[15%]" />
           <StaticTableHeader className="text-center" label="Node" width="w-[15%]" />
