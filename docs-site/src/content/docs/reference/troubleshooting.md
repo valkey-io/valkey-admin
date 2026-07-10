@@ -31,13 +31,15 @@ This option requires Valkey 8.0 or later, which introduced `cluster-slot-stats-e
 
 ---
 
-## Intermittent "No primary node found" when connecting to large clusters via discovery endpoint
+## Monitor or Command Logs show an error banner
 
-When connecting to an ElastiCache cluster configuration endpoint (`clustercfg.*`) with a large number of nodes (50+), the connection may intermittently fail with "No primary node found." This is caused by a [known issue in Valkey GLIDE](https://github.com/valkey-io/valkey-glide/issues/5809) where the standalone client struggles with DNS endpoints that resolve to many IP addresses.
+If the Monitor or Command Log features display an error in the Activity view, the metrics server was unable to execute the required command on the connected node. Common causes:
 
-**Workaround:** Connect using a specific node hostname (e.g., `<replication-group>-0001-001.<replication-group>.<suffix>`) instead of the `clustercfg.*` endpoint. Valkey Admin will discover the full cluster topology from any single node.
+- The connected Valkey instance does not support the command (e.g., `MONITOR` is disabled or `COMMANDLOG` requires Valkey 8.1+)
+- The ACL user does not have permission to run the command
+- The node became unreachable after the metrics server started
 
-**Fix:** This is resolved in GLIDE 2.4 with the new `NodeDiscoveryMode.STATIC` option ([PR #5724](https://github.com/valkey-io/valkey-glide/pull/5724)).
+The error message in the banner indicates the specific failure. If the command is unsupported by the server, the error will persist until the server version or ACL is updated.
 
 ---
 

@@ -50,16 +50,18 @@ Filter keys by data type:
 View string values with syntax highlighting for JSON, XML, and other formats.
 
 #### Hash Fields
-Display all fields and values in a table format.
+Display fields and values in a paginated table format.
 
 #### List Elements
 Browse list elements with pagination.
 
 #### Set Members
-View all members of a set.
+View members of a set with pagination.
 
 #### Sorted Set Entries
-Display entries with their scores.
+Display entries with their scores, paginated for large collections.
+
+All collection types (hash, list, set, sorted set) use pagination to handle large data structures efficiently. Only a page of elements is loaded at a time, preventing the browser from blocking on keys with millions of members.
 
 ### Editing Keys
 
