@@ -237,6 +237,15 @@ async function connectToValkeyLocked(
     // The finally block below ensures we close this gate on every exit path.
     clients.set(connectionId, { client: standaloneClient })
 
+    // Start metrics server for the connected node before cluster detection.
+    // The spawn is independent of the probe client and does not affect SELECT gating.
+    if (!isKubernetes) {
+      const metricsNodeId = toNodeId(connectionId)
+      if (!metricsServerMap.has(metricsNodeId)) {
+        await startMetricsServer(payload.connectionDetails, metricsNodeId)
+      }
+    }
+
     // Detect cluster mode and Server_Version on the probe BEFORE issuing any
     // `SELECT`. This is required for cluster gating: cluster nodes reject
     // `SELECT N` for any N (even 0), so we cannot bind the probe to a `db`
@@ -365,17 +374,6 @@ async function connectToValkeyLocked(
       throw new ConnectionRejectedError(
         `Database_Index ${db} is out of range (server allows 0..${databasesCount - 1})`,
       )
-    }
-
-    // In K8s or Web, metrics servers register themselves.
-    if (!isKubernetes) {
-      // `metricsServerMap` is keyed by node-id, not Connection_Identifier.
-      // Strip the `-db<N>` suffix so a second user connection on a different
-      // db reuses the existing metrics process for the same node (N:1).
-      const metricsNodeId = toNodeId(payload.connectionId)
-      if (!metricsServerMap.has(metricsNodeId)) {
-        await startMetricsServer(payload.connectionDetails, metricsNodeId)
-      }
     }
 
     console.log("Connected to standalone")
