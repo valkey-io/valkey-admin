@@ -56,6 +56,7 @@ describe("connectionSlice", () => {
         },
         searchableText: "conn-1 localhost 6379 admin test",
         wasEdit: false,
+        autoConnect: false,
         connectionHistory: undefined,
       })
     })
@@ -535,6 +536,53 @@ describe("connectionSlice", () => {
 
       expect(state.connections["conn-1"].status).toBe(DISCONNECTING)
       expect(state.connections["conn-1"].errorMessage).toBeNull()
+    })
+
+    it("should mark the connection as user-disconnected", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: CONNECTED,
+            errorMessage: null,
+            searchableText: "",
+            connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        closeConnection({ connectionId: "conn-1" }),
+      )
+
+      expect(state.connections["conn-1"].userDisconnected).toBe(true)
+    })
+
+    it("should clear the user-disconnected mark on a manual reconnect", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: DISCONNECTING,
+            errorMessage: null,
+            searchableText: "",
+            userDisconnected: true,
+            connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        connectPending({
+          connectionId: "conn-1",
+          connectionDetails: {
+            host: "localhost", port: "6379", username: "", password: "",
+            tls: false, verifyTlsCertificate: false, endpointType: "node", db: 0,
+          },
+        }),
+      )
+
+      expect(state.connections["conn-1"].userDisconnected).toBeUndefined()
     })
   })
 

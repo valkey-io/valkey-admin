@@ -10,6 +10,7 @@ export type Deps = {
   metricsServerMap: MetricsServerMap,
   connectedNodesByCluster: Map<string, string[]>,
   clusterNodesRegistry: ClusterRegistry,
+  sessionId?: string,
 }
 
 export type ReduxAction = {
