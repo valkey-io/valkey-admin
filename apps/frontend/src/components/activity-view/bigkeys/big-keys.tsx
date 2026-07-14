@@ -57,7 +57,7 @@ export function BigKeys({
     filtered,
   )
 
-  const banner = nodeErrors && nodeErrors.length > 0 && <NodeErrorsBanner nodeErrors={nodeErrors} />
+  const banner = nodeErrors && nodeErrors.length > 0 && <NodeErrorsBanner label="Big keys" nodeErrors={nodeErrors} />
 
   if (allKeys.length === 0) {
     return (

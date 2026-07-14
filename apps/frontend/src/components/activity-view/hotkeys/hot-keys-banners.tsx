@@ -5,9 +5,10 @@ import { Typography } from "../../ui/typography"
 
 interface NodeErrorsBannerProps {
   nodeErrors: { nodeId: string; error: string }[]
+  label?: string
 }
 
-export function NodeErrorsBanner({ nodeErrors }: NodeErrorsBannerProps) {
+export function NodeErrorsBanner({ nodeErrors, label = "Hot keys" }: NodeErrorsBannerProps) {
   const [expanded, setExpanded] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -33,7 +34,7 @@ export function NodeErrorsBanner({ nodeErrors }: NodeErrorsBannerProps) {
       >
         <AlertDescription className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4" />
-          Hot keys data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "}
+          {label} data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "}
           failed to respond or {nodeErrors.length > 1 ? "are" : "is"} not connected
           {expanded
             ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />

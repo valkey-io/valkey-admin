@@ -86,6 +86,7 @@ app.use((req, res, next) => {
 // Content Security Policy via helmet
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: false,
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],

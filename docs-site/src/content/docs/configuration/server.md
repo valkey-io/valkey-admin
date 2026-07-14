@@ -162,14 +162,14 @@ Base directory the server passes to each spawned child. Each child gets its own 
 
 ### `HOT_KEYS_COUNT`
 
-Maximum number of hot keys returned per query. Applies to both monitor-based and slot-stats-based hot key detection.
+Maximum number of hot keys returned per query. Applies to both monitor-based and slot-stats-based hot key detection. This can also be configured from the Activity view in the UI.
 
 - **Default:** `50`
 - **Read in:** `apps/server/src/actions/hotkeys.ts`
 
 ### `COMMAND_LOGS_COUNT`
 
-Maximum number of command log entries (slow logs, large requests, large replies) returned per query.
+Maximum number of command log entries (slow logs, large requests, large replies) returned per query. This can also be configured from the Activity view in the UI.
 
 - **Default:** `100`
 - **Read in:** `apps/server/src/actions/commandLogs.ts`

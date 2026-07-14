@@ -5,6 +5,9 @@ osascript -e 'tell application "Valkey Admin" to quit' || true
 
 set -e
 
+echo "Cleaning release folder…"
+rm -rf release
+
 echo "Packaging mac build…"
 npm run package:mac:nosign
 
