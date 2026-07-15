@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
-import type { IncomingMessage } from "http"
 import {
   ensureSession,
   authorizeConnection,
@@ -9,8 +8,9 @@ import {
   revokeConnection,
   hasAuthorizedSession,
   setSessionExpiryListener,
-  _resetSessions,
+  _resetSessions
 } from "../session"
+import type { IncomingMessage } from "http"
 
 const TTL_MS = 24 * 60 * 60 * 1000
 
