@@ -5,7 +5,7 @@ import { connectToValkey, teardownConnection  } from "../connection"
 import { unsubscribe, getWatcherCount } from "../node-watchers"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
-import { authorizeConnection, isConnectionAuthorized, revokeConnection } from "../session"
+import { authorizeConnection, isConnectionAuthorized, revokeConnection, hasAuthorizedSession } from "../session"
 
 export interface ConnectionDetails {
   host: string;
@@ -90,7 +90,8 @@ export const closeConnection = withDeps<Deps, void>(
       payload: { connectionId },
     }))
 
-    if (getWatcherCount(connectionId) > 0) {
+    // Don't tear down a shared connection another session still owns
+    if (getWatcherCount(connectionId) > 0 || hasAuthorizedSession(connectionId)) {
       return
     }
     const nodes = connectedNodesByCluster.get(clusterId!)
