@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AlertCircle, KeyRound } from "lucide-react"
+import { AlertCircle, ChartColumnIncreasing, KeyRound } from "lucide-react"
 import * as R from "ramda"
 import { EmptyState } from "../../ui/empty-state"
 import { LoadingState } from "../../ui/loading-state"
@@ -9,7 +9,9 @@ import { type SortOrder } from "../../ui/sortable-table-header"
 import { NodeErrorsBanner } from "../hotkeys/hot-keys-banners"
 import { NodeFilterDropdown } from "../hotkeys/node-filter-dropdown"
 import { BigKeysTable, type BigKeysSortKey } from "./big-keys-table"
+import { BigKeysDistributionModal } from "./big-keys-distribution"
 import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
+import { Button } from "@/components/ui/button"
 
 interface BigKeysProps {
   data: BigKey[] | null
@@ -26,6 +28,7 @@ export function BigKeys({
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedNode, setSelectedNode] = useState("all")
+  const [isDistributionOpen, setIsDistributionOpen] = useState(false)
 
   const handleSort = (key: BigKeysSortKey) => {
     if (key === sortKey) {
@@ -82,7 +85,25 @@ export function BigKeys({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {banner}
+      {isCluster && (
+        <BigKeysDistributionModal
+          data={allKeys}
+          onClose={() => setIsDistributionOpen(false)}
+          open={isDistributionOpen}
+        />
+      )}
       <div className="flex items-center gap-2 w-full bg-accent p-2">
+        {isCluster && (
+          <Button
+            className="font-normal shrink-0"
+            onClick={() => setIsDistributionOpen(true)}
+            type="button"
+            variant="outline"
+          >
+            <ChartColumnIncreasing className="text-primary" />
+            Bigkeys distribution
+          </Button>
+        )}
         <SearchInput
           onChange={(e) => setSearchQuery(e.target.value)}
           onClear={() => setSearchQuery("")}
