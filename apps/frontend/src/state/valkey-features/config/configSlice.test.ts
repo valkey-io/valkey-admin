@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import configReducer, {
   setConfig,
   updateConfig,
+  updateConfigNodeStatus,
   updateConfigFulfilled,
   updateConfigFailed,
   selectConfig
@@ -52,15 +53,21 @@ describe("configSlice", () => {
       expect(state["node-1-db0"]).toBeUndefined()
     })
 
-    it("seeds only monitoring/status/errorMessage (no dead fields)", () => {
+    it("seeds only the config entry fields (no dead fields)", () => {
       const state = configReducer(
         initialState,
         setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
       )
 
       const entry = state["host-6379"]
-      // ConfigEntry shape is exactly monitoring/status/errorMessage.
-      expect(Object.keys(entry).sort()).toEqual(["errorMessage", "monitoring", "status"])
+      // ConfigEntry shape carries monitoring/status/errorMessage plus the
+      // live per-node status fields for the server-side retry session.
+      expect(Object.keys(entry).sort()).toEqual(
+        [
+          "errorMessage", "kind", "monitoring", "nodeStatuses",
+          "notAttemptedNodeIds", "status", "succeededCount",
+        ],
+      )
       expect(Object.keys(entry.monitoring).sort()).toEqual(
         ["cutoffFrequency", "maxCommandsPerRun", "monitoringDuration", "monitoringInterval"],
       )
@@ -99,7 +106,9 @@ describe("configSlice", () => {
         seeded,
         updateConfigFulfilled({
           clusterId: "cluster-1",
-          response: { data: { epic: { name: "monitor", monitoringDuration: 5000, monitoringInterval: 7000 } } },
+          outcome: "fulfilled",
+          nodeResults: [{ nodeId: "node-1", success: true, message: "ok" }],
+          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000, monitoringInterval: 7000 } },
         }),
       )
 
@@ -114,7 +123,9 @@ describe("configSlice", () => {
         initialState,
         updateConfigFulfilled({
           nodeId: "host-6379",
-          response: { data: { epic: { name: "monitor", monitoringDuration: 1234 } } },
+          outcome: "fulfilled",
+          nodeResults: [{ nodeId: "host-6379", success: true, message: "ok" }],
+          appliedConfig: { epic: { name: "monitor", monitoringDuration: 1234 } },
         }),
       )
 
@@ -123,24 +134,101 @@ describe("configSlice", () => {
   })
 
   describe("updateConfigFailed", () => {
-    it("sets failed status on the cluster entry", () => {
+    it("sets failed status and reconciles every failed node's status on the cluster entry", () => {
       const state = configReducer(
         initialState,
-        updateConfigFailed({ clusterId: "cluster-1", response: { errorMessage: "bad config" } }),
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [
+            { nodeId: "node-1", success: false, message: "bad config" },
+            { nodeId: "node-2", success: false, message: "also bad" },
+          ],
+        }),
       )
 
       expect(state["cluster-1"].status).toBe("failed")
+      expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("failed")
+      expect(state["cluster-1"].nodeStatuses["node-2"].status).toBe("failed")
       expect(state["cluster-1"].errorMessage).toBe("bad config")
+    })
+
+    it("represents a partial failure distinctly from a total failure", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [
+            { nodeId: "node-1", success: true, message: "ok" },
+            { nodeId: "node-2", success: false, message: "boom" },
+          ],
+        }),
+      )
+
+      expect(state["cluster-1"].status).toBe("partial")
+      expect(state["cluster-1"].succeededCount).toBe(1)
+      expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("succeeded")
+      expect(state["cluster-1"].nodeStatuses["node-2"].status).toBe("failed")
+    })
+
+    it("represents a not-attempted outcome with not_attempted node statuses, none failed", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "not_attempted",
+          nodeResults: [],
+          notAttemptedNodeIds: ["node-1", "node-2"],
+        }),
+      )
+
+      expect(state["cluster-1"].status).toBe("not_attempted")
+      // The reply's not-attempted nodes get REAL entries with that status —
+      // not an empty map that would satisfy a vacuous `.every()`.
+      const statuses = Object.values(state["cluster-1"].nodeStatuses).map((e) => e.status)
+      expect(statuses).toEqual(["not_attempted", "not_attempted"])
+      expect(state["cluster-1"].nodeStatuses["node-1"].message!.length).toBeGreaterThan(0)
     })
 
     it("sets failed status on the standalone entry keyed by nodeId", () => {
       const state = configReducer(
         initialState,
-        updateConfigFailed({ nodeId: "host-6379", response: { errorMessage: "nope" } }),
+        updateConfigFailed({
+          nodeId: "host-6379",
+          outcome: "failed",
+          nodeResults: [{ nodeId: "host-6379", success: false, message: "nope" }],
+        }),
       )
 
       expect(state["host-6379"].status).toBe("failed")
       expect(state["host-6379"].errorMessage).toBe("nope")
+    })
+
+    it("backfills a missing failed-node message", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [{ nodeId: "node-1", success: false, message: "" }],
+        }),
+      )
+
+      expect(state["cluster-1"].nodeStatuses["node-1"].message!.length).toBeGreaterThan(0)
+    })
+
+    it("leaves state unchanged and records a rejection when the target id is missing", () => {
+      const seeded = configReducer(
+        initialState,
+        setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
+      )
+      const state = configReducer(
+        seeded,
+        updateConfigFailed({ outcome: "failed", nodeResults: [{ nodeId: "x", success: false, message: "y" }] }),
+      )
+
+      expect(state["host-6379"]).toEqual(seeded["host-6379"])
     })
   })
 
@@ -154,6 +242,157 @@ describe("configSlice", () => {
     it("keys by nodeId when no clusterId", () => {
       const state = configReducer(initialState, updateConfig({ nodeId: "host-6379" }))
       expect(state["host-6379"].status).toBe("updating")
+    })
+  })
+
+  describe("nodeStatuses lifecycle (live server retry session)", () => {
+    it("upserts per-node statuses from live pushes", () => {
+      let state = configReducer(
+        initialState,
+        updateConfigNodeStatus({
+          clusterId: "cluster-1",
+          nodeId: "node-2",
+          status: "attempting",
+          attempt: 1,
+          maxAttempts: 7,
+        }),
+      )
+      state = configReducer(
+        state,
+        updateConfigNodeStatus({
+          clusterId: "cluster-1",
+          nodeId: "node-2",
+          status: "retrying",
+          attempt: 1,
+          maxAttempts: 7,
+          nextRetryMs: 1000,
+          message: "flaky",
+        }),
+      )
+
+      expect(state["cluster-1"].nodeStatuses["node-2"]).toEqual({
+        status: "retrying",
+        attempt: 1,
+        maxAttempts: 7,
+        nextRetryMs: 1000,
+        message: "flaky",
+      })
+    })
+
+    it("reconciles live statuses to terminal values on the final reply", () => {
+      let state = configReducer(
+        initialState,
+        updateConfigNodeStatus({
+          clusterId: "cluster-1",
+          nodeId: "node-2",
+          status: "retrying",
+          attempt: 3,
+          maxAttempts: 7,
+          message: "down",
+        }),
+      )
+      state = configReducer(
+        state,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [
+            { nodeId: "node-1", success: true, message: "ok" },
+            { nodeId: "node-2", success: false, message: "exhausted" },
+          ],
+        }),
+      )
+
+      expect(state["cluster-1"].nodeStatuses["node-2"].status).toBe("failed")
+      expect(state["cluster-1"].nodeStatuses["node-2"].message).toBe("exhausted")
+      expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("succeeded")
+    })
+
+    it("clears node statuses when a fresh update is dispatched", () => {
+      let state = configReducer(
+        initialState,
+        updateConfigNodeStatus({
+          clusterId: "cluster-1",
+          nodeId: "node-2",
+          status: "failed",
+          attempt: 7,
+          maxAttempts: 7,
+          message: "down",
+        }),
+      )
+      state = configReducer(state, updateConfig({ clusterId: "cluster-1" }))
+
+      expect(state["cluster-1"].status).toBe("updating")
+      expect(state["cluster-1"].nodeStatuses).toEqual({})
+    })
+
+    it("rejects a malformed status push without disturbing state", () => {
+      const seeded = configReducer(
+        initialState,
+        setConfig({ connectionId: "host-6379-db0", connectionDetails: {} }),
+      )
+      const state = configReducer(
+        seeded,
+        updateConfigNodeStatus({ status: "attempting", attempt: 1, maxAttempts: 7 }),
+      )
+
+      expect(state["host-6379"]).toEqual(seeded["host-6379"])
+    })
+  })
+
+  describe("notAttemptedNodeIds (Req 6.4/6.8)", () => {
+    it("stores not-attempted nodes from a failed reply", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [{ nodeId: "node-1", success: false, message: "boom" }],
+          notAttemptedNodeIds: ["ghost"],
+        }),
+      )
+
+      expect(state["cluster-1"].notAttemptedNodeIds).toEqual(["ghost"])
+    })
+
+    it("stores not-attempted nodes even on a fulfilled reply", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFulfilled({
+          clusterId: "cluster-1",
+          outcome: "fulfilled",
+          nodeResults: [{ nodeId: "node-1", success: true, message: "ok" }],
+          notAttemptedNodeIds: ["ghost"],
+        }),
+      )
+
+      expect(state["cluster-1"].status).toBe("updated")
+      expect(state["cluster-1"].notAttemptedNodeIds).toEqual(["ghost"])
+    })
+  })
+
+  describe("kind classification", () => {
+    it("records cluster kind from the reply arm", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({ clusterId: "cluster-1", outcome: "failed", nodeResults: [] }),
+      )
+      expect(state["cluster-1"].kind).toBe("cluster")
+    })
+
+    it("records standalone kind from the reply arm and the dispatch payload", () => {
+      const failed = configReducer(
+        initialState,
+        updateConfigFailed({
+          nodeId: "host-6379",
+          outcome: "failed",
+          nodeResults: [{ nodeId: "host-6379", success: false, message: "x" }],
+        }),
+      )
+      expect(failed["host-6379"].kind).toBe("standalone")
+
+      const updating = configReducer(initialState, updateConfig({ connectionId: "host-6379-db0" }))
+      expect(updating["host-6379"].kind).toBe("standalone")
     })
   })
 

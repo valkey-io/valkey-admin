@@ -23,7 +23,11 @@ Rework cluster fanout end-to-end so:
 3. The server will fan out the action to all nodes within the cluster or the sole node in the case for standalone.
 4. The server collects **per-node results**, with a retry mechanism following Fibonacci backoff, along with a total limit on number of attempts.
 5. Per node statuses are streamed live to the frontend while the run is in progress.
-6. When the session resolves, All node results will be aggregated into a single Reply Outcome.
+6. When the session resolves, the per-node results are aggregated into a single reply (`sendConfigReply`). The reply is keyed by one `AggregateReplyId` arm (`clusterId` for a cluster, db-less `nodeId` for a standalone) and carries:
+  1. an `outcome`: `fulfilled` when every attempted node succeeded, `failed` when any attempted node failed, `not_attempted` when no targeted node had a registered metrics process;
+  2. the full `nodeResults` (one per attempted node) and the `notAttemptedNodeIds`;
+  3. on `fulfilled` only, the echoed `appliedConfig`.
+  On the wire this is just two message types: `updateConfigFulfilled` (sent only for `fulfilled`) and `updateConfigFailed` (sent for both `failed` and `not_attempted`).
 
 ### Rationale
 
@@ -43,7 +47,7 @@ Rework cluster fanout end-to-end so:
 
 ### What this enables
 
-- **Cluster fan-out is no longer all-or-nothing.** A session resolves to one of three outcomes — complete success (`fulfilled`), partial success, or total failure (`failed`) — with `not_attempted` reported distinctly rather than counted as a failure.
+- **Cluster fan-out is no longer all-or-nothing.** The aggregate reply carries an `outcome` of `fulfilled`, `failed`, or `not_attempted`, plus the per-node `nodeResults` and `notAttemptedNodeIds`. Only two message types are sent: `updateConfigFulfilled` (for `fulfilled`, which also echoes `appliedConfig`) and `updateConfigFailed` (covering both `failed` and `not_attempted`). Partial success is not a wire outcome — the frontend derives `partial` vs total `failed` from the per-node results, and `not_attempted` nodes are reported distinctly rather than counted as failures.
 - **Failed nodes are retried automatically.** Transient failures recover without operator action (Fibonacci backoff, capped attempts); only nodes still failing after the cap surface as `failed`.
 - **Per-node observability.** Operators see which node failed, its message, and its attempt count, replacing the old single first-failure summary. The frontend renders live per-node statuses (`attempting`/`retrying`/`succeeded`/`failed`/`not_attempted`), a partial-success status, and malformed-reply bookkeeping.
 - **Outcome-gated follow-ups.** The combined save flow (config push then monitor toggle) gates the toggle on per-node config results: only config-succeeded nodes are toggled, and the toggle is skipped entirely on total failure or when the session was superseded.

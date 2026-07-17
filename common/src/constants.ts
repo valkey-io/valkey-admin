@@ -84,6 +84,7 @@ export const VALKEY = {
     updateConfig: "updateConfig",
     updateConfigFulfilled: "updateConfigFulfilled",
     updateConfigFailed: "updateConfigFailed",
+    updateConfigNodeStatus: "updateConfigNodeStatus",
     enableClusterSlotStats: "enableClusterSlotStats",
   }),
   CPU: makeNamespace( "cpu",{
@@ -148,6 +149,20 @@ export const retryDelay = (retryCount: number): number => {
   const delay = RETRY_CONFIG.BASE_DELAY * b
   return Math.min(delay, RETRY_CONFIG.MAX_DELAY)
 }
+
+// Per-node fan-out timing (metrics requests to each cluster node).
+export const PER_NODE_TIMEOUT_MS = 5000
+
+// Default hard cap on automatic per-node retries in a fan-out retry session
+// (total attempts = retries + 1). Callers may override per session.
+export const DEFAULT_RETRY_MAX_RETRIES = 6
+
+// Per-node reply message constraints and canonical messages.
+export const MAX_NODE_MESSAGE_LEN = 1024
+export const MISSING_MESSAGE = "Failure reason unavailable"
+export const NODE_TIMEOUT_MESSAGE = "Node did not respond within 5000ms"
+export const NOT_ATTEMPTED_MESSAGE =
+  "No targeted node has a registered metrics process"
 
 export const VALKEY_CLIENT = {
   SCAN: {

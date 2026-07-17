@@ -19,7 +19,7 @@ import {
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
-import { updateConfig, enableClusterSlotStats } from "./actions/config"
+import { updateConfig, enableClusterSlotStats, abortConfigSessionsForSocket } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
 import { monitorRequested, saveMonitorSettingsRequested } from "./actions/monitorAction"
@@ -260,6 +260,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     console.error("WebSocket error:", err)
   })
   ws.on("close", (code, reason) => {
+    abortConfigSessionsForSocket(ws)
     const removedIds = unsubscribeAll(ws)
     connectedNodesByCluster.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
