@@ -5,7 +5,7 @@
 
 ## Context
 
-Currently there are 4 cluster fan out actions: update metrics config, monitor start/stop, save metrics config and restart metrics, and enable cluster slot stats. All these fan out actions treat clusters as all-or-nothing. If a single node fails, the entire cluster action is considered failed. 
+Currently there are 3 cluster fan out actions: update metrics config, monitor start/stop, and enable cluster slot stats. All these fan out actions treat clusters as all-or-nothing. If a single node fails, the entire cluster action is considered failed. 
 
 Using config update as an example, `updateConfig` (`apps/server/src/actions/config.ts`) posts the config to every node with `Promise.all`, finds the *first* failing response with `responses.find((r) => !r.success)`, and emits a single `updateConfigFailed` reply keyed by `clusterId`. A success emits `updateConfigFulfilled` built from only the first node's response. The frontend `configSlice` collapses that into one `"updating" | "updated" | "failed"` status per `Target_Id`. The net effect: one slow or failing node is reported as a total cluster failure, the operator cannot see which nodes failed, and there is no way to retry only the failed nodes.
 
