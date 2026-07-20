@@ -8,7 +8,6 @@ import configReducer, {
   selectConfig
 } from "./configSlice"
 
-
 describe("configSlice", () => {
   const initialState = {}
 
