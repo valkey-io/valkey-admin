@@ -14,7 +14,6 @@ import {
   getCpuUsageEpic,
   getMemoryUsageEpic,
   monitorEpic,
-  saveMonitorSettingsEpic,
   metricsReadinessRetryEpic
 } from "./valkeyEpics"
 import { keyBrowserEpic } from "./keyBrowserEpic"
@@ -37,7 +36,6 @@ export const registerEpics = (store: Store) => {
     getCpuUsageEpic(),
     getMemoryUsageEpic(),
     monitorEpic(),
-    saveMonitorSettingsEpic(),
     metricsReadinessRetryEpic(store),
   ).subscribe({
     error: (err) => console.error("Epic error:", err),

@@ -1,7 +1,6 @@
 import { type WebSocket } from "ws"
 import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId } from "valkey-common"
-import { withDeps, type Deps, fetchWithTimeout, type ReduxAction } from "./utils"
-import { runConfigPushSession } from "./config"
+import { withDeps, type Deps, fetchWithTimeout } from "./utils"
 import { getOtherWatchers } from "../node-watchers"
 
 type MonitorResponse = {
@@ -111,58 +110,3 @@ async function runMonitorForNode(
   }
 }
 
-export const saveMonitorSettingsRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry, action }) => {
-    const deps: Deps = { ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry }
-    const { config, monitorAction } = action.payload
-
-    // No config to push: run the monitor toggle as before.
-    if (!config) {
-      if (monitorAction) {
-        await monitorRequested(deps)(buildMonitorSubAction(action, monitorAction))
-      }
-      return
-    }
-
-    // Config present: complete the config push and collect its per-node
-    // results (sending the Config_Reply) before issuing the toggle.
-    const configSubAction: ReduxAction = {
-      type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: action.payload.connectionId, clusterId: action.payload.clusterId, config },
-      meta: action.meta,
-    }
-    const configResult = await runConfigPushSession(deps)(configSubAction)
-
-    // A superseding request took over this target mid-session: its save flow
-    // owns the toggle decision now.
-    if (configResult.aborted) return
-
-    if (!monitorAction) return
-
-    // Gate the toggle on the config outcome: issue it only to the nodes whose
-    // config push succeeded, and skip it entirely on total config failure.
-    const succeededNodeIds = configResult.attempted.filter((r) => r.success).map((r) => r.nodeId)
-    if (succeededNodeIds.length === 0) return
-
-    await monitorRequested(deps)(buildMonitorSubAction(action, monitorAction, succeededNodeIds))
-  })
-
-/**
- * Build the monitor sub-action for the combined save flow. When
- * `restrictNodeIds` is provided, the toggle is restricted to those nodes via
- * `targetNodeIds`, so only the config-succeeded nodes are toggled.
- */
-const buildMonitorSubAction = (
-  action: ReduxAction,
-  monitorAction: unknown,
-  restrictNodeIds?: string[],
-): ReduxAction => ({
-  type: VALKEY.MONITOR.monitorRequested,
-  payload: {
-    connectionId: action.payload.connectionId,
-    clusterId: action.payload.clusterId,
-    monitorAction,
-    ...(restrictNodeIds ? { targetNodeIds: restrictNodeIds } : {}),
-  },
-  meta: action.meta,
-})

@@ -2,7 +2,8 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { VALKEY } from "valkey-common"
-import { monitorRequested, saveMonitorSettingsRequested } from "../actions/monitorAction"
+import { monitorRequested } from "../actions/monitorAction"
+import { updateConfig } from "../actions/config"
 import { subscribe, _reset as resetNodeWatchers } from "../node-watchers"
 import { ClusterRegistry } from "../metrics-orchestrator"
 
@@ -421,7 +422,7 @@ describe("monitorAction", () => {
   })
 })
 
-describe("saveMonitorSettingsRequested", () => {
+describe("config/updateConfig orchestration (config session + monitorAction rider)", () => {
   let mockWs: any
   let messages: string[]
   let metricsServerMap: Map<string, any>
@@ -477,19 +478,19 @@ describe("saveMonitorSettingsRequested", () => {
       .map((m: string) => JSON.parse(m))
       .filter((m: any) => m.type !== VALKEY.CONFIG.updateConfigNodeStatus)
 
-  it("should call only updateConfig when config is present but monitorAction is absent", async () => {
+  it("runs only the config session when no monitorAction rider is present", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(fetchCalls.length, 1)
     assert.ok(fetchCalls[0].includes("/update-config"))
@@ -499,30 +500,27 @@ describe("saveMonitorSettingsRequested", () => {
     assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFulfilled)
   })
 
-  it("should call only monitorRequested when monitorAction is present but config is absent", async () => {
+  it("is a no-op without a config (pure toggles use monitor/monitorRequested)", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/monitor": { body: { monitorRunning: true, checkAt: 12345 } },
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
-    assert.strictEqual(fetchCalls.length, 1)
-    assert.ok(fetchCalls[0].includes("/monitor?action=start"))
-
-    assert.strictEqual(messages.length, 1)
-    const sent = JSON.parse(messages[0])
-    assert.strictEqual(sent.type, VALKEY.MONITOR.monitorFulfilled)
-    assert.strictEqual(sent.payload.parsedResponse.monitorRunning, true)
+    // No config session and no toggle: a config-less updateConfig is
+    // rejected defensively rather than treated as a toggle path.
+    assert.strictEqual(fetchCalls.length, 0)
+    assert.strictEqual(messages.length, 0)
   })
 
-  it("should call both updateConfig then monitorRequested when both are present", async () => {
+  it("runs the config session then toggles monitor when the rider is present", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
@@ -530,12 +528,12 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(fetchCalls.length, 2)
     assert.ok(fetchCalls[0].includes("/update-config"))
@@ -551,12 +549,12 @@ describe("saveMonitorSettingsRequested", () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(messages.length, 0)
   })
@@ -569,12 +567,12 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     // Config push is attempted; the monitor toggle is skipped because the
     // single node's config failed (total failure).
@@ -612,12 +610,12 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     // Config: one POST per node (2) + one aggregated reply; monitor: 2 POSTs + 2 replies.
     assert.strictEqual(fetchCalls.length, 4)
@@ -656,12 +654,12 @@ describe("saveMonitorSettingsRequested", () => {
     }) as any
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     // One aggregated reply, keyed by clusterId, surfacing the failure.
     const sent = replies()
@@ -676,12 +674,12 @@ describe("saveMonitorSettingsRequested", () => {
     mockFetchRouted({ "/update-config": { body: { success: true, message: "", data: {} } } })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "host-6379-db0", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     const sent = replies()
     assert.strictEqual(sent.length, 1)

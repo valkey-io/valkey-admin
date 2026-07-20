@@ -6,7 +6,7 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { VALKEY } from "valkey-common"
-import { updateConfig } from "../actions/config"
+import { runConfigPushSession } from "../actions/config"
 import { ClusterRegistry } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
@@ -96,7 +96,7 @@ describe("config actions", () => {
         payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       }
 
-      await updateConfig(deps())(action as any)
+      await runConfigPushSession(deps())(action as any)
 
       // node-2's status trail shows the retry cycle.
       const node2Statuses = statusPushes()
@@ -136,7 +136,7 @@ describe("config actions", () => {
         payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       }
 
-      await updateConfig(deps())(action as any)
+      await runConfigPushSession(deps())(action as any)
 
       // Hard cap honored: initial attempt + 2 retries.
       assert.strictEqual(node2Calls, 3)
@@ -172,7 +172,7 @@ describe("config actions", () => {
         payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       })
 
-      const first = updateConfig(deps())(makeAction() as any)
+      const first = runConfigPushSession(deps())(makeAction() as any)
       // Wait until the first session has demonstrably parked in the backoff
       // (its `retrying` push for node-2 has been sent) — not a fixed sleep,
       // which races the session's first attempts on a slow machine.
@@ -185,7 +185,7 @@ describe("config actions", () => {
       const pushCountAtSupersede = statusPushes().length
 
       phase = 2
-      await updateConfig(deps())(makeAction() as any)
+      await runConfigPushSession(deps())(makeAction() as any)
       // The aborted first session resolves promptly (not after 60s).
       await first
 
@@ -220,7 +220,7 @@ describe("config actions", () => {
         payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       }
 
-      await updateConfig(deps())(action as any)
+      await runConfigPushSession(deps())(action as any)
 
       assert.strictEqual(fetchCalls.length, 0)
       // One not_attempted status push per node, plus the aggregate reply.

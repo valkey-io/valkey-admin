@@ -8,6 +8,7 @@ import configReducer, {
   selectConfig
 } from "./configSlice"
 
+
 describe("configSlice", () => {
   const initialState = {}
 
@@ -232,16 +233,43 @@ describe("configSlice", () => {
     })
   })
 
-  describe("updateConfig (optimistic)", () => {
+  describe("config/updateConfig (optimistic session reset)", () => {
+    const config = { epic: { name: "monitor" } }
+
     it("keys by clusterId when present", () => {
-      const state = configReducer(initialState, updateConfig({ clusterId: "cluster-1", nodeId: "node-1" }))
+      const state = configReducer(
+        initialState,
+        updateConfig({ connectionId: "node-1-db0", clusterId: "cluster-1", config }),
+      )
       expect(state["cluster-1"].status).toBe("updating")
       expect(state["node-1"]).toBeUndefined()
     })
 
-    it("keys by nodeId when no clusterId", () => {
-      const state = configReducer(initialState, updateConfig({ nodeId: "host-6379" }))
+    it("keys by the db-less nodeId when no clusterId", () => {
+      const state = configReducer(
+        initialState,
+        updateConfig({ connectionId: "host-6379-db0", config }),
+      )
       expect(state["host-6379"].status).toBe("updating")
+    })
+
+    it("does NOT reset state on a config-less dispatch (defensive guard)", () => {
+      const failed = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [{ nodeId: "node-1", success: false, message: "down" }],
+        }),
+      )
+      // A stop/start without a config push starts no server session; the
+      // stored failure state must survive.
+      const state = configReducer(
+        failed,
+        updateConfig({ connectionId: "node-1-db0", clusterId: "cluster-1", monitorAction: "stop" }),
+      )
+      expect(state["cluster-1"].status).toBe("failed")
+      expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("failed")
     })
   })
 
@@ -308,7 +336,7 @@ describe("configSlice", () => {
       expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("succeeded")
     })
 
-    it("clears node statuses when a fresh update is dispatched", () => {
+    it("clears node statuses when a fresh save (with config) is dispatched", () => {
       let state = configReducer(
         initialState,
         updateConfigNodeStatus({
@@ -320,10 +348,45 @@ describe("configSlice", () => {
           message: "down",
         }),
       )
-      state = configReducer(state, updateConfig({ clusterId: "cluster-1" }))
+      state = configReducer(
+        state,
+        updateConfig({
+          connectionId: "node-1-db0",
+          clusterId: "cluster-1",
+          config: { epic: { name: "monitor" } },
+        }),
+      )
 
       expect(state["cluster-1"].status).toBe("updating")
       expect(state["cluster-1"].nodeStatuses).toEqual({})
+    })
+
+    it("drops a node from nodeStatuses when the final reply no longer mentions it", () => {
+      // A push for a node that is later removed from the cluster: the final
+      // reply omits it, so reconcile must REBUILD the map, not merge into it —
+      // otherwise the stale entry pins the banner open forever.
+      let state = configReducer(
+        initialState,
+        updateConfigNodeStatus({
+          clusterId: "cluster-1",
+          nodeId: "removed-node",
+          status: "retrying",
+          attempt: 2,
+          maxAttempts: 7,
+          message: "down",
+        }),
+      )
+      state = configReducer(
+        state,
+        updateConfigFulfilled({
+          clusterId: "cluster-1",
+          outcome: "fulfilled",
+          nodeResults: [{ nodeId: "node-1", success: true, message: "ok" }],
+        }),
+      )
+
+      expect(state["cluster-1"].nodeStatuses["removed-node"]).toBeUndefined()
+      expect(state["cluster-1"].nodeStatuses["node-1"].status).toBe("succeeded")
     })
 
     it("rejects a malformed status push without disturbing state", () => {
@@ -391,7 +454,10 @@ describe("configSlice", () => {
       )
       expect(failed["host-6379"].kind).toBe("standalone")
 
-      const updating = configReducer(initialState, updateConfig({ connectionId: "host-6379-db0" }))
+      const updating = configReducer(
+        initialState,
+        updateConfig({ connectionId: "host-6379-db0", config: { epic: { name: "monitor" } } }),
+      )
       expect(updating["host-6379"].kind).toBe("standalone")
     })
   })

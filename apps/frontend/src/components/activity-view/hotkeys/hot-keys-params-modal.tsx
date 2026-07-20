@@ -13,7 +13,8 @@ import { TooltipIcon } from "../../ui/tooltip-icon"
 import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig } from "@/state/valkey-features/config/configSlice"
-import { saveMonitorSettingsRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { updateConfig } from "@/state/valkey-features/config/configSlice"
 
 interface HotKeysConfigModalProps {
   open: boolean
@@ -51,27 +52,34 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
       cutoffFrequency !== config.monitoring.cutoffFrequency)
 
   const handleStart = () => {
-    const configPayload = hasConfigChanges
-      ? {
-        epic: {
-          name: "monitor", monitoringDuration: monitorDuration,
-          monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+    if (hasConfigChanges) {
+      // Config changed: push it (with server-side retry) and start MONITOR on
+      // the config-succeeded nodes once the session resolves.
+      dispatch(updateConfig({
+        connectionId: id!,
+        clusterId,
+        config: {
+          epic: {
+            name: "monitor", monitoringDuration: monitorDuration,
+            monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+          },
         },
-      }
-      : undefined
-
-    dispatch(saveMonitorSettingsRequested({
-      connectionId: id!,
-      clusterId,
-      config: configPayload,
-      monitorAction: MONITOR_ACTION.START,
-    }))
+        monitorAction: MONITOR_ACTION.START,
+      }))
+    } else {
+      // No config change: a pure toggle needs no config session.
+      dispatch(monitorRequested({
+        connectionId: id!,
+        clusterId,
+        monitorAction: MONITOR_ACTION.START,
+      }))
+    }
     onClose()
   }
 
   const handleCancel = () => {
     if (monitorRunning) {
-      dispatch(saveMonitorSettingsRequested({
+      dispatch(monitorRequested({
         connectionId: id!,
         clusterId,
         monitorAction: MONITOR_ACTION.STOP,

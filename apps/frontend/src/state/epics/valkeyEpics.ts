@@ -38,7 +38,7 @@ import { setClusterData, updateClusterData } from "../valkey-features/cluster/cl
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
-import { monitorRequested, saveMonitorSettingsRequested } from "../valkey-features/monitor/monitorSlice.ts"
+import { monitorRequested } from "../valkey-features/monitor/monitorSlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
 import { selectIsAtConnectionLimit, selectConnectionDetails } from "../valkey-features/connection/connectionSelectors.ts"
 import type { Store } from "@reduxjs/toolkit"
@@ -451,10 +451,19 @@ export const updateConfigEpic = () =>
   action$.pipe(
     select(updateConfig),
     tap((action) => {
-      const { config, connectionId, clusterId } = action.payload
-      const socket = getSocket()
-      socket.next({ type: action.type, payload: { connectionId, clusterId, config } })
+      try {
+        const { connectionId, clusterId, config, monitorAction } = action.payload
+        const socket = getSocket()
+
+        socket.next({
+          type: action.type,
+          payload: { connectionId, clusterId, config, monitorAction },
+        })
+      } catch (error) {
+        console.error("[updateConfigEpic] Error sending action:", error)
+      }
     }),
+    ignoreElements(),
   )
 
 // TODO: Add frontend component to dispatch this
@@ -577,21 +586,4 @@ export const metricsReadinessRetryEpic = (store: Store) =>
     ),
   )
 
-export const saveMonitorSettingsEpic = () =>
-  action$.pipe(
-    select(saveMonitorSettingsRequested),
-    tap((action) => {
-      try {
-        const { connectionId, clusterId, config, monitorAction } = action.payload
-        const socket = getSocket()
 
-        socket.next({
-          type: action.type,
-          payload: { connectionId, clusterId, config, monitorAction },
-        })
-      } catch (error) {
-        console.error("[saveMonitorSettingsEpic] Error sending action:", error)
-      }
-    }),
-    ignoreElements(),
-  )

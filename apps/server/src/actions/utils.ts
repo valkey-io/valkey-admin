@@ -52,7 +52,7 @@ export const safeSend = (ws: WebSocket, message: string): void => {
     ws.send(message)
   } else {
     // Expected race, not a failure: the client can close mid-operation.
-    console.warn(`[safeSend] Dropped message: websocket ${ws.url} is not open`)
+    console.warn(`[safeSend] Dropped message: websocket is not open (readyState ${ws.readyState})`)
   }
 }
 

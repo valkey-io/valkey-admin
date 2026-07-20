@@ -105,18 +105,20 @@ const replyTargetId = (payload: {
 
 /**
  * Reconcile the live `nodeStatuses` to terminal values from a final aggregate
- * reply: attempted nodes land on succeeded/failed with the reply's message,
- * not-attempted nodes are marked distinctly. Overwrites any in-flight statuses
- * left by the pushes.
+ * reply. The map is rebuilt from `nodeResults + notAttemptedNodeIds`
+ * (attempt counters carried over from the in-flight entries where present).
+ * A node absent from the final reply (e.g. removed from the cluster between
+ * sessions) will not linger with a stale status.
  */
 const reconcileNodeStatuses = (
   entry: ConfigEntry,
   nodeResults: NodeResult[],
   notAttemptedNodeIds: string[],
 ): void => {
+  const reconciled: ConfigEntry["nodeStatuses"] = {}
   for (const result of nodeResults) {
     const existing = entry.nodeStatuses[result.nodeId]
-    entry.nodeStatuses[result.nodeId] = {
+    reconciled[result.nodeId] = {
       status: result.success ? "succeeded" : "failed",
       attempt: existing?.attempt ?? 1,
       maxAttempts: existing?.maxAttempts ?? 1,
@@ -124,13 +126,14 @@ const reconcileNodeStatuses = (
     }
   }
   for (const nodeId of notAttemptedNodeIds) {
-    entry.nodeStatuses[nodeId] = {
+    reconciled[nodeId] = {
       status: "not_attempted",
       attempt: 0,
       maxAttempts: entry.nodeStatuses[nodeId]?.maxAttempts ?? 1,
       message: NOT_ATTEMPTED_MESSAGE,
     }
   }
+  entry.nodeStatuses = reconciled
 }
 
 const configSlice = createSlice({
@@ -148,12 +151,17 @@ const configSlice = createSlice({
       }
     },
 
+    // The config push request: reset this target's session state
+    // optimistically so the banner shows a fresh "in progress" instead of the
+    // previous session's stale statuses/header while the new session's pushes
+    // stream in. Carries an optional `monitorAction` rider that the server
+    // applies to the config-succeeded nodes after the session.
     updateConfig: (state, action) => {
-      // Key by clusterId (cluster) or the db-less nodeId (standalone). A
-      // standalone dispatch may carry only `connectionId`, so fall back to
-      // the db-less nodeId rather than an `undefined` key.
-      const { clusterId, nodeId, connectionId } = action.payload
-      const targetId = clusterId ?? nodeId ?? (connectionId ? toNodeId(connectionId) : undefined)
+      // Defensive: a toggle-only request belongs on `monitor/monitorRequested`
+      // and starts no config session; nothing to reset.
+      if (!action.payload?.config) return
+      const { clusterId, connectionId } = action.payload
+      const targetId = clusterId ?? (connectionId ? toNodeId(connectionId) : undefined)
       if (targetId === undefined) return
       const kind: "cluster" | "standalone" = clusterId ? "cluster" : "standalone"
       if (!state[targetId]) {

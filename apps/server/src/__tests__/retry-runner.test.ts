@@ -91,8 +91,8 @@ describe("runWithRetry", () => {
 
   it("defaults the backoff to the shared Fibonacci retryDelay", async (t) => {
     // No delaysMs injected: the runner must schedule the shared
-    // `retryDelay(n)` (Fibonacci: 1s, 1s, 2s, ...). Assert via the emitted
-    // nextRetryMs under fake timers so the test does not sleep.
+    // `retryDelay(n)` (Fibonacci: 1s, 2s, 3s, 5s, 8s, 13s). Assert via the
+    // emitted nextRetryMs under fake timers so the test does not sleep.
     t.mock.timers.enable({ apis: ["setTimeout"] })
     const updates: NodeStatusUpdate[] = []
     const promise = runWithRetry(

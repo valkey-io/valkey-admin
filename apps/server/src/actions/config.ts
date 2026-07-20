@@ -5,9 +5,10 @@ import {
   type NodeResultsReply,
   toNodeId
 } from "valkey-common"
-import { Deps, withDeps, fetchWithTimeout, safeSend } from "./utils"
+import { Deps, withDeps, fetchWithTimeout, safeSend, type ReduxAction } from "./utils"
 import { toOutcome, type CollectionResult } from "./node-fanout"
 import { runWithRetry, type RetryRunResult, type NodeStatusUpdate } from "./retry-runner"
+import { monitorRequested } from "./monitorAction"
 
 interface ParsedResponse  {
   success: boolean, 
@@ -139,11 +140,45 @@ export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
   },
 )
 
+/**
+ * `config/updateConfig`: push the monitoring config to every target node via
+ * a retry session, then when the optional `monitorAction` rider is present,
+ * start/stop MONITOR on exactly the nodes whose config push succeeded, so no
+ * node samples with stale settings.
+ */
 export const updateConfig = withDeps<Deps, void>(
-  async (ctx) => {
-    await runConfigPushSession(ctx)(ctx.action)
-  },
-)
+  async ({ ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry, action }) => {
+    const deps: Deps = { ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry }
+    const { config, monitorAction } = action.payload
+
+    // Without a config there is no session to run
+    if (!config) return
+
+    // Complete the config push and collect its per-node results (sending the
+    // Config_Reply) before issuing the toggle. The session reads only
+    // `payload.{connectionId, clusterId, config}`.
+    const configResult = await runConfigPushSession(deps)(action)
+
+    if (configResult.aborted) return
+
+    if (!monitorAction) return
+
+    const succeededNodeIds = configResult.attempted.filter((r) => r.success).map((r) => r.nodeId)
+    if (succeededNodeIds.length === 0) return
+
+    const monitorSubAction: ReduxAction = {
+      type: VALKEY.MONITOR.monitorRequested,
+      payload: {
+        connectionId: action.payload.connectionId,
+        clusterId: action.payload.clusterId,
+        monitorAction,
+        // Restrict the toggle to the config-succeeded nodes.
+        targetNodeIds: succeededNodeIds,
+      },
+      meta: action.meta,
+    }
+    await monitorRequested(deps)(monitorSubAction)
+  })
 
 // TODO: Add frontend component to dispatch this
 export const enableClusterSlotStats = withDeps<Deps, void>(

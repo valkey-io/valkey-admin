@@ -22,7 +22,7 @@ import { commandLogsRequested } from "./actions/commandLogs"
 import { updateConfig, enableClusterSlotStats, abortConfigSessionsForSocket } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
-import { monitorRequested, saveMonitorSettingsRequested } from "./actions/monitorAction"
+import { monitorRequested } from "./actions/monitorAction"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
@@ -202,7 +202,6 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
     [VALKEY.MONITOR.monitorRequested]: monitorRequested,
-    [VALKEY.MONITOR.saveMonitorSettingsRequested]: saveMonitorSettingsRequested,
   }
 
   process.on("message", (message: MetricsServerMessage) => {
