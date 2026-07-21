@@ -1,15 +1,17 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
-import { CONNECTED, CONNECTING, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
 import { PasswordPromptModal } from "../ui/password-prompt-modal.tsx"
 import RouteContainer from "../ui/route-container.tsx"
 import { Button } from "../ui/button.tsx"
 import { EmptyState } from "../ui/empty-state.tsx"
+import { LoadingState } from "../ui/loading-state.tsx"
 import { SearchInput } from "../ui/search-input.tsx"
 import { Typography } from "../ui/typography.tsx"
+import { wasRefreshedFrom } from "@/history.ts"
 import { type ConnectionState, connectPending } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
@@ -28,6 +30,13 @@ export function Connection() {
   const [searchQuery, setSearchQuery] = useState("")
   const [passwordPromptConnectionId, setPasswordPromptConnectionId] = useState<string | undefined>(undefined)
   const connections = useSelector(selectConnections)
+  const [resumeWindowOpen, setResumeWindowOpen] = useState(true)
+
+  useEffect(() => {
+    // show the reconnecting overylay for short time
+    const timer = setTimeout(() => setResumeWindowOpen(false), 2000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleEditConnection = (connectionId: string) => {
     setEditingConnectionId(connectionId)
@@ -54,6 +63,12 @@ export function Connection() {
       preservedHistory: connection.connectionHistory,
     }))
   }
+
+  const isResuming = Object.entries(connections).some(([connectionId, connection]) =>
+    wasRefreshedFrom(connectionId) &&
+    connection.status !== CONNECTED &&
+    (connection.status === CONNECTING || (resumeWindowOpen && connection.status !== ERROR)),
+  )
 
   const promptedConnection = connections[passwordPromptConnectionId as string]
   const isPromptConnecting = promptedConnection?.status === CONNECTING
@@ -112,7 +127,13 @@ export function Connection() {
   const highlight = q && totalResults < MAX_CONNECTIONS ? q : ""
 
   return (
-    <RouteContainer title="connection">
+    <RouteContainer className="relative" title="connection">
+      {isResuming && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-tw-dark-primary/60 backdrop-blur-xs">
+          <LoadingState message="Reconnecting..." />
+        </div>
+      )}
+
       {/* top header */}
       <div className="flex items-center justify-between h-10">
         <Typography className="flex items-center gap-2" variant="heading">

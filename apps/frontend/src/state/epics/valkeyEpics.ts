@@ -34,7 +34,7 @@ import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnec
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { bigKeysRequested } from "../valkey-features/bigkeys/bigKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
-import history from "../../history.ts"
+import history, { wasRefreshedFrom } from "../../history.ts"
 import { setClusterData, updateClusterData } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
@@ -467,15 +467,24 @@ export const setDataEpic = (store: Store) =>
       }
       socket.next({ type: setData.type, payload: action.payload })
 
-      // If the connection is not set to auto-connect, redirect to the appropriate page after a successful connection
       const isAutoConnect = store.getState().valkeyConnection?.connections?.[connectionId]?.autoConnect
-      if (!isAutoConnect) {
-        const redirectPath = clusterId
-          ? `/${clusterId}/${connectionId}/cluster-topology`
-          : `/${connectionId}/dashboard`
-
-        history.navigate(redirectPath)
+      if (isAutoConnect) {
+        if (wasRefreshedFrom(connectionId)) {
+          const refreshedFrom = history.refreshedFrom!
+          history.refreshedFrom = null
+          history.navigate(refreshedFrom, { replace: true })
+        }
+        return
       }
+
+      // for a manual connection
+      history.refreshedFrom = null
+
+      const redirectPath = clusterId
+        ? `/${clusterId}/${connectionId}/cluster-topology`
+        : `/${connectionId}/dashboard`
+
+      history.navigate(redirectPath)
     }),
   )
 
