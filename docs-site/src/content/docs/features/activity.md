@@ -1,9 +1,9 @@
 ---
 title: Activity
-description: Track hot keys, slow logs, large requests, and large replies
+description: Track hot keys, big keys, slow logs, large requests, and large replies
 ---
 
-The Activity view provides real-time visibility into hot keys and [command logs](https://valkey.io/commands/commandlog-get/) across your cluster. It has two tabs: **Hot Keys** and **Command Logs**.
+The Activity view provides real-time visibility into hot keys, big keys, and [command logs](https://valkey.io/commands/commandlog-get/) across your cluster.
 
 ## Hot Keys Monitoring
 
@@ -30,7 +30,7 @@ Uses the `CLUSTER SLOT-STATS` command to identify hot slots by CPU usage, networ
 - LFU eviction policy (`allkeys-lfu` or `volatile-lfu`) configured on the cluster
 - Cluster mode (not available for standalone instances)
 
-When all conditions are met, Valkey Admin queries each shard's slot statistics, identifies the hottest slots by `cpu-usec`, and resolves the keys within those slots.
+When all conditions are met, Valkey Admin queries each shard's slot statistics, identifies the hottest slots by `cpu-usec`, and resolves the keys within those slots. The number of hot keys returned can be adjusted using the configure button in the Activity view.
 
 :::note
 The access count shown for hot slots keys is the LFU logarithmic frequency (0–255), not a raw access count. A key accessed millions of times may show a frequency of ~70.
@@ -62,29 +62,67 @@ In both modes, hot keys are aggregated across all monitored nodes and sorted by 
 When hot slots requirements are not met, Valkey Admin prompts you to start monitoring to calculate hot keys.
 
 
-## Slow Logs
+## Big Keys
+
+Identify the largest keys in your keyspace by memory usage. Big Keys scans a sample of keys using `SCAN` and ranks them by `MEMORY USAGE`.
+
+![Big Keys](../../../assets/monitoring_big_keys.png)
+
+### How It Works
+
+The scan iterates through the keyspace up to a configurable limit and returns the top N largest keys. It does **not** walk the entire keyspace by default.
+
+For cluster connections, each primary node is scanned independently and results are merged into a single ranked list showing which node owns each key.
+
+### Configuration
+
+Configure these settings using the configure button in the Activity view before starting a scan:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Scan Limit** | `10,000` | Maximum keys to sample. Higher values are more thorough but slower. |
+| **Top N** | `50` | Number of largest keys to return. |
+
+### Results
+
+Each result shows:
+
+- **Key**: Key name
+- **Size**: Memory usage in bytes (via `MEMORY USAGE` with 5-element sampling)
+- **Type**: Data structure type (string, hash, list, set, zset, stream)
+- **TTL**: Time to live, or `-1` if no expiry
+- **Node**: Owning primary node (cluster mode only)
+- **Access Frequency**: LFU logarithmic frequency via `OBJECT FREQ` (0–255 scale, requires LFU eviction policy)
+
+:::note
+Access frequency requires an LFU eviction policy (`allkeys-lfu` or `volatile-lfu`). Without it, frequency shows `0`. The value is logarithmic — a key accessed millions of times may show ~70.
+:::
+
+---
+
+## Command Logs
+
+Command Logs ([`COMMANDLOG`](https://valkey.io/commands/commandlog-get/)) capture commands that exceed configured thresholds for execution time, request size, or reply size. They replace the legacy `SLOWLOG` interface and require Valkey 8.1+.
+
+Thresholds can be adjusted using the configure button in the Activity view, or via environment variables (see [Server Configuration](/configuration/server/)).
+
+### Slow Commands
 
 Monitor commands that take longer than expected to execute.
 
 ![Slow Logs](../../../assets/monitoring_slow_logs.png)
 
-### What are Slow Logs?
-
-Slow logs record commands exceeding a configured execution time threshold, helping identify:
+Slow command logs record commands exceeding a configured execution time threshold, helping identify:
 - Inefficient commands
 - Large data operations
 - Potential optimization targets
 
-### Configuration
-
-Set slow log threshold:
+**Configuration:**
 
 ```bash
-# Log commands taking longer than 10ms
-CONFIG SET slowlog-log-slower-than 10000
+# Log commands taking longer than 10ms (value in microseconds)
+CONFIG SET commandlog-slow-execution-time-threshold 10000
 ```
-
-### Viewing Slow Logs
 
 Each entry shows:
 
@@ -94,36 +132,22 @@ Each entry shows:
 - **Arguments**: Command arguments (abbreviated if large)
 - **Client Address**: Source of the command
 
-### Analysis
-
-Use slow logs to:
-- **Identify Bottlenecks**: Find consistently slow operations
-- **Optimize Queries**: Refactor inefficient commands
-- **Capacity Planning**: Understand load patterns
-- **Debug Issues**: Track down performance problems
-
-### Common Slow Commands
-
-- `KEYS *`: Scans entire keyspace (use SCAN instead)
-- Large `HGETALL`: Fetching huge hashes
-- `SORT`: Without LIMIT on large sets
-- `SMEMBERS`: On large sets
-
-## Large Requests
+### Large Requests
 
 Track commands with large input payloads.
 
 ![Large Requests Monitoring](../../../assets/monitoring_large_requests.png)
 
-### Why Monitor Large Requests?
+Large requests can saturate network bandwidth, increase memory usage, block other operations, and slow down replication.
 
-Large requests can:
-- Saturate network bandwidth
-- Increase memory usage
-- Block other operations
-- Slow down replication
+**Configuration:**
 
-### Metrics Tracked
+```bash
+# Log requests larger than 1KB (value in bytes)
+CONFIG SET commandlog-request-larger-than 1000
+```
+
+Each entry shows:
 
 - **Request Size**: Payload size in bytes
 - **Command**: Operation type
@@ -131,36 +155,22 @@ Large requests can:
 - **Timestamp**: When received
 - **Client**: Source address
 
-### Setting Thresholds
-
-Configure what constitutes a "large" request:
-
-```bash
-# Alert on requests larger than 1MB
-CONFIG SET commandlog-request-larger-than 1000
-```
-
-## Large Replies
+### Large Replies
 
 Monitor commands returning large response payloads.
 
 ![Large Replies Monitoring](../../../assets/monitoring_large_replies.png)
 
-### What are Large Replies?
+Large replies indicate oversized data structures, inefficient queries, or potential network saturation.
 
-Large replies are responses exceeding a size threshold, indicating:
-- Oversized data structures
-- Inefficient queries
-- Potential network saturation
+**Configuration:**
 
-### Common Causes
+```bash
+# Log replies larger than 1KB (value in bytes)
+CONFIG SET commandlog-reply-larger-than 1000
+```
 
-- `HGETALL` on huge hashes
-- `LRANGE` retrieving entire lists
-- `SMEMBERS` on large sets
-- `ZRANGE` without limits
-
-### Metrics
+Each entry shows:
 
 - **Reply Size**: Response payload size
 - **Command**: Query that generated response
@@ -168,14 +178,12 @@ Large replies are responses exceeding a size threshold, indicating:
 - **Node**: Source node
 - **Client**: Destination address
 
-### Setting Thresholds
+### Common Offenders
 
-Configure what constitutes a "large" request:
-
-```bash
-# Alert on requests larger than 1MB
-CONFIG SET commandlog-reply-larger-than 1000
-```
+- `KEYS *`: Scans entire keyspace (use SCAN instead)
+- Large `HGETALL`: Fetching huge hashes
+- `SORT`: Without LIMIT on large sets
+- `SMEMBERS` / `LRANGE` on large collections without limits
 
 ## Next Steps
 

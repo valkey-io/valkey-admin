@@ -2,8 +2,8 @@ import { merge, timer, EMPTY } from "rxjs"
 import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, takeUntil, 
   catchError, filter, take, finalize } from "rxjs/operators"
 import * as R from "ramda"
-import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay, METRICS_SERVER_NOT_READY, 
-  METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
+  METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
@@ -119,6 +119,7 @@ export const connectionEpic = (store: Store) =>
 
     action$.pipe(
       select(connectRejected),
+      filter(({ payload }) => !payload.requiresAuth),
       tap(({ payload: { connectionId, errorMessage } }) => {
         console.error("Connection rejected for", connectionId, ":", errorMessage)
         toast.error(`Connection rejected for ${connectionId}: ${errorMessage}`)
@@ -275,9 +276,12 @@ export const autoReconnectEpic = (store: Store) =>
       const state = store.getState()
       const connections: Record<string, ConnectionState> = state.valkeyConnection?.connections || {}
 
+      // since IAM and non-password connection has no secret, they can be reconnected automatically
       const disconnectedConnections = Object.entries(connections)
         .filter(([, connection]) => connection.status === DISCONNECTED)
-        .filter(([, connection]) => R.isNotNil(connection.connectionDetails.password))
+        .filter(([, connection]) =>
+          R.isNotNil(connection.connectionDetails.password) ||
+          connection.connectionDetails.authType === "iam")
 
       if (disconnectedConnections.length > 0) {
         console.log(`Auto-reconnecting ${disconnectedConnections.length} connection(s)`)
@@ -289,9 +293,49 @@ export const autoReconnectEpic = (store: Store) =>
           store.dispatch(connectPending({
             connectionId,
             connectionDetails: connection.connectionDetails,
+            autoConnect: true,
           }))
         })
       }
+    }),
+    ignoreElements(),
+  )
+
+// resume epic
+export const autoResumeEpic = (store: Store) =>
+  action$.pipe(
+    select(wsConnectFulfilled),
+    delay(500),
+    tap(() => {
+      const state = store.getState()
+      const connections: Record<string, ConnectionState> = state.valkeyConnection?.connections || {}
+
+      Object.entries(connections)
+        .filter(([, connection]) => connection.status !== CONNECTED && connection.status !== CONNECTING)
+        .filter(([, connection]) => (connection.connectionHistory?.length ?? 0) > 0)
+        .filter(([, connection]) => !connection.userDisconnected)
+        .forEach(([connectionId, connection]) => {
+          const { password, authType } = connection.connectionDetails
+          if (authType === "iam" || (R.isNotNil(password) && R.isEmpty(password))) {
+            if (connection.status !== DISCONNECTED) {
+              store.dispatch(connectPending({
+                connectionId,
+                connectionDetails: connection.connectionDetails,
+                autoConnect: true,
+                preservedHistory: connection.connectionHistory,
+              }))
+            }
+          } 
+          else if (R.isNil(password)) {
+            store.dispatch(connectPending({
+              connectionId,
+              connectionDetails: connection.connectionDetails,
+              isResume: true,
+              autoConnect: true,
+              preservedHistory: connection.connectionHistory,
+            }))
+          }
+        })
     }),
     ignoreElements(),
   )
@@ -322,6 +366,17 @@ export const deleteConnectionEpic = () =>
     action$.pipe(
       select(closeConnection),
       tap((action) => {
+        // a manual disconnect should set the userDisconnected flag to true so that autoResumeEpic doesn't try to reconnect
+        try {
+          const { connectionId } = action.payload
+          const currentConnections = getCurrentConnections()
+          if (currentConnections[connectionId]) {
+            currentConnections[connectionId].userDisconnected = true
+            localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(currentConnections))
+          }
+        } catch (e) {
+          console.error(e)
+        }
         const socket = getSocket()
         socket.next(action)
       }),
@@ -412,11 +467,15 @@ export const setDataEpic = (store: Store) =>
       }
       socket.next({ type: setData.type, payload: action.payload })
 
-      const redirectPath = clusterId
-        ? `/${clusterId}/${connectionId}/cluster-topology`
-        : `/${connectionId}/dashboard`
+      // If the connection is not set to auto-connect, redirect to the appropriate page after a successful connection
+      const isAutoConnect = store.getState().valkeyConnection?.connections?.[connectionId]?.autoConnect
+      if (!isAutoConnect) {
+        const redirectPath = clusterId
+          ? `/${clusterId}/${connectionId}/cluster-topology`
+          : `/${connectionId}/dashboard`
 
-      history.navigate(redirectPath)
+        history.navigate(redirectPath)
+      }
     }),
   )
 

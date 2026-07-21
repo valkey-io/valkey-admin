@@ -26,6 +26,34 @@ LPUSH mylist "item1" "item2"
 
 Press `Enter` to execute. Results are displayed below the command input.
 
+### Command Autocomplete
+
+As you type, Valkey Admin suggests matching commands from a built-in list of 257 Valkey commands. Select a suggestion to auto-complete the command name, then continue typing your arguments.
+
+### Restricted Commands
+
+Some commands are restricted to prevent accidental server disruption.
+
+**Blocked commands** — cannot be executed at all:
+
+| Command | Reason |
+|---------|--------|
+| `SHUTDOWN` | Stops the server and cannot be undone remotely |
+| `DEBUG` | Can cause crashes or data corruption |
+| `FLUSHALL` | Deletes all keys in all databases |
+| `FLUSHDB` | Deletes all keys in the current database |
+
+**Confirmation-required commands** — prompt for confirmation before executing:
+
+| Command | Reason |
+|---------|--------|
+| `KEYS` | Can block the server when many keys exist |
+| `CONFIG RESETSTAT` | Resets all server statistics |
+| `CONFIG REWRITE` | Overwrites the server configuration file |
+| `SLAVEOF` | Changes replication topology |
+| `REPLICAOF` | Changes replication topology |
+| `CLUSTER RESET` | Resets cluster state and may cause data loss |
+
 ## Features
 
 ### Response View

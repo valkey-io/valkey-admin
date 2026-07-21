@@ -18,7 +18,7 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 
 ## Managed services
 
-- **ElastiCache Serverless is not supported.** Only ElastiCache node-based (non-serverless) clusters can be connected.
+- **ElastiCache Serverless has limited support.** Key Browser and Send Command work. Dashboard metrics, Activity features (Hot Keys, Big Keys, Command Logs), and Monitor are unavailable because Serverless restricts the `INFO` (Memory, CPU, Stats, Clients, Keyspace sections), `MONITOR`, `COMMANDLOG`, `MEMORY USAGE`, and `CLUSTER SLOT-STATS` commands.
 
 ## Architecture
 

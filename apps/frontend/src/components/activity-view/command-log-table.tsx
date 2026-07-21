@@ -1,14 +1,14 @@
 import { useState } from "react"
-import { Clock, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
+import { Clock } from "lucide-react"
 import * as R from "ramda"
 import { SORT_ORDER, SORT_FIELD } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
-import { Alert, AlertDescription } from "../ui/alert"
 import { EmptyState } from "../ui/empty-state"
 import { TableContainer } from "../ui/table-container"
 import { SortableTableHeader, StaticTableHeader } from "../ui/sortable-table-header"
 import { Typography } from "../ui/typography"
 import { CustomTooltip } from "../ui/tooltip"
+import { NodeErrorsBanner } from "./hotkeys/hot-keys-banners"
 import { NodeFilterDropdown } from "./hotkeys/node-filter-dropdown"
 
 type SortOrder = typeof SORT_ORDER.ASC | typeof SORT_ORDER.DESC
@@ -78,40 +78,11 @@ const logTypeConfig = {
 export function CommandLogTable({ data, logType, nodeErrors, isCluster }: CommandLogTableProps) {
   const [sortField, setSortField] = useState<SortField>(SORT_FIELD.METRIC)
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ORDER.DESC)
-  const [nodeErrorsExpanded, setNodeErrorsExpanded] = useState(false)
   const [selectedNode, setSelectedNode] = useState("all")
   const config = logTypeConfig[logType]
 
   const nodeErrorsBanner = nodeErrors && nodeErrors.length > 0 && (
-    <div className="m-3 relative">
-      <Alert
-        className="cursor-pointer"
-        onClick={() => setNodeErrorsExpanded((prev) => !prev)}
-        variant="warning"
-      >
-        <AlertDescription className="flex items-center gap-2">
-          <AlertCircle className="h-4 w-4" />
-          Command log data is partial — {nodeErrors.length} node{nodeErrors.length > 1 ? "s " : " "}
-          failed to respond or {nodeErrors.length > 1 ? "are" : "is"} not connected
-          {nodeErrorsExpanded
-            ? <ChevronUp className="w-4 h-4 shrink-0 ml-auto" />
-            : <ChevronDown className="w-4 h-4 shrink-0 ml-auto" />
-          }
-        </AlertDescription>
-      </Alert>
-      {nodeErrorsExpanded && (
-        <ul className="absolute z-50 left-0 mt-0.5 right-0 p-3 max-h-40 overflow-y-auto space-y-0.5
-           rounded-md border bg-accent shadow-sm">
-          {nodeErrors.map(({ nodeId, error }) => (
-            <li key={nodeId}>
-              <Typography variant="bodySm">
-                <span className="font-mono">{nodeId}</span>: {error}
-              </Typography>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <NodeErrorsBanner label="Command log" nodeErrors={nodeErrors} />
   )
 
   const toggleSort = (field: SortField) => {
