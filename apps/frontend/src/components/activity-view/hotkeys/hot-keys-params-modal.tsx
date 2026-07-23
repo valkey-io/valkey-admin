@@ -99,7 +99,7 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
       onClose={onClose}
       open={open}
       subtitle="Alternative method based on MONITOR command that enables capturing Hot Keys"
-      title="Start Monitoring"
+      title="Monitoring"
     >
       <TooltipProvider>
         <div className="flex flex-col gap-4">
