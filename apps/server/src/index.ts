@@ -1,5 +1,6 @@
 import { WebSocket, WebSocketServer } from "ws"
 import express from "express"
+import helmet from "helmet"
 import path from "path"
 import http from "http"
 import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
@@ -18,6 +19,7 @@ import {
   updateKeyRequested
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
+import { bigKeysRequested } from "./actions/bigkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
 import { updateConfig, enableClusterSlotStats, abortConfigSessionsForSocket } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
@@ -28,23 +30,28 @@ import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
-  reconcileClusterMetricsServers,
+  startPreconfiguredMetricsServers,
   metricsServerMap,
   clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
   clients,
-  isWebMode,
   isKubernetes,
+  preConfiguredConnection,
   getInitialClient,
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
+import { ensureSession, hasAuthorizedSession, setSessionExpiryListener } from "./session"
 import type { Request, Response } from "express"
+import type { IncomingMessage } from "http"
 
 interface AliveWebSocket extends WebSocket {
   isAlive: boolean
+  sessionId?: string
 }
+
+type SessionRequest = IncomingMessage & { sessionSetCookie?: string }
 
 interface MetricsServerMessage {
   type: string
@@ -75,6 +82,25 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/orchestrator")) return next()
   return limiter(req, res, next)
 })
+
+// Content Security Policy via helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+}))
+
 app.use(express.static(frontendDist))
 app.use(express.json())
 const metricsRouter = createMetricsOrchestratorRouter()
@@ -88,19 +114,6 @@ app.get("*", (_req: Request, res: Response) => {
 const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
-
-async function runReconcileLoop() {
-
-  while (true) {
-    try {
-      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap, initialConnectionDetails)
-      await delay(10000)
-    } catch (err) {
-      console.error("Failed to reconcile metrics servers", err)
-      await delay(10000)
-    }
-  }
-}
 
 async function refreshAllClusterRegistries() {
   await Promise.all(
@@ -146,10 +159,10 @@ server.listen(port, () => {
   }
   refreshAllClusterRegistriesLoop()
 
-  if (isWebMode) {
-    runReconcileLoop()
+  if (preConfiguredConnection) {
+    startPreconfiguredMetricsServers()
   }
-  else if (isKubernetes) {
+  if (isKubernetes) {
     updateRegistryforK8()
   }
 })
@@ -163,14 +176,34 @@ const interval = setInterval(() => {
   })
 }, 30000)
 
-server.on("upgrade", (req, socket, head) => {
+wss.on("headers", (headers, req: SessionRequest) => {
+  if (req.sessionSetCookie) headers.push(`Set-Cookie: ${req.sessionSetCookie}`)
+})
+
+// when a session expires, check if any of its connections are still authorized by other sessions, and if not, tear them down
+setSessionExpiryListener((connectionIds) => {
+  for (const connectionId of connectionIds) {
+    if (getWatcherCount(connectionId) === 0) {
+      teardownConnection(
+        { clients, clusterNodesRegistry, metricsServerMap },
+        connectionId,
+      )
+    }
+  }
+})
+
+server.on("upgrade", (req: SessionRequest, socket, head) => {
   if (!isAllowedWebSocketOrigin(req)) {
     socket.write("HTTP/1.1 403 Forbidden\r\n\r\n")
     socket.destroy()
     return
   }
 
+  const { sessionId, setCookie } = ensureSession(req)
+  req.sessionSetCookie = setCookie
+
   wss.handleUpgrade(req, socket, head, (ws) => {
+    ;(ws as AliveWebSocket).sessionId = sessionId
     wss.emit("connection", ws, req)
   })
 })
@@ -197,6 +230,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
     [VALKEY.HOTKEYS.hotKeysRequested]: hotKeysRequested,
+    [VALKEY.BIGKEYS.bigKeysRequested]: bigKeysRequested,
     [VALKEY.COMMANDLOGS.commandLogsRequested]: commandLogsRequested,
     [VALKEY.CONFIG.enableClusterSlotStats]: enableClusterSlotStats,
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
@@ -245,12 +279,13 @@ wss.on("connection", (ws: AliveWebSocket) => {
     try {
       const handler = handlers[action.type] ?? unknownHandler
       await handler(
-        { ws, 
-          clients, 
-          connectionId: connectionId!, 
-          metricsServerMap, 
-          connectedNodesByCluster, 
-          clusterNodesRegistry })(action as ReduxAction)
+        { ws,
+          clients,
+          connectionId: connectionId!,
+          metricsServerMap,
+          connectedNodesByCluster,
+          clusterNodesRegistry,
+          sessionId: ws.sessionId })(action as ReduxAction)
     } catch (error) {
       console.error(`Error handling action ${action.type}:`, error)
     }
@@ -264,9 +299,10 @@ wss.on("connection", (ws: AliveWebSocket) => {
     connectedNodesByCluster.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
 
+    const scheduled = new Set(removedIds)
     for (const connectionId of removedIds) {
       setTimeout(() => {
-        if (getWatcherCount(connectionId) === 0) {
+        if (getWatcherCount(connectionId) === 0 && !hasAuthorizedSession(connectionId)) {
           teardownConnection(
             { clients, clusterNodesRegistry, metricsServerMap },
             connectionId,
@@ -275,9 +311,8 @@ wss.on("connection", (ws: AliveWebSocket) => {
       }, CONNECTION_TEARDOWN_DELAY_MS)
     }
 
-    // Clean up any side-entries (e.g., node entries from config endpoint connections)
     for (const [id] of clients) {
-      if (getWatcherCount(id) === 0) {
+      if (!scheduled.has(id) && getWatcherCount(id) === 0 && !hasAuthorizedSession(id)) {
         teardownConnection(
           { clients, clusterNodesRegistry, metricsServerMap },
           id,

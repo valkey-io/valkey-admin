@@ -7,7 +7,6 @@ import {
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
   clients,
-  clusterNodesRegistry,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
@@ -150,35 +149,20 @@ describe("metrics-orchestrator", () => {
     // })
   })
 
-  describe("isKnownClusterNode", () => {
+  describe("register endpoint", () => {
     afterEach(() => {
       mock.restoreAll()
-      for (const key in clusterNodesRegistry) {
-        delete clusterNodesRegistry[key]
-      }
+      metricsServerMap.clear()
     })
 
-    it("should recognize replica node ids by sanitized host-port", () => {
-      clusterNodesRegistry["cluster-1"] = {
-        "valkey-0-valkey-headless-valkey-svc-cluster-local-6379": {
-          host: "valkey-0.valkey-headless.valkey.svc.cluster.local",
-          port: 6379,
-          tls: false,
-          verifyTlsCertificate: false,
-          replicas: [
-            {
-              id: "raw-replica-node-id",
-              host: "valkey-5.valkey-headless.valkey.svc.cluster.local",
-              port: 6379,
-            },
-          ],
-        },
-      }
+    it("should accept registration when nodeId exists in metricsServerMap", () => {
+      metricsServerMap.set("127-0-0-1-6379", { metricsURI: "", pid: 123, lastSeen: Date.now() })
 
-      assert.strictEqual(
-        __test__.isKnownClusterNode("valkey-5-valkey-headless-valkey-svc-cluster-local-6379"),
-        true,
-      )
+      assert.strictEqual(metricsServerMap.has("127-0-0-1-6379"), true)
+    })
+
+    it("should reject registration when nodeId is not in metricsServerMap", () => {
+      assert.strictEqual(metricsServerMap.has("unknown-node-6379"), false)
     })
   })
 
@@ -238,11 +222,9 @@ describe("metrics-orchestrator", () => {
   })
 
   describe("reconcileClusterMetricsServers", () => {
-    let connectionDetails: ConnectionDetails
 
     beforeEach(() => {
       metricsServerMap.clear()
-      connectionDetails = { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node", db: 0 }
 
       // Mock all side-effectful internal functions
       mock.method(__test__, "createClient", async () => ({}))
@@ -260,10 +242,11 @@ describe("metrics-orchestrator", () => {
       mock.restoreAll()
     })
 
-    it("should discover cluster if registry is empty", async () => {
+    it("should early return if registry is empty", async () => {
+      const emptyRegistry = {}
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
-      assert.ok(mockClusterNodesRegistry["cluster-1"])
+        emptyRegistry, metricsServerMap)
+      assert.strictEqual(Object.keys(emptyRegistry).length, 0)
     })
 
     it("should early return if nothing changed", async () => {
@@ -273,7 +256,7 @@ describe("metrics-orchestrator", () => {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       }
       await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap, connectionDetails)
+        mockClusterNodesRegistry,metricsServerMap)
       // updateMetricsServers should not be called because nothing changed
     })
   })

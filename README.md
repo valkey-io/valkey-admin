@@ -33,7 +33,7 @@ For the full walkthrough see the [connection docs](https://valkey-admin.valkey.i
 
 **Install:**
 
-- **Desktop (macOS / Linux)** — Download from [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases). See the [Desktop deployment guide](https://valkey-admin.valkey.io/deployment/desktop/).
+- **Desktop (macOS / Linux)** — On macOS, install with [Homebrew](https://brew.sh): `brew install --cask valkey-admin`. Otherwise download from [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases). See the [Desktop deployment guide](https://valkey-admin.valkey.io/deployment/desktop/).
 - **Docker** — Images published to GHCR, Docker Hub, and ECR Public. See the [Docker deployment guide](https://valkey-admin.valkey.io/deployment/docker/).
 - **Kubernetes** — Sidecar-based deployment for cluster-scale collection. See the [Kubernetes deployment guide](https://valkey-admin.valkey.io/deployment/kubernetes/).
 - **AWS ElastiCache** — See the [AWS ElastiCache guide](https://valkey-admin.valkey.io/deployment/aws-elasticache/).

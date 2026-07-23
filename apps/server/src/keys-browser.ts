@@ -7,6 +7,7 @@ import {
   ConnectionError, 
   TimeoutError, 
   ClosingError, 
+  Decoder,
   GlideReturnType
 } from "@valkey/valkey-glide"
 import pLimit from "p-limit"
@@ -325,7 +326,15 @@ async function getFullKeyInfo(
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
     // Valkey client uses String decoder, which throws this error when it encounters non-UTF-8 bytes
     if (err instanceof Error && err.message.includes("Decoding error")) {
-      return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+      try {
+        const raw = await client.customCommand(commands.elementsCmd, { decoder: Decoder.Bytes }) as Buffer
+        const hex = Buffer.from(raw).reduce((s, byte) =>
+          s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
+        )
+        return { ...keyInfo, elements: hex }
+      } catch {
+        return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
+      }
     }
     return keyInfo
   }
@@ -346,7 +355,7 @@ export async function getKeyInfo(
       name: key,
       type: keyType,
       ttl: ttl,
-      size: memoryUsage || 0,
+      size: memoryUsage || -1,
     }
 
     // Get collection size and elements for each type
@@ -401,7 +410,7 @@ export async function getKeyInfo(
       name: key,
       type: "unknown",
       ttl: -1,
-      size: 0,
+      size: -1,
     }
   }
 }
@@ -517,7 +526,7 @@ export async function getKeys(
             name: k,
             type: "unknown",
             ttl: -1,
-            size: 0,
+            size: -1,
           })),
         ),
       ),

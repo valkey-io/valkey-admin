@@ -7,14 +7,21 @@ export const isRequestError = (x: unknown): x is Error | string =>
   x instanceof Error ||
   (typeof x === "string" && x.startsWith("ResponseError:"))
 
+/**
+ * Parses a command string into arguments, respecting quoted strings and escaped quotes.
+ * Matches valkey-cli behavior: 'GET "my key"' → ['GET', 'my key']
+ */
+export const parseCommandArgs = (command: string): string[] =>
+  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')+/g)
+    ?.map((arg) => arg.replace(/^["']|["']$/g, "").replace(/\\(["'])/g, "$1")) ?? []
+
 export async function sendValkeyRunCommand(
   client: GlideClient | GlideClusterClient,
   ws: WebSocket,
   payload: { command: string; connectionId: string },
 ) {
   try {
-    // split on whitespace, ignoring extra/leading/trailing spaces
-    const response = await client.customCommand(payload.command.trim().split(/\s+/))
+    const response = await client.customCommand(parseCommandArgs(payload.command))
     const isError = isRequestError(response)
 
     ws.send(

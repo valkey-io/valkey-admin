@@ -74,6 +74,11 @@ export const VALKEY = {
     hotKeysFulfilled: "hotKeysFulfilled",
     hotKeysError: "hotKeysError",
   }),
+  BIGKEYS: makeNamespace( "bigKeys",{
+    bigKeysRequested: "bigKeysRequested",
+    bigKeysFulfilled: "bigKeysFulfilled",
+    bigKeysError: "bigKeysError",
+  }),
   COMMANDLOGS: makeNamespace( "commandLogs",{
     commandLogsRequested: "commandLogsRequested",
     commandLogsFulfilled: "commandLogsFulfilled",

@@ -42,9 +42,9 @@ docker compose up -d
 
 Open `http://localhost:8080` and add a connection to your Valkey instance through the UI.
 
-## With Pre-configured Cluster Connection
+## With Pre-configured Connection
 
-To auto-start metrics collection on startup, provide cluster connection details as environment variables:
+To auto-start metrics collection on startup, provide connection details as environment variables. This works for both **cluster** and **standalone** Valkey instances — Valkey Admin detects the topology automatically:
 
 ```yaml
 services:
@@ -62,6 +62,16 @@ services:
       VALKEY_PASSWORD: mypassword
     restart: unless-stopped
 ```
+
+For cluster connections, Valkey Admin discovers all primary nodes and spawns metrics servers for each. For standalone connections, a single metrics server is started for that node.
+
+## Environment Variable Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KEY_VALUE_SIZE_LIMIT_BYTES` | `2048` | Maximum value size (bytes) the Key Browser will render. Values larger than this show a size warning instead of their contents. |
+
+See the [Server Configuration](/configuration/server/) page for all available environment variables.
 
 ## Custom Metrics Configuration
 

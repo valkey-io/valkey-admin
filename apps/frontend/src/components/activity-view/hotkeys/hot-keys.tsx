@@ -17,16 +17,18 @@ interface HotKeysProps {
   errorMessage: string | null
   status?: string
   monitorRunning?: boolean
+  monitorError?: string | null
   nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
   onKeyClick?: (keyName: string) => void
   onStartMonitoring?: () => void
   selectedKey?: string | null
+  isHotSlots?: boolean
 }
 
 export function HotKeys({
-  data, errorMessage, status, monitorRunning, nodeErrors,
-  isCluster, onKeyClick, onStartMonitoring, selectedKey,
+  data, errorMessage, status, monitorRunning, monitorError, nodeErrors,
+  isCluster, onKeyClick, onStartMonitoring, selectedKey, isHotSlots,
 }: HotKeysProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
@@ -63,7 +65,7 @@ export function HotKeys({
   const banners = (
     <>
       {!monitorRunning && onStartMonitoring && (
-        <MonitorNotRunningBanner onStartMonitoring={onStartMonitoring} />
+        <MonitorNotRunningBanner error={monitorError} onStartMonitoring={onStartMonitoring} />
       )}
       {nodeErrors && nodeErrors.length > 0 && (
         <NodeErrorsBanner nodeErrors={nodeErrors} />
@@ -135,6 +137,7 @@ export function HotKeys({
           dataMax={dataMax}
           dataMin={dataMin}
           isCountFiltered={isCountFiltered}
+          isHotSlots={isHotSlots}
           onKeyClick={onKeyClick}
           onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
           parsedCountMax={parsedCountMax}

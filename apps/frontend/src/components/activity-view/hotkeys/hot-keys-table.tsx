@@ -7,6 +7,7 @@ import { TableContainer } from "../../ui/table-container"
 import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../../ui/sortable-table-header"
 import { Typography } from "../../ui/typography"
 import { CustomTooltip } from "../../ui/tooltip"
+import { TooltipIcon } from "../../ui/tooltip-icon"
 import type { HotKeyEntry } from "./hot-keys"
 import { copyToClipboard } from "@/lib/utils"
 
@@ -130,13 +131,14 @@ interface HotKeysTableProps {
   dataMax: number
   selectedKey?: string | null
   onKeyClick?: (keyName: string) => void
+  isHotSlots?: boolean
 }
 
 export function HotKeysTable({
   rows, sortOrder, onToggleSort,
   searchQuery, selectedNode,
   isCountFiltered, parsedCountMin, parsedCountMax, dataMin, dataMax,
-  selectedKey, onKeyClick,
+  selectedKey, onKeyClick, isHotSlots,
 }: HotKeysTableProps) {
   return (
     <TableContainer
@@ -150,7 +152,20 @@ export function HotKeysTable({
           <SortableTableHeader
             active={true}
             className="text-center"
-            label="Access Count"
+            label={
+              isHotSlots ? (
+                <span className="flex items-center gap-1">
+                  Frequency
+                  <TooltipIcon
+                    description="Access frequency from OBJECT FREQ (Valkey's LFU counter, 0–255). 
+                    Higher means accessed more often — a relative, decaying estimate, not a raw hit count."
+                    size={14}
+                  />
+                </span>
+              ) : (
+                "Access Count"
+              )
+            }
             onClick={onToggleSort}
             sortOrder={sortOrder}
             width="w-1/6"

@@ -50,7 +50,7 @@ export default function DonutChart() {
   // count and memory usage per each key type
   const keyTypeInfo = keys.reduce((stats, key) => {
     (stats[key.type] ??= { count: 0, totalSize: 0 }).count += 1
-    stats[key.type].totalSize += key.size
+    if (key.size > 0) stats[key.type].totalSize += key.size
     return stats
   }, {} as Record<string, { count: number; totalSize: number }>)
 

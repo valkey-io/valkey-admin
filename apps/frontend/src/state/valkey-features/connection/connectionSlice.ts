@@ -64,6 +64,9 @@ export interface ConnectionState {
   reconnect?: ReconnectState;
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
+  userDisconnected?: boolean;
+  // Set when a connect is automatic (refresh resume / socket-drop reconnect)
+  autoConnect?: boolean;
 }
 
 export interface ValkeyConnectionsState {
@@ -108,7 +111,9 @@ const connectionSlice = createSlice({
         connectionId: string;
         connectionDetails: ConnectionDetails;
         isRetry?: boolean;
+        isResume?: boolean;
         isEdit?: boolean;
+        autoConnect?: boolean;
         preservedHistory?: ConnectionHistoryEntry[];
       }>,
     ) => {
@@ -117,6 +122,7 @@ const connectionSlice = createSlice({
         connectionDetails,
         isRetry = false,
         isEdit = false,
+        autoConnect = false,
         preservedHistory,
       } = action.payload
       const existingConnection = state.connections[connectionId]
@@ -135,6 +141,7 @@ const connectionSlice = createSlice({
         },
         searchableText: buildSearchableText(connectionId, connectionDetails),
         wasEdit: isEdit,
+        autoConnect,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
         }),
@@ -186,17 +193,20 @@ const connectionSlice = createSlice({
       delete connectionState.wasEdit
     },
     connectRejected: (state, action) => {
-      const { connectionId, errorMessage } = action.payload
-      if (state.connections[connectionId]) {
-        const existingConnection = state.connections[connectionId]
-        const isRetrying = existingConnection.reconnect?.isRetrying
-        state.connections[connectionId].status = ERROR
-        // Preserve original error message during retry attempts
-        if (isRetrying && existingConnection.errorMessage) {
-          state.connections[connectionId].errorMessage = existingConnection.errorMessage
-        } else {
-          state.connections[connectionId].errorMessage = errorMessage || "Valkey error: Unable to connect."
-        }
+      const { connectionId, errorMessage, requiresAuth } = action.payload
+      const existingConnection = state.connections[connectionId]
+      if (!existingConnection) return
+      if (requiresAuth) {
+        existingConnection.status = NOT_CONNECTED
+        existingConnection.errorMessage = null
+        return
+      }
+
+      const isRetrying = existingConnection.reconnect?.isRetrying
+      existingConnection.status = ERROR
+      // Preserve original error message during retry attempts
+      if (!(isRetrying && existingConnection.errorMessage)) {
+        existingConnection.errorMessage = errorMessage || "Valkey error: Unable to connect."
       }
     },
     startRetry: (state, action) => {
@@ -227,6 +237,7 @@ const connectionSlice = createSlice({
       const { connectionId } = action.payload
       state.connections[connectionId].status = DISCONNECTING
       state.connections[connectionId].errorMessage = null
+      state.connections[connectionId].userDisconnected = true
     },
     closeConnectionFulfilled: (state, action) => {
       const { connectionId } = action.payload

@@ -154,7 +154,7 @@ export function Dashboard() {
                 className="flex-1"
                 icon={<Database className="text-primary" size={24} />}
                 label="Used Memory"
-                value={formatBytes(memoryUsageMetrics.used_memory || 0)}
+                value={formatBytes(memoryUsageMetrics.used_memory || -1)}
               />
               <StatCard
                 className="flex-1"

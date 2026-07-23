@@ -16,6 +16,7 @@
     "@valkey/valkey-glide": "^2.4.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
+    "helmet": "^8.2.0",
     "p-limit": "^6.1.0",
     "ramda": "^0.31.3",
     "valkey-common": "*",
