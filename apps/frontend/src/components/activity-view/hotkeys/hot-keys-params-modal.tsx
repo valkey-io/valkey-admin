@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { useParams } from "react-router"
 import { AlertTriangle } from "lucide-react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { MONITOR_ACTION } from "@common/src/constants"
@@ -19,15 +18,20 @@ import { updateConfig } from "@/state/valkey-features/config/configSlice"
 interface HotKeysConfigModalProps {
   open: boolean
   onClose: () => void
+  // Connection identifier of the target (db-less nodeId also accepted:
+  // `toNodeId` is idempotent and the server ignores it for clusters), so the
+  // modal can be opened from outside the routed activity view (e.g. the
+  // monitor warning banner).
+  connectionId: string
+  clusterId?: string
 }
 
-export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
-  const { id, clusterId } = useParams()
+export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: HotKeysConfigModalProps) {
   const dispatch = useAppDispatch()
   // Config and monitor state are cluster-keyed for clusters, node-keyed otherwise.
-  const config = useSelector(selectConfig(clusterId ?? toNodeId(id!)))
+  const config = useSelector(selectConfig(clusterId ?? toNodeId(connectionId)))
   const monitorRunning = useSelector((state: RootState) =>
-    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(toNodeId(id!))(state),
+    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(toNodeId(connectionId))(state),
   )
 
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
@@ -54,9 +58,11 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
   const handleStart = () => {
     if (hasConfigChanges) {
       // Config changed: push it (with server-side retry) and start MONITOR on
-      // the config-succeeded nodes once the session resolves.
+      // the config-succeeded nodes once the session resolves. On an
+      // already-running monitor the metrics process restarts it with the new
+      // settings, and the start rider is an idempotent no-op.
       dispatch(updateConfig({
-        connectionId: id!,
+        connectionId,
         clusterId,
         config: {
           epic: {
@@ -69,7 +75,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
     } else {
       // No config change: a pure toggle needs no config session.
       dispatch(monitorRequested({
-        connectionId: id!,
+        connectionId,
         clusterId,
         monitorAction: MONITOR_ACTION.START,
       }))
@@ -80,7 +86,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
   const handleCancel = () => {
     if (monitorRunning) {
       dispatch(monitorRequested({
-        connectionId: id!,
+        connectionId,
         clusterId,
         monitorAction: MONITOR_ACTION.STOP,
       }))
@@ -195,7 +201,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
               type="button"
               variant="default"
             >
-              {monitorRunning ? "Started" : "Start"}
+              {monitorRunning ? (hasConfigChanges ? "Apply & Restart" : "Started") : "Start"}
             </Button>
           </div>
         </div>

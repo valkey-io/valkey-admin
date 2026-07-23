@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from "react"
 import { useSelector } from "react-redux"
-import { AlertTriangle, Dot, Minimize2 } from "lucide-react"
+import { AlertTriangle, Dot, Minimize2, Settings } from "lucide-react"
 import { MONITOR_ACTION, VALKEY } from "@common/src/constants"
 import { formatDuration, milliSecondsToSeconds } from "@common/src/time-utils"
 import * as R from "ramda"
 import { Button } from "./button"
 import { Typography } from "./typography"
+import { HotKeysParamsModal } from "../activity-view/hotkeys/hot-keys-params-modal"
 import type { NodeRetryStatus } from "@common/src/node-results.ts"
 import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -27,6 +28,12 @@ const NODE_DISPLAY_LIMIT = 10
 interface RunningNode {
   nodeId: string
   startedAt: number | null
+}
+
+// Target of the settings modal opened from a banner row.
+interface SettingsTarget {
+  connectionId: string
+  clusterId?: string
 }
 
 /** Human text for one node's live status. */
@@ -100,11 +107,12 @@ interface ClusterRowProps {
   clusterId: string
   runningNodes: RunningNode[]
   now: number
+  onOpenSettings: (target: SettingsTarget) => void
 }
 
 // One cluster's monitor + config-session state. Per-id selectors are used here
 // (rather than in the parent) so they can be hooks within the rendered list.
-function ClusterMonitorRow({ clusterId, runningNodes, now }: ClusterRowProps) {
+function ClusterMonitorRow({ clusterId, runningNodes, now, onOpenSettings }: ClusterRowProps) {
   const dispatch = useAppDispatch()
   const nodeStatuses = useSelector(selectConfigNodeStatuses(clusterId))
   const config = useSelector(selectConfig(clusterId))
@@ -120,6 +128,12 @@ function ClusterMonitorRow({ clusterId, runningNodes, now }: ClusterRowProps) {
     dispatch(monitorRequested({ connectionId: nodeId, clusterId, monitorAction: MONITOR_ACTION.STOP }))
   }
 
+  const handleOpenSettings = () => {
+    const nodeId = runningNodes[0]?.nodeId
+    if (!nodeId) return
+    onOpenSettings({ connectionId: nodeId, clusterId })
+  }
+
   const startedAt = runningNodes[0]?.startedAt ?? null
 
   return (
@@ -127,9 +141,14 @@ function ClusterMonitorRow({ clusterId, runningNodes, now }: ClusterRowProps) {
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs truncate flex-1">{clusterId}</span>
         {runningNodes.length > 0 && (
-          <Button onClick={handleStop} size="sm" variant="destructive">
-            Stop
-          </Button>
+          <>
+            <Button aria-label="Monitor settings" onClick={handleOpenSettings} size="sm" variant="ghost">
+              <Settings size={16} />
+            </Button>
+            <Button onClick={handleStop} size="sm" variant="destructive">
+              Stop
+            </Button>
+          </>
         )}
       </div>
 
@@ -178,9 +197,10 @@ interface StandaloneRowProps {
   startedAt: number | null
   running: boolean
   now: number
+  onOpenSettings: (target: SettingsTarget) => void
 }
 
-function StandaloneMonitorRow({ nodeId, startedAt, running, now }: StandaloneRowProps) {
+function StandaloneMonitorRow({ nodeId, startedAt, running, now, onOpenSettings }: StandaloneRowProps) {
   const dispatch = useAppDispatch()
   const nodeStatuses = useSelector(selectConfigNodeStatuses(nodeId))
   const config = useSelector(selectConfig(nodeId))
@@ -196,9 +216,19 @@ function StandaloneMonitorRow({ nodeId, startedAt, running, now }: StandaloneRow
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs truncate flex-1">{nodeId}</span>
         {running && (
-          <Button onClick={handleStop} size="sm" variant="destructive">
-            Stop
-          </Button>
+          <>
+            <Button
+              aria-label="Monitor settings"
+              onClick={() => onOpenSettings({ connectionId: nodeId })}
+              size="sm"
+              variant="ghost"
+            >
+              <Settings size={16} />
+            </Button>
+            <Button onClick={handleStop} size="sm" variant="destructive">
+              Stop
+            </Button>
+          </>
         )}
       </div>
 
@@ -234,6 +264,11 @@ export function MonitorWarningBanner() {
   )
   const [expanded, setExpanded] = useState(true)
   const [now, setNow] = useState(Date.now())
+  // Target of the settings modal opened from a row; rendered conditionally so
+  // each open remounts the modal and hydrates its fields from the target's
+  // current config (a persistent instance would show the previous target's
+  // values until its sync effect fires).
+  const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null)
 
   // Set of known cluster ids, used to classify a config `targetId` as a cluster
   // (key === clusterId) versus a standalone node (key === db-less nodeId).
@@ -299,7 +334,17 @@ export function MonitorWarningBanner() {
   const runningCount = runningConnections.length
 
   return (
-    <div className="fixed bottom-16 right-2 z-50 pointer-events-auto animate-in fade-in duration-300">
+    // z-20 keeps the banner above page content but below modal overlays
+    // (z-30/z-40), so an open dialog dims it instead of it floating on top.
+    <div className="fixed bottom-16 right-2 z-20 pointer-events-auto animate-in fade-in duration-300">
+      {settingsTarget && (
+        <HotKeysParamsModal
+          clusterId={settingsTarget.clusterId}
+          connectionId={settingsTarget.connectionId}
+          onClose={() => setSettingsTarget(null)}
+          open
+        />
+      )}
       {expanded ? (
         <div className="border border-destructive rounded-md shadow-xs w-84 max-h-58 flex flex-col overflow-hidden">
           {/* Header */}
@@ -332,6 +377,7 @@ export function MonitorWarningBanner() {
                 clusterId={clusterId}
                 key={clusterId}
                 now={now}
+                onOpenSettings={setSettingsTarget}
                 runningNodes={runningNodes}
               />
             ))}
@@ -341,6 +387,7 @@ export function MonitorWarningBanner() {
                 key={nodeId}
                 nodeId={nodeId}
                 now={now}
+                onOpenSettings={setSettingsTarget}
                 running={running}
                 startedAt={startedAt}
               />
