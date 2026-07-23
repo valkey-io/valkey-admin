@@ -3,7 +3,8 @@ import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, t
   catchError, filter, take, finalize } from "rxjs/operators"
 import * as R from "ramda"
 import { CONNECTED, CONNECTING, DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
-  METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS } from "@common/src/constants.ts"
+  METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS, SESSION_STORAGE,
+  VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
@@ -26,10 +27,10 @@ import {
   discoveryEndpointFulfilled,
   discoveryNodeConnecting
 } from "../valkey-features/topology/topologySlice"
-import { sendRequested } from "../valkey-features/command/commandSlice"
+import { sendRequested, sendFulfilled, sendFailed, type CommandState } from "../valkey-features/command/commandSlice"
 import { setData, setError, updateData } from "../valkey-features/info/infoSlice"
 import { selectMetricsStarting, selectError } from "../valkey-features/info/infoSelectors.ts"
-import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
+import { action$, select, selectMany } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
 import { connectFulfilled as wsConnectFulfilled } from "../wsconnection/wsConnectionSlice"
 import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { bigKeysRequested } from "../valkey-features/bigkeys/bigKeysSlice.ts"
@@ -431,6 +432,21 @@ export const sendRequestEpic = () =>
       const socket = getSocket()
       socket.next(action)
     }),
+  )
+
+export const persistCommandsEpic = (store: Store) =>
+  action$.pipe(
+    selectMany(sendFulfilled, sendFailed, deleteConnection),
+    tap(() => {
+      const state: CommandState = store.getState()[VALKEY.COMMAND.name]
+      try {
+        const history = R.map((entry) => ({ commands: entry.commands }), state)
+        sessionStorage.setItem(SESSION_STORAGE.VALKEY_COMMANDS, JSON.stringify(history))
+      } catch (e) {
+        console.error("Could not persist command history:", e)
+      }
+    }),
+    ignoreElements(),
   )
 
 export const setDataEpic = (store: Store) =>

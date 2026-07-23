@@ -1,7 +1,8 @@
 import * as R from "ramda"
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
-import { VALKEY } from "@common/src/constants.ts"
+import { PERSISTED_COMMANDS_LIMIT, SESSION_STORAGE, VALKEY } from "@common/src/constants.ts"
 import type { JSONObject } from "@common/src/json-utils.ts"
+import { deleteConnection } from "@/state/valkey-features/connection/connectionSlice.ts"
 
 type CmdMeta = { command: string, connectionId: string }
 
@@ -13,7 +14,7 @@ export interface CommandMetadata {
   timestamp: number
 }
 
-interface CommandState {
+export interface CommandState {
   [id: string]: {
     pending: boolean
     commands: CommandMetadata[]
@@ -28,7 +29,25 @@ const withMetadata = (command: string, response: JSONObject, isFulfilled = true)
   timestamp: Date.now(),
 })
 
-const initialState: CommandState = {}
+const restoredState = (): CommandState => {
+  try {
+    const saved = sessionStorage.getItem(SESSION_STORAGE.VALKEY_COMMANDS)
+    if (saved === null) return {}
+
+    return R.map(
+      (entry) => ({
+        pending: false,
+        commands: (entry?.commands ?? []).slice(0, PERSISTED_COMMANDS_LIMIT),
+      }),
+      JSON.parse(saved) as CommandState,
+    )
+  } catch (e) {
+    console.error("Could not restore command history:", e)
+    return {}
+  }
+}
+
+const initialState: CommandState = restoredState()
 const commandSlice = createSlice({
   name: VALKEY.COMMAND.name,
   initialState,
@@ -46,7 +65,7 @@ const commandSlice = createSlice({
         ...state,
         [connectionId]: {
           pending: false,
-          commands: [cmd, ...prev],
+          commands: [cmd, ...prev].slice(0, PERSISTED_COMMANDS_LIMIT),
         },
       }
     },
@@ -61,10 +80,15 @@ const commandSlice = createSlice({
         ...state,
         [connectionId]: {
           pending: false,
-          commands: [cmd, ...prev],
+          commands: [cmd, ...prev].slice(0, PERSISTED_COMMANDS_LIMIT),
         },
       }
     },
+  },
+  // needed to handle the case where a connection is deleted, so we can remove its command history from state
+  extraReducers: (builder) => {
+    builder.addCase(deleteConnection, (state, { payload: { connectionId, silent } }) =>
+      silent ? state : R.dissoc(connectionId, state))
   },
 })
 
