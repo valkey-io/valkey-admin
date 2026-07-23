@@ -42,7 +42,7 @@ import {
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
-import { ensureSession, hasAuthorizedSession, setSessionExpiryListener } from "./session"
+import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
 import type { Request, Response } from "express"
 import type { IncomingMessage } from "http"
 
@@ -279,6 +279,17 @@ wss.on("connection", (ws: AliveWebSocket) => {
 
     try {
       const handler = handlers[action.type] ?? unknownHandler
+
+      // Enforce session ownership: reject actions targeting a connection this session doesn't own.
+      // Connection-establishing actions are exempt (authorization happens after successful connect).
+      const exempt = action.type === VALKEY.CONNECTION.connectPending
+        || action.type === VALKEY.TOPOLOGY.discoveryEndpointPending
+      const targetConnectionId = action.payload?.connectionId
+      if (!exempt && targetConnectionId && !isConnectionAuthorized(ws.sessionId, targetConnectionId)) {
+        console.warn(`Rejected: session does not own connection ${targetConnectionId}`)
+        return
+      }
+
       await handler(
         { ws,
           clients,
