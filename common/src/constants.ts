@@ -137,6 +137,13 @@ export const LOCAL_STORAGE = {
   VALKEY_CONNECTIONS: "VALKEY_CONNECTIONS",
 }
 
+export const SESSION_STORAGE = {
+  VALKEY_COMMANDS: "VALKEY_COMMANDS",
+}
+
+// limit the number of commands persisted in session storage to avoid exceeding storage limits
+export const PERSISTED_COMMANDS_LIMIT = 25
+
 export const RETRY_CONFIG = {
   MAX_RETRIES: 8,
   BASE_DELAY: 1000,
