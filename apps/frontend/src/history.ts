@@ -10,8 +10,12 @@ const history = {
   refreshedFrom: (refreshPath.startsWith("/") ? refreshPath : null) as string | null,
 }
 
-export const wasRefreshedFrom = (connectionId: string): boolean =>
-  Boolean(history.refreshedFrom?.includes(`/${connectionId}/`)) &&
-  !history.refreshedFrom!.endsWith("/valkey-reconnect")
+export const wasRefreshedFrom = (connectionId: string): boolean => {
+  if (history.refreshedFrom === null) return false
+
+  const segments = history.refreshedFrom.split("/")
+  return segments.includes(connectionId) &&
+    !history.refreshedFrom.endsWith("/valkey-reconnect")
+}
 
 export default history
