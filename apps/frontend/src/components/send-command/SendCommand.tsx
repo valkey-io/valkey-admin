@@ -186,16 +186,18 @@ export function SendCommand() {
 
         {/* commands history */}
         <div className="flex flex-col flex-1 max-w-[40vw]">
-          <div className="flex items-center justify-between ">
-            <Typography className="mb-2" variant="bodySm">History</Typography>
+          <div className="flex items-center justify-between">
+            <Typography variant="bodySm">History</Typography>
             <Button
               aria-label="Send command config"
+              
               onClick={() => setConfigOpen(true)}
               size={"sm"}
               variant={"outline"}
             >
               <Settings className="hover:text-primary" size={15} />
-            </Button></div>
+            </Button>
+          </div>
           <div className="mb-2 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
             <Input

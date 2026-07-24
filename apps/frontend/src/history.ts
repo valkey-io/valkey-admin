@@ -1,6 +1,6 @@
 import type { NavigateFunction, Params, Location } from "react-router"
 
-// the path user refershed from
+// the path user refreshed from
 const refreshPath = window.location.hash.replace(/^#/, "").split("?")[0]
 
 const history = {
