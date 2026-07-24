@@ -65,7 +65,7 @@ app.whenReady().then(() => {
         "Content-Security-Policy": [
           "default-src 'self'; script-src 'self'; " +
           "style-src 'self' 'unsafe-inline'; " +
-          "connect-src 'self'; " +
+          "connect-src 'self' ws://localhost:* http://localhost:*; " +
           "img-src 'self' data:; font-src 'self'; " +
           "object-src 'none'; base-uri 'self'; form-action 'self';",
         ],

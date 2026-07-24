@@ -3,7 +3,6 @@ import monitorReducer, {
   monitorRequested,
   monitorFulfilled,
   monitorError,
-  saveMonitorSettingsRequested,
   selectMonitorRunning,
   selectMonitorLoading,
   selectClusterMonitorRunning,
@@ -236,36 +235,6 @@ describe("monitorSlice", () => {
       expect(state["node-1"]).toBeDefined()
       expect(state["node-1"].clusterId).toBe("cluster-1")
       expect(state["node-1"].error).toBe("node down")
-    })
-  })
-
-  describe("saveMonitorSettingsRequested", () => {
-    it("should not change empty state", () => {
-      const state = monitorReducer(
-        initialState,
-        saveMonitorSettingsRequested({ connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" }),
-      )
-
-      expect(state).toEqual({})
-    })
-
-    it("should not change existing state", () => {
-      const previousState = {
-        "host-6379": {
-          monitorRunning: true,
-          checkAt: 12345,
-          loading: false,
-          startedAt: 100,
-          error: null,
-        },
-      }
-
-      const state = monitorReducer(
-        previousState,
-        saveMonitorSettingsRequested({ connectionId: "host-6379-db0", monitorAction: "stop" }),
-      )
-
-      expect(state["host-6379"]).toEqual(previousState["host-6379"])
     })
   })
 

@@ -198,7 +198,7 @@ export const ActivityView = () => {
 
   return (
     <RouteContainer title="Activity">
-      <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
+      <HotKeysParamsModal clusterId={clusterId} connectionId={id!} onClose={() => setConfigOpen(false)} open={configOpen} />
       <HotSlotsParamsModal
         onApply={({ topN }) => setHotKeysTopN(topN)}
         onClose={() => setHotSlotsConfigOpen(false)}

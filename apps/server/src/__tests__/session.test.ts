@@ -81,4 +81,42 @@ describe("session", () => {
     assert.deepStrictEqual(orphaned, [])
     assert.strictEqual(isConnectionAuthorized(sessionB, "shared"), true)
   })
+
+  // Shared use: two users connect to the same cluster — both are authorized
+  it("allows multiple sessions to share a connection when both have connected", () => {
+    const sessionA = ensureSession(makeReq()).sessionId
+    const sessionB = ensureSession(makeReq()).sessionId
+    const connectionId = "10-0-1-5-6379-db0"
+
+    // Both users go through the connect flow (connectPending → authorizeConnection)
+    authorizeConnection(sessionA, connectionId)
+    authorizeConnection(sessionB, connectionId)
+
+    // Both can access the shared connection
+    assert.strictEqual(isConnectionAuthorized(sessionA, connectionId), true)
+    assert.strictEqual(isConnectionAuthorized(sessionB, connectionId), true)
+  })
+
+  // Attack: a session tries to use a connection it never established
+  it("rejects a session that never connected from using another session's connection", () => {
+    const victim = ensureSession(makeReq()).sessionId
+    const attacker = ensureSession(makeReq()).sessionId
+    const connectionId = "10-0-1-5-6379-db0"
+
+    // Victim connects — gets authorized
+    authorizeConnection(victim, connectionId)
+
+    // Attacker skips connectPending and tries to use the connection directly
+    assert.strictEqual(isConnectionAuthorized(attacker, connectionId), false)
+  })
+
+  // Attack: guessing deterministic connectionIds without connecting
+  it("rejects guessed connectionIds from unauthorized sessions", () => {
+    const attacker = ensureSession(makeReq()).sessionId
+
+    // connectionIds are deterministic (host-port-dbN) and therefore guessable
+    assert.strictEqual(isConnectionAuthorized(attacker, "production-redis-6379-db0"), false)
+    assert.strictEqual(isConnectionAuthorized(attacker, "10-0-1-5-6379-db0"), false)
+    assert.strictEqual(isConnectionAuthorized(attacker, "cache-cluster-6379-db2"), false)
+  })
 })

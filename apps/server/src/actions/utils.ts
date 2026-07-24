@@ -42,15 +42,41 @@ export const unknownHandler: Handler = () =>
     console.warn("Unknown action type:", action.type)
   }
 
-// Helper function to add timeout to fetch requests
-export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<Response> {
+/**
+ * Send a serialized websocket message only when the socket is still open; a
+ * closed socket drops the message (with a warning) instead of throwing. Use
+ * for replies emitted after an await, where the client may have disconnected
+ * mid-operation (e.g. during a long-running retry session).
+ */
+export const safeSend = (ws: WebSocket, message: string): void => {
+  if (ws.readyState === ws.OPEN) {
+    ws.send(message)
+  } else {
+    // Expected race, not a failure: the client can close mid-operation.
+    console.warn(`[safeSend] Dropped message: websocket is not open (readyState ${ws.readyState})`)
+  }
+}
+
+/**
+ * Fetch with a timeout, optionally composed with an external abort signal so
+ * a caller-side cancellation (e.g. an aborted retry session or an expired
+ * per-attempt bound) tears down the underlying request instead of leaving it
+ * running in the background.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+  signal?: AbortSignal,
+): Promise<Response> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal
 
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal,
+      signal: combinedSignal,
     })
     return response
   } finally {

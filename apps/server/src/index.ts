@@ -21,10 +21,10 @@ import {
 import { hotKeysRequested } from "./actions/hotkeys"
 import { bigKeysRequested } from "./actions/bigkeys"
 import { commandLogsRequested } from "./actions/commandLogs"
-import { updateConfig, enableClusterSlotStats } from "./actions/config"
+import { updateConfig, enableClusterSlotStats, abortConfigSessionsForSocket } from "./actions/config"
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
-import { monitorRequested, saveMonitorSettingsRequested } from "./actions/monitorAction"
+import { monitorRequested } from "./actions/monitorAction"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
@@ -42,7 +42,7 @@ import {
   updateClusterNodeRegistry
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
-import { ensureSession, hasAuthorizedSession, setSessionExpiryListener } from "./session"
+import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
 import type { Request, Response } from "express"
 import type { IncomingMessage } from "http"
 
@@ -236,7 +236,6 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.CPU.cpuUsageRequested]: cpuUsageRequested,
     [VALKEY.MEMORY.memoryUsageRequested]: memoryUsageRequested,
     [VALKEY.MONITOR.monitorRequested]: monitorRequested,
-    [VALKEY.MONITOR.saveMonitorSettingsRequested]: saveMonitorSettingsRequested,
   }
 
   process.on("message", (message: MetricsServerMessage) => {
@@ -279,6 +278,17 @@ wss.on("connection", (ws: AliveWebSocket) => {
 
     try {
       const handler = handlers[action.type] ?? unknownHandler
+
+      // Enforce session ownership: reject actions targeting a connection this session doesn't own.
+      // Connection-establishing actions are exempt (authorization happens after successful connect).
+      const exempt = action.type === VALKEY.CONNECTION.connectPending
+        || action.type === VALKEY.TOPOLOGY.discoveryEndpointPending
+      const targetConnectionId = action.payload?.connectionId
+      if (!exempt && targetConnectionId && !isConnectionAuthorized(ws.sessionId, targetConnectionId)) {
+        console.warn(`Rejected: session does not own connection ${targetConnectionId}`)
+        return
+      }
+
       await handler(
         { ws,
           clients,
@@ -295,6 +305,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     console.error("WebSocket error:", err)
   })
   ws.on("close", (code, reason) => {
+    abortConfigSessionsForSocket(ws)
     const removedIds = unsubscribeAll(ws)
     connectedNodesByCluster.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
