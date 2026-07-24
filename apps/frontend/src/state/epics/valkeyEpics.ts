@@ -2,7 +2,7 @@ import { merge, timer, EMPTY } from "rxjs"
 import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, takeUntil, 
   catchError, filter, take, finalize } from "rxjs/operators"
 import * as R from "ramda"
-import { CONNECTED, CONNECTING, DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
+import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
   METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS, SESSION_STORAGE,
   VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
@@ -17,6 +17,7 @@ import {
   startRetry,
   stopRetry,
   updateConnectionDetails,
+  isAutoResumeEligible,
   type ConnectionState,
   closeConnectionFulfilled,
   closeConnectionFailed,
@@ -27,7 +28,7 @@ import {
   discoveryEndpointFulfilled,
   discoveryNodeConnecting
 } from "../valkey-features/topology/topologySlice"
-import { sendRequested, sendFulfilled, sendFailed, type CommandState } from "../valkey-features/command/commandSlice"
+import { sendRequested, sendFulfilled, sendFailed, setCommandHistoryLimit, type CommandState } from "../valkey-features/command/commandSlice"
 import { setData, setError, updateData } from "../valkey-features/info/infoSlice"
 import { selectMetricsStarting, selectError } from "../valkey-features/info/infoSelectors.ts"
 import { action$, select, selectMany } from "../middleware/rxjsMiddleware/rxjsMiddleware.ts"
@@ -312,9 +313,7 @@ export const autoResumeEpic = (store: Store) =>
       const connections: Record<string, ConnectionState> = state.valkeyConnection?.connections || {}
 
       Object.entries(connections)
-        .filter(([, connection]) => connection.status !== CONNECTED && connection.status !== CONNECTING)
-        .filter(([, connection]) => (connection.connectionHistory?.length ?? 0) > 0)
-        .filter(([, connection]) => !connection.userDisconnected)
+        .filter(([, connection]) => isAutoResumeEligible(connection))
         .forEach(([connectionId, connection]) => {
           const { password, authType } = connection.connectionDetails
           if (authType === "iam" || (R.isNotNil(password) && R.isEmpty(password))) {
@@ -436,12 +435,18 @@ export const sendRequestEpic = () =>
 
 export const persistCommandsEpic = (store: Store) =>
   action$.pipe(
-    selectMany(sendFulfilled, sendFailed, deleteConnection),
+    selectMany(sendFulfilled, sendFailed, setCommandHistoryLimit, deleteConnection),
     tap(() => {
       const state: CommandState = store.getState()[VALKEY.COMMAND.name]
       try {
-        const history = R.map((entry) => ({ commands: entry.commands }), state)
-        sessionStorage.setItem(SESSION_STORAGE.VALKEY_COMMANDS, JSON.stringify(history))
+        const persisted = {
+          limit: state.limit,
+          connections: R.map(
+            (entry) => ({ commands: entry.commands.slice(0, state.limit) }),
+            state.connections,
+          ),
+        }
+        sessionStorage.setItem(SESSION_STORAGE.VALKEY_COMMANDS, JSON.stringify(persisted))
       } catch (e) {
         console.error("Could not persist command history:", e)
       }

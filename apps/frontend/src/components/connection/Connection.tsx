@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
-import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, MAX_CONNECTIONS, RECONNECTING } from "@common/src/constants.ts"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
 import { PasswordPromptModal } from "../ui/password-prompt-modal.tsx"
@@ -30,13 +30,6 @@ export function Connection() {
   const [searchQuery, setSearchQuery] = useState("")
   const [passwordPromptConnectionId, setPasswordPromptConnectionId] = useState<string | undefined>(undefined)
   const connections = useSelector(selectConnections)
-  const [resumeWindowOpen, setResumeWindowOpen] = useState(true)
-
-  useEffect(() => {
-    // show the reconnecting overylay for short time
-    const timer = setTimeout(() => setResumeWindowOpen(false), 2000)
-    return () => clearTimeout(timer)
-  }, [])
 
   const handleEditConnection = (connectionId: string) => {
     setEditingConnectionId(connectionId)
@@ -66,8 +59,9 @@ export function Connection() {
 
   const isResuming = Object.entries(connections).some(([connectionId, connection]) =>
     wasRefreshedFrom(connectionId) &&
-    connection.status !== CONNECTED &&
-    (connection.status === CONNECTING || (resumeWindowOpen && connection.status !== ERROR)),
+    (connection.status === RECONNECTING ||
+      connection.status === CONNECTING ||
+      connection.status === CONNECTED),
   )
 
   const promptedConnection = connections[passwordPromptConnectionId as string]
