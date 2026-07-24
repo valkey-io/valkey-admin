@@ -61,6 +61,8 @@ export function SendCommand() {
 
   const applyHistoryLimit = ({ historyLimit: limit }: { historyLimit: number }) => {
     dispatch(setCommandHistoryLimit(limit))
+    if (commandIndex >= limit) setCommandIndex(0)
+    if (compareWith !== null && compareWith >= limit) setCompareWith(null)
   }
 
   const acceptSuggestion = (cmd: ValkeyCommand) => {
@@ -210,6 +212,7 @@ export function SendCommand() {
             <div className="h-full flex flex-col gap-1 font-mono overflow-y-auto p-2">
               {
                 allCommands
+                  .slice(0, historyLimit)
                   .map((c, i) => ({ ...c, i })) // moving index inside objects because filter will ruin the sequence
                   .filter(({ command }) => command.includes(historyFilter))
                   .map(({ command, timestamp, i }) =>
