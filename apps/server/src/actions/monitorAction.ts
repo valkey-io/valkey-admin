@@ -1,7 +1,6 @@
 import { type WebSocket } from "ws"
 import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId } from "valkey-common"
-import { withDeps, type Deps, fetchWithTimeout, type ReduxAction } from "./utils"
-import { updateConfig } from "./config"
+import { withDeps, type Deps, fetchWithTimeout } from "./utils"
 import { getOtherWatchers } from "../node-watchers"
 
 type MonitorResponse = {
@@ -47,10 +46,17 @@ const sendMonitorError = (
 export const monitorRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, monitorAction } = action.payload
+    // Internal restriction used by the save flow to toggle only the nodes
+    // whose config push succeeded.
+    const restrictToNodeIds = action.payload.targetNodeIds as string[] | undefined
 
     if (typeof clusterId === "string") {
-      const nodeIds = Object.keys(clusterNodesRegistry[clusterId] ?? {}).filter((id) => metricsServerMap.has(id))
-      await Promise.all(nodeIds.map((nodeId) =>
+      const allNodeIds = Object.keys(clusterNodesRegistry[clusterId] ?? {})
+      const targetNodeIds = restrictToNodeIds
+        ? allNodeIds.filter((id) => restrictToNodeIds.includes(id))
+        : allNodeIds
+      const registered = targetNodeIds.filter((id) => metricsServerMap.has(id))
+      await Promise.all(registered.map((nodeId) =>
         runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { clusterId, nodeId }, nodeId),
       ))
     } else {
@@ -104,26 +110,3 @@ async function runMonitorForNode(
   }
 }
 
-export const saveMonitorSettingsRequested = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry, action }) => {
-    const deps: Deps = { ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry }
-    const { config, monitorAction } = action.payload
-
-    if (config) {
-      const configSubAction: ReduxAction = {
-        type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: action.payload.connectionId, clusterId: action.payload.clusterId, config },
-        meta: action.meta,
-      }
-      await updateConfig(deps)(configSubAction)
-    }
-
-    if (monitorAction) {
-      const monitorSubAction: ReduxAction = {
-        type: VALKEY.MONITOR.monitorRequested,
-        payload: { connectionId: action.payload.connectionId, clusterId: action.payload.clusterId, monitorAction },
-        meta: action.meta,
-      }
-      await monitorRequested(deps)(monitorSubAction)
-    }
-  })
