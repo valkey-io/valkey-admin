@@ -1,5 +1,5 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
-import { EndpointType } from "valkey-common"
+import { EndpointType, toNodeId } from "valkey-common"
 import { VALKEY } from "valkey-common"
 import { connectToValkey, teardownConnection  } from "../connection"
 import { unsubscribe, getWatcherCount } from "../node-watchers"
@@ -53,7 +53,10 @@ export const connectPending = withDeps<Deps, void>(
       payload,
     )
 
-    if (client) authorizeConnection(sessionId, connectionId)
+    if (client) {
+      authorizeConnection(sessionId, connectionId)
+      authorizeConnection(sessionId, toNodeId(connectionId))
+    }
   },
 )
 
