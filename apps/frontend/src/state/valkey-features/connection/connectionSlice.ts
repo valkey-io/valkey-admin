@@ -7,6 +7,7 @@ import {
   ERROR,
   LOCAL_STORAGE,
   NOT_CONNECTED,
+  RECONNECTING,
   VALKEY,
   type KeyEvictionPolicy,
   type EndpointType
@@ -14,7 +15,9 @@ import {
 import * as R from "ramda"
 import { secureStorage } from "@/utils/secureStorage"
 
-type ConnectionStatus = typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof ERROR | typeof DISCONNECTED | typeof DISCONNECTING
+type ConnectionStatus =
+  | typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof RECONNECTING
+  | typeof ERROR | typeof DISCONNECTED | typeof DISCONNECTING
 type Role = "primary" | "replica";
 
 export interface ConnectionDetails {
@@ -73,6 +76,19 @@ export interface ValkeyConnectionsState {
   [connectionId: string]: ConnectionState
 }
 
+// determine a connections eligibility for auto-resume
+export const isAutoResumeEligible = (connection: ConnectionState): boolean => {
+  const { status, connectionHistory, userDisconnected, connectionDetails } = connection
+  if (status === CONNECTED || status === CONNECTING) return false
+  if ((connectionHistory?.length ?? 0) === 0) return false
+  if (userDisconnected) return false
+
+  const { password, authType } = connectionDetails
+  if (authType === "iam" || (R.isNotNil(password) && R.isEmpty(password)))
+    return status !== DISCONNECTED
+  return R.isNil(password)
+}
+
 const buildSearchableText = (connectionId: string, details: ConnectionDetails) =>
   [connectionId, details.host, details.port, details.username, details.alias]
     .filter(Boolean)
@@ -90,13 +106,18 @@ const currentConnections = R.pipe(
     : JSON.parse(s) as Record<string, ConnectionState & {
       connectionDetails: Omit<ConnectionDetails, "db"> & { db?: number };
     }>),
-  R.mapObjIndexed((conn): ConnectionState => ({
-    ...conn,
-    connectionDetails: {
-      ...conn.connectionDetails,
-      db: conn.connectionDetails.db ?? 0,
-    },
-  })),
+  R.mapObjIndexed((conn): ConnectionState => {
+    const normalized: ConnectionState = {
+      ...conn,
+      connectionDetails: {
+        ...conn.connectionDetails,
+        db: conn.connectionDetails.db ?? 0,
+      },
+    }
+    return isAutoResumeEligible(normalized)
+      ? { ...normalized, status: RECONNECTING }
+      : normalized
+  }),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
 const connectionSlice = createSlice({

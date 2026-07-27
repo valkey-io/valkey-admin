@@ -1,15 +1,17 @@
 import { useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
-import { CONNECTED, CONNECTING, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, MAX_CONNECTIONS, RECONNECTING } from "@common/src/constants.ts"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
 import { PasswordPromptModal } from "../ui/password-prompt-modal.tsx"
 import RouteContainer from "../ui/route-container.tsx"
 import { Button } from "../ui/button.tsx"
 import { EmptyState } from "../ui/empty-state.tsx"
+import { LoadingState } from "../ui/loading-state.tsx"
 import { SearchInput } from "../ui/search-input.tsx"
 import { Typography } from "../ui/typography.tsx"
+import { wasRefreshedFrom } from "@/history.ts"
 import { type ConnectionState, connectPending } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { selectConnections } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
@@ -54,6 +56,15 @@ export function Connection() {
       preservedHistory: connection.connectionHistory,
     }))
   }
+
+  // check if any connection is resuming (reconnecting, connecting, or connected) after a refresh
+  // CONNECTED is included to avoid a flash of the connection list
+  const isResuming = Object.entries(connections).some(([connectionId, connection]) =>
+    wasRefreshedFrom(connectionId) &&
+    (connection.status === RECONNECTING ||
+      connection.status === CONNECTING ||
+      connection.status === CONNECTED),
+  )
 
   const promptedConnection = connections[passwordPromptConnectionId as string]
   const isPromptConnecting = promptedConnection?.status === CONNECTING
@@ -112,7 +123,13 @@ export function Connection() {
   const highlight = q && totalResults < MAX_CONNECTIONS ? q : ""
 
   return (
-    <RouteContainer title="connection">
+    <RouteContainer className="relative" title="connection">
+      {isResuming && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-tw-dark-primary/60 backdrop-blur-xs">
+          <LoadingState message="Reconnecting..." />
+        </div>
+      )}
+
       {/* top header */}
       <div className="flex items-center justify-between h-10">
         <Typography className="flex items-center gap-2" variant="heading">

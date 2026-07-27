@@ -1,4 +1,4 @@
-import { CopyIcon, GitCompareIcon, RotateCwIcon, Search, SquareTerminal } from "lucide-react"
+import { CopyIcon, GitCompareIcon, RotateCwIcon, Search, Settings, SquareTerminal } from "lucide-react"
 import React, { useMemo, useRef, useState } from "react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
@@ -9,8 +9,8 @@ import type { JSONObject } from "@common/src/json-utils.ts"
 import { matchCommands, type MatchResult, type ValkeyCommand } from "@/components/send-command/valkey-command-matching"
 import { CommandAutocomplete } from "@/components/send-command/CommandAutocomplete"
 import { CommandConfirmDialog } from "@/components/send-command/CommandConfirmDialog"
-import { getNth, selectAllCommands } from "@/state/valkey-features/command/commandSelectors.ts"
-import { type CommandMetadata, sendRequested } from "@/state/valkey-features/command/commandSlice.ts"
+import { getNth, selectAllCommands, selectCommandHistoryLimit } from "@/state/valkey-features/command/commandSelectors.ts"
+import { type CommandMetadata, sendRequested, setCommandHistoryLimit } from "@/state/valkey-features/command/commandSlice.ts"
 import RouteContainer from "@/components/ui/route-container.tsx"
 import { AppHeader } from "@/components/ui/app-header.tsx"
 import { cn, copyToClipboard } from "@/lib/utils.ts"
@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea.tsx"
 import { Panel } from "@/components/ui/panel.tsx"
 import DiffCommands from "@/components/send-command/DiffCommands.tsx"
 import Response from "@/components/send-command/Response.tsx"
+import { SendCommandParamsModal } from "@/components/send-command/send-command-params-modal.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Typography } from "@/components/ui/typography.tsx"
 import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
@@ -37,6 +38,7 @@ export function SendCommand() {
   const [pendingConfirm, setPendingConfirm] = useState<{ command: string; reason: string } | null>(null)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
+  const [configOpen, setConfigOpen] = useState(false)
 
   const suggestions: MatchResult[] = useMemo(
     () => (text.includes(" ") || text.includes("\n") ? [] : matchCommands(text)),
@@ -47,6 +49,7 @@ export function SendCommand() {
   const { id, clusterId } = useParams()
   const clusterAlias = useSelector(selectClusterAlias(id!))
   const allCommands = useSelector(selectAllCommands(id as string)) || []
+  const historyLimit = useSelector(selectCommandHistoryLimit)
   const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const dispatchCommand = (command: string) => {
@@ -54,6 +57,12 @@ export function SendCommand() {
     setCommandIndex(length)
     setText("")
     setSuggestionsDismissed(false)
+  }
+
+  const applyHistoryLimit = ({ historyLimit: limit }: { historyLimit: number }) => {
+    dispatch(setCommandHistoryLimit(limit))
+    if (commandIndex >= limit) setCommandIndex(0)
+    if (compareWith !== null && compareWith >= limit) setCompareWith(null)
   }
 
   const acceptSuggestion = (cmd: ValkeyCommand) => {
@@ -179,7 +188,18 @@ export function SendCommand() {
 
         {/* commands history */}
         <div className="flex flex-col flex-1 max-w-[40vw]">
-          <Typography className="mb-2" variant="bodySm">History</Typography>
+          <div className="flex items-center justify-between">
+            <Typography variant="bodySm">History</Typography>
+            <Button
+              aria-label="Send command config"
+              
+              onClick={() => setConfigOpen(true)}
+              size={"sm"}
+              variant={"outline"}
+            >
+              <Settings className="hover:text-primary" size={15} />
+            </Button>
+          </div>
           <div className="mb-2 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
             <Input
@@ -192,6 +212,7 @@ export function SendCommand() {
             <div className="h-full flex flex-col gap-1 font-mono overflow-y-auto p-2">
               {
                 allCommands
+                  .slice(0, historyLimit)
                   .map((c, i) => ({ ...c, i })) // moving index inside objects because filter will ruin the sequence
                   .filter(({ command }) => command.includes(historyFilter))
                   .map(({ command, timestamp, i }) =>
@@ -314,6 +335,12 @@ export function SendCommand() {
           Send
         </Button>
       </div>
+      <SendCommandParamsModal
+        historyLimit={historyLimit}
+        onApply={applyHistoryLimit}
+        onClose={() => setConfigOpen(false)}
+        open={configOpen}
+      />
       {pendingConfirm && (
         <CommandConfirmDialog
           command={pendingConfirm.command}
