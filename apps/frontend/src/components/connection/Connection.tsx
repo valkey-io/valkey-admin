@@ -57,6 +57,8 @@ export function Connection() {
     }))
   }
 
+  // check if any connection is resuming (reconnecting, connecting, or connected) after a refresh
+  // CONNECTED is included to avoid a flash of the connection list
   const isResuming = Object.entries(connections).some(([connectionId, connection]) =>
     wasRefreshedFrom(connectionId) &&
     (connection.status === RECONNECTING ||
