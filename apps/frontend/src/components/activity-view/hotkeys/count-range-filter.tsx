@@ -89,6 +89,7 @@ export function CountRangeFilter({
                 allowEmpty
                 className="h-7 text-xs"
                 min={countMin ?? dataMin}
+                max={dataMax}
                 onChange={onCountMaxChange}
                 placeholder={dataMax.toLocaleString()}
                 value={countMax}
