@@ -16,7 +16,8 @@ const DiffCommands = ({ filter, id, indexA, indexB }) => {
 
   if (R.isEmpty(diffs)) return "Responses are identical"
 
-  const filteredDiffs = filter ? diffs.filter(({ keyPathString }) => keyPathString.includes(filter)) : diffs
+  const normalisedFilter = filter.toLowerCase()
+  const filteredDiffs = normalisedFilter ? diffs.filter(({ keyPathString }) => keyPathString.toLowerCase().includes(normalisedFilter)) : diffs
 
   const onCopy = () =>
     R.pipe(
