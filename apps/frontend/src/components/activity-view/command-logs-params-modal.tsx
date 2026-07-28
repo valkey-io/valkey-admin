@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { ChartModal } from "../ui/chart-modal"
 import { Button } from "../ui/button"
-import { Input } from "../ui/input"
+import { NumberInput } from "../ui/number-input"
 import { Typography } from "../ui/typography"
 import { TooltipIcon } from "../ui/tooltip-icon"
 
@@ -40,13 +40,12 @@ export function CommandLogsParamsModal({ open, onClose, topN, onApply }: Command
               size={16}
             />
           </div>
-          <Input
+          <NumberInput
             aria-label="Top N"
-            min="1"
-            onChange={(e) => setDraftTopN(Number(e.target.value))}
-            step="50"
+            min={1}
+            onChange={setDraftTopN}
+            step={50}
             style={{ width: "120px" }}
-            type="number"
             value={draftTopN}
           />
         </div>
