@@ -6358,7 +6358,7 @@
   },
   {
     "name": "MSETNX",
-    "syntax": "MSETNX key value [data ...]",
+    "syntax": "MSETNX key value [key value ...]",
     "category": "string",
     "description": "Atomically modifies the string values of one or more keys only when all keys don't exist.",
     "parameters": [
@@ -7302,7 +7302,7 @@
   },
   {
     "name": "HMSET",
-    "syntax": "HMSET key field value [data ...]",
+    "syntax": "HMSET key field value [field value ...]",
     "category": "hash",
     "description": "Sets the values of multiple fields.",
     "parameters": [
@@ -7661,7 +7661,7 @@
   },
   {
     "name": "MSET",
-    "syntax": "MSET key value [data ...]",
+    "syntax": "MSET key value [key value ...]",
     "category": "string",
     "description": "Atomically creates or modifies the string values of one or more keys.",
     "parameters": [
