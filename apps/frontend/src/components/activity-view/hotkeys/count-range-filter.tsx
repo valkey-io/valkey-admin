@@ -88,8 +88,8 @@ export function CountRangeFilter({
               <NumberInput
                 allowEmpty
                 className="h-7 text-xs"
-                min={countMin ?? dataMin}
                 max={dataMax}
+                min={countMin ?? dataMin}
                 onChange={onCountMaxChange}
                 placeholder={dataMax.toLocaleString()}
                 value={countMax}
