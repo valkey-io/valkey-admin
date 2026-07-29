@@ -664,7 +664,7 @@ export async function closeMetricsServer(
     const res = await fetch(`${metricsServerUri}/connection/close`, 
       { method: "POST",
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ connectionId }), 
+        body: JSON.stringify({ connectionId: nodeId }), 
       })
     if (res.ok) {
       metricsServerMap.delete(nodeId)
