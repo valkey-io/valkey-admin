@@ -40,6 +40,7 @@ export function SendCommand() {
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
 
+  const normalisedHistoryFilter = historyFilter.toLowerCase()
   const suggestions: MatchResult[] = useMemo(
     () => (text.includes(" ") || text.includes("\n") ? [] : matchCommands(text)),
     [text],
@@ -214,7 +215,7 @@ export function SendCommand() {
                 allCommands
                   .slice(0, historyLimit)
                   .map((c, i) => ({ ...c, i })) // moving index inside objects because filter will ruin the sequence
-                  .filter(({ command }) => command.includes(historyFilter))
+                  .filter(({ command }) => command.toLowerCase().includes(normalisedHistoryFilter))
                   .map(({ command, timestamp, i }) =>
                     <div
                       className={cn(

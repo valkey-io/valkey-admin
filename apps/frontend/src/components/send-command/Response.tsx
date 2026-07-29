@@ -6,6 +6,7 @@ import { cn, copyToClipboard } from "@/lib/utils.ts"
 import { CopyToClipboard, KeyFilterable, KV, spacing } from "@/components/send-command/CommandElements.tsx"
 
 const Response = ({ filter, response }: { filter: string, response: JSONObject }) => {
+  const normalisedFilter = filter.toLowerCase()
   const filtered =
     R.pipe(
       toKeyPaths,
@@ -15,13 +16,14 @@ const Response = ({ filter, response }: { filter: string, response: JSONObject }
         value: R.path(keyPath as string[], response),
         valueString: JSON.stringify(R.path(keyPath as string[], response)),
       })),
-      R.isEmpty(filter) ? R.identity : 
-        R.filter(({ keyPathString, valueString }) => keyPathString.includes(filter) || valueString.includes(filter)),
+      R.isEmpty(normalisedFilter) ? R.identity :
+        R.filter(({ keyPathString, valueString }) =>
+          keyPathString.toLowerCase().includes(normalisedFilter) || valueString.toLowerCase().includes(normalisedFilter)),
     )(response)
 
   const onCopy = () =>
     R.pipe(
-      R.isEmpty(filter) // we don't need to assemble a JSON from DiffEntry[] if not filtering keys
+      R.isEmpty(normalisedFilter) // we don't need to assemble a JSON from DiffEntry[] if not filtering keys
         ? R.always(response)
         : toJson(response),
       (r) => JSON.stringify(r, null, 2),
