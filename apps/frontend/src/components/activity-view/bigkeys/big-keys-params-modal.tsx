@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { ChartModal } from "../../ui/chart-modal"
 import { Button } from "../../ui/button"
-import { Input } from "../../ui/input"
+import { NumberInput } from "../../ui/number-input"
 import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
 
@@ -44,13 +44,12 @@ export function BigKeysParamsModal({ open, onClose, scanLimit, topN, onScan }: B
               size={16}
             />
           </div>
-          <Input
+          <NumberInput
             aria-label="Scan Limit"
-            min="1"
-            onChange={(e) => setDraftScanLimit(Number(e.target.value))}
-            step="1000"
+            min={1}
+            onChange={setDraftScanLimit}
+            step={1000}
             style={{ width: "120px" }}
-            type="number"
             value={draftScanLimit}
           />
         </div>
@@ -63,13 +62,12 @@ export function BigKeysParamsModal({ open, onClose, scanLimit, topN, onScan }: B
               size={16}
             />
           </div>
-          <Input
+          <NumberInput
             aria-label="Top N"
-            min="1"
-            onChange={(e) => setDraftTopN(Number(e.target.value))}
-            step="10"
+            min={1}
+            onChange={setDraftTopN}
+            step={10}
             style={{ width: "120px" }}
-            type="number"
             value={draftTopN}
           />
         </div>

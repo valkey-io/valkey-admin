@@ -6,7 +6,7 @@ import { MONITOR_ACTION } from "@common/src/constants"
 import { toNodeId } from "@common/src/connection-id.ts"
 import { ChartModal } from "../../ui/chart-modal"
 import { Button } from "../../ui/button"
-import { Input } from "../../ui/input"
+import { NumberInput } from "../../ui/number-input"
 import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
 import type { RootState } from "@/store"
@@ -117,13 +117,12 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
               <Typography variant="bodySm">Monitor Duration (ms)</Typography>
               <TooltipIcon description="Duration in milliseconds during which monitoring data is collected." size={16} />
             </div>
-            <Input
+            <NumberInput
               aria-label="Monitor Duration"
-              min="1"
-              onChange={(e) => setMonitorDuration(Number(e.target.value))}
-              step="1000"
+              min={1}
+              onChange={setMonitorDuration}
+              step={1000}
               style={{ width: "100px" }}
-              type="number"
               value={monitorDuration}
             />
           </div>
@@ -133,13 +132,12 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
               <Typography variant="bodySm">Monitor Interval (ms)</Typography>
               <TooltipIcon description="Delay in milliseconds between consecutive monitoring cycles." size={16} />
             </div>
-            <Input
+            <NumberInput
               aria-label="Monitor Interval"
-              min="1"
-              onChange={(e) => setMonitorInterval(Number(e.target.value))}
-              step="1000"
+              min={1}
+              onChange={setMonitorInterval}
+              step={1000}
               style={{ width: "100px" }}
-              type="number"
               value={monitorInterval}
             />
           </div>
@@ -153,13 +151,12 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
                 size={16}
               />
             </div>
-            <Input
+            <NumberInput
               aria-label="Max Commands Per Run"
-              min="1"
-              onChange={(e) => setMaxCommandsPerRun(Number(e.target.value))}
-              step="100000"
+              min={1}
+              onChange={setMaxCommandsPerRun}
+              step={100000}
               style={{ width: "140px" }}
-              type="number"
               value={maxCommandsPerRun}
             />
           </div>
@@ -173,13 +170,12 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
                 size={16}
               />
             </div>
-            <Input
+            <NumberInput
               aria-label="Cutoff Frequency"
-              min="1"
-              onChange={(e) => setCutoffFrequency(Number(e.target.value))}
-              step="10"
+              min={1}
+              onChange={setCutoffFrequency}
+              step={10}
               style={{ width: "100px" }}
-              type="number"
               value={cutoffFrequency}
             />
           </div>

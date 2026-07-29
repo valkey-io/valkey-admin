@@ -33,8 +33,8 @@ export function HotKeys({
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedNode, setSelectedNode] = useState("all")
-  const [countMin, setCountMin] = useState("")
-  const [countMax, setCountMax] = useState("")
+  const [countMin, setCountMin] = useState<number | null>(null)
+  const [countMax, setCountMax] = useState<number | null>(null)
   const [isHeatmapOpen, setIsHeatmapOpen] = useState(false)
 
   if (status === "Pending") return <LoadingState message="Loading hot keys..." />
@@ -50,15 +50,13 @@ export function HotKeys({
 
   const dataMin = sorted.length > 0 ? Math.min(...sorted.map(([, count]) => count)) : 0
   const dataMax = sorted.length > 0 ? Math.max(...sorted.map(([, count]) => count)) : 0
-  const parsedCountMin = countMin !== "" ? Number(countMin) : null
-  const parsedCountMax = countMax !== "" ? Number(countMax) : null
-  const isCountFiltered = parsedCountMin !== null || parsedCountMax !== null
+  const isCountFiltered = countMin !== null || countMax !== null
 
   const filtered = sorted.filter(([keyName, count, , , nodeId]) => {
     const matchesSearch = !searchQuery || keyName.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesNode = selectedNode === "all" || nodeId === selectedNode
-    const matchesMin = parsedCountMin === null || count >= parsedCountMin
-    const matchesMax = parsedCountMax === null || count <= parsedCountMax
+    const matchesMin = countMin === null || count >= countMin
+    const matchesMax = countMax === null || count <= countMax
     return matchesSearch && matchesNode && matchesMin && matchesMax
   })
 
@@ -140,8 +138,8 @@ export function HotKeys({
           isHotSlots={isHotSlots}
           onKeyClick={onKeyClick}
           onToggleSort={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-          parsedCountMax={parsedCountMax}
-          parsedCountMin={parsedCountMin}
+          parsedCountMax={countMax}
+          parsedCountMin={countMin}
           rows={filtered}
           searchQuery={searchQuery}
           selectedKey={selectedKey}
