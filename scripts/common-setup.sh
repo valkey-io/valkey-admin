@@ -1,6 +1,9 @@
 #!/bin/bash
 # Common setup functions for quickstart scripts
 
+# Select Docker or fall back to Podman; defines compose() and CONTAINER_ENGINE.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/tools/common/container-engine.sh"
+
 # Function to detect platform
 detect_platform() {
     PLATFORM="unknown"
@@ -11,7 +14,7 @@ detect_platform() {
         if grep -qi microsoft /proc/version 2>/dev/null; then
             PLATFORM="wsl"
             echo "🐧 WSL (Windows Subsystem for Linux) detected"
-            echo "Make sure Docker Desktop is running with WSL integration enabled"
+            echo "Make sure Docker Desktop (with WSL integration) or Podman is running"
         else
             PLATFORM="linux"
             echo "🐧 Linux detected"
@@ -84,16 +87,17 @@ setup_cluster_env() {
 start_cluster() {
     echo "🗄️  Starting Valkey cluster in background..."
 
-    echo "🐳 Starting Docker containers in background..."
+    echo "🐳 Starting containers with $CONTAINER_ENGINE in background..."
     cd "$TOOLS_DIR"
-    DOCKER_PLATFORM="$DOCKER_PLATFORM" docker compose --profile populate up --build -d
+    export DOCKER_PLATFORM
+    compose --profile populate up --build -d
 
-    # Wait for cluster to be ready
+    # Wait for cluster to be ready (stay in $TOOLS_DIR so `compose` finds the file).
     echo "⏳ Waiting for cluster to be ready..."
-    cd ../..
 
     for i in {1..30}; do
-        if docker exec valkey-cluster-valkey-7001-1 valkey-cli -p 7001 cluster info 2>/dev/null | grep -q "cluster_state:ok"; then
+        cid=$(compose ps -q valkey-7001 2>/dev/null || true)
+        if [ -n "$cid" ] && "$CONTAINER_ENGINE" exec "$cid" valkey-cli -p 7001 cluster info 2>/dev/null | grep -q "cluster_state:ok"; then
             echo "✅ Cluster is ready!"
             break
         fi
@@ -104,6 +108,8 @@ start_cluster() {
         echo "   Checking cluster health... ($i/30)"
         sleep 2
     done
+
+    cd ../..
 }
 
 # Function to run common setup steps

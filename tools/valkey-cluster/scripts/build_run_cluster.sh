@@ -7,6 +7,9 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 # Go up three levels to find the project root.
 PROJECT_ROOT=$(dirname -- "$(dirname -- "$(dirname -- "$SCRIPT_DIR")")")
 
+# Select Docker or fall back to Podman; defines compose() and CONTAINER_ENGINE.
+. "$PROJECT_ROOT/tools/common/container-engine.sh"
+
 # Define all paths as absolute paths from the project root.
 TOOLS_DIR="$PROJECT_ROOT/tools/valkey-cluster"
 ENV_FILE="$TOOLS_DIR/.env"
@@ -35,7 +38,7 @@ ARCH=$(uname -m)
 # Force ARM64 platform since rejson.so is ARM64 and works with emulation
 DOCKER_PLATFORM="linux/arm64"
 
-echo "Detected architecture: $ARCH, using Docker platform: $DOCKER_PLATFORM (forced for rejson.so compatibility)"
+echo "Detected architecture: $ARCH, using container platform: $DOCKER_PLATFORM (forced for rejson.so compatibility)"
 
 # Use sed without the '' flag for Linux compatibility
 if [ "$(uname)" = "Darwin" ]; then
@@ -52,4 +55,5 @@ cd "$TOOLS_DIR"
 echo "Starting Valkey cluster..."
 echo "Keep this terminal open to monitor cluster logs"
 echo ""
-DOCKER_PLATFORM="$DOCKER_PLATFORM" docker compose --profile populate up --build
+export DOCKER_PLATFORM
+compose --profile populate up --build

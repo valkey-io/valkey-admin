@@ -123,6 +123,8 @@ For the full-featured desktop application:
 3. **Start dev servers:** `npm run dev` or use `./quickstart-web.sh`
 4. **Connect:** Open http://localhost:5173 and manually add connection to `localhost:7001`
 
+> These scripts use Docker when its daemon is running and fall back to Podman otherwise. Force a choice with `CONTAINER_ENGINE=docker` or `CONTAINER_ENGINE=podman`. See `tools/README.md` for Podman requirements.
+
 ### Windows/WSL Users
 
 Fix line endings before running scripts:
@@ -138,6 +140,8 @@ chmod +x tools/valkey-cluster/scripts/*.sh
 cd tools/valkey-cluster
 docker compose down -v
 ```
+
+(or `podman compose down -v` if the scripts selected Podman)
 
 ## IDE Setup
 

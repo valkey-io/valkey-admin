@@ -1,12 +1,16 @@
 ### Run Sample Instances of Valkey Cluster or Standalone
 
-Docker is a prerequisite as these are Docker containers.
+Docker **or Podman** is a prerequisite. The scripts prefer Docker when its daemon is running and fall back to Podman otherwise; force a choice with `CONTAINER_ENGINE=docker` or `CONTAINER_ENGINE=podman`.
 
 From root run:
 
 `./tools/valkey-standalone/build_run_standalone.sh` for a standalone instance populated with seed data.
 
 `./tools/valkey-cluster/scripts/build_run_cluster.sh` for a cluster instance populated with seed data.
+
+#### Podman notes
+
+Podman 4.x or newer is recommended, and the `podman compose` Compose v2 provider is required (the `podman-compose` v1 tool is not supported). On macOS, run `podman machine start` first. Machines with the `podman-docker` shim are detected as Docker, which works fine.
 
 ### Logical databases
 
@@ -32,6 +36,8 @@ POPULATE_DB_COUNT=4 POPULATE_BULK_KEYS=1000 \
   docker compose -f tools/valkey-standalone/docker-compose.yml \
   --profile populate run --rm populate
 ```
+
+With Podman, substitute `podman compose` for `docker compose`.
 
 #### Cluster Valkey 9+ baseline
 
