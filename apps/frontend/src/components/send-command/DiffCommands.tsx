@@ -27,39 +27,42 @@ const DiffCommands = ({ filter, id, indexA, indexB }) => {
     )(filteredDiffs)
 
   return (
-    <>
-      <CopyToClipboard onClick={onCopy} />
-      {
-        filteredDiffs.map(({ keyPathString, valueA, valueB }) =>
-          <KV key={keyPathString}>
-            {
-              R.isNil(valueB) &&
+    <div className="flex justify-between">
+      <div className="flex-1">
+
+        {
+          filteredDiffs.map(({ keyPathString, valueA, valueB }) =>
+            <KV key={keyPathString}>
+              {
+                R.isNil(valueB) &&
               <div className={cn("bg-emerald-200 dark:bg-emerald-800", spacing)}>+</div>
-            }
-            {
-              R.isNil(valueA) &&
+              }
+              {
+                R.isNil(valueA) &&
               <div className={cn("bg-pink-200 dark:bg-pink-800", spacing)}>-</div>
-            }
+              }
 
-            <KeyFilterable
-              filter={filter}
-              keyPathString={keyPathString}
-            />
+              <KeyFilterable
+                filter={filter}
+                keyPathString={keyPathString}
+              />
 
-            {
-              (R.isNil(valueA) || R.isNil(valueB)) &&
+              {
+                (R.isNil(valueA) || R.isNil(valueB)) &&
               <div className={cn(spacing)}>{valueA || valueB}</div>
-            }
-            {
-              R.isNotNil(valueA) && R.isNotNil(valueB) &&
+              }
+              {
+                R.isNotNil(valueA) && R.isNotNil(valueB) &&
               <>
                 <div className={cn("bg-teal-50 dark:bg-teal-950", spacing)}>{valueA}</div>
                 <div className={cn("bg-teal-200 dark:bg-teal-800", spacing)}>{valueB}</div>
               </>
-            }
-          </KV>)
-      }
-    </>
+              }
+            </KV>)
+        }
+      </div>
+      <CopyToClipboard onClick={onCopy} />
+    </div>
   )
 }
 

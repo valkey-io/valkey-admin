@@ -32,26 +32,28 @@ const Response = ({ filter, response }: { filter: string, response: JSONObject }
   if (R.isEmpty(filtered)) return null
 
   return (
-    <>
+    <div className="flex justify-between">
+      <div className="flex-1">
+        {filtered.map(({ keyPath, keyPathString }) => {
+          const hasKey = keyPath.length > 0 && keyPathString.trim() !== ""
+        
+          return (
+            <KV key={keyPathString}>
+              {hasKey && (
+                <KeyFilterable
+                  filter={filter}
+                  keyPathString={keyPathString}
+                />
+              )}
+              <div className={cn("bg-white dark:bg-black", spacing)}>
+                {R.path(keyPath as string[], response)}
+              </div>
+            </KV>
+          )
+        })}
+      </div>
       <CopyToClipboard onClick={onCopy} />
-      {filtered.map(({ keyPath, keyPathString }) => {
-        const hasKey = keyPath.length > 0 && keyPathString.trim() !== ""
-
-        return (
-          <KV key={keyPathString}>
-            {hasKey && (
-              <KeyFilterable
-                filter={filter}
-                keyPathString={keyPathString}
-              />
-            )}
-            <div className={cn("bg-white dark:bg-black", spacing)}>
-              {R.path(keyPath as string[], response)}
-            </div>
-          </KV>
-        )
-      })}
-    </>
+    </div>
   )
 }
 
