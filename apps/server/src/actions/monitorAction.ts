@@ -106,7 +106,16 @@ async function runMonitorForNode(
       })
     }
   } catch (error) {
-    sendMonitorError(ws, replyId, error)
+    // If we were trying to stop and the metrics server is dead,
+    // report monitor as stopped — it's not running anywhere.
+    if (monitorAction === "stop") {
+      sendMonitorFulfilled(ws, replyId, { monitorRunning: false, checkAt: null, startedAt: null })
+      getOtherWatchers(watcherId, ws).forEach((watcher) => {
+        sendMonitorFulfilled(watcher, replyId, { monitorRunning: false, checkAt: null, startedAt: null })
+      })
+    } else {
+      sendMonitorError(ws, replyId, error)
+    }
   }
 }
 
