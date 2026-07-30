@@ -48,10 +48,14 @@ Release Date: July 2026
 - Fix `upgrade-insecure-requests` breaking non-localhost HTTP deployments ([#385](https://github.com/valkey-io/valkey-admin/pull/385))
 - Fix number input spinners snapping to unexpected values ([#421](https://github.com/valkey-io/valkey-admin/pull/421))
 - Fix session authorization rejecting db-stripped node IDs ([#419](https://github.com/valkey-io/valkey-admin/pull/419))
+- Fix hot keys returning empty on first MONITOR cycle ([#434](https://github.com/valkey-io/valkey-admin/pull/434))
+- Fix monitor stop failing when metrics server crashes ([#431](https://github.com/valkey-io/valkey-admin/pull/431))
+- Fix closeMetricsServer sending wrong ID to metrics process ([#428](https://github.com/valkey-io/valkey-admin/pull/428))
+- Make search case-insensitive in Send Command view ([#426](https://github.com/valkey-io/valkey-admin/pull/426))
 
 ### Contributors
 
-@ravjotbrar, @ArgusLi, @nassery318, @dbaker-arch, @michaelstingl
+@ravjotbrar, @ArgusLi, @nassery318, @dbaker-arch, @michaelstingl, @antonin-suzor
 
 **Full Changelog**: [v1.0.1...v1.1.0](https://github.com/valkey-io/valkey-admin/compare/v1.0.1...release/1.1.0)
 
