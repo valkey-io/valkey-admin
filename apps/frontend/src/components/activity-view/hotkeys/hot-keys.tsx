@@ -62,7 +62,9 @@ export function HotKeys({
 
   const banners = (
     <>
-      {!monitorRunning && onStartMonitoring && (
+      {/* Also shown while running when a node's monitor failed to start
+          (partial cluster): the error variant reports the failed node. */}
+      {(!monitorRunning || monitorError) && onStartMonitoring && (
         <MonitorNotRunningBanner error={monitorError} onStartMonitoring={onStartMonitoring} />
       )}
       {nodeErrors && nodeErrors.length > 0 && (

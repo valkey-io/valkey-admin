@@ -19,6 +19,20 @@ export const selectMonitorError =
     (state: RootState) =>
       R.path<string | null>([VALKEY.MONITOR.name, connectionId, "error"], state) ?? null
 
+/**
+ * Per-node monitor errors for a cluster (e.g. a node whose MONITOR failed to
+ * start because it is unreachable), so the UI can report a partially-running
+ * monitor instead of silently dropping the failed nodes.
+ */
+export const selectClusterMonitorNodeErrors =
+  (clusterId: string) =>
+    (state: RootState): { nodeId: string; error: string }[] => {
+      const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
+      return Object.entries(monitorState)
+        .filter(([, entry]) => entry.clusterId === clusterId && !entry.monitorRunning && entry.error)
+        .map(([nodeId, entry]) => ({ nodeId, error: entry.error! }))
+    }
+
 export const selectRunningMonitorConnections =
   (state: RootState): { nodeId: string; clusterId?: string; startedAt: number | null }[] => {
     const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
@@ -33,15 +47,16 @@ export const selectRunningMonitorConnections =
  * Cluster monitor state is stored PER NODE (keyed by `nodeId` and
  * tagged with `clusterId`). The cluster route `id` is a db-suffixed
  * Connection_Identifier, so it never matches those entries directly. Roll the
- * per-node entries up by `clusterId` and report running iff at least one node is
- * present and all present nodes are running.
+ * per-node entries up by `clusterId` and report running iff at least one node
+ * is running: a node that failed to start (or is unreachable) will not mask
+ * the nodes that ARE monitoring.
  */
 export const selectClusterMonitorRunning =
   (clusterId: string) =>
     (state: RootState): boolean => {
       const monitorState = R.path<MonitorState>([VALKEY.MONITOR.name], state) ?? {}
-      const entries = Object.values(monitorState).filter((entry) => entry.clusterId === clusterId)
-      return entries.length > 0 && entries.every((entry) => entry.monitorRunning)
+      return Object.values(monitorState)
+        .some((entry) => entry.clusterId === clusterId && entry.monitorRunning)
     }
 
 /** Cluster-aware loading: loading iff any node entry for the cluster is loading. */

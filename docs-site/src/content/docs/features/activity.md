@@ -55,6 +55,8 @@ This creates a repeating cycle: capture for *duration*, pause for *interval*, ca
 
 In both modes, hot keys are aggregated across all monitored nodes and sorted by access count.
 
+If some nodes are unreachable when monitoring starts, the reachable nodes still start (and apply any changed settings); monitoring is reported as running, and the failed nodes are listed in a separate partial-data warning.
+
 :::caution
 `MONITOR` has a performance impact on the server — it streams every command to the monitoring client. Best suited for short diagnostic sessions, not continuous monitoring.
 :::

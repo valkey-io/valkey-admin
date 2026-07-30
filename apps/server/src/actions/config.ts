@@ -206,23 +206,20 @@ const sendConfigReply = (
 ) => {
   const outcome = toOutcome(result)
 
-  if (outcome === "fulfilled") {
-    const payload: AggregateReplyId & NodeResultsReply = {
-      ...replyId,
-      outcome,
-      nodeResults: result.attempted,
-      notAttemptedNodeIds: result.notAttempted,
-      appliedConfig: config as Record<string, unknown>,
-    }
-    safeSend(ws, JSON.stringify({ type: VALKEY.CONFIG.updateConfigFulfilled, payload }))
-    return
-  }
-
+  // The wire outcome `failed` also covers PARTIAL failures (some nodes
+  // succeeded); those nodes DID apply the config, so the reply must carry it
+  // for the frontend to display. On a total failure nothing applied it and
+  // the field is omitted.
+  const anyApplied = result.attempted.some((r) => r.success)
   const payload: AggregateReplyId & NodeResultsReply = {
     ...replyId,
     outcome,
     nodeResults: result.attempted,
     notAttemptedNodeIds: result.notAttempted,
+    ...(anyApplied ? { appliedConfig: config as Record<string, unknown> } : {}),
   }
-  safeSend(ws, JSON.stringify({ type: VALKEY.CONFIG.updateConfigFailed, payload }))
+  const type = outcome === "fulfilled"
+    ? VALKEY.CONFIG.updateConfigFulfilled
+    : VALKEY.CONFIG.updateConfigFailed
+  safeSend(ws, JSON.stringify({ type, payload }))
 }

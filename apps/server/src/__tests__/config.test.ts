@@ -149,6 +149,30 @@ describe("config actions", () => {
       assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFailed)
       const node2Result = sent[0].payload.nodeResults.find((r: any) => r.nodeId === "node-2")
       assert.strictEqual(node2Result.success, false)
+      // The failed reply is PARTIAL here (node-1 succeeded), so it still
+      // carries the applied config: node-1 DID apply it and the frontend
+      // shows it.
+      assert.deepStrictEqual(sent[0].payload.appliedConfig, { epic: { name: "monitor" } })
+    })
+
+    it("omits appliedConfig from a total-failure reply (no node applied it)", async () => {
+      process.env.CONFIG_RETRY_MAX_RETRIES = "0"
+      clusterNodesRegistry = twoNodeRegistry()
+      metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
+      metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
+      mockFetch({ success: false, message: "down", data: {} }, false, 500)
+
+      const action = {
+        type: VALKEY.CONFIG.updateConfig,
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+      }
+
+      await runConfigPushSession(deps())(action as any)
+
+      const sent = aggregateReplies()
+      assert.strictEqual(sent.length, 1)
+      assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFailed)
+      assert.strictEqual(sent[0].payload.appliedConfig, undefined)
     })
 
     it("a new request for the same target aborts the in-flight session and only the new session replies", async () => {
