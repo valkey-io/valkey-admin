@@ -84,19 +84,19 @@ export const hotKeysRequested = withDeps<Deps, void>(
         if (initialParsedResponse.checkAt) {
           // Monitor collects data in memory for the full duration, then writes
           // to disk asynchronously after collectLogs returns. The re-fetch may
-          // arrive before the write completes. Wait checkAt + 1s, then retry up
-          // to 3 times (1s apart) if data still isn't available. 
-          const delay = initialParsedResponse.checkAt - Date.now() + 1000
+          // arrive before the write completes. Wait until checkAt, then retry up
+          // to 3 times (1s apart) if data still isn't available.
+          const delay = initialParsedResponse.checkAt - Date.now()
           await new Promise((resolve) => setTimeout(resolve, Math.max(delay, 0)))
 
+          let result: HotKeysResponse = initialParsedResponse
           for (let attempt = 0; attempt < 3; attempt++) {
-            const dataResponse = await fetch(url)
-            const result = await dataResponse.json() as HotKeysResponse
-            if (result.hotKeys?.length > 0 || !result.monitorRunning) return result
             await new Promise((resolve) => setTimeout(resolve, 1000))
+            const dataResponse = await fetch(url)
+            result = await dataResponse.json() as HotKeysResponse
+            if (result.hotKeys?.length > 0) return result
           }
-          const finalResponse = await fetch(`${metricsServerURI}/hot-keys`)
-          return await finalResponse.json() as HotKeysResponse
+          return result
         }
         else {
           return initialParsedResponse
