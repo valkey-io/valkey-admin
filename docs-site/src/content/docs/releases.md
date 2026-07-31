@@ -59,6 +59,13 @@ Release Date: July 2026
 
 **Full Changelog**: [v1.0.1...v1.1.0](https://github.com/valkey-io/valkey-admin/compare/v1.0.1...release/1.1.0)
 
+**Release**: [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases/tag/v1.1.0)
+
+**Container Images**:
+- Docker Hub: `docker pull valkey/valkey-admin:1.1.0`
+- GHCR: `docker pull ghcr.io/valkey-io/valkey-admin:1.1.0`
+- ECR Public: `docker pull public.ecr.aws/valkey/valkey-admin:1.1.0`
+
 ---
 
 ## v1.0.1
