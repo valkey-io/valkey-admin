@@ -136,6 +136,22 @@ const reconcileNodeStatuses = (
   entry.nodeStatuses = reconciled
 }
 
+/**
+ * Merge the monitoring fields of a reply's appliedConfig into the entry. 
+ */
+const applyMonitoringConfig = (entry: ConfigEntry, appliedConfig: unknown): void => {
+  const epic = (appliedConfig as { epic?: Record<string, unknown> } | undefined)?.epic
+  if (!epic) return
+  const updatedMonitoringConfig = R.pick(
+    Object.keys(defaultConfig().monitoring),
+    epic,
+  )
+  entry.monitoring = {
+    ...entry.monitoring,
+    ...updatedMonitoringConfig,
+  }
+}
+
 const configSlice = createSlice({
   name: "config",
   initialState,
@@ -208,17 +224,7 @@ const configSlice = createSlice({
         state[targetId] = defaultConfig({ status: "updating" })
       }
 
-      const epic = appliedConfig?.epic
-      if (epic) {
-        const updatedMonitoringConfig = R.pick(
-          Object.keys(defaultConfig().monitoring),
-          epic,
-        )
-        state[targetId].monitoring = {
-          ...state[targetId].monitoring,
-          ...updatedMonitoringConfig,
-        }
-      }
+      applyMonitoringConfig(state[targetId], appliedConfig)
 
       state[targetId].status = "updated"
       state[targetId].errorMessage = null
@@ -273,6 +279,11 @@ const configSlice = createSlice({
       entry.succeededCount = succeeded.length
       // Partial when at least one node also succeeded, failure otherwise.
       entry.status = succeeded.length > 0 ? "partial" : "failed"
+      // On a partial outcome the succeeded nodes applied (and monitor with)
+      // the new config; only a full failure keeps the previous values.
+      if (entry.status === "partial") {
+        applyMonitoringConfig(entry, action.payload.appliedConfig)
+      }
       const firstFailed = results.find((result) => !result.success)
       entry.errorMessage = firstFailed
         ? (firstFailed.message ? firstFailed.message : MISSING_MESSAGE)

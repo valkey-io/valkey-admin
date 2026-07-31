@@ -153,6 +153,50 @@ describe("configSlice", () => {
       expect(state["cluster-1"].errorMessage).toBe("bad config")
     })
 
+    it("applies monitoring settings on a partial failure (succeeded nodes run with them)", () => {
+      const state = configReducer(
+        initialState,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [
+            { nodeId: "node-1", success: true, message: "ok" },
+            { nodeId: "node-2", success: false, message: "boom" },
+          ],
+          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000, monitoringInterval: 7000 } },
+        }),
+      )
+
+      expect(state["cluster-1"].status).toBe("partial")
+      expect(state["cluster-1"].monitoring.monitoringDuration).toBe(5000)
+      expect(state["cluster-1"].monitoring.monitoringInterval).toBe(7000)
+    })
+
+    it("keeps the previous monitoring settings on a total failure", () => {
+      const seeded = configReducer(
+        initialState,
+        setConfig({ connectionId: "node-1-db0", connectionDetails: { clusterId: "cluster-1" } }),
+      )
+      const previousDuration = seeded["cluster-1"].monitoring.monitoringDuration
+
+      const state = configReducer(
+        seeded,
+        updateConfigFailed({
+          clusterId: "cluster-1",
+          outcome: "failed",
+          nodeResults: [
+            { nodeId: "node-1", success: false, message: "boom" },
+            { nodeId: "node-2", success: false, message: "also boom" },
+          ],
+          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000 } },
+        }),
+      )
+
+      // No node applied the config; showing the new values would misreport.
+      expect(state["cluster-1"].status).toBe("failed")
+      expect(state["cluster-1"].monitoring.monitoringDuration).toBe(previousDuration)
+    })
+
     it("represents a partial failure distinctly from a total failure", () => {
       const state = configReducer(
         initialState,

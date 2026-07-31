@@ -7,6 +7,7 @@ import monitorReducer, {
   selectMonitorLoading,
   selectClusterMonitorRunning,
   selectClusterMonitorLoading,
+  selectClusterMonitorNodeErrors,
   selectRunningMonitorConnections
 } from "./monitorSlice"
 
@@ -90,19 +91,42 @@ describe("monitorSlice", () => {
       expect(state["node-1"].monitorRunning).toBe(true)
     })
 
-    it("selectClusterMonitorRunning is true only when all present cluster nodes run", () => {
+    it("selectClusterMonitorRunning is true when any cluster node runs", () => {
       const running = {
         "node-1": { monitorRunning: true, checkAt: null, loading: false, startedAt: null, clusterId: "c1" },
         "node-2": { monitorRunning: true, checkAt: null, loading: false, startedAt: null, clusterId: "c1" },
       }
+      // One node failed to start (e.g. unreachable): the cluster is still
+      // monitoring on the other nodes and must report running.
       const partial = {
         ...running,
+        "node-2": { monitorRunning: false, checkAt: null, loading: false, startedAt: null, clusterId: "c1", error: "node down" },
+      }
+      const stopped = {
+        "node-1": { monitorRunning: false, checkAt: null, loading: false, startedAt: null, clusterId: "c1" },
         "node-2": { monitorRunning: false, checkAt: null, loading: false, startedAt: null, clusterId: "c1" },
       }
       expect(selectClusterMonitorRunning("c1")({ monitor: running } as never)).toBe(true)
-      expect(selectClusterMonitorRunning("c1")({ monitor: partial } as never)).toBe(false)
+      expect(selectClusterMonitorRunning("c1")({ monitor: partial } as never)).toBe(true)
+      expect(selectClusterMonitorRunning("c1")({ monitor: stopped } as never)).toBe(false)
       // No entries for the cluster → not running.
       expect(selectClusterMonitorRunning("c1")({ monitor: {} } as never)).toBe(false)
+      // Entries from another cluster do not leak in.
+      expect(selectClusterMonitorRunning("c2")({ monitor: running } as never)).toBe(false)
+    })
+
+    it("selectClusterMonitorNodeErrors lists non-running cluster nodes with an error", () => {
+      const state = {
+        "node-1": { monitorRunning: true, checkAt: null, loading: false, startedAt: null, clusterId: "c1" },
+        "node-2": { monitorRunning: false, checkAt: null, loading: false, startedAt: null, clusterId: "c1", error: "node down" },
+        // A running node with a stale error is NOT reported.
+        "node-3": { monitorRunning: true, checkAt: null, loading: false, startedAt: null, clusterId: "c1", error: "old" },
+        // Another cluster's failure does not leak in.
+        "node-4": { monitorRunning: false, checkAt: null, loading: false, startedAt: null, clusterId: "c2", error: "boom" },
+      }
+      expect(selectClusterMonitorNodeErrors("c1")({ monitor: state } as never)).toEqual([
+        { nodeId: "node-2", error: "node down" },
+      ])
     })
 
     it("selectClusterMonitorLoading is true when any cluster node is loading", () => {
