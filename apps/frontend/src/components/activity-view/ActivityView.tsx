@@ -35,7 +35,6 @@ import {
   monitorRequested,
   selectMonitorRunning,
   selectClusterMonitorRunning,
-  selectClusterMonitorNodeErrors,
   selectMonitorError
 } from "@/state/valkey-features/monitor/monitorSlice"
 import { selectConnectionDetails, selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
@@ -95,16 +94,7 @@ export const ActivityView = () => {
   const monitorRunning = useSelector((state: RootState) =>
     clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(nodeId)(state),
   )
-  // Cluster: surface any node's monitor start failure (e.g. unreachable) in
-  // the monitor error banner. The cluster reports running as long as one
-  // node monitors, so the route node's own entry may carry no error.
-  const monitorNodeErrors = useSelector((state: RootState) =>
-    clusterId ? selectClusterMonitorNodeErrors(clusterId)(state) : [],
-  )
-  const standaloneMonitorError = useSelector(selectMonitorError(nodeId))
-  const monitorError = clusterId
-    ? (monitorNodeErrors[0] ? `${monitorNodeErrors[0].nodeId}: ${monitorNodeErrors[0].error}` : null)
-    : standaloneMonitorError
+  const monitorError = useSelector(selectMonitorError(nodeId))
   const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
   const clusterAlias = useSelector(selectClusterAlias(id!))
   const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
@@ -369,7 +359,9 @@ export const ActivityView = () => {
                   errorMessage={hotKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
                   isHotSlots={!!useHotSlots}
-                  monitorError={monitorError}
+                  // Cluster errors are surfaced by NodeErrorsBanner; passing monitorError
+                  // here would hide the start button in MonitorNotRunningBanner.
+                  monitorError={clusterId ? null : monitorError}
                   monitorRunning={monitorRunning}
                   nodeErrors={hotKeysNodeErrors}
                   onKeyClick={handleKeyClick}
