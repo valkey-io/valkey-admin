@@ -8,7 +8,7 @@ hero:
     file: ../../assets/logo.png
   actions:
     - text: Documentation
-      link: /introduction/
+      link: /releases/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
@@ -35,13 +35,16 @@ Valkey Admin is an open-source observability and management tool from the [Valke
 		Browse, search, inspect, and edit keys across all data types (String, Hash, List, Set, Sorted Set, Stream, JSON).
 	</Card>
 	<Card title="Send Command" icon="rocket">
-		Execute Valkey commands with response formatting and command history.
+		Execute Valkey commands with autocomplete, response formatting, and command history.
 	</Card>
 	<Card title="Cluster Topology" icon="setting">
 		Visual map of shards, primaries, and replicas with per-node metrics.
 	</Card>
 	<Card title="Hot Keys Monitoring" icon="star">
 		Identify frequently accessed keys across all cluster nodes.
+	</Card>
+	<Card title="Big Keys Analysis" icon="magnifier">
+		Scan the keyspace to find the largest keys by memory usage with access frequency insights.
 	</Card>
 	<Card title="Command Logs" icon="warning">
 		View slow commands, large requests, and large replies aggregated across the cluster.
@@ -87,6 +90,12 @@ Valkey Admin is an open-source observability and management tool from the [Valke
 		![Hot keys monitoring showing most frequently accessed keys](../../assets/monitoring_hot_keys.png)
 
 		Track the most accessed keys in real-time to identify potential bottlenecks and optimize data distribution.
+	</Card>
+
+	<Card title="Big Keys" icon="magnifier">
+		![Big keys analysis showing largest keys by memory usage](../../assets/monitoring_big_keys.png)
+
+		Identify the largest keys in your keyspace by memory usage, with access frequency to distinguish hot from cold.
 	</Card>
 
 	<Card title="Slow Logs" icon="warning">

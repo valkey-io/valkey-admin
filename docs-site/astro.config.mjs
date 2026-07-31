@@ -24,7 +24,7 @@ export default defineConfig({
 				{
 					label: 'Getting Started',
 					items: [
-						{ label: 'Introduction', slug: 'introduction' },
+						{ label: "What's New", slug: 'releases' },
 					],
 				},
 				{
@@ -45,12 +45,6 @@ export default defineConfig({
 						{ label: 'Kubernetes', slug: 'deployment/kubernetes' },
 						{ label: 'AWS ElastiCache', slug: 'deployment/aws-elasticache' },
 						{ label: 'Resource Sizing', slug: 'deployment/resource-sizing' },
-					],
-				},
-				{
-					label: 'Settings',
-					items: [
-						{ label: 'Settings', slug: 'settings/settings' },
 					],
 				},
 				{

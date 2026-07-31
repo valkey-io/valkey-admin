@@ -1,6 +1,8 @@
 ---
 title: What's New
 description: Release notes and changelog for Valkey Admin
+sidebar:
+  order: 0
 ---
 
 ## v1.1.0
