@@ -1,32 +1,37 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { useParams } from "react-router"
 import { AlertTriangle } from "lucide-react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { MONITOR_ACTION } from "@common/src/constants"
 import { toNodeId } from "@common/src/connection-id.ts"
 import { ChartModal } from "../../ui/chart-modal"
 import { Button } from "../../ui/button"
-import { Input } from "../../ui/input"
+import { NumberInput } from "../../ui/number-input"
 import { Typography } from "../../ui/typography"
 import { TooltipIcon } from "../../ui/tooltip-icon"
 import type { RootState } from "@/store"
 import { useAppDispatch } from "@/hooks/hooks"
 import { selectConfig } from "@/state/valkey-features/config/configSlice"
-import { saveMonitorSettingsRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { monitorRequested, selectMonitorRunning, selectClusterMonitorRunning } from "@/state/valkey-features/monitor/monitorSlice"
+import { updateConfig } from "@/state/valkey-features/config/configSlice"
 
 interface HotKeysConfigModalProps {
   open: boolean
   onClose: () => void
+  // Connection identifier of the target (db-less nodeId also accepted:
+  // `toNodeId` is idempotent and the server ignores it for clusters), so the
+  // modal can be opened from outside the routed activity view (e.g. the
+  // monitor warning banner).
+  connectionId: string
+  clusterId?: string
 }
 
-export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
-  const { id, clusterId } = useParams()
+export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: HotKeysConfigModalProps) {
   const dispatch = useAppDispatch()
   // Config and monitor state are cluster-keyed for clusters, node-keyed otherwise.
-  const config = useSelector(selectConfig(clusterId ?? toNodeId(id!)))
+  const config = useSelector(selectConfig(clusterId ?? toNodeId(connectionId)))
   const monitorRunning = useSelector((state: RootState) =>
-    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(toNodeId(id!))(state),
+    clusterId ? selectClusterMonitorRunning(clusterId)(state) : selectMonitorRunning(toNodeId(connectionId))(state),
   )
 
   const [monitorDuration, setMonitorDuration] = useState(config?.monitoring?.monitoringDuration ?? 10000)
@@ -51,28 +56,37 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
       cutoffFrequency !== config.monitoring.cutoffFrequency)
 
   const handleStart = () => {
-    const configPayload = hasConfigChanges
-      ? {
-        epic: {
-          name: "monitor", monitoringDuration: monitorDuration,
-          monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+    if (hasConfigChanges) {
+      // Config changed: push it (with server-side retry) and start MONITOR on
+      // the config-succeeded nodes once the session resolves. On an
+      // already-running monitor the metrics process restarts it with the new
+      // settings, and the start rider is an idempotent no-op.
+      dispatch(updateConfig({
+        connectionId,
+        clusterId,
+        config: {
+          epic: {
+            name: "monitor", monitoringDuration: monitorDuration,
+            monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+          },
         },
-      }
-      : undefined
-
-    dispatch(saveMonitorSettingsRequested({
-      connectionId: id!,
-      clusterId,
-      config: configPayload,
-      monitorAction: MONITOR_ACTION.START,
-    }))
+        monitorAction: MONITOR_ACTION.START,
+      }))
+    } else {
+      // No config change: a pure toggle needs no config session.
+      dispatch(monitorRequested({
+        connectionId,
+        clusterId,
+        monitorAction: MONITOR_ACTION.START,
+      }))
+    }
     onClose()
   }
 
   const handleCancel = () => {
     if (monitorRunning) {
-      dispatch(saveMonitorSettingsRequested({
-        connectionId: id!,
+      dispatch(monitorRequested({
+        connectionId,
         clusterId,
         monitorAction: MONITOR_ACTION.STOP,
       }))
@@ -85,7 +99,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
       onClose={onClose}
       open={open}
       subtitle="Alternative method based on MONITOR command that enables capturing Hot Keys"
-      title="Start Monitoring"
+      title="Monitoring"
     >
       <TooltipProvider>
         <div className="flex flex-col gap-4">
@@ -103,13 +117,12 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
               <Typography variant="bodySm">Monitor Duration (ms)</Typography>
               <TooltipIcon description="Duration in milliseconds during which monitoring data is collected." size={16} />
             </div>
-            <Input
+            <NumberInput
               aria-label="Monitor Duration"
-              min="1"
-              onChange={(e) => setMonitorDuration(Number(e.target.value))}
-              step="1000"
+              min={1}
+              onChange={setMonitorDuration}
+              step={1000}
               style={{ width: "100px" }}
-              type="number"
               value={monitorDuration}
             />
           </div>
@@ -119,13 +132,12 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
               <Typography variant="bodySm">Monitor Interval (ms)</Typography>
               <TooltipIcon description="Delay in milliseconds between consecutive monitoring cycles." size={16} />
             </div>
-            <Input
+            <NumberInput
               aria-label="Monitor Interval"
-              min="1"
-              onChange={(e) => setMonitorInterval(Number(e.target.value))}
-              step="1000"
+              min={1}
+              onChange={setMonitorInterval}
+              step={1000}
               style={{ width: "100px" }}
-              type="number"
               value={monitorInterval}
             />
           </div>
@@ -139,13 +151,12 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
                 size={16}
               />
             </div>
-            <Input
+            <NumberInput
               aria-label="Max Commands Per Run"
-              min="1"
-              onChange={(e) => setMaxCommandsPerRun(Number(e.target.value))}
-              step="100000"
+              min={1}
+              onChange={setMaxCommandsPerRun}
+              step={100000}
               style={{ width: "140px" }}
-              type="number"
               value={maxCommandsPerRun}
             />
           </div>
@@ -159,13 +170,12 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
                 size={16}
               />
             </div>
-            <Input
+            <NumberInput
               aria-label="Cutoff Frequency"
-              min="1"
-              onChange={(e) => setCutoffFrequency(Number(e.target.value))}
-              step="10"
+              min={1}
+              onChange={setCutoffFrequency}
+              step={10}
               style={{ width: "100px" }}
-              type="number"
               value={cutoffFrequency}
             />
           </div>
@@ -187,7 +197,7 @@ export function HotKeysParamsModal({ open, onClose }: HotKeysConfigModalProps) {
               type="button"
               variant="default"
             >
-              {monitorRunning ? "Started" : "Start"}
+              {monitorRunning ? (hasConfigChanges ? "Apply & Restart" : "Started") : "Start"}
             </Button>
           </div>
         </div>

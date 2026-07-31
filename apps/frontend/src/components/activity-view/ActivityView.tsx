@@ -198,7 +198,7 @@ export const ActivityView = () => {
 
   return (
     <RouteContainer title="Activity">
-      <HotKeysParamsModal onClose={() => setConfigOpen(false)} open={configOpen} />
+      <HotKeysParamsModal clusterId={clusterId} connectionId={id!} onClose={() => setConfigOpen(false)} open={configOpen} />
       <HotSlotsParamsModal
         onApply={({ topN }) => setHotKeysTopN(topN)}
         onClose={() => setHotSlotsConfigOpen(false)}
@@ -359,7 +359,9 @@ export const ActivityView = () => {
                   errorMessage={hotKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
                   isHotSlots={!!useHotSlots}
-                  monitorError={monitorError}
+                  // Cluster errors are surfaced by NodeErrorsBanner; passing monitorError
+                  // here would hide the start button in MonitorNotRunningBanner.
+                  monitorError={clusterId ? null : monitorError}
                   monitorRunning={monitorRunning}
                   nodeErrors={hotKeysNodeErrors}
                   onKeyClick={handleKeyClick}

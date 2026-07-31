@@ -774,3 +774,60 @@ describe("teardownConnection", () => {
     })
   })
 })
+
+describe("closeMetricsServer", () => {
+  let originalFetch: typeof globalThis.fetch
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it("should send the db-stripped nodeId in the close request body, not the full connectionId", async () => {
+    const { closeMetricsServer } = await import("../connection")
+    let capturedBody: string | undefined
+
+    globalThis.fetch = mock.fn(async (_url: string, opts?: any) => {
+      capturedBody = opts?.body
+      return { ok: true } as Response
+    }) as any
+
+    const connectionId = "127-0-0-1-7000-db2"
+    const expectedNodeId = "127-0-0-1-7000"
+    const metricsServerMap: MetricsServerMap = new Map()
+    metricsServerMap.set(expectedNodeId, { metricsURI: "http://localhost:9999", pid: 123, lastSeen: Date.now() })
+    const clients: Map<string, any> = new Map()
+
+    await closeMetricsServer(connectionId, metricsServerMap, clients)
+
+    const parsed = JSON.parse(capturedBody!)
+    assert.strictEqual(parsed.connectionId, expectedNodeId,
+      "close request should send the db-stripped nodeId, not the full connectionId")
+    assert.strictEqual(metricsServerMap.has(expectedNodeId), false,
+      "metrics server entry should be deleted after successful close")
+  })
+
+  it("should not close if other connections still reference the same node", async () => {
+    const { closeMetricsServer } = await import("../connection")
+
+    globalThis.fetch = mock.fn(async () => ({ ok: true }) as Response) as any
+
+    const connectionId = "127-0-0-1-7000-db0"
+    const nodeId = "127-0-0-1-7000"
+    const metricsServerMap: MetricsServerMap = new Map()
+    metricsServerMap.set(nodeId, { metricsURI: "http://localhost:9999", pid: 123, lastSeen: Date.now() })
+    // Another connection on db1 still references the same node
+    const clients: Map<string, any> = new Map()
+    clients.set("127-0-0-1-7000-db1", { client: {} })
+
+    await closeMetricsServer(connectionId, metricsServerMap, clients)
+
+    assert.strictEqual((globalThis.fetch as any).mock.calls.length, 0,
+      "should not call close when other connections still reference the node")
+    assert.strictEqual(metricsServerMap.has(nodeId), true,
+      "metrics server entry should remain")
+  })
+})

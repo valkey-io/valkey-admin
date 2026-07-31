@@ -14,7 +14,7 @@ export default function LearnMore() {
       <div className="flex flex-col flex-1 items-center justify-center gap-2">
         <a
           className="text-primary underline text-body-sm"
-          href="https://github.com/valkey-io/valkey-admin"
+          href="https://valkey-admin.valkey.io/"
           rel="noopener noreferrer"
           target="_blank"
         >

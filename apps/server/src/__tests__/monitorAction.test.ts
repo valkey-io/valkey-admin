@@ -2,7 +2,8 @@
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { VALKEY } from "valkey-common"
-import { monitorRequested, saveMonitorSettingsRequested } from "../actions/monitorAction"
+import { monitorRequested } from "../actions/monitorAction"
+import { updateConfig } from "../actions/config"
 import { subscribe, _reset as resetNodeWatchers } from "../node-watchers"
 import { ClusterRegistry } from "../metrics-orchestrator"
 
@@ -25,16 +26,23 @@ describe("monitorAction", () => {
   beforeEach(() => {
     messages = []
     mockWs = {
+      // OPEN/readyState so the server's safeSend readyState guard passes.
+      OPEN: 1,
+      readyState: 1,
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
     clusterNodesRegistry = {}
+    // Config pushes ride through the retry runner now; pin retries to 0 so
+    // tests keep their exact single-attempt fetch counts.
+    process.env.CONFIG_RETRY_MAX_RETRIES = "0"
   })
 
   afterEach(() => {
     globalThis.fetch = originalFetch
     resetNodeWatchers()
+    delete process.env.CONFIG_RETRY_MAX_RETRIES
   })
 
   function mockFetch(body: any, ok = true, status = 200) {
@@ -250,6 +258,38 @@ describe("monitorAction", () => {
       const sentNodeIds = [sent1.payload.nodeId, sent2.payload.nodeId].sort()
       assert.deepStrictEqual(sentNodeIds, ["node-1", "node-2"])
     })
+
+    it("restricts the fan-out to targetNodeIds when provided (save-flow gating, Req 10.2)", async () => {
+      metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
+      metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
+      clusterNodesRegistry = {
+        "cluster-1": {
+          "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
+          "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
+        },
+      }
+      const fetchCalls = mockFetch({ monitorRunning: true, checkAt: 55555 })
+
+      const action = {
+        type: VALKEY.MONITOR.monitorRequested,
+        payload: {
+          connectionId: "node-2",
+          clusterId: "cluster-1",
+          monitorAction: "stop",
+          targetNodeIds: ["node-2"],
+        },
+      }
+
+      await monitorRequested(deps())(action as any)
+
+      // Only the targeted node is toggled.
+      assert.strictEqual(fetchCalls.length, 1)
+      assert.ok(fetchCalls[0].includes("localhost:9002/monitor?action=stop"))
+      assert.strictEqual(messages.length, 1)
+      const sent = JSON.parse(messages[0])
+      assert.strictEqual(sent.type, VALKEY.MONITOR.monitorFulfilled)
+      assert.strictEqual(sent.payload.nodeId, "node-2")
+    })
   })
 
   describe("broadcast to other watchers", () => {
@@ -382,7 +422,7 @@ describe("monitorAction", () => {
   })
 })
 
-describe("saveMonitorSettingsRequested", () => {
+describe("config/updateConfig orchestration (config session + monitorAction rider)", () => {
   let mockWs: any
   let messages: string[]
   let metricsServerMap: Map<string, any>
@@ -393,16 +433,23 @@ describe("saveMonitorSettingsRequested", () => {
   beforeEach(() => {
     messages = []
     mockWs = {
+      // OPEN/readyState so the server's safeSend readyState guard passes.
+      OPEN: 1,
+      readyState: 1,
       send: mock.fn((msg: string) => messages.push(msg)),
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
     clusterNodesRegistry = {}
+    // Config pushes ride through the retry runner now; pin retries to 0 so
+    // tests keep their exact single-attempt fetch counts.
+    process.env.CONFIG_RETRY_MAX_RETRIES = "0"
   })
 
   afterEach(() => {
     globalThis.fetch = originalFetch
     resetNodeWatchers()
+    delete process.env.CONFIG_RETRY_MAX_RETRIES
   })
 
   function mockFetchRouted(routes: Record<string, { body: any; ok?: boolean; status?: number }>) {
@@ -420,56 +467,60 @@ describe("saveMonitorSettingsRequested", () => {
     return fetchCalls
   }
 
-  const deps = () => ({ 
-    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry, 
+  const deps = () => ({
+    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry,
   } as any)
 
-  it("should call only updateConfig when config is present but monitorAction is absent", async () => {
+  // Aggregate replies only: the live per-node `updateConfigNodeStatus` pushes
+  // are additive and not what these tests assert on.
+  const replies = () =>
+    messages
+      .map((m: string) => JSON.parse(m))
+      .filter((m: any) => m.type !== VALKEY.CONFIG.updateConfigNodeStatus)
+
+  it("runs only the config session when no monitorAction rider is present", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(fetchCalls.length, 1)
     assert.ok(fetchCalls[0].includes("/update-config"))
 
-    assert.strictEqual(messages.length, 1)
-    const sent = JSON.parse(messages[0])
-    assert.strictEqual(sent.type, VALKEY.CONFIG.updateConfigFulfilled)
+    const sent = replies()
+    assert.strictEqual(sent.length, 1)
+    assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFulfilled)
   })
 
-  it("should call only monitorRequested when monitorAction is present but config is absent", async () => {
+  it("is a no-op without a config (pure toggles use monitor/monitorRequested)", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/monitor": { body: { monitorRunning: true, checkAt: 12345 } },
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
-    assert.strictEqual(fetchCalls.length, 1)
-    assert.ok(fetchCalls[0].includes("/monitor?action=start"))
-
-    assert.strictEqual(messages.length, 1)
-    const sent = JSON.parse(messages[0])
-    assert.strictEqual(sent.type, VALKEY.MONITOR.monitorFulfilled)
-    assert.strictEqual(sent.payload.parsedResponse.monitorRunning, true)
+    // No config session and no toggle: a config-less updateConfig is
+    // rejected defensively rather than treated as a toggle path.
+    assert.strictEqual(fetchCalls.length, 0)
+    assert.strictEqual(messages.length, 0)
   })
 
-  it("should call both updateConfig then monitorRequested when both are present", async () => {
+  it("runs the config session then toggles monitor when the rider is present", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
@@ -477,39 +528,38 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(fetchCalls.length, 2)
     assert.ok(fetchCalls[0].includes("/update-config"))
     assert.ok(fetchCalls[1].includes("/monitor?action=start"))
 
-    assert.strictEqual(messages.length, 2)
-    const configMsg = JSON.parse(messages[0])
-    const monitorMsg = JSON.parse(messages[1])
-    assert.strictEqual(configMsg.type, VALKEY.CONFIG.updateConfigFulfilled)
-    assert.strictEqual(monitorMsg.type, VALKEY.MONITOR.monitorFulfilled)
+    const sent = replies()
+    assert.strictEqual(sent.length, 2)
+    assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFulfilled)
+    assert.strictEqual(sent[1].type, VALKEY.MONITOR.monitorFulfilled)
   })
 
   it("should send no messages when neither config nor monitorAction is present", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     assert.strictEqual(messages.length, 0)
   })
 
-  it("should still call monitorRequested when config update fails", async () => {
+  it("should NOT toggle monitor on a standalone total config failure (Req 10.3)", async () => {
     metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: false, message: "bad config", data: {} }, ok: false, status: 400 },
@@ -517,21 +567,22 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
-    assert.strictEqual(fetchCalls.length, 2)
+    // Config push is attempted; the monitor toggle is skipped because the
+    // single node's config failed (total failure).
+    assert.strictEqual(fetchCalls.length, 1)
+    assert.ok(fetchCalls[0].includes("/update-config"))
 
-    assert.strictEqual(messages.length, 2)
-    const configMsg = JSON.parse(messages[0])
-    const monitorMsg = JSON.parse(messages[1])
-    assert.strictEqual(configMsg.type, VALKEY.CONFIG.updateConfigFailed)
-    assert.strictEqual(monitorMsg.type, VALKEY.MONITOR.monitorFulfilled)
-    assert.strictEqual(monitorMsg.payload.parsedResponse.monitorRunning, true)
+    // Only the config-failure reply is emitted; no monitor reply.
+    const sent = replies()
+    assert.strictEqual(sent.length, 1)
+    assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFailed)
   })
 
   it("should fan out across cluster nodes for both config and monitor", async () => {
@@ -559,12 +610,12 @@ describe("saveMonitorSettingsRequested", () => {
     })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     // Config: one POST per node (2) + one aggregated reply; monitor: 2 POSTs + 2 replies.
     assert.strictEqual(fetchCalls.length, 4)
@@ -603,19 +654,19 @@ describe("saveMonitorSettingsRequested", () => {
     }) as any
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
     // One aggregated reply, keyed by clusterId, surfacing the failure.
-    assert.strictEqual(messages.length, 1)
-    const sent = JSON.parse(messages[0])
-    assert.strictEqual(sent.type, VALKEY.CONFIG.updateConfigFailed)
-    assert.strictEqual(sent.payload.clusterId, "cluster-1")
-    assert.strictEqual(sent.payload.connectionId, undefined)
+    const sent = replies()
+    assert.strictEqual(sent.length, 1)
+    assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFailed)
+    assert.strictEqual(sent[0].payload.clusterId, "cluster-1")
+    assert.strictEqual(sent[0].payload.connectionId, undefined)
   })
 
   it("keys a standalone config reply by the db-less nodeId", async () => {
@@ -623,19 +674,19 @@ describe("saveMonitorSettingsRequested", () => {
     mockFetchRouted({ "/update-config": { body: { success: true, message: "", data: {} } } })
 
     const action = {
-      type: VALKEY.MONITOR.saveMonitorSettingsRequested,
+      type: VALKEY.CONFIG.updateConfig,
       payload: { connectionId: "host-6379-db0", config: { epic: { name: "monitor" } } },
       meta: undefined,
     }
 
-    await saveMonitorSettingsRequested(deps())(action as any)
+    await updateConfig(deps())(action as any)
 
-    assert.strictEqual(messages.length, 1)
-    const sent = JSON.parse(messages[0])
-    assert.strictEqual(sent.type, VALKEY.CONFIG.updateConfigFulfilled)
+    const sent = replies()
+    assert.strictEqual(sent.length, 1)
+    assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFulfilled)
     // Config is node-level: reply carries the db-stripped nodeId, not the connectionId.
-    assert.strictEqual(sent.payload.nodeId, "host-6379")
-    assert.strictEqual(sent.payload.connectionId, undefined)
-    assert.strictEqual(sent.payload.clusterId, undefined)
+    assert.strictEqual(sent[0].payload.nodeId, "host-6379")
+    assert.strictEqual(sent[0].payload.connectionId, undefined)
+    assert.strictEqual(sent[0].payload.clusterId, undefined)
   })
 })

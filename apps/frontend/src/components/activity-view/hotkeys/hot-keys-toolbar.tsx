@@ -12,10 +12,10 @@ interface HotKeysToolbarProps {
   nodes: string[]
   selectedNode: string
   onNodeSelect: (node: string) => void
-  countMin: string
-  countMax: string
-  onCountMinChange: (v: string) => void
-  onCountMaxChange: (v: string) => void
+  countMin: number | null
+  countMax: number | null
+  onCountMinChange: (v: number | null) => void
+  onCountMaxChange: (v: number | null) => void
   dataMin: number
   dataMax: number
   onHeatmapOpen: () => void
