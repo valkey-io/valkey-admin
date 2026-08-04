@@ -1,0 +1,22 @@
+"area/frontend":
+  - changed-files:
+      - any-glob-to-any-file: "apps/frontend/**"
+
+"area/server":
+  - changed-files:
+      - any-glob-to-any-file: "apps/server/**"
+
+"area/metrics":
+  - changed-files:
+      - any-glob-to-any-file: "apps/metrics/**"
+
+"area/docs":
+  - changed-files:
+      - any-glob-to-any-file: "docs-site/**"
+
+"area/infra":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "docker/**"
+          - "Dockerfile"
