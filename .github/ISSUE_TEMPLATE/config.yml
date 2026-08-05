@@ -3,3 +3,6 @@ contact_links:
   - name: Check existing issues
     url: https://github.com/valkey-io/valkey-admin/issues
     about: Please search existing issues before creating a new one to avoid duplicates
+  - name: Report a security vulnerability
+    url: https://github.com/valkey-io/valkey-admin/security/advisories/new
+    about: Please report security issues privately through GitHub's security advisory feature
