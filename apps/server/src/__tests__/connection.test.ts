@@ -40,6 +40,10 @@ type StandaloneOverrides = {
   serverInfo?: string
   clusterEnabled?: "0" | "1"
   databases?: string | undefined
+  /** Answer for `CONFIG GET cluster-databases` (Valkey 9 clusters). */
+  clusterDatabases?: string
+  /** Simulate `CONFIG GET` being denied (e.g. by ACL). */
+  configGetError?: boolean
   /** Inject extra delay before resolving — used to widen race windows in dedupe tests. */
   delayMs?: number
 }
@@ -48,6 +52,8 @@ const buildStandaloneMock = ({
   serverInfo = "redis_version:8.0.0\r\n",
   clusterEnabled = "0",
   databases = "16",
+  clusterDatabases,
+  configGetError = false,
   delayMs,
 }: StandaloneOverrides = {}) => ({
   info: mock.fn(async (sections: string[]) => {
@@ -71,13 +77,18 @@ const buildStandaloneMock = ({
     if (Array.isArray(args) && args[0] === "JSON.TYPE") throw Error
     return []
   }),
-  configGet: mock.fn(async () => ({ databases })),
+  configGet: mock.fn(async (keys: string[]) => {
+    if (configGetError) throw new Error("NOPERM this user has no permissions to run the 'config|get' command")
+    if (keys?.includes("cluster-databases")) {
+      return clusterDatabases !== undefined ? { "cluster-databases": clusterDatabases } : {}
+    }
+    return { databases }
+  }),
   close: mock.fn(),
   ...(delayMs !== undefined && {}),
 })
 
-const buildClusterMock = (overrides: { delayMs?: number } = {}) => {
-  void overrides
+const buildClusterMock = (overrides: { delayMs?: number, clusterDatabases?: string } = {}) => {
   return {
     info: mock.fn(async () => ({ node1: "maxmemory_policy:allkeys-lfu" })),
     customCommand: mock.fn(async (args: string[]) => {
@@ -85,6 +96,12 @@ const buildClusterMock = (overrides: { delayMs?: number } = {}) => {
       if (args[0] === "CLUSTER" && args[1] === "SLOT-STATS") return []
       if (args[0] === "JSON.TYPE") throw new Error("not available")
       return []
+    }),
+    configGet: mock.fn(async (keys: string[]) => {
+      if (keys?.includes("cluster-databases") && overrides.clusterDatabases !== undefined) {
+        return { "cluster-databases": overrides.clusterDatabases }
+      }
+      return {}
     }),
     close: mock.fn(),
   }
@@ -175,6 +192,7 @@ describe("connectToValkey", () => {
       assert.deepStrictEqual(sent.payload.connectionDetails, {
         keyEvictionPolicy: KEY_EVICTION_POLICY.ALLKEYS_LFU,
         jsonModuleAvailable: false,
+        databasesCount: 16,
       })
     })
   })
@@ -498,8 +516,150 @@ describe("connectToValkey", () => {
       assert.ok(rejected)
       assert.match(
         rejected.payload.errorMessage,
-        /Database_Index 16 is out of range \(server allows 0\.\.15\)/,
+        /Database_Index 16 is out of range: this server has databases = 16 \(valid range 0\.\.15\)/,
       )
+      // The reject must fire on the db-less probe, BEFORE a db-bound client is
+      // built — otherwise Glide's handshake SELECT fails first with a raw error.
+      assert.strictEqual(
+        (GlideClient.createClient as any).mock.calls.length,
+        1,
+        "out-of-range reject must happen on the probe, before the db-bound rebuild",
+      )
+    })
+  })
+
+  it("accepts db: 31 when the server reports databases = 32 and returns databasesCount", async () => {
+    await withMockedClients(buildStandaloneMock({ databases: "32" }), null, async () => {
+      const connectionId = buildConnectionId("127.0.0.1", "6379", 31)
+      await connectToValkey(ctx(), mockWs, {
+        connectionId,
+        connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 31 },
+      })
+
+      assert.strictEqual(clients.has(connectionId), true)
+      const calls = (GlideClient.createClient as any).mock.calls
+      assert.strictEqual(calls.length, 2)
+      assert.strictEqual(calls[1].arguments[0].databaseId, 31)
+
+      const fulfilled = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.standaloneConnectFulfilled)
+      assert.ok(fulfilled)
+      assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 32)
+    })
+  })
+
+  it("skips the proactive range check when CONFIG GET is denied and still connects", async () => {
+    await withMockedClients(buildStandaloneMock({ configGetError: true }), null, async () => {
+      const connectionId = buildConnectionId("127.0.0.1", "6379", 20)
+      await connectToValkey(ctx(), mockWs, {
+        connectionId,
+        connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 20 },
+      })
+
+      // The count is unknowable, so the server must not guess-and-reject; the
+      // connection attempt itself decides. The mock accepts, and the payload
+      // falls back to the upstream default of 16.
+      assert.strictEqual(clients.has(connectionId), true)
+      const fulfilled = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.standaloneConnectFulfilled)
+      assert.ok(fulfilled)
+      assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 16)
+    })
+  })
+
+  it("classifies Glide's db-switch handshake failure into a verbose message", async () => {
+    // First createClient call (probe) succeeds; second (db-bound rebuild)
+    // rejects the way Glide does when the server refuses SELECT.
+    let call = 0
+    const standaloneFactory = () => {
+      call += 1
+      if (call === 2) {
+        throw new Error(
+          "Failed to create initial connections: Redis server refused to switch database",
+        )
+      }
+      return buildStandaloneMock({ configGetError: true })
+    }
+
+    await withMockedClients(standaloneFactory, null, async () => {
+      const connectionId = buildConnectionId("127.0.0.1", "6379", 5)
+      await connectToValkey(ctx(), mockWs, {
+        connectionId,
+        connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 5 },
+      })
+
+      assert.strictEqual(clients.has(connectionId), false)
+      const rejected = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.connectRejected)
+      assert.ok(rejected)
+      assert.match(
+        rejected.payload.errorMessage,
+        /Database_Index 5 is not enabled on this server \(it rejected SELECT 5\)/,
+      )
+      assert.match(rejected.payload.errorMessage, /refused to switch database/)
+    })
+  })
+
+  it("rejects a cluster db beyond cluster-databases before creating the cluster client", async () => {
+    const standalone = buildStandaloneMock({
+      serverInfo: "valkey_version:9.0.0\r\n",
+      clusterEnabled: "1",
+      clusterDatabases: "4",
+    })
+    const cluster = buildClusterMock({ clusterDatabases: "4" })
+
+    await withMockedClients(standalone, cluster, async () => {
+      const connectionId = buildConnectionId("127.0.0.1", "6379", 8)
+      await connectToValkey(ctx(), mockWs, {
+        connectionId,
+        connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 8 },
+      })
+
+      assert.strictEqual(clients.has(connectionId), false)
+      assert.strictEqual(
+        (GlideClusterClient.createClient as any).mock.calls.length,
+        0,
+        "no cluster client should be created when the db is out of range",
+      )
+      const rejected = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.connectRejected)
+      assert.ok(rejected)
+      assert.match(
+        rejected.payload.errorMessage,
+        /Database_Index 8 is out of range: this cluster has cluster-databases = 4 \(valid range 0\.\.3\)/,
+      )
+    })
+  })
+
+  it("accepts a cluster db within cluster-databases and returns databasesCount", async () => {
+    const standalone = buildStandaloneMock({
+      serverInfo: "valkey_version:9.0.0\r\n",
+      clusterEnabled: "1",
+      clusterDatabases: "4",
+    })
+    const cluster = buildClusterMock({ clusterDatabases: "4" })
+
+    await withMockedClients(standalone, cluster, async () => {
+      const connectionId = buildConnectionId("127.0.0.1", "6379", 2)
+      await connectToValkey(ctx(), mockWs, {
+        connectionId,
+        connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 2 },
+      })
+
+      assert.strictEqual(clients.get(connectionId)?.client, cluster)
+      const calls = (GlideClusterClient.createClient as any).mock.calls
+      assert.strictEqual(calls.length, 1)
+      assert.strictEqual(calls[0].arguments[0].databaseId, 2)
+
+      const fulfilled = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.clusterConnectFulfilled)
+      assert.ok(fulfilled)
+      assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 4)
     })
   })
 

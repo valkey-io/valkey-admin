@@ -273,6 +273,56 @@ describe("connectionSlice", () => {
 
       expect(state.connections["conn-1"].wasEdit).toBeUndefined()
     })
+
+    it("should store the server-reported databasesCount", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: CONNECTING,
+            errorMessage: null,
+            connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        standaloneConnectFulfilled({
+          connectionId: "conn-1",
+          connectionDetails: {
+            host: "localhost", port: "6379", username: "", password: "",
+            tls: false, verifyTlsCertificate: false, databasesCount: 32,
+          },
+        }),
+      )
+
+      expect(state.connections["conn-1"].connectionDetails.databasesCount).toBe(32)
+    })
+
+    it("should keep an existing databasesCount when the payload omits it", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: CONNECTING,
+            errorMessage: null,
+            connectionDetails: {
+              host: "localhost", port: "6379", username: "", password: "",
+              tls: false, verifyTlsCertificate: false, databasesCount: 32,
+            },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        standaloneConnectFulfilled({
+          connectionId: "conn-1",
+          connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+        }),
+      )
+
+      expect(state.connections["conn-1"].connectionDetails.databasesCount).toBe(32)
+    })
   })
 
   describe("clusterConnectFulfilled", () => {
@@ -307,6 +357,34 @@ describe("connectionSlice", () => {
       expect(state.connections["conn-1"].connectionDetails.keyEvictionPolicy).toBe("allkeys-lru")
       expect(state.connections["conn-1"].connectionDetails.clusterSlotStatsEnabled).toBe(true)
       expect(state.connections["conn-1"].connectionDetails.jsonModuleAvailable).toBe(true)
+    })
+
+    it("should store the server-reported databasesCount", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: CONNECTING,
+            errorMessage: null,
+            connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        clusterConnectFulfilled({
+          connectionId: "conn-1",
+          connectionDetails: {
+            clusterId: "cluster-1",
+            keyEvictionPolicy: "allkeys-lru",
+            clusterSlotStatsEnabled: false,
+            jsonModuleAvailable: false,
+            databasesCount: 4,
+          },
+        }),
+      )
+
+      expect(state.connections["conn-1"].connectionDetails.databasesCount).toBe(4)
     })
 
     it("should clear reconnect state on successful connection", () => {
