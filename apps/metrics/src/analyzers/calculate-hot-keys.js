@@ -1,5 +1,6 @@
 import * as R from "ramda"
 import { Heap } from "heap-js"
+import { Batch } from "@valkey/valkey-glide"
 import { getHotSlots } from "./get-hot-slots.js"
 
 const ACCESS_COMMANDS = [
@@ -75,8 +76,6 @@ export const calculateHotKeysFromMonitor = ({ limit, cutoff }) => (rows) =>
     R.reject(([, count]) => count <= cutoff),
     R.take(limit),
   )(rows)
-
-import { Batch } from "@valkey/valkey-glide"
 
 // Must have maxmemory-policy set to lfu*
 export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) => {
