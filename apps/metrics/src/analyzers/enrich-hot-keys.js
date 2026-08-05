@@ -22,8 +22,7 @@ export const enrichHotKeys = (client) => async (hotKeyPairs) => {
   }
 
   return hotKeyPairs.map(([keyName, count], i) => {
-    const ttl = results[i * 2] ?? -1
-    const memoryUsage = results[i * 2 + 1] ?? null
-    return [keyName, count, memoryUsage, ttl]
+    const [ttl, memoryUsage] = results.slice(i * 2, i * 2 + 2)
+    return [keyName, count, memoryUsage ?? null, ttl ?? -1]
   })
 }

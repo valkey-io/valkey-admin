@@ -25,11 +25,8 @@ export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchS
     const results = await client.exec(batch)
 
     for (let i = 0; i < keys.length; i++) {
-      const sizeBytes = Number(results[i * 3])
-      const type = results[i * 3 + 1]
-      const ttl = Number(results[i * 3 + 2])
-
-      const entry = { key: keys[i], sizeBytes, type, ttl }
+      const [sizeBytes, type, ttl] = results.slice(i * 3, i * 3 + 3)
+      const entry = { key: keys[i], sizeBytes: Number(sizeBytes), type, ttl: Number(ttl) }
 
       if (heap.size() < topN) {
         heap.push(entry)

@@ -542,9 +542,7 @@ export async function getKeys(
       keyList.map((key, i) =>
         limit(async () => {
           try {
-            const keyType = (metadataResults[i * 3] ?? "unknown") as string
-            const ttl = (metadataResults[i * 3 + 1] ?? -1) as number
-            const memoryUsage = (metadataResults[i * 3 + 2] ?? null) as number | null
+            const [keyType, ttl, memoryUsage] = metadataResults.slice(i * 3, i * 3 + 3) as [string, number, number | null]
 
             const keyInfo: EnrichedKeyInfo = {
               name: key,
