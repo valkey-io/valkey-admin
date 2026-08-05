@@ -1,6 +1,7 @@
 import * as R from "ramda"
 import { Heap } from "heap-js"
 import { Batch } from "@valkey/valkey-glide"
+import { VALKEY_CLIENT } from "valkey-common"
 import { getHotSlots } from "./get-hot-slots.js"
 
 const ACCESS_COMMANDS = [
@@ -101,7 +102,7 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
   const allKeys = slotKeys.flat()
 
   // Pipeline OBJECT FREQ in chunks to avoid overwhelming the server
-  const PIPELINE_CHUNK_SIZE = 500
+  const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
   const freqResults = []
   for (let i = 0; i < allKeys.length; i += PIPELINE_CHUNK_SIZE) {
     const chunk = allKeys.slice(i, i + PIPELINE_CHUNK_SIZE)

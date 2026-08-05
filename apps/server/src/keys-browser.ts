@@ -351,7 +351,7 @@ async function fetchSingleKeyMetadata(client: GlideClient | GlideClusterClient, 
   return { type, ttl, size }
 }
 
-const PIPELINE_CHUNK_SIZE = 500
+const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
 
 async function fetchKeyMetadataBatch(client: GlideClient | GlideClusterClient, keys: string[]): Promise<KeyMetadata[]> {
   const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch

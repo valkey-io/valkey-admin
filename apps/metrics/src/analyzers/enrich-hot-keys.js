@@ -1,6 +1,7 @@
 import { Batch } from "@valkey/valkey-glide"
+import { VALKEY_CLIENT } from "valkey-common"
 
-const PIPELINE_CHUNK_SIZE = 500
+const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
 
 export const enrichHotKeys = (client) => async (hotKeyPairs) => {
   if (hotKeyPairs.length === 0) return []
