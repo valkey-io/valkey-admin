@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { screen, fireEvent } from "@testing-library/react"
+import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { CONNECTED, VALKEY } from "@common/src/constants"
 import { buildConnectionId } from "@common/src/connection-id.ts"
 import EditForm from "./edit-form"
@@ -57,16 +57,16 @@ describe("EditForm", () => {
     fireEvent.change(screen.getByLabelText("Database"), { target: { value: "1" } })
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }))
 
-    // Give the async submit handler a tick to dispatch.
-    await screen.findByRole("button", { name: "Apply Changes" })
-
-    const deleted = dispatched.find((a) => a.type.endsWith("deleteConnection"))
-    const pending = dispatched.find((a) => a.type.endsWith("connectPending"))
-    expect(deleted?.payload).toMatchObject({ connectionId: CONNECTION_ID })
-    expect(pending?.payload).toMatchObject({
-      connectionId: buildConnectionId("localhost", "6379", 1),
-      isEdit: true,
+    await waitFor(() => {
+      expect(dispatched.find((a) => a.type.endsWith("connectPending"))?.payload).toMatchObject({
+        connectionId: buildConnectionId("localhost", "6379", 1),
+        isEdit: true,
+      })
     })
+
+    expect(
+      dispatched.find((a) => a.type.endsWith("deleteConnection"))?.payload,
+    ).toMatchObject({ connectionId: CONNECTION_ID })
   })
 
   it("blocks submit and shows a range error when db exceeds the server's databasesCount", async () => {
@@ -87,11 +87,10 @@ describe("EditForm", () => {
     fireEvent.change(screen.getByLabelText("Database"), { target: { value: "31" } })
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }))
 
-    await screen.findByRole("button", { name: "Apply Changes" })
-
-    const pending = dispatched.find((a) => a.type.endsWith("connectPending"))
-    expect(pending?.payload).toMatchObject({
-      connectionId: buildConnectionId("localhost", "6379", 31),
+    await waitFor(() => {
+      expect(dispatched.find((a) => a.type.endsWith("connectPending"))?.payload).toMatchObject({
+        connectionId: buildConnectionId("localhost", "6379", 31),
+      })
     })
   })
 
@@ -106,12 +105,13 @@ describe("EditForm", () => {
     expect(screen.queryByText(/Valid range on this server/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }))
-    await screen.findByRole("button", { name: "Apply Changes" })
 
-    expect(screen.queryByText(/This server has databases =/)).not.toBeInTheDocument()
-    expect(dispatched.find((a) => a.type.endsWith("connectPending"))?.payload).toMatchObject({
-      connectionId: buildConnectionId("other-host", "6379", 20),
+    await waitFor(() => {
+      expect(dispatched.find((a) => a.type.endsWith("connectPending"))?.payload).toMatchObject({
+        connectionId: buildConnectionId("other-host", "6379", 20),
+      })
     })
+    expect(screen.queryByText(/This server has databases =/)).not.toBeInTheDocument()
   })
 
   it("shows the server's valid range as a hint when databasesCount is known", () => {
