@@ -100,12 +100,18 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
   const slotKeys = await Promise.all(slotPromises)
   const allKeys = slotKeys.flat()
 
-  // Pipeline all OBJECT FREQ commands in a single round trip
-  const batch = new Batch(false)
-  for (const key of allKeys) {
-    batch.customCommand(["OBJECT", "FREQ", key])
+  // Pipeline OBJECT FREQ in chunks to avoid overwhelming the server
+  const PIPELINE_CHUNK_SIZE = 500
+  const freqResults = []
+  for (let i = 0; i < allKeys.length; i += PIPELINE_CHUNK_SIZE) {
+    const chunk = allKeys.slice(i, i + PIPELINE_CHUNK_SIZE)
+    const batch = new Batch(false)
+    for (const key of chunk) {
+      batch.customCommand(["OBJECT", "FREQ", key])
+    }
+    const chunkResults = await client.exec(batch)
+    freqResults.push(...chunkResults)
   }
-  const freqResults = await client.exec(batch)
 
   const heap = new Heap((a, b) => a.freq - b.freq)
   for (let i = 0; i < allKeys.length; i++) {

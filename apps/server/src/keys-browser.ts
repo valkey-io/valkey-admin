@@ -521,15 +521,21 @@ export async function getKeys(
     const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
     const keyList = [...allKeys]
 
-    // Pipeline TYPE, TTL, MEMORY USAGE for all keys in one round trip
+    // Pipeline TYPE, TTL, MEMORY USAGE in chunks to avoid overwhelming the server
     const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
-    const metadataBatch = new BatchClass(false)
-    for (const key of keyList) {
-      metadataBatch.customCommand(["TYPE", key])
-      metadataBatch.customCommand(["TTL", key])
-      metadataBatch.customCommand(["MEMORY", "USAGE", key])
+    const PIPELINE_CHUNK_SIZE = 500
+    const metadataResults: GlideReturnType[] = []
+    for (let i = 0; i < keyList.length; i += PIPELINE_CHUNK_SIZE) {
+      const chunk = keyList.slice(i, i + PIPELINE_CHUNK_SIZE)
+      const metadataBatch = new BatchClass(false)
+      for (const key of chunk) {
+        metadataBatch.customCommand(["TYPE", key])
+        metadataBatch.customCommand(["TTL", key])
+        metadataBatch.customCommand(["MEMORY", "USAGE", key])
+      }
+      const chunkResults = await client.exec(metadataBatch) as GlideReturnType[]
+      metadataResults.push(...chunkResults)
     }
-    const metadataResults = await client.exec(metadataBatch) as GlideReturnType[]
 
     // Build enriched keys with type-specific follow-ups
     const enrichedKeys = await Promise.all(
