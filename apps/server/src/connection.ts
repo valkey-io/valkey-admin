@@ -44,6 +44,8 @@ type ClusterCommit = {
 type StandaloneConnectionDetails = {
   keyEvictionPolicy: KeyEvictionPolicy
   jsonModuleAvailable: boolean
+  /** Server-configured database count (`databases` / `cluster-databases`). */
+  databasesCount: number
 }
 
 type ClusterConnectionDetails = StandaloneConnectionDetails & {
@@ -75,19 +77,35 @@ export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
 const DEFAULT_DATABASES_COUNT = 16
 
 /**
- * Read the connected standalone server's configured `databases` count via
- * `CONFIG GET databases`. Returns the parsed integer when present and parseable;
- * otherwise returns the upstream default of 16.
+ * Read the server's configured database count via `CONFIG GET`, trying each of
+ * `configKeys` in order (cluster callers pass `["cluster-databases", "databases"]` as
+ * Valkey 9 clusters expose the count as `cluster-databases`). Returns the first
+ * parseable integer >= 1, or `null` when no key yields one (e.g. `CONFIG GET`
+ * denied by ACL).
  */
-async function getDatabasesCount(client: GlideClient): Promise<number> {
-  try {
-    const raw = (await client.configGet(["databases"]))?.["databases"]
-    const parsed = raw !== undefined ? Number.parseInt(String(raw), 10) : NaN
-    if (Number.isInteger(parsed) && parsed >= 1) return parsed
-  } catch (err) {
-    console.warn("Unable to read `databases` from CONFIG GET; defaulting to 16:", err)
+async function getDatabasesCount(
+  client: GlideClient | GlideClusterClient,
+  configKeys: string[] = ["databases"],
+): Promise<number | null> {
+  for (const key of configKeys) {
+    try {
+      const response = await client.configGet([key])
+      let raw = response?.[key]
+      // Cluster configGet can return a per-node dict ({ nodeAddr: { key: value } })
+      // when routed to multiple nodes; unwrap the first node's record.
+      if (raw === undefined && response !== null && typeof response === "object") {
+        const firstNode = Object.values(response)[0]
+        if (firstNode !== null && typeof firstNode === "object") {
+          raw = (firstNode as Record<string, unknown>)[key] as typeof raw
+        }
+      }
+      const parsed = raw !== undefined ? Number.parseInt(String(raw), 10) : NaN
+      if (Number.isInteger(parsed) && parsed >= 1) return parsed
+    } catch (err) {
+      console.warn(`Unable to read \`${key}\` from CONFIG GET:`, err)
+    }
   }
-  return DEFAULT_DATABASES_COUNT
+  return null
 }
 
 /**
@@ -213,13 +231,18 @@ async function connectToValkeyLocked(
         })
       }
       const existingStandalone = existingConnection.client as GlideClient
-      const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+      const [keyEvictionPolicy, jsonModuleAvailable, existingDatabasesCount] = await Promise.all([
         getKeyEvictionPolicy(existingStandalone),
         checkJsonModuleAvailability(existingStandalone),
+        getDatabasesCount(existingStandalone),
       ])
       sendStandaloneConnectFulfilled(ws, {
         connectionId,
-        connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+        connectionDetails: {
+          keyEvictionPolicy,
+          jsonModuleAvailable,
+          databasesCount: existingDatabasesCount ?? DEFAULT_DATABASES_COUNT,
+        },
       })
       subscribe(connectionId, ws)
       return existingStandalone
@@ -270,6 +293,20 @@ async function connectToValkeyLocked(
         )
       }
       const clusterDatabaseId = clusterDbSupported ? db : 0
+
+      // Valkey 9 clusters expose the count as `cluster-databases` with fall back to `databases`.
+      if (clusterDatabaseId > 0) {
+        const clusterDatabasesCount = await getDatabasesCount(
+          standaloneClient,
+          ["cluster-databases", "databases"],
+        )
+        if (clusterDatabasesCount !== null && clusterDatabaseId >= clusterDatabasesCount) {
+          throw new ConnectionRejectedError(
+            `Database_Index ${db} is out of range: this cluster has cluster-databases = ` +
+            `${clusterDatabasesCount} (valid range 0..${clusterDatabasesCount - 1})`,
+          )
+        }
+      }
 
       const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
       standaloneClient.close()
@@ -341,6 +378,14 @@ async function connectToValkeyLocked(
       }
     }
 
+    const databasesCount = await getDatabasesCount(standaloneClient)
+    if (databasesCount !== null && db >= databasesCount) {
+      throw new ConnectionRejectedError(
+        `Database_Index ${db} is out of range: this server has databases = ` +
+        `${databasesCount} (valid range 0..${databasesCount - 1})`,
+      )
+    }
+
     // Standalone path. Issue `SELECT` against the configured database AFTER
     // we know the server is standalone (cluster mode rejects `SELECT`). For
     // db > 0 we need to rebuild the client so Glide binds the connection to
@@ -365,17 +410,6 @@ async function connectToValkeyLocked(
       clients.set(connectionId, { client: standaloneClient })
     }
 
-    // Range-check the supplied Database_Index against the server's configured
-    // `databases` count. Done after the client is connected
-    // because only the live server knows its `databases` value (different
-    // nodes can be configured differently).
-    const databasesCount = await getDatabasesCount(standaloneClient)
-    if (db >= databasesCount) {
-      throw new ConnectionRejectedError(
-        `Database_Index ${db} is out of range (server allows 0..${databasesCount - 1})`,
-      )
-    }
-
     console.log("Connected to standalone")
 
     subscribe(payload.connectionId, ws)
@@ -386,7 +420,11 @@ async function connectToValkeyLocked(
     ])
     sendStandaloneConnectFulfilled(ws, {
       connectionId,
-      connectionDetails: { keyEvictionPolicy, jsonModuleAvailable },
+      connectionDetails: {
+        keyEvictionPolicy,
+        jsonModuleAvailable,
+        databasesCount: databasesCount ?? DEFAULT_DATABASES_COUNT,
+      },
     })
 
     return standaloneClient
@@ -405,7 +443,20 @@ async function connectToValkeyLocked(
     }
 
     console.error("Error connecting to Valkey", err)
-    const errorMessage = err instanceof Error ? err.message : String(err)
+    const rawMessage = err instanceof Error ? err.message : String(err)
+    // Fallback for db-switch failures the proactive CONFIG GET range check
+    // couldn't catch (e.g. CONFIG GET denied by ACL): Glide's handshake
+    // rejects with a ClosingError whose message carries the server's refusal.
+    const isDbSwitchFailure =
+      db > 0 &&
+      !(err instanceof ConnectionRejectedError) &&
+      /refused to switch database|DB index is out of range/i.test(rawMessage)
+    const errorMessage = isDbSwitchFailure
+      ? `Database_Index ${db} is not enabled on this server (it rejected SELECT ${db}). ` +
+        "Check the server's configured database count with CONFIG GET databases " +
+        "(or cluster-databases for Valkey 9+ clusters) and choose an index below it. " +
+        `Underlying error: ${rawMessage}`
+      : rawMessage
     ws.send(
       JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,
@@ -503,10 +554,11 @@ async function commitClusterConnection(
   const { clients, connectedNodesByCluster, clusterNodesRegistry } = ctx
   const { clusterClient, clusterId, connectionId, seedAddress, discoveredClusterNodes } = commit
 
-  const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
+  const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable, databasesCount] = await Promise.all([
     getClusterSlotStatsEnabled(clusterClient),
     getKeyEvictionPolicy(clusterClient),
     checkJsonModuleAvailability(clusterClient),
+    getDatabasesCount(clusterClient, ["cluster-databases", "databases"]),
   ])
 
   clusterNodesRegistry[clusterId] = discoveredClusterNodes
@@ -527,6 +579,7 @@ async function commitClusterConnection(
       keyEvictionPolicy,
       clusterSlotStatsEnabled,
       jsonModuleAvailable,
+      databasesCount: databasesCount ?? DEFAULT_DATABASES_COUNT,
     },
   })
 

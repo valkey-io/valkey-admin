@@ -45,6 +45,10 @@ export interface ConnectionDetails {
    * Logical Valkey database index.
    */
   db: number
+  /**
+   * Server-configured database count learned from the server on connect.
+   */
+  databasesCount?: number
 }
 
 interface ReconnectState {
@@ -187,6 +191,8 @@ const connectionSlice = createSlice({
           connectionState.connectionDetails.keyEvictionPolicy = connectionDetails.keyEvictionPolicy
           connectionState.connectionDetails.jsonModuleAvailable = connectionDetails.jsonModuleAvailable ??
           connectionState.connectionDetails.jsonModuleAvailable
+          connectionState.connectionDetails.databasesCount = connectionDetails.databasesCount ??
+          connectionState.connectionDetails.databasesCount
         }
 
         connectionState.connectionHistory ??= []
@@ -199,7 +205,7 @@ const connectionSlice = createSlice({
     },
     clusterConnectFulfilled: (state, action) => {
       const { connectionId, connectionDetails } = action.payload
-      const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable } = connectionDetails
+      const { clusterId, keyEvictionPolicy, clusterSlotStatsEnabled, jsonModuleAvailable, databasesCount } = connectionDetails
 
       const connectionState = state.connections[connectionId]
       connectionState.status = CONNECTED
@@ -208,6 +214,8 @@ const connectionSlice = createSlice({
       connectionState.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
       connectionState.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
       connectionState.connectionDetails.jsonModuleAvailable = jsonModuleAvailable
+      connectionState.connectionDetails.databasesCount = databasesCount ??
+      connectionState.connectionDetails.databasesCount
       delete connectionState.reconnect
       connectionState.connectionHistory ??= []
       connectionState.connectionHistory.push({ timestamp: Date.now(), event: CONNECTED })

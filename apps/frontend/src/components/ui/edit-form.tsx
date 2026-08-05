@@ -1,6 +1,6 @@
 import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
-import { buildConnectionId } from "@common/src/connection-id.ts"
+import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
 import { CONNECTED } from "@common/src/constants"
 import { ConnectionModal } from "./connection-modal.tsx"
 import {
@@ -43,6 +43,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     db: 0,
   })
   const [passwordChanged, setPasswordChanged] = useState(false)
+  const [dbError, setDbError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (currentConnection) {
@@ -83,6 +84,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     return (
       connectionDetails.host !== currentConnection.host ||
       connectionDetails.port !== currentConnection.port ||
+      connectionDetails.db !== currentConnection.db ||
       connectionDetails.username !== (currentConnection.username ?? "") ||
       connectionDetails.tls !== (currentConnection.tls ?? false) ||
       connectionDetails.verifyTlsCertificate !== (currentConnection.verifyTlsCertificate ?? false) ||
@@ -94,10 +96,32 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     )
   }
 
+  // The count belongs to the connection's current host/port.
+  const databasesCount = currentConnection?.databasesCount
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     if (!connectionId || !currentConnection) return
+
+    if (!isValidDatabaseIndex(connectionDetails.db)) {
+      setDbError("Database must be a non-negative integer.")
+      return
+    }
+    const sameServer =
+      connectionDetails.host === currentConnection.host &&
+      connectionDetails.port === currentConnection.port
+    if (
+      sameServer &&
+      databasesCount !== undefined &&
+      connectionDetails.db >= databasesCount
+    ) {
+      setDbError(
+        `This server has databases = ${databasesCount}; choose a database in 0..${databasesCount - 1}.`,
+      )
+      return
+    }
+    setDbError(undefined)
 
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
@@ -151,6 +175,12 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
   return (
     <ConnectionModal
       connectionDetails={connectionDetails}
+      dbError={dbError}
+      dbHint={
+        databasesCount !== undefined
+          ? `Valid range on this server: 0..${databasesCount - 1}`
+          : undefined
+      }
       description="Modify your server's connection details."
       isSubmitDisabled={
         !connectionDetails.host ||

@@ -5,7 +5,7 @@ import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { Alert, AlertDescription } from "./alert.tsx"
 import { Button } from "./button.tsx"
 import { Input } from "./input.tsx"
-import { Select } from "./select.tsx"
+import { NumberInput } from "./number-input.tsx"
 import { Typography } from "./typography.tsx"
 import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
@@ -27,6 +27,8 @@ interface ConnectionModalProps {
   showConnectionLimitWarning: boolean
   showVerifyTlsCertificate?: boolean
   dbError?: string
+  /** Informational hint under the Database field (e.g. the server's valid range). */
+  dbHint?: string
 }
 
 export function ConnectionModal({
@@ -44,6 +46,7 @@ export function ConnectionModal({
   showConnectionLimitWarning,
   showVerifyTlsCertificate = true,
   dbError,
+  dbHint,
 }: ConnectionModalProps) {
 
   return (
@@ -245,24 +248,23 @@ export function ConnectionModal({
                   {/* Database */}
                   <div>
                     <Label className="block mb-1" htmlFor="db">Database</Label>
-                    <Select
+                    <NumberInput
                       disabled={connectionDetails.endpointType === "cluster-endpoint"}
                       id="db"
-                      onChange={(e) =>
-                        onConnectionDetailsChange({
-                          ...connectionDetails,
-                          db: Number.parseInt(e.target.value, 10),
-                        })
+                      min={0}
+                      onChange={(db) =>
+                        onConnectionDetailsChange({ ...connectionDetails, db })
                       }
-                      value={String(connectionDetails.db)}
-                    >
-                      {Array.from({ length: 16 }, (_, i) => (
-                        <option key={i} value={i}>{`DB ${i}`}</option>
-                      ))}
-                    </Select>
+                      value={connectionDetails.db}
+                    />
                     {dbError && (
                       <Typography className="text-destructive mt-1" variant="bodySm">
                         {dbError}
+                      </Typography>
+                    )}
+                    {!dbError && dbHint && (
+                      <Typography className="text-muted-foreground mt-1" variant="bodySm">
+                        {dbHint}
                       </Typography>
                     )}
                   </div>

@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { buildConnectionId } from "@common/src/connection-id.ts"
+import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
@@ -15,9 +15,6 @@ import { secureStorage } from "@/utils/secureStorage.ts"
 interface ConnectionFormProps {
   onClose: () => void
 }
-
-const isValidDb = (db: unknown): db is number =>
-  typeof db === "number" && Number.isInteger(db) && db >= 0 && db <= 15
 
 function ConnectionForm({ onClose }: ConnectionFormProps) {
   const dispatch = useAppDispatch()
@@ -77,8 +74,10 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     e.preventDefault()
     if (isAtConnectionLimit) return
 
-    if (!isValidDb(connectionDetails.db)) {
-      setDbError("Database must be an integer between 0 and 15.")
+    // No static upper bound: the valid range depends on the server's
+    // `databases` config, which the backend checks at connect time.
+    if (!isValidDatabaseIndex(connectionDetails.db)) {
+      setDbError("Database must be a non-negative integer.")
       return
     }
     setDbError(undefined)

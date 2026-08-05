@@ -34,10 +34,11 @@ function clamp(value: number, min?: number, max?: number) {
   return value
 }
 
-function NumberInput({ value, onChange, min, max, step = 1, allowEmpty, className, style, ...props }: NumberInputProps) {
+function NumberInput({ value, onChange, min, max, step = 1, allowEmpty, className, style, disabled, ...props }: NumberInputProps) {
   const emit = onChange as (value: number | null) => void
 
   const stepBy = (direction: 1 | -1) => {
+    if (disabled) return
     if (value === null) {
       emit(clamp(min ?? 0, min, max))
       return
@@ -59,6 +60,7 @@ function NumberInput({ value, onChange, min, max, step = 1, allowEmpty, classNam
           "pr-6 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
           className,
         )}
+        disabled={disabled}
         onBlur={() => { if (value !== null) emit(clamp(value, min, max)) }}
         onChange={(e) => emit(allowEmpty && e.target.value === "" ? null : Number(e.target.value))}
         onKeyDown={handleKeyDown}
@@ -68,7 +70,11 @@ function NumberInput({ value, onChange, min, max, step = 1, allowEmpty, classNam
       />
       <div aria-hidden className="absolute inset-y-0 right-0 flex flex-col justify-center pr-1">
         <button
-          className="flex h-3.5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+          className={cn(
+            "flex h-3.5 items-center justify-center rounded-sm text-muted-foreground",
+            "hover:text-foreground disabled:pointer-events-none disabled:opacity-50",
+          )}
+          disabled={disabled}
           onClick={() => stepBy(1)}
           tabIndex={-1}
           type="button"
@@ -76,7 +82,11 @@ function NumberInput({ value, onChange, min, max, step = 1, allowEmpty, classNam
           <ChevronUp size={14} />
         </button>
         <button
-          className="flex h-3.5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+          className={cn(
+            "flex h-3.5 items-center justify-center rounded-sm text-muted-foreground",
+            "hover:text-foreground disabled:pointer-events-none disabled:opacity-50",
+          )}
+          disabled={disabled}
           onClick={() => stepBy(-1)}
           tabIndex={-1}
           type="button"
