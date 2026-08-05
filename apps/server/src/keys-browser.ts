@@ -340,16 +340,48 @@ async function getFullKeyInfo(
   }
 }
 
+type KeyMetadata = { type: string; ttl: number; size: number | null }
+
+async function fetchSingleKeyMetadata(client: GlideClient | GlideClusterClient, key: string): Promise<KeyMetadata> {
+  const [type, ttl, size] = await Promise.all([
+    client.customCommand(["TYPE", key]) as Promise<string>,
+    client.customCommand(["TTL", key]).catch(() => -1) as Promise<number>,
+    client.customCommand(["MEMORY", "USAGE", key]).catch(() => null) as Promise<number | null>,
+  ])
+  return { type, ttl, size }
+}
+
+const PIPELINE_CHUNK_SIZE = 500
+
+async function fetchKeyMetadataBatch(client: GlideClient | GlideClusterClient, keys: string[]): Promise<KeyMetadata[]> {
+  const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+  const results: GlideReturnType[] = []
+
+  for (let i = 0; i < keys.length; i += PIPELINE_CHUNK_SIZE) {
+    const chunk = keys.slice(i, i + PIPELINE_CHUNK_SIZE)
+    const batch = new BatchClass(false)
+    for (const key of chunk) {
+      batch.customCommand(["TYPE", key])
+      batch.customCommand(["TTL", key])
+      batch.customCommand(["MEMORY", "USAGE", key])
+    }
+    const chunkResults = await client.exec(batch) as GlideReturnType[]
+    results.push(...chunkResults)
+  }
+
+  return keys.map((_, i) => {
+    const [type, ttl, size] = results.slice(i * 3, i * 3 + 3)
+    return { type: (type ?? "unknown") as string, ttl: (ttl ?? -1) as number, size: (size ?? null) as number | null }
+  })
+}
+
 export async function getKeyInfo(
   client: GlideClient | GlideClusterClient,
   key: string,
+  metadata?: KeyMetadata,
 ): Promise<EnrichedKeyInfo> {
   try {
-    const [keyType, ttl, memoryUsage] = await Promise.all([
-      client.customCommand(["TYPE", key]) as Promise<string>,
-      client.customCommand(["TTL", key]).catch(() => -1) as Promise<number>,
-      client.customCommand(["MEMORY", "USAGE", key]).catch(() => null) as Promise<number | null>,
-    ])
+    const { type: keyType, ttl, size: memoryUsage } = metadata ?? await fetchSingleKeyMetadata(client, key)
 
     const keyInfo: EnrichedKeyInfo = {
       name: key,
@@ -521,76 +553,16 @@ export async function getKeys(
     const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
     const keyList = [...allKeys]
 
-    // Pipeline TYPE, TTL, MEMORY USAGE in chunks to avoid overwhelming the server
-    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
-    const PIPELINE_CHUNK_SIZE = 500
-    const metadataResults: GlideReturnType[] = []
-    for (let i = 0; i < keyList.length; i += PIPELINE_CHUNK_SIZE) {
-      const chunk = keyList.slice(i, i + PIPELINE_CHUNK_SIZE)
-      const metadataBatch = new BatchClass(false)
-      for (const key of chunk) {
-        metadataBatch.customCommand(["TYPE", key])
-        metadataBatch.customCommand(["TTL", key])
-        metadataBatch.customCommand(["MEMORY", "USAGE", key])
-      }
-      const chunkResults = await client.exec(metadataBatch) as GlideReturnType[]
-      metadataResults.push(...chunkResults)
-    }
+    const metadata = await fetchKeyMetadataBatch(client, keyList)
 
-    // Build enriched keys with type-specific follow-ups
     const enrichedKeys = await Promise.all(
       keyList.map((key, i) =>
-        limit(async () => {
-          try {
-            const [keyType, ttl, memoryUsage] = metadataResults.slice(i * 3, i * 3 + 3) as [string, number, number | null]
-
-            const keyInfo: EnrichedKeyInfo = {
-              name: key,
-              type: keyType,
-              ttl,
-              size: memoryUsage || -1,
-            }
-
-            const elementCommands: Record<string, { sizeCmd: string; elementsCmd: string[] }> = {
-              list: { sizeCmd: "LLEN", elementsCmd: ["LRANGE", key] },
-              zset: { sizeCmd: "ZCARD", elementsCmd: ["ZRANGE", key] },
-              stream: { sizeCmd: "XLEN", elementsCmd: ["XRANGE", key] },
-              "rejson-rl": { sizeCmd: "", elementsCmd: ["JSON.GET", key] },
-              string: { sizeCmd: "", elementsCmd: ["GET", key] },
-              set: { sizeCmd: "SCARD", elementsCmd: ["SSCAN", keyInfo.name] },
-              hash: { sizeCmd: "HLEN", elementsCmd: ["HSCAN", keyInfo.name] },
-            }
-
-            const commands = elementCommands[keyType.toLowerCase()]
-            if (!commands) return keyInfo
-
-            if (memoryUsage > keyValueSizeLimitBytes) {
-              if (commands.sizeCmd) {
-                keyInfo.collectionSize = await (client.customCommand([commands.sizeCmd, key])) as number
-              }
-              keyInfo.elementsWarning = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(keyValueSizeLimitBytes)}.`
-              return keyInfo
-            }
-
-            switch (keyType.toLowerCase()) {
-              case "set":
-              case "hash":
-                return await getScanKeyInfo(client, keyInfo, commands)
-              case "list":
-                return await getPaginatedListInfo(client, keyInfo, commands)
-              case "stream":
-                return await getPaginatedStreamInfo(client, keyInfo, commands)
-              case "zset":
-                return await getPaginatedZSetInfo(client, keyInfo, commands)
-              case "rejson-rl":
-                return await getPaginatedJsonInfo(client, keyInfo, commands)
-              default:
-                return await getFullKeyInfo(client, keyInfo, commands)
-            }
-          } catch {
-            return { name: key, type: "unknown", ttl: -1, size: -1 }
-          }
-        }),
+        limit(() => getKeyInfo(client, key, metadata[i]).catch(() => ({
+          name: key,
+          type: "unknown",
+          ttl: -1,
+          size: -1,
+        }))),
       ),
     )
 
