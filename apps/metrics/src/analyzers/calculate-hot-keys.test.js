@@ -1,4 +1,9 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
+
+vi.mock("@valkey/valkey-glide", () => ({
+  Batch: class { constructor() { this.commands = [] } customCommand(args) { this.commands.push(args); return this } },
+}))
+
 import { calculateHotKeysFromMonitor } from "./calculate-hot-keys.js"
 
 describe("calculateHotKeysFromMonitor", () => {

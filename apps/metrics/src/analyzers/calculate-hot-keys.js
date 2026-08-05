@@ -76,6 +76,8 @@ export const calculateHotKeysFromMonitor = ({ limit, cutoff }) => (rows) =>
     R.take(limit),
   )(rows)
 
+import { Batch } from "@valkey/valkey-glide"
+
 // Must have maxmemory-policy set to lfu*
 export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) => {
   const hotSlots = await getHotSlots(client)
@@ -93,26 +95,28 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
 
     } while (cursorToSlot === slotId && cursor !== 0)
     
-    return keys.map( async (key) => {
-      // Must have LFU enabled for this to work
-      const freq = parseInt(await client.customCommand(["OBJECT", "FREQ", key]))
-      return { key, freq }
-    })
+    return keys
   })
 
-  const keyFreqNestedPromises = await Promise.all(slotPromises)
-  const keyFreqPromises = keyFreqNestedPromises.flat()
-  const allKeyFreqs = await Promise.all(keyFreqPromises)
+  const slotKeys = await Promise.all(slotPromises)
+  const allKeys = slotKeys.flat()
+
+  // Pipeline all OBJECT FREQ commands in a single round trip
+  const batch = new Batch(false)
+  for (const key of allKeys) {
+    batch.customCommand(["OBJECT", "FREQ", key])
+  }
+  const freqResults = await client.exec(batch)
 
   const heap = new Heap((a, b) => a.freq - b.freq)
-  for (const { key, freq } of allKeyFreqs) {
-    if (freq <= 1) continue
-    if (heap.size() < count){
-      heap.push({ key, freq })
-    }
-    else if ( freq > heap.peek().freq) {
+  for (let i = 0; i < allKeys.length; i++) {
+    const freq = parseInt(freqResults[i])
+    if (isNaN(freq) || freq <= 1) continue
+    if (heap.size() < count) {
+      heap.push({ key: allKeys[i], freq })
+    } else if (freq > heap.peek().freq) {
       heap.pop()
-      heap.push({ key, freq })
+      heap.push({ key: allKeys[i], freq })
     }
   }
   return heap.toArray().map(({ key, freq }) => [key, freq])

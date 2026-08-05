@@ -1,18 +1,24 @@
-export const enrichHotKeys = (client) => async (hotKeyPairs) => {
-  return Promise.all(
-    hotKeyPairs.map(async ([keyName, count]) => {
-      try {
-        const [ttl, memoryUsage] = await Promise.all([
-          client.customCommand(["TTL", keyName]).catch(() => -1),
-          client.customCommand(["MEMORY", "USAGE", keyName]).catch(() => null),
-        ])
+import { Batch } from "@valkey/valkey-glide"
 
-        // Keep the same shape as before: [keyName, count, size, ttl]
-        return [keyName, count, memoryUsage ?? null, ttl ?? -1]
-      } catch (error) {
-        console.error(`Error fetching data for the key ${keyName}:`, error)
-        return [keyName, count, null, -1]
-      }
-    }),
-  )
+export const enrichHotKeys = (client) => async (hotKeyPairs) => {
+  if (hotKeyPairs.length === 0) return []
+
+  const batch = new Batch(false)
+  for (const [keyName] of hotKeyPairs) {
+    batch.customCommand(["TTL", keyName])
+    batch.customCommand(["MEMORY", "USAGE", keyName])
+  }
+
+  let results
+  try {
+    results = await client.exec(batch)
+  } catch {
+    return hotKeyPairs.map(([keyName, count]) => [keyName, count, null, -1])
+  }
+
+  return hotKeyPairs.map(([keyName, count], i) => {
+    const ttl = results[i * 2] ?? -1
+    const memoryUsage = results[i * 2 + 1] ?? null
+    return [keyName, count, memoryUsage, ttl]
+  })
 }
