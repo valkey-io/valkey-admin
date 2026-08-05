@@ -30,7 +30,7 @@ export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchS
 
       if (heap.size() < topN) {
         heap.push(entry)
-      } else if (sizeBytes > heap.peek().sizeBytes) {
+      } else if (entry.sizeBytes > heap.peek().sizeBytes) {
         heap.pop()
         heap.push(entry)
       }
