@@ -1,7 +1,7 @@
 import * as R from "ramda"
 import { Heap } from "heap-js"
 import { Batch } from "@valkey/valkey-glide"
-import { VALKEY_CLIENT } from "valkey-common"
+import { VALKEY_CLIENT } from "../../../../common/src/constants.js"
 import { getHotSlots } from "./get-hot-slots.js"
 
 const ACCESS_COMMANDS = [

@@ -1,5 +1,5 @@
 import { Batch } from "@valkey/valkey-glide"
-import { VALKEY_CLIENT } from "valkey-common"
+import { VALKEY_CLIENT } from "../../../../common/src/constants.js"
 
 const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
 
