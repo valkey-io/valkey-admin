@@ -36,14 +36,16 @@ Both endpoint types result in the same cluster experience when connecting to a c
 
 ## Numbered Databases
 
-Valkey supports multiple logical databases per instance (default: 16, numbered `0` through `15`). The connection modal exposes a **Database** dropdown to select which database to connect to.
+Valkey supports multiple logical databases per instance (default: 16, numbered `0` through `15`, configurable via `databases`). The connection modal exposes a **Database** number field accepting any non-negative integer — there is no static upper bound in the UI, because the valid range depends on the target server.
+
+At connect time the server validates the requested index against the live server's configured count (`CONFIG GET databases`, or `cluster-databases` for Valkey 9+ clusters) and rejects out-of-range values with a message naming the configured count and valid range. Once connected, the learned count is shown in the Edit Connection form as the valid range for that server.
 
 Each `(host, port, db)` combination creates an independent client connection. Switching databases opens a new connection rather than running `SELECT` on an existing one — operations in one database never affect another.
 
 ### Cluster Mode
 
 - **Valkey 9.0+**: Multiple databases are supported in cluster mode. Set `--cluster-databases <n>` on every cluster node to enable.
-- **Below 9.0**: Only `db 0` is available in cluster mode. The connection modal disables the database dropdown when connecting via discovery endpoint.
+- **Below 9.0**: Only `db 0` is available in cluster mode. The connection modal disables the database field when connecting via discovery endpoint.
 
 ### Standalone Mode
 

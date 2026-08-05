@@ -23,7 +23,7 @@ Valkey Admin works with all supported Valkey versions. Some features are version
 
 The Add Connection modal accepts both single-node and cluster discovery endpoints. Notable fields:
 
-- **Database** — Pick a logical database from the `DB 0` through `DB 15` dropdown (16 options). Defaults to `DB 0`. The field is locked to `DB 0` when the cluster discovery endpoint is selected.
+- **Database** — Enter any logical database index (a non-negative integer, defaults to `0`). The valid range is determined by the target server's `databases` config (Valkey's default is 16, giving `0..15`); out-of-range values are rejected at connect time with the server's configured count. The field is locked to `0` when the cluster discovery endpoint is selected.
 
 For the full walkthrough see the [connection docs](https://valkey-admin.valkey.io/configuration/shared/).
 

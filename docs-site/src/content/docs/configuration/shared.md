@@ -84,14 +84,15 @@ Each connection carries a `db` field on its `ConnectionDetails` payload — the 
 
 - **Type:** non-negative integer
 - **Default:** `0` (Valkey's default database)
-- **Valid range:** `0` through `databases - 1`, where `databases` is whatever the target Valkey server reports for its `databases` config (Valkey's default is `16`, giving `0..15`). Out-of-range values are rejected with a `connectRejected` error.
+- **Valid range:** `0` through `databases - 1`, where `databases` is whatever the target Valkey server reports for its `databases` config (Valkey's default is `16`, giving `0..15`). The server checks the range via `CONFIG GET` on a database-less probe client before binding the requested database, and rejects out-of-range values with a `connectRejected` error naming the server's configured count. If `CONFIG GET` is unavailable (e.g. denied by ACL), the proactive check is skipped and an out-of-range index instead fails during the connection handshake, which the server translates into a verbose "not enabled on this server" error.
 - **Cluster mode:** servers at Valkey/Redis `9.0.0` or higher honor a non-zero `db`. Older cluster servers only support `db: 0` and the server rejects non-zero values for those clusters with a clear error.
+- **Learned count:** successful connects (standalone and cluster) include a `databasesCount` field in the `standaloneConnectFulfilled` / `clusterConnectFulfilled` payload's connection details, which the frontend stores and the Edit Connection form uses to display and enforce the valid range for that server.
 
 ### Connection form
 
-The "Add Connection" modal in the frontend exposes `db` as a **Database** dropdown next to the Auth and TLS fields.
+The "Add Connection" modal in the frontend exposes `db` as a **Database** number input next to the Auth and TLS fields.
 
-- **Options:** exactly 16 entries, labeled `DB 0` through `DB 15`, mapping to the integer values `0..15`.
-- **Default:** `DB 0`, matching the `db: 0` default that ships in `ConnectionDetails`.
-- **Cluster discovery endpoint:** when the user picks the cluster discovery endpoint (i.e. `endpointType === "cluster-endpoint"`, including the implicit switch triggered by typing a host containing `cfg`), the dropdown is disabled and the form coerces `db` back to `0` before dispatching. This pinning is intentional — most cluster deployments do not support a non-zero database index, and the server-side gating described above will reject those connections anyway.
-- **Validation:** before dispatching `connectPending` or `discoveryEndpointPending`, the form re-checks that `db` is an integer in `0..15`. With the fixed dropdown plus cluster coercion this branch should never trigger from normal use; it exists as a defensive guard against state injection and surfaces an inline error under the Database field if it does.
+- **Input:** any non-negative integer (minimum `0`, no static upper bound — the valid range depends on the target server and is enforced at connect time as described above).
+- **Default:** `0`, matching the `db: 0` default that ships in `ConnectionDetails`.
+- **Cluster discovery endpoint:** when the user picks the cluster discovery endpoint (i.e. `endpointType === "cluster-endpoint"`, including the implicit switch triggered by typing a host containing `cfg`), the field is disabled and the form coerces `db` back to `0` before dispatching. This pinning is intentional — most cluster deployments do not support a non-zero database index, and the server-side gating described above will reject those connections anyway.
+- **Validation:** before dispatching `connectPending` or `discoveryEndpointPending`, the form checks that `db` is a non-negative integer (`isValidDatabaseIndex` from `common/src/connection-id.ts`) and surfaces an inline error under the Database field if not. The Edit Connection form additionally checks the value against the server's learned `databasesCount` (when host/port are unchanged) and shows the valid range as a hint under the field.
