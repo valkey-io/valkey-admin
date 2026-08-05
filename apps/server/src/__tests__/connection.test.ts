@@ -549,6 +549,23 @@ describe("connectToValkey", () => {
     })
   })
 
+  it("forwards a >16 databasesCount when reusing an already-connected standalone client", async () => {
+    const standalone = buildStandaloneMock({ databases: "64" })
+    await withMockedClients(standalone, null, async () => {
+      // Seed the registry so the existing-connection early return handles this
+      // connect; that path reads the count independently of the fresh path.
+      clients.set(DEFAULT_PAYLOAD.connectionId, { client: standalone })
+
+      await connectToValkey(ctx(), mockWs, DEFAULT_PAYLOAD)
+
+      const fulfilled = messages
+        .map((m) => JSON.parse(m))
+        .find((m) => m.type === VALKEY.CONNECTION.standaloneConnectFulfilled)
+      assert.ok(fulfilled)
+      assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 64)
+    })
+  })
+
   it("skips the proactive range check when CONFIG GET is denied and still connects", async () => {
     await withMockedClients(buildStandaloneMock({ configGetError: true }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 20)
@@ -559,13 +576,17 @@ describe("connectToValkey", () => {
 
       // The count is unknowable, so the server must not guess-and-reject; the
       // connection attempt itself decides. The mock accepts, and the payload
-      // falls back to the upstream default of 16.
+      // omits `databasesCount` entirely rather than substituting a default —
+      // a fabricated 16 would cap the Edit form below the server's real range.
       assert.strictEqual(clients.has(connectionId), true)
       const fulfilled = messages
         .map((m) => JSON.parse(m))
         .find((m) => m.type === VALKEY.CONNECTION.standaloneConnectFulfilled)
       assert.ok(fulfilled)
-      assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 16)
+      assert.ok(
+        !("databasesCount" in fulfilled.payload.connectionDetails),
+        "an unreadable count must be omitted, not defaulted",
+      )
     })
   })
 
@@ -599,7 +620,7 @@ describe("connectToValkey", () => {
         rejected.payload.errorMessage,
         /Database_Index 5 is not enabled on this server \(it rejected SELECT 5\)/,
       )
-      assert.match(rejected.payload.errorMessage, /refused to switch database/)
+      assert.match(rejected.payload.errorMessage, /CONFIG GET databases/)
     })
   })
 

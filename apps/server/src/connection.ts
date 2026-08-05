@@ -44,8 +44,14 @@ type ClusterCommit = {
 type StandaloneConnectionDetails = {
   keyEvictionPolicy: KeyEvictionPolicy
   jsonModuleAvailable: boolean
-  /** Server-configured database count (`databases` / `cluster-databases`). */
-  databasesCount: number
+  /**
+   * Server-configured database count (`databases` / `cluster-databases`).
+   * Omitted when the server's count could not be read (e.g. `CONFIG GET`
+   * denied by ACL). Consumers must treat the absent case as "unknown" and
+   * impose no range limit as substituting a default would cap the range at a
+   * guess and reject databases the server actually has.
+   */
+  databasesCount?: number
 }
 
 type ClusterConnectionDetails = StandaloneConnectionDetails & {
@@ -69,12 +75,6 @@ const inFlightClusterClients = new Map<string, Promise<GlideClusterClient>>()
 
 // Test-only: reset in-flight state between cases.
 export const _resetInFlightClusterClients = () => inFlightClusterClients.clear()
-
-/**
- * Default Valkey/Redis `databases` count when the server's `CONFIG GET databases`
- * response is missing or unparseable. Mirrors the upstream default (16).
- */
-const DEFAULT_DATABASES_COUNT = 16
 
 /**
  * Read the server's configured database count via `CONFIG GET`, trying each of
@@ -241,7 +241,7 @@ async function connectToValkeyLocked(
         connectionDetails: {
           keyEvictionPolicy,
           jsonModuleAvailable,
-          databasesCount: existingDatabasesCount ?? DEFAULT_DATABASES_COUNT,
+          ...(existingDatabasesCount !== null && { databasesCount: existingDatabasesCount }),
         },
       })
       subscribe(connectionId, ws)
@@ -423,7 +423,7 @@ async function connectToValkeyLocked(
       connectionDetails: {
         keyEvictionPolicy,
         jsonModuleAvailable,
-        databasesCount: databasesCount ?? DEFAULT_DATABASES_COUNT,
+        ...(databasesCount !== null && { databasesCount }),
       },
     })
 
@@ -454,8 +454,7 @@ async function connectToValkeyLocked(
     const errorMessage = isDbSwitchFailure
       ? `Database_Index ${db} is not enabled on this server (it rejected SELECT ${db}). ` +
         "Check the server's configured database count with CONFIG GET databases " +
-        "(or cluster-databases for Valkey 9+ clusters) and choose an index below it. " +
-        `Underlying error: ${rawMessage}`
+        "(or cluster-databases for Valkey 9+ clusters) and choose an index below it."
       : rawMessage
     ws.send(
       JSON.stringify({
@@ -579,7 +578,7 @@ async function commitClusterConnection(
       keyEvictionPolicy,
       clusterSlotStatsEnabled,
       jsonModuleAvailable,
-      databasesCount: databasesCount ?? DEFAULT_DATABASES_COUNT,
+      ...(databasesCount !== null && { databasesCount }),
     },
   })
 

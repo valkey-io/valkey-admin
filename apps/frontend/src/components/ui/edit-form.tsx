@@ -96,8 +96,13 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
     )
   }
 
-  // The count belongs to the connection's current host/port.
-  const databasesCount = currentConnection?.databasesCount
+  // The learned count belongs to the connection's current host/port. It stays
+  // undefined when the server's count was unreadable, in that case there is no
+  // known range, so no hint and no client-side bound.
+  const isSameServer =
+    connectionDetails.host.trim() === currentConnection?.host &&
+    connectionDetails.port === currentConnection?.port
+  const databasesCount = isSameServer ? currentConnection?.databasesCount : undefined
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -108,20 +113,6 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       setDbError("Database must be a non-negative integer.")
       return
     }
-    const sameServer =
-      connectionDetails.host === currentConnection.host &&
-      connectionDetails.port === currentConnection.port
-    if (
-      sameServer &&
-      databasesCount !== undefined &&
-      connectionDetails.db >= databasesCount
-    ) {
-      setDbError(
-        `This server has databases = ${databasesCount}; choose a database in 0..${databasesCount - 1}.`,
-      )
-      return
-    }
-    setDbError(undefined)
 
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
@@ -131,6 +122,16 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       awsRegion: connectionDetails.awsRegion?.trim(),
       awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
     }
+
+    // `databasesCount` is already scoped to an unchanged host/port, so a known
+    // value here always bounds the requested db.
+    if (databasesCount !== undefined && trimmed.db >= databasesCount) {
+      setDbError(
+        `This server has databases = ${databasesCount}; choose a database in 0..${databasesCount - 1}.`,
+      )
+      return
+    }
+    setDbError(undefined)
 
     if (hasCoreChanges()) {
       const newConnectionId = buildConnectionId(trimmed.host, trimmed.port, trimmed.db)

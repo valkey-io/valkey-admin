@@ -95,6 +95,25 @@ describe("EditForm", () => {
     })
   })
 
+  it("stops applying the learned range once the form points at a different host", async () => {
+    // The count was learned from localhost; it says nothing about the new host,
+    // so db 20 must reach the backend rather than being blocked locally.
+    renderForm({ databasesCount: 16 })
+
+    fireEvent.change(screen.getByLabelText("Host"), { target: { value: "other-host" } })
+    fireEvent.change(screen.getByLabelText("Database"), { target: { value: "20" } })
+
+    expect(screen.queryByText(/Valid range on this server/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply Changes" }))
+    await screen.findByRole("button", { name: "Apply Changes" })
+
+    expect(screen.queryByText(/This server has databases =/)).not.toBeInTheDocument()
+    expect(dispatched.find((a) => a.type.endsWith("connectPending"))?.payload).toMatchObject({
+      connectionId: buildConnectionId("other-host", "6379", 20),
+    })
+  })
+
   it("shows the server's valid range as a hint when databasesCount is known", () => {
     renderForm({ databasesCount: 32 })
 
