@@ -23,7 +23,7 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
 
     client = createMockValkeyClient()
     client.exec = vi.fn(async (batch) =>
-      Promise.all(batch.commands.map((cmd) => client.customCommand(cmd)))
+      Promise.all(batch.commands.map((cmd) => client.customCommand(cmd))),
     )
   })
 
