@@ -1,7 +1,8 @@
 import { Heap } from "heap-js"
 import { Batch } from "@valkey/valkey-glide"
+import { VALKEY_CLIENT } from "../../../../common/src/constants.js"
 
-export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchSize = 500 } = {}) => {
+export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchSize = VALKEY_CLIENT.PIPELINE_CHUNK_SIZE } = {}) => {
   const heap = new Heap((a, b) => a.sizeBytes - b.sizeBytes)
 
   const totalKeys = Number(await client.customCommand(["DBSIZE"]))
