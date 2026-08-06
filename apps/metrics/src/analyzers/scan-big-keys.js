@@ -57,8 +57,8 @@ export const scanBigKeys = async (client, { scanLimit = 10000, topN = 50, batchS
   }
 
   const keys = topKeys.map((entry, i) => {
-    const freq = freqResults?.[i] != null ? Number(freqResults[i]) : null
-    return { ...entry, freq }
+    const freq = Number(freqResults?.[i])
+    return { ...entry, freq: Number.isNaN(freq) ? null : freq }
   })
 
   return { keys, scanned, totalKeys, scannedAt: Date.now() }
