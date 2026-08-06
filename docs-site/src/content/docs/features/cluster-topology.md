@@ -33,8 +33,8 @@ Each node card shows:
 - **Name**: The Valkey instance name (e.g. `valkey`)
 - **Role Badge**: `PRIMARY` or `REPLICA`
 - **Address**: Host and port (e.g. `10.0.0.95:7001`)
-- **Key Count**: Total number of keys stored on the node (e.g. `3.60M`)
-- **Connections**: Number of active client connections
+- **Memory**: Memory usage reported by `used_memory_human` (e.g. `3.60M`)
+- **Connected Clients**: Number of currently connected clients
 
 ### Searching Nodes
 
@@ -45,7 +45,7 @@ Use the search bar to filter nodes by name, host, or port.
 Each node row includes action icons on the right side:
 
 - **Power**: Connect to the primary node
-- **Grid**: Go to dashboard of the node
+- **Dashboard**: Go to dashboard of the node
 - **Terminal**: Open the Send Command interface for the node
 
 ## Replication Structure

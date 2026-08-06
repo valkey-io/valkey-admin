@@ -13,13 +13,28 @@ The dashboard is your central hub for monitoring cluster node activity, displayi
 
 ## Key Metrics
 
-### Cluster Health
+### Stat Cards
 
-- **Cluster Node DropDown**: View online/offline status of all cluster nodes
-- **Node Metrics**: View INFO command metrics
-- **Key Type Distribution**: Share of stored key types
-- **Memory Usage**: Monitor memory consumption across nodes
-- **CPU Usage**: Real-time CPU utilization metrics
+The top of the dashboard displays four summary cards for the connected node:
+
+- **Total Memory**: The server's configured `maxmemory` (or total system memory if unbounded)
+- **Used Memory**: Current memory consumption
+- **Operations**: Total commands processed
+- **Hit Ratio**: Cache hit rate (keyspace hits vs misses)
+
+### Metric Groups
+
+Below the stat cards, searchable accordion sections display detailed metrics from the Valkey `INFO` command:
+
+- **Memory Usage Metrics**: Breakdown of memory allocation (dataset, scripts, peak, overhead, etc.)
+- **Uptime Metrics**: Server uptime, evicted scripts, network I/O bytes
+- **Replication & Persistence**: RDB save status, replication backlog, sync state
+- **Client Connectivity**: Connected clients, blocked clients, rejected connections, reads/writes processed
+- **Command Execution**: Total commands, error replies, blocking keys
+- **Data Effectiveness & Eviction**: Evicted/expired keys, hit/miss counts, cached scripts
+- **Messaging**: Pub/Sub channels, patterns, and clients
+
+Use the search bar to filter metrics by name across all groups.
 
 ## Real-Time Usage Metrics
 

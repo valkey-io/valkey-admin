@@ -28,7 +28,7 @@ Press `Enter` to execute. Results are displayed below the command input.
 
 ### Command Autocomplete
 
-As you type, Valkey Admin suggests matching commands from a built-in list of 257 Valkey commands. Select a suggestion to auto-complete the command name, then continue typing your arguments.
+As you type, Valkey Admin suggests matching commands from a built-in list of 396 Valkey commands. Select a suggestion to auto-complete the command name, then continue typing your arguments.
 
 ### Restricted Commands
 

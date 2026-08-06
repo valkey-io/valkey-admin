@@ -67,13 +67,13 @@ How long (in milliseconds) the server waits between cluster topology refresh cyc
 
 ### `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`
 
-Comma-separated list of origins allowed to open a WebSocket connection to the server. Used in `Web` mode to restrict browser access to trusted origins. In `Electron` mode origin checking is skipped.
+Comma-separated list of additional trusted origins allowed to open a WebSocket connection to the server. In `Web` mode, same-origin checking is **always** enforced — the server compares the request's `Origin` header against the `Host` header and rejects mismatches. This variable adds extra origins that should be trusted **beyond** same-origin (e.g., when the UI is served from a different domain or port). In `Electron` mode origin checking is skipped entirely.
 
 ```bash
 VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://valkey-admin.example.com,https://other.example.com
 ```
 
-- **Default:** unset (no origin restriction in Electron mode; Web mode rejects connections with no matching origin when this is set)
+- **Default:** unset (Web mode still enforces same-origin; Electron mode skips origin checking)
 - **Read in:** `apps/server/src/websocket-origin.ts`
 
 ## Initial Valkey Connection (Orchestrator Mode)

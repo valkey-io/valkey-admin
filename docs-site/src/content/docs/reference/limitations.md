@@ -23,4 +23,4 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 ## Architecture
 
 - **Metrics servers are per-primary only.** Each primary node gets its own metrics collector; replica nodes are not independently monitored.
-- **Key browser sample size.** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not listed but can still be found using the search function, which performs a targeted lookup.
+- **Key browser sample size.** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not listed but can still be found using the search function, which uses SCAN with a MATCH pattern (the same mechanism, just filtered).
