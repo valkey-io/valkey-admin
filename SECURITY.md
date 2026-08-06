@@ -1,8 +1,9 @@
 # Reporting a Vulnerability
 
-If you believe you've discovered a security vulnerability, please report it through GitHub's private security advisory feature:
+If you believe you've discovered a security vulnerability, please report it through one of the following channels:
 
-**[Report a vulnerability](https://github.com/valkey-io/valkey-admin/security/advisories/new)**
+- **GitHub Security Advisory (preferred):** [Report a vulnerability](https://github.com/valkey-io/valkey-admin/security/advisories/new)
+- **Email:** security@lists.valkey.io
 
 Please **DO NOT** create a public issue for security vulnerabilities.
 
