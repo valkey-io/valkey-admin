@@ -26,13 +26,13 @@ The top of the dashboard displays four summary cards for the connected node:
 
 Below the stat cards, searchable accordion sections display detailed metrics from the Valkey `INFO` command:
 
-- **Memory Usage Metrics**: Breakdown of memory allocation (dataset, scripts, peak, overhead, etc.)
-- **Uptime Metrics**: Server uptime, evicted scripts, network I/O bytes
-- **Replication & Persistence**: RDB save status, replication backlog, sync state
-- **Client Connectivity**: Connected clients, blocked clients, rejected connections, reads/writes processed
-- **Command Execution**: Total commands, error replies, blocking keys
-- **Data Effectiveness & Eviction**: Evicted/expired keys, hit/miss counts, cached scripts
-- **Messaging**: Pub/Sub channels, patterns, and clients
+- **Memory Usage Metrics**: Detailed metrics for tracking Valkey's memory usage across data, scripts, functions, and peak consumption.
+- **Uptime Metrics**: Tracks server uptime and script eviction to monitor overall system activity and availability.
+- **Replication & Persistence**: Metrics that track database snapshots, data changes, and replication backlog health to ensure reliable syncing and persistence.
+- **Client Connectivity**: Metrics tracking client connections, activity, and connection limits to monitor workload and health.
+- **Command Execution**: Metrics showing command volume, failures, slow operations, and errors to evaluate performance and stability.
+- **Data Effectiveness & Eviction**: Tracks key activity, expirations, evictions, and cache hit-rates to assess data efficiency and access performance.
+- **Messaging**: Tracks Pub/Sub channels, patterns, and clients to measure real-time activity.
 
 Use the search bar to filter metrics by name across all groups.
 
