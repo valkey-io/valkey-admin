@@ -20,7 +20,7 @@ When the metrics process starts it loads `apps/metrics/config.yml` (or the file 
 backend:
   ping_interval: 10000
 server:
-  port: 3000
+  port: 0
   data_dir: /app/data
 collector:
   batch_ms: 60000
@@ -78,7 +78,6 @@ Connection topology used by the Valkey client.
 
 - **`"standalone"`** — single-node client (default)
 - **`"cluster"`** — cluster client
-- **`"sentinel"`** — sentinel client
 
 If unset, falls back to `valkey.mode` from `config.yml`, then to `"standalone"`.
 
@@ -161,7 +160,7 @@ These three variables override the matching fields in `config.yml`. Setting any 
 
 TCP port the metrics HTTP server listens on. Setting `PORT=0` lets the OS assign an ephemeral port — the server uses this when spawning many metrics children, so they don't fight over fixed ports.
 
-- **Default:** `cfg.server.port` from `config.yml` (`3000`)
+- **Default:** `cfg.server.port` from `config.yml` (`0` — ephemeral port picked by OS)
 - **Overrides:** `cfg.server.port`
 
 ### `DATA_DIR`

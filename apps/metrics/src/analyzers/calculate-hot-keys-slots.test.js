@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { createMockValkeyClient } from "../__tests__/test-helpers.js"
 
+// Mock @valkey/valkey-glide
+vi.mock("@valkey/valkey-glide", () => ({
+  Batch: class { constructor() { this.commands = [] } customCommand(args) { this.commands.push(args); return this } },
+}))
+
 // Mock get-hot-slots
 vi.mock("./get-hot-slots.js", () => ({
   getHotSlots: vi.fn(),
@@ -17,6 +22,9 @@ describe("calculate-hot-keys (calculateHotKeysFromHotSlots)", () => {
     getHotSlots = getHotSlotsModule.getHotSlots
 
     client = createMockValkeyClient()
+    client.exec = vi.fn(async (batch) =>
+      Promise.all(batch.commands.map((cmd) => client.customCommand(cmd))),
+    )
   })
 
   describe("basic functionality", () => {

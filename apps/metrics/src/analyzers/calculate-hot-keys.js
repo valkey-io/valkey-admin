@@ -1,5 +1,7 @@
 import * as R from "ramda"
 import { Heap } from "heap-js"
+import { Batch } from "@valkey/valkey-glide"
+import { VALKEY_CLIENT } from "../../../../common/src/constants.js"
 import { getHotSlots } from "./get-hot-slots.js"
 
 const ACCESS_COMMANDS = [
@@ -93,26 +95,34 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
 
     } while (cursorToSlot === slotId && cursor !== 0)
     
-    return keys.map( async (key) => {
-      // Must have LFU enabled for this to work
-      const freq = parseInt(await client.customCommand(["OBJECT", "FREQ", key]))
-      return { key, freq }
-    })
+    return keys
   })
 
-  const keyFreqNestedPromises = await Promise.all(slotPromises)
-  const keyFreqPromises = keyFreqNestedPromises.flat()
-  const allKeyFreqs = await Promise.all(keyFreqPromises)
+  const slotKeys = await Promise.all(slotPromises)
+  const allKeys = slotKeys.flat()
+
+  // Pipeline OBJECT FREQ in chunks to avoid overwhelming the server
+  const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
+  const freqResults = []
+  for (let i = 0; i < allKeys.length; i += PIPELINE_CHUNK_SIZE) {
+    const chunk = allKeys.slice(i, i + PIPELINE_CHUNK_SIZE)
+    const batch = new Batch(false)
+    for (const key of chunk) {
+      batch.customCommand(["OBJECT", "FREQ", key])
+    }
+    const chunkResults = await client.exec(batch)
+    freqResults.push(...chunkResults)
+  }
 
   const heap = new Heap((a, b) => a.freq - b.freq)
-  for (const { key, freq } of allKeyFreqs) {
-    if (freq <= 1) continue
-    if (heap.size() < count){
-      heap.push({ key, freq })
-    }
-    else if ( freq > heap.peek().freq) {
+  for (let i = 0; i < allKeys.length; i++) {
+    const freq = parseInt(freqResults[i])
+    if (isNaN(freq) || freq <= 1) continue
+    if (heap.size() < count) {
+      heap.push({ key: allKeys[i], freq })
+    } else if (freq > heap.peek().freq) {
       heap.pop()
-      heap.push({ key, freq })
+      heap.push({ key: allKeys[i], freq })
     }
   }
   return heap.toArray().map(({ key, freq }) => [key, freq])

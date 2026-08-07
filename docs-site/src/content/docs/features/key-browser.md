@@ -16,9 +16,7 @@ Navigate through your keyspace with an intuitive interface that supports filteri
 ### Browsing Keys
 
 - **Tree View**: Navigate keys organized by namespace separators (`:`)
-- **List View**: View all keys in a flat list format
 - **Pagination**: Handle large keyspaces efficiently
-- **Sorting**: Sort by name, type, TTL, or size
 
 ### Search and Filter
 

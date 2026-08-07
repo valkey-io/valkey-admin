@@ -340,16 +340,48 @@ async function getFullKeyInfo(
   }
 }
 
+type KeyMetadata = { type: string; ttl: number; size: number | null }
+
+async function fetchSingleKeyMetadata(client: GlideClient | GlideClusterClient, key: string): Promise<KeyMetadata> {
+  const [type, ttl, size] = await Promise.all([
+    client.customCommand(["TYPE", key]) as Promise<string>,
+    client.customCommand(["TTL", key]).catch(() => -1) as Promise<number>,
+    client.customCommand(["MEMORY", "USAGE", key]).catch(() => null) as Promise<number | null>,
+  ])
+  return { type, ttl, size }
+}
+
+const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
+
+async function fetchKeyMetadataBatch(client: GlideClient | GlideClusterClient, keys: string[]): Promise<KeyMetadata[]> {
+  const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+  const results: GlideReturnType[] = []
+
+  for (let i = 0; i < keys.length; i += PIPELINE_CHUNK_SIZE) {
+    const chunk = keys.slice(i, i + PIPELINE_CHUNK_SIZE)
+    const batch = new BatchClass(false)
+    for (const key of chunk) {
+      batch.customCommand(["TYPE", key])
+      batch.customCommand(["TTL", key])
+      batch.customCommand(["MEMORY", "USAGE", key])
+    }
+    const chunkResults = await client.exec(batch) as GlideReturnType[]
+    results.push(...chunkResults)
+  }
+
+  return keys.map((_, i) => {
+    const [type, ttl, size] = results.slice(i * 3, i * 3 + 3)
+    return { type: (type ?? "unknown") as string, ttl: (ttl ?? -1) as number, size: (size ?? null) as number | null }
+  })
+}
+
 export async function getKeyInfo(
   client: GlideClient | GlideClusterClient,
   key: string,
+  metadata?: KeyMetadata,
 ): Promise<EnrichedKeyInfo> {
   try {
-    const [keyType, ttl, memoryUsage] = await Promise.all([
-      client.customCommand(["TYPE", key]) as Promise<string>,
-      client.customCommand(["TTL", key]).catch(() => -1) as Promise<number>,
-      client.customCommand(["MEMORY", "USAGE", key]).catch(() => null) as Promise<number | null>,
-    ])
+    const { type: keyType, ttl, size: memoryUsage } = metadata ?? await fetchSingleKeyMetadata(client, key)
 
     const keyInfo: EnrichedKeyInfo = {
       name: key,
@@ -519,16 +551,18 @@ export async function getKeys(
   try {
     const totalKeys = await client.customCommand(["DBSIZE"])
     const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
+    const keyList = [...allKeys]
+
+    const metadata = await fetchKeyMetadataBatch(client, keyList)
+
     const enrichedKeys = await Promise.all(
-      [...allKeys].map((k) =>
-        limit(() =>
-          getKeyInfo(client, k).catch(() => ({
-            name: k,
-            type: "unknown",
-            ttl: -1,
-            size: -1,
-          })),
-        ),
+      keyList.map((key, i) =>
+        limit(() => getKeyInfo(client, key, metadata[i]).catch(() => ({
+          name: key,
+          type: "unknown",
+          ttl: -1,
+          size: -1,
+        }))),
       ),
     )
 

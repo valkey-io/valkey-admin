@@ -647,6 +647,14 @@ describe("getKeys", () => {
           if (cmd[0] === "GET") return "value"
           return null
         }),
+        exec: mock.fn(async (batch: any) => {
+          return batch.commands.map((cmd: string[]) => {
+            if (cmd[0] === "TYPE") return "string"
+            if (cmd[0] === "TTL") return -1
+            if (cmd[0] === "MEMORY") return 50
+            return null
+          })
+        }),
         instanceof: () => false, // Standalone client
       }
 

@@ -17,10 +17,10 @@ The workflow below uses Minikube for local development, but the manifests and si
 
 | File | Purpose |
 |------|---------|
-| `k8s/app.yaml` | `valkey-admin-app` deployment and service |
-| `k8s/metrics-configmap.yaml` | Sidecar config mounted at `/app/config/config.yml` |
-| `k8s/valkey-statefulset-sidecar-patch.yaml` | Patch to add the metrics sidecar to an existing Valkey StatefulSet |
-| `k8s/valkey-statefulset.yaml` | Sample standalone StatefulSet for testing |
+| `examples/k8s/app.yaml` | `valkey-admin-app` deployment and service |
+| `examples/k8s/metrics-configmap.yaml` | Sidecar config mounted at `/app/config/config.yml` |
+| `examples/k8s/valkey-statefulset-sidecar-patch.yaml` | Patch to add the metrics sidecar to an existing Valkey StatefulSet |
+| `examples/k8s/valkey-statefulset.yaml` | Sample standalone StatefulSet for testing |
 
 ## Deployment Steps
 
@@ -51,12 +51,12 @@ docker build -f docker/Dockerfile.server -t valkey-admin-app:test .
 docker build -f docker/Dockerfile.metrics -t valkey-admin-metrics:test .
 ```
 
-For a non-local deployment, use published images from a container registry and update the image references in `k8s/app.yaml` and `k8s/valkey-statefulset-sidecar-patch.yaml`.
+For a non-local deployment, use published images from a container registry and update the image references in `examples/k8s/app.yaml` and `examples/k8s/valkey-statefulset-sidecar-patch.yaml`.
 
 ### 3. Deploy the app server
 
 ```bash
-kubectl apply -f k8s/app.yaml
+kubectl apply -f examples/k8s/app.yaml
 kubectl rollout status deployment/valkey-admin-app -n valkey
 ```
 
@@ -65,7 +65,7 @@ This deploys the frontend + backend server on port `8080` in cluster-orchestrato
 ### 4. Apply the metrics config
 
 ```bash
-kubectl apply -n valkey -f k8s/metrics-configmap.yaml
+kubectl apply -n valkey -f examples/k8s/metrics-configmap.yaml
 ```
 
 This configures the sidecar collectors for CPU, memory, command logs, and monitor-based features.
@@ -78,7 +78,7 @@ Patch the Helm-created StatefulSet:
 kubectl patch statefulset valkey \
   -n valkey \
   --type strategic \
-  --patch-file k8s/valkey-statefulset-sidecar-patch.yaml
+  --patch-file examples/k8s/valkey-statefulset-sidecar-patch.yaml
 ```
 
 ### 6. Wait for rollout
@@ -149,7 +149,7 @@ When you change the metrics sidecar:
 ```bash
 eval $(minikube docker-env)
 docker build -f docker/Dockerfile.metrics -t valkey-admin-metrics:test .
-kubectl apply -n valkey -f k8s/metrics-configmap.yaml
+kubectl apply -n valkey -f examples/k8s/metrics-configmap.yaml
 kubectl rollout restart statefulset/valkey -n valkey
 kubectl rollout status statefulset/valkey -n valkey
 ```
@@ -159,7 +159,7 @@ When you change the app server:
 ```bash
 eval $(minikube docker-env)
 docker build -f docker/Dockerfile.server -t valkey-admin-app:test .
-kubectl apply -f k8s/app.yaml
+kubectl apply -f examples/k8s/app.yaml
 kubectl rollout restart deployment/valkey-admin-app -n valkey
 kubectl rollout status deployment/valkey-admin-app -n valkey
 ```
@@ -190,7 +190,7 @@ kubectl exec -n valkey valkey-0 -c metrics -- ls -l /app/data
 kubectl logs -n valkey valkey-0 -c metrics --since=10m
 ```
 
-To get more detail, set `debug_metrics: true` in `k8s/metrics-configmap.yaml`, reapply, and restart the StatefulSet.
+To get more detail, set `debug_metrics: true` in `examples/k8s/metrics-configmap.yaml`, reapply, and restart the StatefulSet.
 
 ### Inspect the Metrics API Directly
 
@@ -213,6 +213,6 @@ curl -s 'http://localhost:3000/commandlog?type=slow'
 ## Notes
 
 - The example workflow in this document is aimed at local Minikube development.
-- `k8s/valkey-statefulset.yaml` is available as a repo-managed sample, but the main development path described here assumes a Helm-installed Valkey StatefulSet.
+- `examples/k8s/valkey-statefulset.yaml` is available as a repo-managed sample, but the main development path described here assumes a Helm-installed Valkey StatefulSet.
 - The Helm-based development path here is based on [valkey-io/valkey-helm PR #116](https://github.com/valkey-io/valkey-helm/pull/116).
 - For broader Kubernetes use, replace the local image workflow with registry-backed images and adapt the same manifests or patches to your cluster conventions.
