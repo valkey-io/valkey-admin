@@ -249,7 +249,6 @@ export function ConnectionModal({
                   <div>
                     <Label className="block mb-1" htmlFor="db">Database</Label>
                     <NumberInput
-                      disabled={connectionDetails.endpointType === "cluster-endpoint"}
                       id="db"
                       min={0}
                       onChange={(db) =>

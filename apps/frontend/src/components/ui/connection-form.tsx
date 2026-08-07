@@ -62,13 +62,8 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     if (discoveryId) dispatch(clearEndpointDiscovery({ discoveryId }))
   }, [discoveryId, dispatch])
 
-  // Coerce db to 0 whenever the form uses cluster-endpoint mode.
   const handleConnectionDetailsChange = (next: ConnectionDetails) =>
-    setConnectionDetails(
-      next.endpointType === "cluster-endpoint" && next.db !== 0
-        ? { ...next, db: 0 }
-        : next,
-    )
+    setConnectionDetails(next)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()

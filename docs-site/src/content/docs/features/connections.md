@@ -45,11 +45,7 @@ Each `(host, port, db)` combination creates an independent client connection. Sw
 ### Cluster Mode
 
 - **Valkey 9.0+**: Multiple databases are supported in cluster mode. Set `--cluster-databases <n>` on every cluster node to enable.
-- **Below 9.0**: Only `db 0` is available in cluster mode.
-
-:::note
-The connection modal always disables the database field when connecting via a discovery endpoint, regardless of Valkey version.
-:::
+- **Below 9.0**: Only `db 0` is available in cluster mode. The server rejects non-zero values with a clear error naming the cluster version.
 
 ### Standalone Mode
 
