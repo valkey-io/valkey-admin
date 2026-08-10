@@ -32,6 +32,8 @@ COPY --from=builder /app/apps/frontend/dist ./apps/frontend/dist
 
 EXPOSE 8080
 
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
 USER node
 
 CMD ["node", "apps/server/dist/index.js"]

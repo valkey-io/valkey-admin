@@ -54,6 +54,9 @@ COPY --from=builder /app/apps/metrics/dist ./apps/metrics/dist
 # Expose backend port
 EXPOSE 8080
 
+# Create data directory writable by node user
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
 # Run as non-root
 USER node
 
