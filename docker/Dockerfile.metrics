@@ -27,8 +27,10 @@ RUN npm ci --omit=dev
 COPY apps/metrics/config.yml /app/config.yml
 COPY --from=builder /app/apps/metrics/dist ./apps/metrics/dist
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown node:node /app/data
 
 EXPOSE 3000
+
+USER node
 
 CMD ["node", "apps/metrics/dist/index.cjs"]

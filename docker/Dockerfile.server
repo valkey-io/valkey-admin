@@ -32,4 +32,6 @@ COPY --from=builder /app/apps/frontend/dist ./apps/frontend/dist
 
 EXPOSE 8080
 
+USER node
+
 CMD ["node", "apps/server/dist/index.js"]
