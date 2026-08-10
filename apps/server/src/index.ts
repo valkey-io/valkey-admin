@@ -152,7 +152,11 @@ async function updateRegistryforK8() {
   updateClusterNodeRegistry(client, initialConnectionDetails)
 }
 
-server.listen(port, () => {
+import { isElectron } from "./metrics-orchestrator"
+
+// Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,
+// so network-level isolation is the only reliable gate for a desktop app.
+server.listen(port, isElectron ? "127.0.0.1" : undefined, () => {
   console.log(`Server running at http://localhost:${port}`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
