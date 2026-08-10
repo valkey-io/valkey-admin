@@ -27,6 +27,7 @@ import { memoryUsageRequested } from "./actions/memoryUsage"
 import { monitorRequested } from "./actions/monitorAction"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
+import { isElectron } from "./metrics-orchestrator"
 import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
@@ -151,8 +152,6 @@ async function updateRegistryforK8() {
   const client = await getInitialClient()
   updateClusterNodeRegistry(client, initialConnectionDetails)
 }
-
-import { isElectron } from "./metrics-orchestrator"
 
 // Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,
 // so network-level isolation is the only reliable gate for a desktop app.
