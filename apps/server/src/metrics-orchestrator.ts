@@ -403,11 +403,6 @@ export async function runReconcileLoop() {
 export function cleanupOrchestratorResources() {
   initialClient?.close()
   stopAllMetricsServers(metricsServerMap)
-  metricsServerMap.clear()
-
-  for (const key in clusterNodesRegistry) {
-    delete clusterNodesRegistry[key]
-  }
 }
 
 // To help mock internal methods in tests

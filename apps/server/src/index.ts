@@ -307,7 +307,6 @@ wss.on("connection", (ws: AliveWebSocket) => {
   ws.on("close", (code, reason) => {
     abortConfigSessionsForSocket(ws)
     const removedIds = unsubscribeAll(ws)
-    connectedNodesByCluster.clear()
     console.log("Client disconnected. Reason:", code, reason.toString())
 
     const scheduled = new Set(removedIds)
@@ -336,19 +335,28 @@ wss.on("connection", (ws: AliveWebSocket) => {
 function shutdown() {
   console.log("Shutdown signal received")
   clearInterval(interval)
-  // Close websocket clients
-  wss.clients.forEach((ws) => {
-    try {
-      ws.close()
-    } catch (err) {
-      console.error("Error closing WebSocket client", err)
-    }
-  })
 
-  server.close(() => {
+  // Force exit if graceful shutdown takes too long
+  const forceExitTimeout = setTimeout(() => {
+    console.error("Graceful shutdown timed out, forcing exit")
+    process.exit(1)
+  }, 10000)
+  forceExitTimeout.unref()
+
+  // Close all Valkey clients (releases connections on the Valkey side)
+  for (const [, { client }] of clients) {
+    try {
+      client.close()
+    } catch (err) {
+      console.error("Error closing Valkey client:", err)
+    }
+  }
+
+  // Release port 8080
+  server.close(async () => {
     console.log("HTTP server closed")
     try {
-      cleanupOrchestratorResources()
+      await cleanupOrchestratorResources()
     } catch (err) {
       console.error("Error during orchestrator resource cleanup", err)
     }
