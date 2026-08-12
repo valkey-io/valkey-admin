@@ -13,7 +13,7 @@ describe("command restrictions", () => {
     })
 
     it("blocks quoted FLUSHALL (bypass fix)", () => {
-      assert.ok(findBlockedCommand(parseCommandArgs('"FLUSHALL"')))
+      assert.ok(findBlockedCommand(parseCommandArgs("\"FLUSHALL\"")))
     })
 
     it("blocks single-quoted FLUSHALL (bypass fix)", () => {
@@ -21,11 +21,11 @@ describe("command restrictions", () => {
     })
 
     it("blocks SHUTDOWN regardless of quoting", () => {
-      assert.ok(findBlockedCommand(parseCommandArgs('"SHUTDOWN"')))
+      assert.ok(findBlockedCommand(parseCommandArgs("\"SHUTDOWN\"")))
     })
 
     it("blocks DEBUG regardless of quoting", () => {
-      assert.ok(findBlockedCommand(parseCommandArgs('"DEBUG" SLEEP 1')))
+      assert.ok(findBlockedCommand(parseCommandArgs("\"DEBUG\" SLEEP 1")))
     })
 
     it("does not block normal commands", () => {
@@ -34,7 +34,7 @@ describe("command restrictions", () => {
 
     it("is case-insensitive", () => {
       assert.ok(findBlockedCommand(parseCommandArgs("flushall")))
-      assert.ok(findBlockedCommand(parseCommandArgs('"flushdb"')))
+      assert.ok(findBlockedCommand(parseCommandArgs("\"flushdb\"")))
     })
   })
 
@@ -44,7 +44,7 @@ describe("command restrictions", () => {
     })
 
     it("requires confirmation for quoted KEYS (bypass fix)", () => {
-      assert.ok(findConfirmCommand(parseCommandArgs('"KEYS" *')))
+      assert.ok(findConfirmCommand(parseCommandArgs("\"KEYS\" *")))
     })
 
     it("requires confirmation for CLUSTER RESET", () => {
@@ -52,7 +52,7 @@ describe("command restrictions", () => {
     })
 
     it("requires confirmation for quoted CLUSTER RESET", () => {
-      assert.ok(findConfirmCommand(parseCommandArgs('"CLUSTER" "RESET"')))
+      assert.ok(findConfirmCommand(parseCommandArgs("\"CLUSTER\" \"RESET\"")))
     })
 
     it("does not confirm normal commands", () => {
