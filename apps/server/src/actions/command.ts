@@ -1,4 +1,4 @@
-import { VALKEY, findBlockedCommand } from "valkey-common"
+import { VALKEY, findBlockedCommand, parseCommandArgs } from "valkey-common"
 import { sendValkeyRunCommand } from "../send-command"
 import { type Deps, withDeps } from "./utils"
 
@@ -11,7 +11,7 @@ export const sendRequested = withDeps<Deps, void>(
   async ({ ws, clients, connectionId, action }) => {
     const payload = action.payload as CommandAction
 
-    const blocked = findBlockedCommand(payload.command)
+    const blocked = findBlockedCommand(parseCommandArgs(payload.command))
     if (blocked) {
       ws.send(
         JSON.stringify({

@@ -3,6 +3,14 @@ export type CommandRestriction = {
   reason: string
 }
 
+/**
+ * Parses a command string into arguments, respecting quoted strings and escaped quotes.
+ * Matches valkey-cli behavior: 'GET "my key"' → ['GET', 'my key']
+ */
+export const parseCommandArgs = (command: string): string[] =>
+  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')+/g)
+    ?.map((arg) => arg.replace(/^["']|["']$/g, "").replace(/\\(["'])/g, "$1")) ?? []
+
 // these commands are blocked and cannot be executed because they can cause server problems
 export const BLOCKED_COMMANDS: CommandRestriction[] = [
   { pattern: ["SHUTDOWN"], reason: "SHUTDOWN stops the server and cannot be undone remotely." },
@@ -21,18 +29,18 @@ export const CONFIRM_COMMANDS: CommandRestriction[] = [
   { pattern: ["CLUSTER", "RESET"], reason: "CLUSTER RESET resets the cluster state and may cause data loss." },
 ]
 
-export function matchesRestriction(command: string, restriction: CommandRestriction): boolean {
-  const parts = command.trim().toUpperCase().split(/\s+/)
+export function matchesRestriction(parsedArgs: string[], restriction: CommandRestriction): boolean {
+  const parts = parsedArgs.map((p) => p.toUpperCase())
   return (
     restriction.pattern.length <= parts.length &&
     restriction.pattern.every((token, i) => parts[i] === token)
   )
 }
 
-export function findBlockedCommand(command: string): CommandRestriction | undefined {
-  return BLOCKED_COMMANDS.find((r) => matchesRestriction(command, r))
+export function findBlockedCommand(parsedArgs: string[]): CommandRestriction | undefined {
+  return BLOCKED_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
 }
 
-export function findConfirmCommand(command: string): CommandRestriction | undefined {
-  return CONFIRM_COMMANDS.find((r) => matchesRestriction(command, r))
+export function findConfirmCommand(parsedArgs: string[]): CommandRestriction | undefined {
+  return CONFIRM_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
 }

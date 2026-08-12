@@ -1,19 +1,13 @@
 import { GlideClient, GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
-import { VALKEY } from "valkey-common"
+import { VALKEY, parseCommandArgs } from "valkey-common"
 import { parseResponse } from "./utils"
 
 export const isRequestError = (x: unknown): x is Error | string =>
   x instanceof Error ||
   (typeof x === "string" && x.startsWith("ResponseError:"))
 
-/**
- * Parses a command string into arguments, respecting quoted strings and escaped quotes.
- * Matches valkey-cli behavior: 'GET "my key"' → ['GET', 'my key']
- */
-export const parseCommandArgs = (command: string): string[] =>
-  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')+/g)
-    ?.map((arg) => arg.replace(/^["']|["']$/g, "").replace(/\\(["'])/g, "$1")) ?? []
+export { parseCommandArgs }
 
 export async function sendValkeyRunCommand(
   client: GlideClient | GlideClusterClient,

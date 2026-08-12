@@ -4,7 +4,7 @@ import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
-import { findBlockedCommand, findConfirmCommand } from "@common/src/command-restrictions"
+import { findBlockedCommand, findConfirmCommand, parseCommandArgs } from "@common/src/command-restrictions"
 import type { JSONObject } from "@common/src/json-utils.ts"
 import { matchCommands, type MatchResult, type ValkeyCommand } from "@/components/send-command/valkey-command-matching"
 import { CommandAutocomplete } from "@/components/send-command/CommandAutocomplete"
@@ -77,14 +77,15 @@ export function SendCommand() {
 
   const onSubmit = (command?: string) => {
     const cmd = command || text
+    const parsedArgs = parseCommandArgs(cmd)
 
-    const blocked = findBlockedCommand(cmd)
+    const blocked = findBlockedCommand(parsedArgs)
     if (blocked) {
       toast.error(`Command blocked: ${blocked.reason}`)
       return
     }
 
-    const confirm = findConfirmCommand(cmd)
+    const confirm = findConfirmCommand(parsedArgs)
     if (confirm) {
       setPendingConfirm({ command: cmd, reason: confirm.reason })
       return
