@@ -19,4 +19,7 @@ ENV CONFIG_PATH=/app/config.yml
 ENV NODE_ENV=production
 
 EXPOSE 3000
+
+USER node
+
 CMD ["node", "src/index.js"]
