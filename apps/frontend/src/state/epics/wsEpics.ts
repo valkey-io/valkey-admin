@@ -26,7 +26,7 @@ import {
 
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
-const getWebsocketHost = () => {
+const getWebsocketURL = () => {
   const isElectron = window.location.protocol === "file:"
   if (isElectron) {
     return "ws://localhost:8080"
@@ -38,7 +38,7 @@ const getWebsocketHost = () => {
 
 const url =
   import.meta.env.VITE_VALKEY_ADMIN_WS_URL ||
-  getWebsocketHost()
+  getWebsocketURL()
 
 const connect = (store: Store) =>
   action$.pipe(
