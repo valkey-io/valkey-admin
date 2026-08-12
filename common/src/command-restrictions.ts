@@ -8,7 +8,7 @@ export type CommandRestriction = {
  * Matches valkey-cli behavior: 'GET "my key"' → ['GET', 'my key']
  */
 export const parseCommandArgs = (command: string): string[] =>
-  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')+/g)
+  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g)
     ?.map((arg) => arg.replace(/^["']|["']$/g, "").replace(/\\(["'])/g, "$1")) ?? []
 
 // these commands are blocked and cannot be executed because they can cause server problems
