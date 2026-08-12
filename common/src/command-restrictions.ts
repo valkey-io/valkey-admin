@@ -7,9 +7,52 @@ export type CommandRestriction = {
  * Parses a command string into arguments, respecting quoted strings and escaped quotes.
  * Matches valkey-cli behavior: 'GET "my key"' → ['GET', 'my key']
  */
-export const parseCommandArgs = (command: string): string[] =>
-  command.trim().match(/(?:[^\s"']+|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g)
-    ?.map((arg) => arg.replace(/^["']|["']$/g, "").replace(/\\(["'])/g, "$1")) ?? []
+export const parseCommandArgs = (command: string): string[] => {
+  const args: string[] = []
+  const input = command.trim()
+  let i = 0
+
+  while (i < input.length) {
+    // Skip whitespace
+    while (i < input.length && /\s/.test(input[i])) i++
+    if (i >= input.length) break
+
+    let arg = ""
+    if (input[i] === "\"") {
+      // Double-quoted string
+      i++ // skip opening quote
+      while (i < input.length && input[i] !== "\"") {
+        if (input[i] === "\\" && i + 1 < input.length) {
+          i++ // skip backslash
+        }
+        arg += input[i]
+        i++
+      }
+      i++ // skip closing quote
+    } else if (input[i] === "'") {
+      // Single-quoted string
+      i++ // skip opening quote
+      while (i < input.length && input[i] !== "'") {
+        if (input[i] === "\\" && i + 1 < input.length) {
+          i++ // skip backslash
+        }
+        arg += input[i]
+        i++
+      }
+      i++ // skip closing quote
+    } else {
+      // Unquoted token
+      while (i < input.length && !/[\s"']/.test(input[i])) {
+        arg += input[i]
+        i++
+      }
+    }
+
+    args.push(arg)
+  }
+
+  return args
+}
 
 // these commands are blocked and cannot be executed because they can cause server problems
 export const BLOCKED_COMMANDS: CommandRestriction[] = [
