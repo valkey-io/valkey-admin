@@ -27,13 +27,13 @@ import {
 let socket$: WebSocketSubject<PayloadAction> | null = null
 
 const getWebsocketURL = () => {
-  const isElectron = window.location.protocol === "file:"
-  if (isElectron) {
+  // If it's an Electron deployment
+  if (window.location.protocol === "file:") {
     return "ws://localhost:8080"
   }
   
-  return (window.location.origin + window.location.pathname)
-    .replace(/^http/, 'ws')
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws"
+  return `${protocol}://${window.location.host}${window.location.pathname}`
 }
 
 const url =
