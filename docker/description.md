@@ -8,6 +8,7 @@
 
 
 ## Official releases
+[1.1.1](https://github.com/valkey-io/valkey-admin/blob/v1.1.1/docker/Dockerfile.app)
 [1.1.0](https://github.com/valkey-io/valkey-admin/blob/v1.1.0/docker/Dockerfile.app)
 [1.0.1](https://github.com/valkey-io/valkey-admin/blob/v1.0.1/docker/Dockerfile.app)
 

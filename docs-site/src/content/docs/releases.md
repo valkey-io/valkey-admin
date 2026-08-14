@@ -5,6 +5,23 @@ sidebar:
   order: 0
 ---
 
+## v1.1.1
+
+Release Date: August 2026
+
+### Performance
+
+- Pipeline per-key commands (MEMORY USAGE, TYPE, TTL) in Big Keys scan for 20x throughput improvement on large clusters ([#451](https://github.com/valkey-io/valkey-admin/pull/451))
+
+### Security
+
+- Bind server to localhost in Electron mode to prevent LAN access ([#466](https://github.com/valkey-io/valkey-admin/pull/466))
+- Update vulnerable dependencies (ip-address, nanoid, js-yaml, postcss) and run containers as non-root ([#467](https://github.com/valkey-io/valkey-admin/pull/467))
+
+**Full Changelog**: [v1.1.0...v1.1.1](https://github.com/valkey-io/valkey-admin/compare/v1.1.0...v1.1.1)
+
+---
+
 ## v1.1.0
 
 Release Date: July 2026
