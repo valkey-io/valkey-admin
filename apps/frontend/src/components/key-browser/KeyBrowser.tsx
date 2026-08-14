@@ -12,6 +12,7 @@ import {
   ChartPie
 } from "lucide-react"
 import { truncateText } from "@common/src/truncate-text"
+import { toScanPattern } from "@common/src/scan-pattern"
 import { AppHeader } from "../ui/app-header"
 import { ChartModal } from "../ui/chart-modal"
 import DonutChart from "../ui/donut-chart"
@@ -28,7 +29,6 @@ import { Typography } from "../ui/typography"
 import { SplitPanel } from "../ui/split-panel"
 import { Panel } from "../ui/panel"
 import { useAppDispatch } from "@/hooks/hooks"
-import { toScanPattern } from "@/utils/scanPattern"
 import {
   selectKeys,
   selectLoading,
@@ -209,7 +209,7 @@ export function KeyBrowser() {
             disabled={loading}
             onChange={(e) => setSearchPattern(e.target.value)}
             onClear={handleClearSearch}
-            placeholder="Search keys (or use * ? for glob patterns)"
+            placeholder="Search keys (supports glob: * ? [ ])"
             value={searchPattern}
           />
         </form>
