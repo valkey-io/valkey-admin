@@ -28,6 +28,7 @@ import { Typography } from "../ui/typography"
 import { SplitPanel } from "../ui/split-panel"
 import { Panel } from "../ui/panel"
 import { useAppDispatch } from "@/hooks/hooks"
+import { toScanPattern } from "@/utils/scanPattern"
 import {
   selectKeys,
   selectLoading,
@@ -75,7 +76,7 @@ export function KeyBrowser() {
     if (id) {
       dispatch(getKeysRequested({
         connectionId: id,
-        pattern: searchPattern || "*",
+        pattern: toScanPattern(searchPattern),
       }))
     }
   }
@@ -208,7 +209,7 @@ export function KeyBrowser() {
             disabled={loading}
             onChange={(e) => setSearchPattern(e.target.value)}
             onClear={handleClearSearch}
-            placeholder="Search keys (use * to search patterns like user:* and press Enter)"
+            placeholder="Search keys (or use * ? for glob patterns)"
             value={searchPattern}
           />
         </form>
