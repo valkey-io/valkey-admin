@@ -4,6 +4,7 @@ import * as R from "ramda"
 import { EmptyState } from "../../ui/empty-state"
 import { LoadingState } from "../../ui/loading-state"
 import { Typography } from "../../ui/typography"
+import { Button } from "../../ui/button"
 import { type SortOrder } from "../../ui/sortable-table-header"
 import { HotKeysHeatmapModal } from "./hot-keys-heatmap"
 import { MonitorNotRunningBanner, NodeErrorsBanner } from "./hot-keys-banners"
@@ -78,24 +79,24 @@ export function HotKeys({
         <EmptyState
           action={
             (errorMessage || (!monitorRunning && onStartMonitoring)) && (
-              <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                <Typography variant="bodySm">
-                  {!monitorRunning && onStartMonitoring ? (
-                    <>
-                      Monitor is not running.{" "}
-                      <button
-                        className="text-primary underline hover:opacity-80"
-                        onClick={onStartMonitoring}
-                        type="button"
-                      >
-                        Start MONITOR
-                      </button>
-                    </>
-                  ) : (
-                    errorMessage
-                  )}
-                </Typography>
+              <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-md flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                {!monitorRunning && onStartMonitoring ? (
+                  <>
+                    <Typography variant="bodySm">Monitor is not running.</Typography>
+                    <Button
+                      className="shrink-0"
+                      onClick={onStartMonitoring}
+                      size="sm"
+                      type="button"
+                      variant="default"
+                    >
+                      Start Monitor
+                    </Button>
+                  </>
+                ) : (
+                  <Typography variant="bodySm">{errorMessage}</Typography>
+                )}
               </div>
             )
           }
