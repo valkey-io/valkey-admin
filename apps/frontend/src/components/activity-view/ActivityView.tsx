@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Activity, RefreshCcw, Settings } from "lucide-react"
+import { Activity, RefreshCcw, ScanSearch, Settings } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE, PENDING } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
@@ -299,12 +299,13 @@ export const ActivityView = () => {
               disabled={bigKeysStatus === PENDING}
               onClick={refreshBigKeys}
               size={"sm"}
-              variant={"outline"}
+              variant={"default"}
             >
-              <RefreshCcw
-                className={`hover:text-primary ${bigKeysStatus === PENDING ? "animate-spin" : ""}`}
+              <ScanSearch
+                className={bigKeysStatus === PENDING ? "animate-pulse" : ""}
                 size={15}
               />
+              {bigKeysStatus === PENDING ? "Scanning…" : "Scan"}
             </Button>
           </div>
         )}

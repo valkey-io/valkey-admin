@@ -104,14 +104,27 @@ export const ConnectionEntry = ({
             )}
           </div>
           {/* action buttons */}
-          <ConnectionActionButtons
-            isConnected={isConnected}
-            isConnecting={isConnecting}
-            onConnect={handleConnect}
-            onDelete={handleDelete}
-            onDisconnect={handleDisconnect}
-            onEdit={handleEdit}
-          />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isConnected && !hideOpenButton && (
+              <Button
+                className="flex items-center gap-1 hover:border-primary"
+                onClick={() => history.navigate(clusterId ? clusterPath(connectionId) : `/${connectionId}/dashboard`)}
+                size="sm"
+                variant="outline"
+              >
+                <CircleChevronRight size={16} />
+                Open
+              </Button>
+            )}
+            <ConnectionActionButtons
+              isConnected={isConnected}
+              isConnecting={isConnecting}
+              onConnect={handleConnect}
+              onDelete={handleDelete}
+              onDisconnect={handleDisconnect}
+              onEdit={handleEdit}
+            />
+          </div>
         </div>
       </div>
     )

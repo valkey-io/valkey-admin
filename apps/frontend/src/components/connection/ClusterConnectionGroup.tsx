@@ -4,6 +4,7 @@ import { useSelector } from "react-redux"
 import {
   ChevronDown,
   ChevronRight,
+  CircleChevronRight,
   Network,
   PencilIcon,
   CheckIcon,
@@ -21,6 +22,7 @@ import {
   connectPending
 } from "@/state/valkey-features/connection/connectionSlice"
 import { useAppDispatch } from "@/hooks/hooks.ts"
+import history from "@/history.ts"
 import { Button } from "@/components/ui/button.tsx"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip.tsx"
 import { Typography } from "@/components/ui/typography.tsx"
@@ -221,6 +223,17 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
         </div>
 
         <div className="flex items-center text-sm gap-2">
+          {hasConnectedInstance && (
+            <Button
+              className="flex items-center gap-1 mr-4 hover:border-primary"
+              onClick={() => history.navigate(`/${clusterId}/${firstConnectedConnection.connectionId}/cluster-topology`)}
+              size="sm"
+              variant="outline"
+            >
+              <CircleChevronRight size={16} />
+              Open
+            </Button>
+          )}
           {
             !hasConnectedInstance && lastOpenedNode ? (
               <Tooltip>
@@ -263,7 +276,6 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
                 clusterId={clusterId}
                 connection={connection}
                 connectionId={connectionId}
-                hideOpenButton={true}
                 highlight={highlight}
                 isNested={true}
                 key={connectionId}
