@@ -1,5 +1,5 @@
-import { Button } from "./button"
 import type { ReactNode } from "react"
+import { cn } from "@/lib/utils"
 
 export interface TabOption<T extends string = string> {
   id: T
@@ -20,19 +20,23 @@ export function TabGroup<T extends string = string>({
   className = "",
 }: TabGroupProps<T>) {
   return (
-    <nav className={`flex gap-2 ${className}`}>
+    <nav className={cn("flex gap-4 border-b border-input", className)}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id
         return (
-          <Button
+          <button
+            className={cn(
+              "px-1 py-2 -mb-px text-sm font-medium border-b-2 transition-colors cursor-pointer",
+              isActive
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
+            )}
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            size={"sm"}
             type="button"
-            variant={isActive ? "default" : "outline"}
           >
             {tab.label}
-          </Button>
+          </button>
         )
       })}
     </nav>

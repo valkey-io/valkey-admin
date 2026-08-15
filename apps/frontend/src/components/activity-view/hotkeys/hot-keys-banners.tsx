@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
+import { AlertCircle, ChevronDown, ChevronUp, Play } from "lucide-react"
 import { Alert, AlertDescription } from "../../ui/alert"
 import { Typography } from "../../ui/typography"
 import { Button } from "../../ui/button"
@@ -83,6 +83,7 @@ export function MonitorNotRunningBanner({ onStartMonitoring, error }: MonitorNot
             type="button"
             variant="default"
           >
+            <Play size={14} />
             Start Monitor
           </Button>
         </>
