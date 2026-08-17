@@ -16,17 +16,18 @@ If you do not fully understand some bits of the AI generated code, call out unkn
 
 Make sure you have added value based on your personal competency to your contributions. Just taking some input, feeding it to an AI and posting the result is not of value to the project. To preserve precious core developer capacity, we reserve the right to rigorously reject seemingly AI generated low-value contributions.
 
-## The RFC (Request for Comments) Process
+## Design Proposals
 
-Before you start writing code for a new feature or a significant architectural change, you **must** create an RFC:
+Before you start writing code for a new feature or a significant architectural change, you **must** create a design proposal:
 
-1.  **Open an Issue:** Create a new GitHub Issue with the prefix `[RFC] Your Feature Name`.
-2.  **Design Proposal:** Provide a general design or technical overview of your approach. Explain the *why* and the *how*.
-3.  **Tag a Maintainer:** Tag @arseny-kostenko, @ravjotbrar, @ArgusLi, and/or, @nassery318
-4.  **Approval:** Wait for feedback and approval from the project contributors. 
-5.  **Proceed:** Once the design is approved, you are cleared to begin development and submit a PR.
+1.  **Open an Issue:** If one doesn't already exist, create a GitHub Issue describing the feature or change.
+2.  **Start a Discussion:** Open a new [GitHub Discussion](https://github.com/valkey-io/valkey-admin/discussions) in the **Design** category, referencing the issue.
+3.  **Design Proposal:** Provide a general design or technical overview of your approach. Explain the *why* and the *how*.
+4.  **Tag a Maintainer:** Tag @ravjotbrar, @ArgusLi, and/or @nassery318
+5.  **Approval:** Wait for feedback and approval from the project contributors.
+6.  **Proceed:** Once the design is approved, you are cleared to begin development and submit a PR.
 
-*Note: Small bug fixes or documentation typos do not require an RFC.*
+*Note: Small bug fixes or documentation typos do not require a design proposal.*
 
 ---
 

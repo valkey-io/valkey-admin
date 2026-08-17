@@ -67,7 +67,7 @@ For common issues and fixes, see the [Troubleshooting guide](https://valkey-admi
 
 ## Contributing
 
-Interested in improving Valkey Admin? See [CONTRIBUTING.md](./CONTRIBUTING.md) for the RFC process, development setup, architectural guidelines, and the contribution workflow.
+Interested in improving Valkey Admin? See [CONTRIBUTING.md](./CONTRIBUTING.md) for the design proposal process, development setup, architectural guidelines, and the contribution workflow.
 
 ## Community
 
