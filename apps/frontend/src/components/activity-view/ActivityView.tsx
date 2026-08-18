@@ -257,13 +257,6 @@ export const ActivityView = () => {
                 <Settings className="hover:text-primary" size={15} />
               </Button>
             )}
-            <Button
-              onClick={refreshHotKeys}
-              size={"sm"}
-              variant={"outline"}
-            >
-              <RefreshCcw className="hover:text-primary" size={15} />
-            </Button>
             {!useHotSlots && !monitorRunning && (
               <Button
                 onClick={() => setConfigOpen(true)}
@@ -274,6 +267,13 @@ export const ActivityView = () => {
                 Start Monitor
               </Button>
             )}
+            <Button
+              onClick={refreshHotKeys}
+              size={"sm"}
+              variant={"outline"}
+            >
+              <RefreshCcw className="hover:text-primary" size={15} />
+            </Button>
           </div>
         )}
 
