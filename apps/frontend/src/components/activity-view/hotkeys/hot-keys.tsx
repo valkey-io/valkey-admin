@@ -63,7 +63,7 @@ export function HotKeys({
   const banners = (
     <>
       {!monitorRunning && onStartMonitoring && (
-        <MonitorNotRunningBanner error={monitorError} onStartMonitoring={onStartMonitoring} />
+        <MonitorNotRunningBanner error={monitorError} />
       )}
       {nodeErrors && nodeErrors.length > 0 && (
         <NodeErrorsBanner nodeErrors={nodeErrors} />

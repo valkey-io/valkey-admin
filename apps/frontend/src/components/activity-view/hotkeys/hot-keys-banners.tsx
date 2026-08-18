@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react"
-import { AlertCircle, ChevronDown, ChevronUp, Play } from "lucide-react"
+import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { Alert, AlertDescription } from "../../ui/alert"
 import { Typography } from "../../ui/typography"
-import { Button } from "../../ui/button"
 
 interface NodeErrorsBannerProps {
   nodeErrors: { nodeId: string; error: string }[]
@@ -60,11 +59,10 @@ export function NodeErrorsBanner({ nodeErrors, label = "Hot keys" }: NodeErrorsB
 }
 
 interface MonitorNotRunningBannerProps {
-  onStartMonitoring: () => void
   error?: string | null
 }
 
-export function MonitorNotRunningBanner({ onStartMonitoring, error }: MonitorNotRunningBannerProps) {
+export function MonitorNotRunningBanner({ error }: MonitorNotRunningBannerProps) {
   return (
     <div className="m-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-md border
       border-red-200 dark:border-red-700 flex items-center gap-2">
@@ -72,21 +70,9 @@ export function MonitorNotRunningBanner({ onStartMonitoring, error }: MonitorNot
       {error ? (
         <Typography variant="bodySm">Monitor failed: {error}</Typography>
       ) : (
-        <>
-          <Typography variant="bodySm">
-            Monitor is not running. Showing last known data.
-          </Typography>
-          <Button
-            className="shrink-0"
-            onClick={onStartMonitoring}
-            size="sm"
-            type="button"
-            variant="default"
-          >
-            <Play size={14} />
-            Start Monitor
-          </Button>
-        </>
+        <Typography variant="bodySm">
+          Monitor is not running. Showing last known data.
+        </Typography>
       )}
     </div>
   )

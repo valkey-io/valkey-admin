@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Activity, RefreshCcw, ScanSearch, Settings } from "lucide-react"
+import { Activity, Play, RefreshCcw, ScanSearch, Settings } from "lucide-react"
 import { useParams } from "react-router"
 import { COMMANDLOG_TYPE, PENDING } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
@@ -264,6 +264,16 @@ export const ActivityView = () => {
             >
               <RefreshCcw className="hover:text-primary" size={15} />
             </Button>
+            {!useHotSlots && !monitorRunning && (
+              <Button
+                onClick={() => setConfigOpen(true)}
+                size={"sm"}
+                variant={"default"}
+              >
+                <Play size={15} />
+                Start Monitor
+              </Button>
+            )}
           </div>
         )}
 
