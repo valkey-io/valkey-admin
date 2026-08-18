@@ -257,8 +257,9 @@ export const ActivityView = () => {
                 <Settings className="hover:text-primary" size={15} />
               </Button>
             )}
-            {!useHotSlots && !monitorRunning && (
+            {!useHotSlots && (
               <Button
+                disabled={monitorRunning}
                 onClick={() => setConfigOpen(true)}
                 size={"sm"}
                 variant={"default"}
