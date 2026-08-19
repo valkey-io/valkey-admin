@@ -3,7 +3,7 @@ import { Typography } from "./typography"
 import { cn } from "@/lib/utils"
 
 interface StatCardProps extends React.ComponentProps<"div"> {
-  value: string | number
+  value: React.ReactNode
   label: string
   icon?: React.ReactNode
   tooltip?: React.ReactNode
@@ -20,14 +20,14 @@ function StatCard({
   return (
     <div
       className={cn(
-        "h-20 p-4 rounded-md border border-input bg-white dark:bg-input/30",
-        "flex flex-col justify-center items-center",
+        "min-h-20 p-4 rounded-md border border-input bg-white dark:bg-input/30",
+        "flex flex-col justify-center items-center text-center",
         className,
       )}
       data-slot="stat-card"
       {...props}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 min-w-0">
         {icon}
         <Typography variant="heading">{value}</Typography>
       </div>

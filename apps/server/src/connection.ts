@@ -24,6 +24,7 @@ import {
   isKubernetes, 
   ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
+import { clearCpuSamples } from "./node-utilization"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
 export type ConnectionContext = {
@@ -741,6 +742,12 @@ export function teardownConnection(
 
   const connection = clients.get(connectionId)
   clients.delete(connectionId)
+
+  // Samples are keyed per node, so keep them while any other db shares this node.
+  const nodeId = toNodeId(connectionId)
+  if (![...clients.keys()].some((id) => toNodeId(id) === nodeId)) {
+    clearCpuSamples(nodeId)
+  }
 
   if (connection && ![...clients.values()].some((c) => c.client === connection.client)) {
     try {

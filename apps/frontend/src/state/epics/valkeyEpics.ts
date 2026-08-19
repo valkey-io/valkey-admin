@@ -4,7 +4,7 @@ import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, t
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
   METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS, SESSION_STORAGE,
-  VALKEY } from "@common/src/constants.ts"
+  CLUSTER_DATA_POLL_INTERVAL_MS, VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
@@ -37,7 +37,7 @@ import { hotKeysRequested } from "../valkey-features/hotkeys/hotKeysSlice.ts"
 import { bigKeysRequested } from "../valkey-features/bigkeys/bigKeysSlice.ts"
 import { commandLogsRequested } from "../valkey-features/commandlogs/commandLogsSlice.ts"
 import history, { wasRefreshedFrom } from "../../history.ts"
-import { setClusterData, updateClusterData } from "../valkey-features/cluster/clusterSlice.ts"
+import { setClusterData, updateClusterData, stopClusterDataPolling } from "../valkey-features/cluster/clusterSlice.ts"
 import { setConfig, updateConfig, updateConfigFulfilled } from "../valkey-features/config/configSlice.ts"
 import { cpuUsageRequested } from "../valkey-features/cpu/cpuSlice.ts"
 import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
@@ -649,6 +649,31 @@ export const monitorEpic = () =>
       }
     }),
     ignoreElements(),
+  )
+
+// Epic to poll cluster data every 5 seconds for a given clusterId 
+export const clusterDataPollingEpic = () =>
+  action$.pipe(
+    select(updateClusterData),
+    groupBy((action) => action.payload.clusterId),
+    mergeMap((group$) =>
+      group$.pipe(
+        exhaustMap(({ payload: { connectionId, clusterId } }) =>
+          timer(CLUSTER_DATA_POLL_INTERVAL_MS, CLUSTER_DATA_POLL_INTERVAL_MS).pipe(
+            tap(() => {
+              getSocket().next({ type: setClusterData.type, payload: { clusterId, connectionId } })
+            }),
+            takeUntil(
+              action$.pipe(
+                select(stopClusterDataPolling),
+                filter((a) => a.payload.clusterId === clusterId),
+              ),
+            ),
+            ignoreElements(),
+          ),
+        ),
+      ),
+    ),
   )
 
 // metric server not ready retry epic for dashboad data

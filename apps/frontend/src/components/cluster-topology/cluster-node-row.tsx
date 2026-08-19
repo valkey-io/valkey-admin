@@ -1,10 +1,12 @@
 import * as R from "ramda"
 import { useState } from "react"
-import { LayoutDashboard, Terminal, PowerIcon, Server, MemoryStick, Users, Loader2 } from "lucide-react"
+import { LayoutDashboard, Terminal, PowerIcon, Loader2, Server } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { buildConnectionId } from "@common/src/connection-id.ts"
+import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
+import { formatBytes } from "@common/src/bytes-conversion.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { Badge } from "../ui/badge"
 import { CustomTooltip } from "../ui/tooltip"
@@ -12,8 +14,9 @@ import { Button } from "../ui/button"
 import { Typography } from "../ui/typography"
 import { HighlightSearchMatch } from "../ui/highlight-search-match"
 import { PasswordPromptModal } from "../ui/password-prompt-modal"
+import { getUtilizationLevel, formatRate, formatPercent, type UtilizationLevel } from "./node-metrics"
 import type { RootState } from "@/store.ts"
-import type { PrimaryNode, ParsedNodeInfo } from "@/state/valkey-features/cluster/clusterSlice"
+import type { PrimaryNode, ParsedNodeInfo, NodeUtilization } from "@/state/valkey-features/cluster/clusterSlice"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
@@ -22,21 +25,37 @@ import {
 import { secureStorage } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
-interface ClusterNodeProps {
-  primaryKey: string
-  primary: PrimaryNode
-  primaryData: ParsedNodeInfo
-  clusterId: string
-  highlight?: string
+const UTILIZATION_BADGE: Record<UtilizationLevel, { label: string, variant: "secondary" | "success" | "destructive" }> = {
+  low: { label: "Low", variant: "secondary" },
+  normal: { label: "Normal", variant: "success" },
+  high: { label: "High", variant: "destructive" },
 }
 
-export function ClusterNode({
-  primaryKey,
+interface ClusterNodeRowProps {
+  host: string
+  port: number
+  role: "primary" | "replica"
+  displayName: string
+  primary: PrimaryNode
+  nodeData?: ParsedNodeInfo
+  utilization?: NodeUtilization
+  clusterId: string
+  highlight?: string
+  isGroupEnd?: boolean
+}
+
+export function ClusterNodeRow({
+  host,
+  port,
+  role,
+  displayName,
   primary,
-  primaryData,
+  nodeData,
+  utilization,
   clusterId,
   highlight = "",
-}: ClusterNodeProps) {
+  isGroupEnd = true,
+}: ClusterNodeRowProps) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   // Inherit the parent cluster's Database_Index so node connections target the
@@ -46,7 +65,7 @@ export function ClusterNode({
   // Match the db-aware id scheme from buildConnectionId so the seed node
   // resolves to its status here, and node connects reuse that id
   // instead of creating a db id less duplicate.
-  const connectionId = buildConnectionId(primary.host, primary.port, clusterDb)
+  const connectionId = buildConnectionId(host, port, clusterDb)
 
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,
@@ -65,8 +84,8 @@ export function ClusterNode({
   const [showPasswordModal, setShowPasswordModal] = useState(false)
 
   const baseDetails: ConnectionDetails = {
-    host: primary.host,
-    port: primary.port.toString(),
+    host,
+    port: port.toString(),
     tls: primary.tls,
     verifyTlsCertificate: primary.verifyTlsCertificate,
     endpointType: "node",
@@ -116,18 +135,20 @@ export function ClusterNode({
     }))
   }
 
-  const NodeDetails = ({ nodeData }: { nodeData: ParsedNodeInfo }) => (
-    <div className="flex items-center gap-2 text-xs">
-      <div className="flex items-center gap-1">
-        <MemoryStick className="text-primary" size={14} />
-        <Typography variant="bodyXs">{nodeData?.used_memory_human ?? "N/A"}</Typography>
-      </div>
-      <div className="flex items-center gap-1">
-        <Users className="text-primary" size={14} />
-        <Typography variant="bodyXs">{nodeData?.connected_clients ?? "N/A"}</Typography>
-      </div>
-    </div>
-  )
+  const usedMemory = utilization?.used_memory ?? (Number(nodeData?.used_memory) || 0)
+  const memoryLimit = utilization?.memory_limit_bytes ?? 0
+  const isHostMemoryBasis = utilization?.memory_basis === "total_system_memory"
+  const utilizationLevel = getUtilizationLevel(utilization?.memory_utilization_percent, utilization?.cpu_utilization_percent)
+  const isFlagged = role === "primary" && utilizationLevel === "high"
+
+  const memoryTooltip = isHostMemoryBasis
+    ? `${formatPercent(utilization?.memory_utilization_percent)} of host RAM — no maxmemory set`
+    : `${formatPercent(utilization?.memory_utilization_percent)} of configured maxmemory`
+  const utilizationTooltip = `Memory: ${memoryTooltip} · CPU: ${formatPercent(utilization?.cpu_utilization_percent)}`
+
+  const hitRatio = nodeData
+    ? calculateHitRatio(Number(nodeData.keyspace_hits) || 0, Number(nodeData.keyspace_misses) || 0)
+    : "—"
 
   const powerIconTooltip = isConnected   ? "Connected"
     : isConnecting ? "Connecting..."
@@ -136,54 +157,78 @@ export function ClusterNode({
           :                "Not Connected"
 
   return (
-    <div className="w-full">
-      <TooltipProvider>
-        <div className="px-4 py-3 border border-input rounded-md shadow-xs hover:border-primary/50">
-          <div className="flex items-stretch gap-4">
-            {/* Primary Node Section */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <Server className="text-primary shrink-0" size={18} />
-              <div className="flex flex-col gap-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Typography variant={"label"}>
-                    <HighlightSearchMatch query={highlight} text={primaryData?.server_name || primaryKey} />
-                  </Typography>
-                  <Badge className="text-xs px-2 py-0" variant={isConnected ? "success" : "secondary"}>
-                    PRIMARY
-                  </Badge>
-                </div>
-                <Typography variant="bodyXs"><HighlightSearchMatch query={highlight} text={`${primary.host}:${primary.port}`} /></Typography>
-                <NodeDetails nodeData={primaryData} />
-              </div>
+    <tr
+      className={cn(
+        "group transition-all duration-200",
+        isFlagged ? "bg-destructive/10 hover:bg-destructive/15" : "hover:bg-gray-50 dark:hover:bg-neutral-800/50",
+        isGroupEnd ? "border-b dark:border-tw-dark-border" : "border-b border-gray-100 dark:border-neutral-800/50",
+      )}
+    >
+      <td className="px-4 py-3 w-10">
+        {role === "primary" && <Server className="text-primary" size={16} />}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Typography variant="label">
+                <HighlightSearchMatch query={highlight} text={displayName} />
+              </Typography>
+              <Badge className="text-[10px] px-2 py-0" variant={role === "primary" ? "default" : "secondary"}>
+                {role === "primary" ? "PRIMARY" : "REPLICA"}
+              </Badge>
             </div>
-
-            {/* Divider */}
-            {primary.replicas.length > 0 && (
-              <div className="w-px bg-tw-dark-border/30 shrink-0" />
-            )}
-
-            {/* Replicas Section */}
-            {primary.replicas.length > 0 && (
-              <div className="items-center gap-3 overflow-x-auto flex-1">
-                <Badge className="text-xs px-2 py-0 mb-2" variant="secondary">
-                  REPLICA{primary.replicas.length > 1 ? "S" : ""}
-                </Badge>
-                {primary.replicas.map((replica) => {
-                  const replicaKey = `${replica.host}:${replica.port}`
-                  return (
-                    <div className="flex items-center mb-2 gap-1" key={replicaKey}>
-                      <Server className="text-primary shrink-0" size={16} />
-                      <Typography className="underline" variant="bodyXs">
-                        <HighlightSearchMatch query={highlight} text={replicaKey} />
-                      </Typography>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
+            <Typography variant="bodyXs">
+              <HighlightSearchMatch query={highlight} text={`${host}:${port}`} />
+            </Typography>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3 w-[10%] text-center">
+        {role === "primary" && utilizationLevel && (
+          <TooltipProvider>
+            <CustomTooltip content={utilizationTooltip}>
+              <Badge
+                className={cn("text-[10px] px-2 py-0", isHostMemoryBasis && "border-dashed")}
+                variant={UTILIZATION_BADGE[utilizationLevel].variant}
+              >
+                {UTILIZATION_BADGE[utilizationLevel].label}
+              </Badge>
+            </CustomTooltip>
+          </TooltipProvider>
+        )}
+      </td>
+      <td className="px-2 py-3 w-[10%]">
+        {role === "primary" && (
+          <Typography variant="bodyXs">
+            {nodeData?.used_memory_human ?? formatBytes(usedMemory)} / {memoryLimit > 0 ? formatBytes(memoryLimit) : "∞"}
+          </Typography>
+        )}
+      </td>
+      <td className="px-4 py-3 w-[8%] text-center">
+        {role === "primary" && (
+          <Typography variant="bodyXs">
+            {formatPercent(utilization?.cpu_utilization_percent)}
+          </Typography>
+        )}
+      </td>
+      <td className="px-4 py-3 w-[10%] text-center">
+        {role === "primary" && (
+          <Typography variant="bodyXs">
+            {nodeData?.instantaneous_ops_per_sec ? formatRate(Number(nodeData.instantaneous_ops_per_sec)) : "—"}
+          </Typography>
+        )}
+      </td>
+      <td className="px-4 py-3 w-[10%] text-center">
+        {role === "primary" && <Typography variant="bodyXs">{hitRatio}</Typography>}
+      </td>
+      <td className="px-4 py-3 w-[8%] text-center">
+        {role === "primary" && <Typography variant="bodyXs">{nodeData?.connected_clients ?? "—"}</Typography>}
+      </td>
+      <td className="px-4 py-3 w-[14%]">
+        {role === "primary" && (
+          <TooltipProvider>
+            <div className="flex items-center justify-center gap-2">
               <CustomTooltip content={powerIconTooltip}>
                 {isConnecting ? (
                   <Loader2
@@ -229,17 +274,19 @@ export function ClusterNode({
                 </Button>
               </CustomTooltip>
             </div>
-          </div>
-        </div>
-      </TooltipProvider>
-      <PasswordPromptModal
-        connectionLabel={`${primary.host}:${primary.port}`}
-        errorMessage={connectionStatus === ERROR ? "Connection failed. Check your password and try again." : undefined}
-        isConnecting={connectionStatus === CONNECTING}
-        onClose={() => setShowPasswordModal(false)}
-        onSubmit={handlePasswordSubmit}
-        open={showPasswordModal && connectionStatus !== CONNECTED}
-      />
-    </div>
+          </TooltipProvider>
+        )}
+      </td>
+      {role === "primary" && (
+        <PasswordPromptModal
+          connectionLabel={`${host}:${port}`}
+          errorMessage={connectionStatus === ERROR ? "Connection failed. Check your password and try again." : undefined}
+          isConnecting={connectionStatus === CONNECTING}
+          onClose={() => setShowPasswordModal(false)}
+          onSubmit={handlePasswordSubmit}
+          open={showPasswordModal && connectionStatus !== CONNECTED}
+        />
+      )}
+    </tr>
   )
 }
