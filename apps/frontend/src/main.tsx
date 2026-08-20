@@ -9,6 +9,7 @@ import history from "./history.ts"
 import RequireConnection from "./components/RequireConnection.tsx"
 import Settings from "./components/settings/Settings.tsx"
 import LearnMore from "./components/learn-more/LearnMore.tsx"
+import NotFound from "./components/not-found/NotFound.tsx"
 import { KeyBrowser } from "./components/key-browser/KeyBrowser.tsx"
 import { Cluster } from "./components/cluster-topology/Cluster.tsx"
 import { WebSocketReconnect } from "./components/WebSocketReconnect.tsx"
@@ -61,6 +62,8 @@ const AppWithHistory = () => {
           <Route element={<Settings />} path="/:id/settings" />
           <Route element={<LearnMore />} path="/:id/learnmore" />
         </Route>
+
+        <Route element={<NotFound />} path="*" />
       </Route>
     </Routes>
   )
