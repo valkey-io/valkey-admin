@@ -43,14 +43,3 @@ export const toNodeId = (id: string): string => id.replace(/-db\d+$/, "")
  */
 export const isValidDatabaseIndex = (db: unknown): db is number =>
   typeof db === "number" && Number.isInteger(db) && db >= 0
-
-/**
- * Validate a client-connect port string. Accepts integers 1–65535 only.
- * Rejects 0 (auto-assign / TCP-disabled — never a connectable port),
- * negatives, decimals, out-of-range, empty, and non-numeric values.
- */
-export const isValidPort = (port: string): boolean => {
-  if (!/^\d+$/.test(port.trim())) return false
-  const n = Number(port)
-  return n >= 1 && n <= 65535
-}

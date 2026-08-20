@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { buildConnectionId, isValidDatabaseIndex, isValidPort } from "@common/src/connection-id.ts"
+import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
@@ -33,7 +33,6 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [discoveryId, setDiscoveryId] = useState<string | null>(null)
   const [dbError, setDbError] = useState<string | undefined>(undefined)
-  const [portError, setPortError] = useState<string | undefined>(undefined)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const discoveryState = useAppSelector((state) =>
     discoveryId ? state.valkeyTopology.discoveries[discoveryId] : null,
@@ -69,12 +68,6 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (isAtConnectionLimit) return
-
-    if (!isValidPort(connectionDetails.port)) {
-      setPortError("Invalid port")
-      return
-    }
-    setPortError(undefined)
 
     // No static upper bound: the valid range depends on the server's
     // `databases` config, which the backend checks at connect time.
@@ -126,7 +119,6 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
       onConnectionDetailsChange={handleConnectionDetailsChange}
       onSubmit={handleSubmit}
       open
-      portError={portError}
       showConnectionLimitWarning={isAtConnectionLimit}
       submitButtonText={isConnecting ? "Connecting..." : "Connect"}
       title="Add Connection"

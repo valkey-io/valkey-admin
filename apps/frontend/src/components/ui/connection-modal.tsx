@@ -29,7 +29,6 @@ interface ConnectionModalProps {
   dbError?: string
   /** Informational hint under the Database field (e.g. the server's valid range). */
   dbHint?: string
-  portError?: string
 }
 
 export function ConnectionModal({
@@ -48,7 +47,6 @@ export function ConnectionModal({
   showVerifyTlsCertificate = true,
   dbError,
   dbHint,
-  portError,
 }: ConnectionModalProps) {
 
   return (
@@ -151,20 +149,16 @@ export function ConnectionModal({
                         id="port"
                         max={65535}
                         min={1}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          e.target.reportValidity()
                           onConnectionDetailsChange({ ...connectionDetails, port: e.target.value })
-                        }
+                        }}
                         placeholder="6379"
                         required
                         step={1}
                         type="number"
                         value={connectionDetails.port}
                       />
-                      {portError && (
-                        <Typography className="text-destructive mt-1" variant="bodySm">
-                          {portError}
-                        </Typography>
-                      )}
                     </div>
                   </div>
 
