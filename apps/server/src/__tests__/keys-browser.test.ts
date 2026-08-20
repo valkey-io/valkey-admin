@@ -3,7 +3,7 @@ import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
-import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle } from "../keys-browser"
+import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle, updateKey } from "../keys-browser"
 
 // Test helper functions
 function createMockWs() {
@@ -758,6 +758,70 @@ describe("getKeyInfoSingle", () => {
       assert.strictEqual(sentMessage.payload.type, "unknown")
       assert.strictEqual(sentMessage.payload.ttl, -1)
       assert.strictEqual(sentMessage.payload.size, -1)
+    })
+  })
+})
+
+describe("updateKey", () => {
+  let mockWs: any
+
+  beforeEach(() => {
+    const result = createMockWs()
+    mockWs = result.mockWs
+  })
+
+  describe("string keys", () => {
+    const stringMock = () =>
+      mock.fn(async (cmd: string[]) => {
+        if (cmd[0] === "SET") return "OK"
+        if (cmd[0] === "TYPE") return "string"
+        if (cmd[0] === "TTL") return 3600
+        if (cmd[0] === "MEMORY") return 50
+        if (cmd[0] === "GET") return "newvalue"
+        return null
+      })
+
+    it("preserves an existing TTL on a value-only edit via SET ... KEEPTTL", async () => {
+      const mockClient = { customCommand: stringMock() }
+
+      await updateKey(mockClient as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mykey",
+        keyType: "string",
+        value: "newvalue",
+        // no ttl — value-only edit
+      })
+
+      const setCalls = mockClient.customCommand.mock.calls.filter(
+        (call: any) => call.arguments[0][0] === "SET",
+      )
+      assert.strictEqual(setCalls.length, 1)
+      // Must include KEEPTTL so the existing expiration is not discarded.
+      assert.deepStrictEqual(setCalls[0].arguments, [["SET", "mykey", "newvalue", "KEEPTTL"]])
+    })
+
+    it("uses SETEX when an explicit TTL is provided", async () => {
+      const mockClient = { customCommand: stringMock() }
+
+      await updateKey(mockClient as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mykey",
+        keyType: "string",
+        value: "newvalue",
+        ttl: 3600,
+      })
+
+      const setexCalls = mockClient.customCommand.mock.calls.filter(
+        (call: any) => call.arguments[0][0] === "SETEX",
+      )
+      assert.strictEqual(setexCalls.length, 1)
+      assert.deepStrictEqual(setexCalls[0].arguments, [["SETEX", "mykey", "3600", "newvalue"]])
+
+      // And it must NOT issue a plain SET in this path.
+      const setCalls = mockClient.customCommand.mock.calls.filter(
+        (call: any) => call.arguments[0][0] === "SET",
+      )
+      assert.strictEqual(setCalls.length, 0)
     })
   })
 })
