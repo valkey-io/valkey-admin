@@ -21,7 +21,7 @@ export const useShortcutNavigation = () => {
           sendcommand: clusterId ? `/${clusterId}/${id}/sendcommand` : `/${id}/sendcommand`,
           "cluster-topology": clusterId ? `/${clusterId}/${id}/cluster-topology` : "",
           settings: clusterId ? `/${clusterId}/${id}/settings` : `/${id}/settings`,
-          learnmore: `/${id}/learnmore`,
+          learnmore: clusterId ? `/${clusterId}/${id}/learnmore` : `/${id}/learnmore`,
         }
         : {
           connect: "/connect",
@@ -35,6 +35,6 @@ export const useShortcutNavigation = () => {
       }
     }
 
-    window.electronNavigation.onNavigate(handleNavigate)
+    return window.electronNavigation.onNavigate(handleNavigate)
   }, [navigate, id, clusterId, isConnected])
 }
