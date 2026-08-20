@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { toNodeId } from "../connection-id"
+import { toNodeId, isValidPort } from "../connection-id"
 
 describe("toNodeId", () => {
   // The shared db-strip helper that turns a Connection_Identifier
@@ -27,5 +27,27 @@ describe("toNodeId", () => {
 
   it("returns the empty string unchanged", () => {
     assert.strictEqual(toNodeId(""), "")
+  })
+})
+
+describe("isValidPort", () => {
+  it("accepts integers in 1-65535", () => {
+    assert.strictEqual(isValidPort("1"), true)
+    assert.strictEqual(isValidPort("6379"), true)
+    assert.strictEqual(isValidPort("65535"), true)
+  })
+
+  it("rejects 0 (auto-assign / TCP-disabled, not a connectable port)", () => {
+    assert.strictEqual(isValidPort("0"), false)
+  })
+
+  it("rejects out-of-range, negative, decimal, empty and non-numeric", () => {
+    assert.strictEqual(isValidPort("65536"), false)
+    assert.strictEqual(isValidPort("99999"), false)
+    assert.strictEqual(isValidPort("-1"), false)
+    assert.strictEqual(isValidPort("6379.5"), false)
+    assert.strictEqual(isValidPort(""), false)
+    assert.strictEqual(isValidPort("abc"), false)
+    assert.strictEqual(isValidPort("  "), false)
   })
 })
