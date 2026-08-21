@@ -950,7 +950,7 @@ async function updateStringKey(
   if (ttl && ttl > 0) {
     await client.customCommand(["SETEX", key, ttl.toString(), value])
   } else {
-    await client.customCommand(["SET", key, value])
+    await client.customCommand(["SET", key, value, "KEEPTTL"])
   }
 }
 
