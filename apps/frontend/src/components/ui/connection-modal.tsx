@@ -147,11 +147,15 @@ export function ConnectionModal({
                       <Label className="block mb-1" htmlFor="port">Port</Label>
                       <Input
                         id="port"
-                        onChange={(e) =>
+                        max={65535}
+                        min={1}
+                        onChange={(e) => {
+                          e.target.reportValidity()
                           onConnectionDetailsChange({ ...connectionDetails, port: e.target.value })
-                        }
+                        }}
                         placeholder="6379"
                         required
+                        step={1}
                         type="number"
                         value={connectionDetails.port}
                       />

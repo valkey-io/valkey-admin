@@ -38,4 +38,19 @@ describe("ConnectionForm", () => {
       connectionId: buildConnectionId("localhost", "6379", 42),
     })
   })
+
+  it("allows a valid port and dispatches connectPending", async () => {
+    renderForm()
+
+    fireEvent.change(screen.getByLabelText("Host"), { target: { value: "localhost" } })
+    fireEvent.change(screen.getByLabelText("Port"), { target: { value: "6380" } })
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }))
+
+    await screen.findByRole("button", { name: /Connect/ })
+
+    const pending = dispatched.find((a) => a.type.endsWith("connectPending"))
+    expect(pending?.payload).toMatchObject({
+      connectionId: buildConnectionId("localhost", "6380", 0),
+    })
+  })
 })
