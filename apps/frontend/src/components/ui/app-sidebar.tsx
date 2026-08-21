@@ -134,7 +134,7 @@ export function AppSidebar() {
                   isExternal: true,
                 },
                 {
-                  to: `${id}/learnmore`,
+                  to: clusterId ? `/${clusterId}/${id}/learnmore` : `${id}/learnmore`,
                   title: "Learn More",
                   icon: CircleQuestionMark,
                 },
