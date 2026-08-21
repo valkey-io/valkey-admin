@@ -15,7 +15,7 @@ function createApplicationMenu() {
         { label: "Connections", accelerator: isMac ? "Cmd+1" : "Ctrl+1", click: () => sendNavigationEvent("connect") },
         { label: "Dashboard", accelerator: isMac ? "Cmd+2" : "Ctrl+2", click: () => sendNavigationEvent("dashboard") },
         { label: "Key Browser", accelerator: isMac ? "Cmd+3" : "Ctrl+3", click: () => sendNavigationEvent("browse") },
-        { label: "Monitoring", accelerator: isMac ? "Cmd+4" : "Ctrl+4", click: () => sendNavigationEvent("monitoring") },
+        { label: "Activity", accelerator: isMac ? "Cmd+4" : "Ctrl+4", click: () => sendNavigationEvent("activity") },
         { label: "Send Command", accelerator: isMac ? "Cmd+5" : "Ctrl+5", click: () => sendNavigationEvent("sendcommand") },
         { label: "Cluster Topology", accelerator: isMac ? "Cmd+6" : "Ctrl+6", click: () => sendNavigationEvent("cluster-topology") },
         { label: "Settings", accelerator: isMac ? "Cmd+7" : "Ctrl+7", click: () => sendNavigationEvent("settings") },
