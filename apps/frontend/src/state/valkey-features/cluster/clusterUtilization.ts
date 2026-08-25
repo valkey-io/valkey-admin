@@ -1,5 +1,6 @@
 import { CPU_HIGH_THRESHOLD, CPU_NORMAL_THRESHOLD,
   MEMORY_HIGH_THRESHOLD, MEMORY_NORMAL_THRESHOLD } from "@common/src/constants.ts"
+import * as R from "ramda"
 
 export type UtilizationLevel = "low" | "normal" | "high"
 
@@ -7,12 +8,12 @@ const LEVEL_RANK: Record<UtilizationLevel, number> = { low: 0, normal: 1, high: 
 
 // Memory and CPU get their own bands: a cache is meant to sit near its
 // memory limit, but a hot event loop is not meant to sit near one core.
-function levelFor(
+function getLevelFor(
   percent: number | null | undefined,
   normalThreshold: number,
   highThreshold: number,
 ): UtilizationLevel | null {
-  if (percent === null || percent === undefined) return null
+  if (R.isNil(percent)) return null
   if (percent >= highThreshold) return "high"
   if (percent >= normalThreshold) return "normal"
   return "low"
@@ -24,8 +25,8 @@ export function getUtilizationLevel(
   cpuPercent: number | null | undefined,
 ): UtilizationLevel | null {
   const levels = [
-    levelFor(memoryPercent, MEMORY_NORMAL_THRESHOLD, MEMORY_HIGH_THRESHOLD),
-    levelFor(cpuPercent, CPU_NORMAL_THRESHOLD, CPU_HIGH_THRESHOLD),
+    getLevelFor(memoryPercent, MEMORY_NORMAL_THRESHOLD, MEMORY_HIGH_THRESHOLD),
+    getLevelFor(cpuPercent, CPU_NORMAL_THRESHOLD, CPU_HIGH_THRESHOLD),
   ].filter((level): level is UtilizationLevel => level !== null)
 
   if (levels.length === 0) return null
