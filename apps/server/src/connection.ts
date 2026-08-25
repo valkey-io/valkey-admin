@@ -743,12 +743,6 @@ export function teardownConnection(
   const connection = clients.get(connectionId)
   clients.delete(connectionId)
 
-  // Samples are keyed per node, so keep them while any other db shares this node.
-  const nodeId = toNodeId(connectionId)
-  if (![...clients.keys()].some((id) => toNodeId(id) === nodeId)) {
-    clearCpuSamples(nodeId)
-  }
-
   if (connection && ![...clients.values()].some((c) => c.client === connection.client)) {
     try {
       connection.client.close()
@@ -756,9 +750,17 @@ export function teardownConnection(
       console.error(`Error closing connection ${connectionId}:`, error)
     }
 
-    if (connection.clusterId && !isWebMode) {
-      delete clusterNodesRegistry[connection.clusterId]
-      clusterCredentials.delete(connection.clusterId)
+    if (connection.clusterId) {
+      // Polling ends with the client; drop all CPU baselines so a reconnect starts fresh
+      clearCpuSamples(toNodeId(connectionId))
+      Object.keys(clusterNodesRegistry[connection.clusterId] ?? {}).forEach(
+        (nodeId) => clearCpuSamples(nodeId),
+      )
+
+      if (!isWebMode) {
+        delete clusterNodesRegistry[connection.clusterId]
+        clusterCredentials.delete(connection.clusterId)
+      }
     }
   }
 }
