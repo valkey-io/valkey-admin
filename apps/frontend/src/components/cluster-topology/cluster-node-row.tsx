@@ -14,9 +14,10 @@ import { Button } from "../ui/button"
 import { Typography } from "../ui/typography"
 import { HighlightSearchMatch } from "../ui/highlight-search-match"
 import { PasswordPromptModal } from "../ui/password-prompt-modal"
-import { getUtilizationLevel, formatRate, formatPercent, type UtilizationLevel } from "./node-metrics"
+import { formatRate, formatPercent } from "./node-metrics"
 import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo, NodeUtilization } from "@/state/valkey-features/cluster/clusterSlice"
+import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
@@ -135,8 +136,10 @@ export function ClusterNodeRow({
     }))
   }
 
-  const usedMemory = utilization?.used_memory ?? (Number(nodeData?.used_memory) || 0)
-  const memoryLimit = utilization?.memory_limit_bytes ?? 0
+  // memory_limit_bytes is null only when the node itself reported no limit.
+  const memoryLabel = utilization
+    ? `${nodeData?.used_memory_human ?? "—"} / ${utilization.memory_limit_bytes ? formatBytes(utilization.memory_limit_bytes) : "∞"}`
+    : "—"
   const isHostMemoryBasis = utilization?.memory_basis === "total_system_memory"
   const utilizationLevel = getUtilizationLevel(utilization?.memory_utilization_percent, utilization?.cpu_utilization_percent)
   const isFlagged = role === "primary" && utilizationLevel === "high"
@@ -201,7 +204,7 @@ export function ClusterNodeRow({
       <td className="px-2 py-3 w-[10%]">
         {role === "primary" && (
           <Typography variant="bodyXs">
-            {nodeData?.used_memory_human ?? formatBytes(usedMemory)} / {memoryLimit > 0 ? formatBytes(memoryLimit) : "∞"}
+            {memoryLabel}
           </Typography>
         )}
       </td>

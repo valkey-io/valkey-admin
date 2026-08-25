@@ -21,6 +21,16 @@ export interface PrimaryNode {
   awsReplicationGroupId?: string;
 }
 
+export interface NodeRow {
+  dataKey: string;
+  searchKey: string;
+  host: string;
+  port: number;
+  role: "primary" | "replica";
+  primary: PrimaryNode;
+  isGroupEnd: boolean;
+}
+
 export interface ParsedNodeInfo {
   server_name: string | null;
   uptime_in_days: string | null;

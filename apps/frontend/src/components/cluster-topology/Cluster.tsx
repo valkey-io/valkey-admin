@@ -6,7 +6,6 @@ import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { truncateText } from "@common/src/truncate-text.ts"
 import { formatBytes } from "@common/src/bytes-conversion.ts"
 import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
-import { sanitizeUrl } from "@common/src/url-utils.ts"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
 import { StatCard } from "../ui/stat-card"
@@ -16,25 +15,17 @@ import { Typography } from "../ui/typography"
 import { TableContainer } from "../ui/table-container"
 import { StaticTableHeader } from "../ui/sortable-table-header"
 import { ClusterNodeRow } from "./cluster-node-row"
-import { getUtilizationLevel, type UtilizationLevel } from "./node-metrics"
-import type { PrimaryNode } from "@/state/valkey-features/cluster/clusterSlice"
-import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
+import type { RootState } from "@/store.ts"
+import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
+import {
+  selectCluster, selectClusterNodeRows, selectClusterMetrics
+} from "@/state/valkey-features/cluster/clusterSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateClusterData, stopClusterDataPolling } from "@/state/valkey-features/cluster/clusterSlice"
 import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 
 type RoleFilter = "all" | "primary" | "replica"
 type UtilizationFilter = "all" | UtilizationLevel
-
-interface NodeRow {
-  dataKey: string
-  searchKey: string
-  host: string
-  port: number
-  role: "primary" | "replica"
-  primary: PrimaryNode
-  isGroupEnd: boolean
-}
 
 export function Cluster() {
   const { id, clusterId } = useParams()
@@ -46,6 +37,8 @@ export function Cluster() {
     }
   }, [id, clusterId, dispatch])
   const clusterData = useSelector(selectCluster(clusterId!))
+  const nodeRows = useSelector((state: RootState) => selectClusterNodeRows(state, clusterId!))
+  const metrics = useSelector((state: RootState) => selectClusterMetrics(state, clusterId!))
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
   const [utilizationFilter, setUtilizationFilter] = useState<UtilizationFilter>("all")
@@ -65,63 +58,17 @@ export function Cluster() {
     )
   }
 
-  const clusterEntries = Object.entries(clusterData.clusterNodes)
-
-  const nodeRows: NodeRow[] = clusterEntries.flatMap(([primaryKey, primary]) => [
-    {
-      dataKey: primaryKey,
-      searchKey: primaryKey,
-      host: primary.host,
-      port: primary.port,
-      role: "primary" as const,
-      primary,
-      isGroupEnd: primary.replicas.length === 0,
-    },
-    ...primary.replicas.map((replica, index) => ({
-      dataKey: sanitizeUrl(`${replica.host}-${replica.port}`),
-      searchKey: `${replica.host}:${replica.port}`,
-      host: replica.host,
-      port: replica.port,
-      role: "replica" as const,
-      primary,
-      isGroupEnd: index === primary.replicas.length - 1,
-    })),
-  ])
-
-  let usedMemorySum = 0
-  let memoryLimitSum = 0
-  let opsPerSecSum = 0
-  let hitsSum = 0
-  let missesSum = 0
-  let flaggedNodes = 0
-
-  for (const row of nodeRows) {
-    const nodeData = clusterData.data[row.dataKey]
-    const nodeUtilization = clusterData.utilization?.[row.dataKey]
-
-    usedMemorySum += nodeUtilization?.used_memory ?? (Number(nodeData?.used_memory) || 0)
-    memoryLimitSum += nodeUtilization?.memory_limit_bytes ?? 0
-    opsPerSecSum += Number(nodeData?.instantaneous_ops_per_sec) || 0
-    hitsSum += Number(nodeData?.keyspace_hits) || 0
-    missesSum += Number(nodeData?.keyspace_misses) || 0
-
-    // Badges render on primaries only, so replicas must not inflate the count.
-    if (row.role === "primary"
-      && getUtilizationLevel(nodeUtilization?.memory_utilization_percent, nodeUtilization?.cpu_utilization_percent) === "high") {
-      flaggedNodes += 1
-    }
-  }
-
-  const clusterMemoryValue = (
+  // Without a single reporting node the sums are zero by default, not by measurement.
+  const clusterMemoryValue = metrics.hasUtilization ? (
     <span className="flex flex-wrap items-baseline justify-center gap-x-1">
-      <span className="whitespace-nowrap">{formatBytes(usedMemorySum)}</span>
+      <span className="whitespace-nowrap">{formatBytes(metrics.usedMemory)}</span>
       <span className="text-base font-normal text-muted-foreground whitespace-nowrap">
-        / {memoryLimitSum > 0 ? formatBytes(memoryLimitSum) : "∞"}
+        / {metrics.memoryLimit > 0 ? formatBytes(metrics.memoryLimit) : "∞"}
       </span>
     </span>
-  )
-  const totalOpsPerSecValue = `${Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(opsPerSecSum)}/s`
-  const clusterHitRatioValue = calculateHitRatio(hitsSum, missesSum)
+  ) : "—"
+  const totalOpsPerSecValue = `${Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(metrics.opsPerSec)}/s`
+  const clusterHitRatioValue = calculateHitRatio(metrics.hits, metrics.misses)
 
   // filtering nodes based on search query, role, and utilization
   const filteredRows = nodeRows.filter((row) => {
@@ -156,7 +103,7 @@ export function Cluster() {
         <StatCard label="Cluster Memory" value={clusterMemoryValue} />
         <StatCard label="Total Ops/Sec" value={totalOpsPerSecValue} />
         <StatCard label="Cluster Hit Ratio" value={clusterHitRatioValue} />
-        <StatCard label="Nodes Flagged" value={flaggedNodes} />
+        <StatCard label="Nodes Flagged" value={metrics.flaggedNodes} />
       </div>
 
       {/* Search and filters */}
