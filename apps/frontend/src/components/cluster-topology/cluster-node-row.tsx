@@ -16,7 +16,7 @@ import { HighlightSearchMatch } from "../ui/highlight-search-match"
 import { PasswordPromptModal } from "../ui/password-prompt-modal"
 import { formatRate, formatPercent } from "./node-metrics"
 import type { RootState } from "@/store.ts"
-import type { PrimaryNode, ParsedNodeInfo, NodeUtilization } from "@/state/valkey-features/cluster/clusterSlice"
+import type { PrimaryNode, ParsedNodeInfo, NodeUtilization, NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
@@ -35,9 +35,10 @@ const UTILIZATION_BADGE: Record<UtilizationLevel, { label: string, variant: "sec
 interface ClusterNodeRowProps {
   host: string
   port: number
-  role: "primary" | "replica"
+  role: NodeRole
   displayName: string
-  primary: PrimaryNode
+  // Connection settings live on the primary; replicas inherit them and are not connectable.
+  primaryConfig: PrimaryNode
   nodeData?: ParsedNodeInfo
   utilization?: NodeUtilization
   clusterId: string
@@ -50,7 +51,7 @@ export function ClusterNodeRow({
   port,
   role,
   displayName,
-  primary,
+  primaryConfig,
   nodeData,
   utilization,
   clusterId,
@@ -87,8 +88,8 @@ export function ClusterNodeRow({
   const baseDetails: ConnectionDetails = {
     host,
     port: port.toString(),
-    tls: primary.tls,
-    verifyTlsCertificate: primary.verifyTlsCertificate,
+    tls: primaryConfig.tls,
+    verifyTlsCertificate: primaryConfig.verifyTlsCertificate,
     endpointType: "node",
     db: clusterDb,
   }
@@ -96,16 +97,16 @@ export function ClusterNodeRow({
   const handleNodeConnect = () => {
     if (isConnected || isConnecting) return
 
-    if (primary.authType === "iam") {
+    if (primaryConfig.authType === "iam") {
       // IAM: all fields available from cluster state, no password needed
       dispatch(connectPending({
         connectionId,
         connectionDetails: {
           ...baseDetails,
-          username: primary.username ?? "",
+          username: primaryConfig.username ?? "",
           authType: "iam",
-          awsRegion: primary.awsRegion,
-          awsReplicationGroupId: primary.awsReplicationGroupId,
+          awsRegion: primaryConfig.awsRegion,
+          awsReplicationGroupId: primaryConfig.awsReplicationGroupId,
         },
       }))
     } else if (R.isNotNil(encryptedPassword)) {
@@ -114,7 +115,7 @@ export function ClusterNodeRow({
         connectionId,
         connectionDetails: {
           ...baseDetails,
-          username: primary.username ?? "",
+          username: primaryConfig.username ?? "",
           password: encryptedPassword,
         },
       }))
@@ -130,7 +131,7 @@ export function ClusterNodeRow({
       connectionId,
       connectionDetails: {
         ...baseDetails,
-        username: primary.username ?? "",
+        username: primaryConfig.username ?? "",
         password: encryptedPw,
       },
     }))

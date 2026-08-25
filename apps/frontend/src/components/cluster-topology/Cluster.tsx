@@ -21,10 +21,10 @@ import {
   selectCluster, selectClusterNodeRows, selectClusterMetrics
 } from "@/state/valkey-features/cluster/clusterSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
-import { updateClusterData, stopClusterDataPolling } from "@/state/valkey-features/cluster/clusterSlice"
+import { updateClusterData, stopClusterDataPolling, type NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
 
-type RoleFilter = "all" | "primary" | "replica"
+type RoleFilter = "all" | NodeRole
 type UtilizationFilter = "all" | UtilizationLevel
 
 export function Cluster() {
@@ -179,7 +179,7 @@ export function Cluster() {
               key={row.dataKey}
               nodeData={clusterData.data[row.dataKey]}
               port={row.port}
-              primary={row.primary}
+              primaryConfig={row.primary}
               role={row.role}
               utilization={clusterData.utilization?.[row.dataKey]}
             />
