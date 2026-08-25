@@ -13,12 +13,12 @@ import {
   type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
+import type { NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { secureStorage } from "@/utils/secureStorage"
 
 type ConnectionStatus =
   | typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof RECONNECTING
   | typeof ERROR | typeof DISCONNECTED | typeof DISCONNECTING
-type Role = "primary" | "replica";
 
 export interface ConnectionDetails {
   host: string;
@@ -30,7 +30,7 @@ export interface ConnectionDetails {
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string
   alias?: string;
-  role?: Role;
+  role?: NodeRole;
   clusterId?: string;
   // Eviction policy required for getting hot keys using hot slots
   keyEvictionPolicy?: KeyEvictionPolicy;

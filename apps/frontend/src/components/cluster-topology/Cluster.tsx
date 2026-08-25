@@ -1,39 +1,49 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { Server, CheckCircle2 } from "lucide-react"
+import { Server, ListFilter } from "lucide-react"
 import { useParams } from "react-router"
-import { CONNECTED, MAX_CONNECTIONS } from "@common/src/constants.ts"
-import { buildConnectionId } from "@common/src/connection-id.ts"
+import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { truncateText } from "@common/src/truncate-text.ts"
+import { formatBytes } from "@common/src/bytes-conversion.ts"
+import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
 import { AppHeader } from "../ui/app-header"
 import RouteContainer from "../ui/route-container"
 import { StatCard } from "../ui/stat-card"
 import { SearchInput } from "../ui/search-input"
-import { ClusterNode } from "./cluster-node"
-import { Panel } from "../ui/panel"
+import { Select } from "../ui/select"
+import { Typography } from "../ui/typography"
+import { TableContainer } from "../ui/table-container"
+import { StaticTableHeader } from "../ui/sortable-table-header"
+import { ClusterNodeRow } from "./cluster-node-row"
 import type { RootState } from "@/store.ts"
-import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
+import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
+import {
+  selectCluster, selectClusterNodeRows, selectClusterMetrics
+} from "@/state/valkey-features/cluster/clusterSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
-import { updateClusterData } from "@/state/valkey-features/cluster/clusterSlice"
-import { selectClusterAlias, selectClusterDb } from "@/state/valkey-features/connection/connectionSelectors"
+import { updateClusterData, stopClusterDataPolling, type NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
+import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
+
+type RoleFilter = "all" | NodeRole
+type UtilizationFilter = "all" | UtilizationLevel
 
 export function Cluster() {
   const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
   useEffect(() => {
     dispatch(updateClusterData({ connectionId: id!, clusterId: clusterId! }))
+    return () => {
+      dispatch(stopClusterDataPolling({ clusterId: clusterId! }))
+    }
   }, [id, clusterId, dispatch])
   const clusterData = useSelector(selectCluster(clusterId!))
+  const nodeRows = useSelector((state: RootState) => selectClusterNodeRows(state, clusterId!))
+  const metrics = useSelector((state: RootState) => selectClusterMetrics(state, clusterId!))
   const [searchQuery, setSearchQuery] = useState("")
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
+  const [utilizationFilter, setUtilizationFilter] = useState<UtilizationFilter>("all")
 
-  const connectionStatuses = useSelector((state: RootState) =>
-    state.valkeyConnection?.connections || {},
-  )
   const clusterAlias = useSelector(selectClusterAlias(id!))
-  // The app reuses one shared cluster client per cluster (single databaseId), so
-  // every node connection uses the same db. Connections are stored under
-  // buildConnectionId(host, port, db), so resolve node status by that id.
-  const clusterDb = useSelector(selectClusterDb(clusterId!))
 
   if (!clusterData?.clusterNodes || !clusterData?.data) {
     return (
@@ -48,35 +58,32 @@ export function Cluster() {
     )
   }
 
-  const clusterEntries = Object.entries(clusterData.clusterNodes)
+  // Without a single reporting node the sums are zero by default, not by measurement.
+  const clusterMemoryValue = metrics.hasUtilization ? (
+    <span className="flex flex-wrap items-baseline justify-center gap-x-1">
+      <span className="whitespace-nowrap">{formatBytes(metrics.usedMemory)}</span>
+      <span className="text-base font-normal text-muted-foreground whitespace-nowrap">
+        / {metrics.memoryLimit > 0 ? formatBytes(metrics.memoryLimit) : "∞"}
+      </span>
+    </span>
+  ) : "—"
+  const totalOpsPerSecValue = `${Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(metrics.opsPerSec)}/s`
+  const clusterHitRatioValue = calculateHitRatio(metrics.hits, metrics.misses)
 
-  // cluster stats
-  const totalNodes = clusterEntries.length
-  const connectedNodes = clusterEntries.filter(([, primary]) =>
-    connectionStatuses[buildConnectionId(primary.host, primary.port, clusterDb)]?.status === CONNECTED,
-  ).length
-  const totalReplicas = clusterEntries.reduce((sum, [, primary]) =>
-    sum + primary.replicas.length, 0,
-  )
-  const totalClusterNodes = totalNodes + totalReplicas
+  // filtering nodes based on search query, role, and utilization
+  const filteredRows = nodeRows.filter((row) => {
+    const matchesSearch = !searchQuery || clusterData.searchableText[row.searchKey]?.includes(searchQuery)
+    const matchesRole = roleFilter === "all" || row.role === roleFilter
 
-  // filtering nodes based on search query
-  const filteredEntries = clusterEntries.filter(([primaryKey, primary]) => {
-    if (!searchQuery) return true
+    const rowUtilization = clusterData.utilization?.[row.dataKey]
+    const level = getUtilizationLevel(rowUtilization?.memory_utilization_percent, rowUtilization?.cpu_utilization_percent)
+    const matchesUtilization = utilizationFilter === "all"
+      || (row.role === "primary" && level === utilizationFilter)
 
-    // check primary node
-    if (clusterData.searchableText[primaryKey]?.includes(searchQuery)) {
-      return true
-    }
-
-    // check replicas
-    return primary.replicas.some((replica) => {
-      const replicaKey = `${replica.host}:${replica.port}`
-      return clusterData.searchableText[replicaKey]?.includes(searchQuery)
-    })
+    return matchesSearch && matchesRole && matchesUtilization
   })
 
-  const highlight = searchQuery && filteredEntries.length < MAX_CONNECTIONS ? searchQuery : ""
+  const highlight = searchQuery && filteredRows.length < MAX_CONNECTIONS ? searchQuery : ""
 
   return (
     <RouteContainer className="overflow-y-hidden" title="Cluster Topology">
@@ -91,60 +98,94 @@ export function Cluster() {
         title="Cluster Topology"
       />
       {/* Cluster Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Server className="text-primary" size={20} />}
-          label="Total Nodes"
-          value={totalClusterNodes}
-        />
-        <StatCard
-          icon={<Server className="text-primary" size={20} />}
-          label="Primary Nodes"
-          value={totalNodes}
-        />
-        <StatCard
-          icon={<Server className="text-primary" size={20} />}
-          label="Replicas"
-          value={totalReplicas}
-        />
-        <StatCard
-          icon={<CheckCircle2 className="text-green-500" size={20} />}
-          label="Connected"
-          value={connectedNodes}
-        />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatCard label="Total Nodes" value={nodeRows.length} />
+        <StatCard label="Cluster Memory" value={clusterMemoryValue} />
+        <StatCard label="Total Ops/Sec" value={totalOpsPerSecValue} />
+        <StatCard label="Cluster Hit Ratio" value={clusterHitRatioValue} />
+        <StatCard label="Nodes Flagged" value={metrics.flaggedNodes} />
       </div>
 
-      {/* Search */}
-      <div className="">
+      {/* Search and filters */}
+      <div className="flex items-center gap-2">
         <SearchInput
           onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
           placeholder="Search nodes by name, host, or port..."
           value={searchQuery}
         />
+        <Select
+          aria-label="Filter by role"
+          className="w-40 shrink-0"
+          icon={<ListFilter size={14} />}
+          onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+          value={roleFilter}
+        >
+          <option value="all">All roles</option>
+          <option value="primary">Primary</option>
+          <option value="replica">Replica</option>
+        </Select>
+        <Select
+          aria-label="Filter by utilization"
+          className="w-44 shrink-0"
+          icon={<ListFilter size={14} />}
+          onChange={(e) => setUtilizationFilter(e.target.value as UtilizationFilter)}
+          value={utilizationFilter}
+        >
+          <option value="all">All utilization</option>
+          <option value="low">Low</option>
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+        </Select>
+        <Typography className="shrink-0 whitespace-nowrap" variant="bodySm">
+          Showing {filteredRows.length} of {nodeRows.length} nodes
+        </Typography>
       </div>
 
-      {/* Cluster Topology List */}
-      <Panel className="space-y-2 overflow-y-auto p-3">
-        {filteredEntries.length === 0 ? (
-          <div className="text-center py-8 text-tw-dark-border">
-            No nodes found matching "{searchQuery}"
-          </div>
+      {/* Cluster Topology Table */}
+      <TableContainer
+        className="border border-input rounded-md shadow-xs"
+        header={
+          <>
+            <StaticTableHeader label="" width="w-10" />
+            <StaticTableHeader
+              icon={<Server className="text-primary" size={16} />}
+              label="Node"
+              width="flex-1"
+            />
+            <StaticTableHeader className="text-center" label="Utilization" width="w-[10%]" />
+            <StaticTableHeader label="Memory" width="w-[10%]" />
+            <StaticTableHeader className="text-center" label="CPU" width="w-[8%]" />
+            <StaticTableHeader className="text-center" label="Ops/Sec" width="w-[10%]" />
+            <StaticTableHeader className="text-center" label="Hit Ratio" width="w-[10%]" />
+            <StaticTableHeader className="text-center" label="Conns" width="w-[8%]" />
+            <StaticTableHeader className="text-center" label="Actions" width="w-[14%]" />
+          </>
+        }
+      >
+        {filteredRows.length === 0 ? (
+          <tr>
+            <td className="px-4 py-8 text-center text-tw-dark-border" colSpan={9}>
+              No nodes found matching "{searchQuery}"
+            </td>
+          </tr>
         ) : (
-          filteredEntries.map(([primaryKey, primary]) => {
-            const primaryData = clusterData.data[primaryKey]
-            return (
-              <ClusterNode
-                clusterId={clusterId!}
-                highlight={highlight}
-                key={primaryKey}
-                primary={primary}
-                primaryData={primaryData}
-                primaryKey={primaryKey}
-              />
-            )
-          })
+          filteredRows.map((row) => (
+            <ClusterNodeRow
+              clusterId={clusterId!}
+              displayName={clusterData.data[row.dataKey]?.server_name || `${row.host}:${row.port}`}
+              highlight={highlight}
+              host={row.host}
+              isGroupEnd={row.isGroupEnd}
+              key={row.dataKey}
+              nodeData={clusterData.data[row.dataKey]}
+              port={row.port}
+              primaryConfig={row.primary}
+              role={row.role}
+              utilization={clusterData.utilization?.[row.dataKey]}
+            />
+          ))
         )}
-      </Panel>
+      </TableContainer>
     </RouteContainer>
   )
 }

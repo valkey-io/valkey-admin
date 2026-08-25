@@ -1,7 +1,8 @@
 import { GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY, METRICS_SERVER_NOT_READY } from "valkey-common"
-import { parseClusterInfo } from "./utils"
+import { type ParsedClusterInfo, parseClusterInfo } from "./utils"
+import { computeClusterUtilization, type NodeUtilization } from "./node-utilization"
 import { fetchWithTimeout } from "./actions/utils"
 
 type DashboardInfo = {
@@ -68,6 +69,18 @@ export async function setDashboardData(
   }
 }
 
+// Never let utilization math break the dashboard payload.
+const safeComputeClusterUtilization = (
+  clusterInfo: ParsedClusterInfo,
+): Record<string, NodeUtilization> => {
+  try {
+    return computeClusterUtilization(clusterInfo)
+  } catch (error) {
+    console.error("Unable to compute cluster utilization:", error)
+    return {}
+  }
+}
+
 export async function setClusterDashboardData(
   clusterId: string,
   client: GlideClusterClient,
@@ -77,13 +90,14 @@ export async function setClusterDashboardData(
   try {
     const rawInfo = await client.info()
     const clusterInfo = parseClusterInfo(rawInfo)
-  
+
     ws.send(
       JSON.stringify({
         type: VALKEY.CLUSTER.setClusterData,
         payload: {
           clusterId,
           info: clusterInfo,
+          utilization: safeComputeClusterUtilization(clusterInfo),
         },
       }),
     )
