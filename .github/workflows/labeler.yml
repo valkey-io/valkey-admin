@@ -1,17 +1,29 @@
 name: Label PRs
 
+# Safe two-workflow labeling (avoids pull_request_target):
+#   1. This workflow runs in the UNTRUSTED pull_request context with a read-only
+#      token and no secrets. It does not check out or run PR code — it only
+#      records the PR number as an artifact.
+#   2. `labeler-apply.yml` runs on workflow_run (trusted base-repo context) with
+#      the write token and applies the labels. This preserves labeling on fork
+#      PRs, which a plain pull_request trigger cannot do on its own.
+
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize]
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
-  label:
+  record-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/labeler@v7
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+      - name: Upload PR number artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          name: pr-number
+          path: pr-number.txt
+          retention-days: 1

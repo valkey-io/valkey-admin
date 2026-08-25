@@ -1,0 +1,49 @@
+name: Label PRs (apply)
+
+# Trusted half of the safe labeling split (see labeler.yml).
+# Runs in the base-repo context with a write token AFTER the untrusted
+# "Label PRs" workflow completes. It downloads the PR number that workflow
+# recorded and applies labels via actions/labeler. No PR-authored code is
+# checked out or executed here: labeler reads the trusted base-repo
+# .github/labeler.yml and the PR's changed-file list via the GitHub API.
+
+on:
+  workflow_run:
+    workflows: ["Label PRs"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  apply-labels:
+    runs-on: ubuntu-latest
+    # Only act on successful runs that actually produced the artifact.
+    if: >
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Download PR number artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pr-number
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read PR number
+        id: pr
+        run: |
+          number="$(cat pr-number.txt)"
+          # Guard: must be a positive integer before we trust it downstream.
+          if ! [[ "$number" =~ ^[0-9]+$ ]]; then
+            echo "Invalid PR number: '$number'" >&2
+            exit 1
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Apply labels
+        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-number: ${{ steps.pr.outputs.number }}
