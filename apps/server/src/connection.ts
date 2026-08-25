@@ -752,7 +752,6 @@ export function teardownConnection(
 
     if (connection.clusterId) {
       // Polling ends with the client; drop all CPU baselines so a reconnect starts fresh
-      clearCpuSamples(toNodeId(connectionId))
       Object.keys(clusterNodesRegistry[connection.clusterId] ?? {}).forEach(
         (nodeId) => clearCpuSamples(nodeId),
       )
