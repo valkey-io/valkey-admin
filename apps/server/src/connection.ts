@@ -24,6 +24,7 @@ import {
   isKubernetes, 
   ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
+import { clearCpuSamples } from "./node-utilization"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 
 export type ConnectionContext = {
@@ -749,9 +750,16 @@ export function teardownConnection(
       console.error(`Error closing connection ${connectionId}:`, error)
     }
 
-    if (connection.clusterId && !isWebMode) {
-      delete clusterNodesRegistry[connection.clusterId]
-      clusterCredentials.delete(connection.clusterId)
+    if (connection.clusterId) {
+      // Polling ends with the client; drop all CPU baselines so a reconnect starts fresh
+      Object.keys(clusterNodesRegistry[connection.clusterId] ?? {}).forEach(
+        (nodeId) => clearCpuSamples(nodeId),
+      )
+
+      if (!isWebMode) {
+        delete clusterNodesRegistry[connection.clusterId]
+        clusterCredentials.delete(connection.clusterId)
+      }
     }
   }
 }

@@ -21,16 +21,45 @@ export interface PrimaryNode {
   awsReplicationGroupId?: string;
 }
 
+export type NodeRole = "primary" | "replica"
+
+export interface NodeRow {
+  dataKey: string;
+  searchKey: string;
+  host: string;
+  port: number;
+  role: NodeRole;
+  primary: PrimaryNode;
+  isGroupEnd: boolean;
+}
+
 export interface ParsedNodeInfo {
   server_name: string | null;
   uptime_in_days: string | null;
   tcp_port: string | null;
   used_memory_human: string | null;
+  used_memory: string | null;
+  maxmemory: string | null;
   used_cpu_sys: string | null;
   instantaneous_ops_per_sec: string | null;
   total_commands_processed: string | null;
   role: string | null;
   connected_clients: string | null;
+  keyspace_hits: string | null;
+  keyspace_misses: string | null;
+}
+
+export type MemoryBasis = "maxmemory" | "total_system_memory" | "none"
+
+export interface NodeUtilization {
+  nodeId: string;
+  memory_utilization_percent: number | null;
+  memory_basis: MemoryBasis;
+  used_memory: number | null;
+  memory_limit_bytes: number | null;
+  cpu_utilization_percent: number | null;
+  cpu_sample_interval_seconds: number | null;
+  warnings: string[];
 }
 
 interface ClusterState {
@@ -38,6 +67,9 @@ interface ClusterState {
     clusterNodes: Record<string, PrimaryNode>;
     data: {
       [nodeAddress: string]: ParsedNodeInfo;
+    };
+    utilization: {
+      [nodeAddress: string]: NodeUtilization;
     };
     searchableText: {
       [nodeAddress: string]: string;
@@ -47,6 +79,7 @@ interface ClusterState {
 const initialClusterState: ClusterState = {}
 
 export const updateClusterData = createAction<{connectionId: string, clusterId: string}>("updateClusterData")
+export const stopClusterDataPolling = createAction<{clusterId: string}>("stopClusterDataPolling")
 
 const clusterSlice = createSlice({
   name: "valkeyCluster",
@@ -60,6 +93,7 @@ const clusterSlice = createSlice({
         state.clusters[clusterId] = {
           clusterNodes: {},
           data: {},
+          utilization: {},
           searchableText: {},
         }
       }
@@ -75,7 +109,7 @@ const clusterSlice = createSlice({
       delete state.clusters[action.payload.clusterId]
     },
     setClusterData: (state, action) => {
-      const { clusterId, info } = action.payload
+      const { clusterId, info, utilization } = action.payload
 
       if (!state.clusters[clusterId]) return
 
@@ -84,11 +118,15 @@ const clusterSlice = createSlice({
         uptime_in_days: R.path(["Server", "uptime_in_days"]),
         tcp_port: R.path(["Server", "tcp_port"]),
         used_memory_human: R.path(["Memory", "used_memory_human"]),
+        used_memory: R.path(["Memory", "used_memory"]),
+        maxmemory: R.path(["Memory", "maxmemory"]),
         used_cpu_sys: R.path(["CPU", "used_cpu_sys"]),
         instantaneous_ops_per_sec: R.path(["Stats", "instantaneous_ops_per_sec"]),
         total_commands_processed: R.path(["Stats", "total_commands_processed"]),
         role: R.path(["Replication", "role"]),
         connected_clients: R.path(["Clients", "connected_clients"]),
+        keyspace_hits: R.path(["Stats", "keyspace_hits"]),
+        keyspace_misses: R.path(["Stats", "keyspace_misses"]),
       })
 
       const result: ClusterState[string]["data"] = {}
@@ -97,6 +135,7 @@ const clusterSlice = createSlice({
         result[nodeAddress] = parseNodeInfo(nodeInfo) as ParsedNodeInfo
       }
       state.clusters[clusterId].data = result
+      state.clusters[clusterId].utilization = utilization ?? {}
 
       // Precompute searchable text for both primaries and replicas
       const searchableText: Record<string, string> = {}
