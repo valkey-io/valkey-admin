@@ -291,6 +291,7 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
       VALKEY_REPLICATION_GROUP_ID: nodeToStart.awsReplicationGroupId,
       SERVER_HOST: process.env.SERVER_HOST ?? "localhost",
       SERVER_PORT: process.env.SERVER_PORT ?? "8080",
+      METRICS_BIND_HOST: process.env.METRICS_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1"),
       DATA_DIR: `${data_dir}/${nodeId}`,
       CONFIG_PATH: configPath,
     },

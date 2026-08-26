@@ -134,9 +134,11 @@ Port of the Valkey Admin server.
 
 ### `METRICS_BIND_HOST`
 
-Network interface the metrics HTTP server binds to. In a container you almost always want `0.0.0.0`; on a developer machine you might prefer `127.0.0.1`.
+Network interface the metrics HTTP server binds to. The metrics endpoints have no auth, so keep them on loopback unless the server must reach them from another host — which is the Kubernetes sidecar case.
 
-- **Default:** `0.0.0.0`
+- **Default:** `127.0.0.1`; `0.0.0.0` for the Kubernetes sidecar
+
+If you set a routable `METRICS_ADVERTISE_HOST`, set this to match.
 
 ### `METRICS_ADVERTISE_HOST`
 
