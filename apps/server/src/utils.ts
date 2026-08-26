@@ -95,7 +95,7 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
               if (trimmed.startsWith("# ")) {
                 const section = trimmed.slice(2).trim()
                 state.currentSection = section
-                state.hostData[section] = state.hostData[section] || {}
+                state.hostData[section] = state.hostData[section] || Object.create(null)
                 return state
               }
   
@@ -107,11 +107,11 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
               const key = line.slice(0, idx)
               const value = line.slice(idx + 1)
   
-              state.hostData[state.currentSection] = state.hostData[state.currentSection] || {}
+              state.hostData[state.currentSection] = state.hostData[state.currentSection] || Object.create(null)
               state.hostData[state.currentSection]![key] = value
               return state
             },
-            { currentSection: null, hostData: {} },
+            { currentSection: null, hostData: Object.create(null) },
           ),
           (s: { hostData: ParsedClusterInfo[string] }) => s.hostData,
         )(infoString as string),
