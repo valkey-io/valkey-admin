@@ -110,17 +110,24 @@ describe("integration / session authorization (cluster scope)", async () => {
     // standalone connection puts "" on the wire. The guard must treat that as
     // absent — tightening it to `!== undefined` would reject every standalone
     // metrics refresh.
+    //
+    // Probed with commandLogs rather than monitor on purpose: commandLogs reads
+    // `clusterNodesRegistry[clusterId]` and gets `undefined` for "", so it falls
+    // through to the standalone path and always answers. `monitorRequested`
+    // branches on `typeof clusterId === "string"`, which is true for "", so it
+    // takes the cluster path, resolves zero nodes and replies nothing — which
+    // would be indistinguishable from the guard rejecting the action.
     other.send({
-      type: VALKEY.MONITOR.monitorRequested,
+      type: VALKEY.COMMANDLOGS.commandLogsRequested,
       payload: {
         connectionId: standaloneConnectionId,
         clusterId: "",
-        monitorAction: MONITOR_ACTION.STATUS,
+        commandLogType: COMMANDLOG_TYPE.SLOW,
       },
     })
 
-    const fulfilled = await other.collectFor(VALKEY.MONITOR.monitorFulfilled, 10000)
-    const errored = await other.collectFor(VALKEY.MONITOR.monitorError, 100)
+    const fulfilled = await other.collectFor(VALKEY.COMMANDLOGS.commandLogsFulfilled, 10000)
+    const errored = await other.collectFor(VALKEY.COMMANDLOGS.commandLogsError, 100)
     assert.ok(
       fulfilled.length + errored.length >= 1,
       "an empty-string clusterId must not be treated as a cluster claim",
