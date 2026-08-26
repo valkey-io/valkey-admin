@@ -14,7 +14,7 @@ export const dns = {
   reverse,
 }
 
-type ParsedClusterInfo = {
+export type ParsedClusterInfo = {
   [host: string]: {
     [section: string]: {
       [key: string]: string

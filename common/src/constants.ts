@@ -117,6 +117,16 @@ export const METRICS_SERVER_NOT_READY = "METRICS_SERVER_NOT_READY"
 export const METRICS_RETRY_INTERVAL_MS = 1000
 export const METRICS_MAX_RETRIES = 10
 
+// Compare CPU samples collected roughly 5 seconds apart
+export const CLUSTER_DATA_POLL_INTERVAL_MS = 5000
+
+// Utilization bands for cluster topology node metrics.
+// Memory is a share of the node's limit; CPU is a share of one core.
+export const MEMORY_HIGH_THRESHOLD = 90
+export const MEMORY_NORMAL_THRESHOLD = 70
+export const CPU_HIGH_THRESHOLD = 85
+export const CPU_NORMAL_THRESHOLD = 60
+
 export const CONNECTED = "Connected"
 export const CONNECTING = "Connecting"
 export const ERROR = "Error"

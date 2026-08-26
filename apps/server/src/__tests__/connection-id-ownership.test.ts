@@ -49,6 +49,9 @@ const ALLOW_LIST: ReadonlySet<string> = new Set([
   "apps/server/src/utils.ts",
   // Cluster topology node IDs (not a Connection_Identifier)
   "apps/server/src/metrics-orchestrator.ts",
+  // Replica row key in the cluster topology table: must match the INFO host
+  // keys produced by `parseClusterInfo`, not a Connection_Identifier
+  "apps/frontend/src/state/valkey-features/cluster/clusterSelectors.ts",
   // Metrics process self-identifies as a topology node, not a Connection_Identifier:
   // its registration nodeId must match `clusterNodesRegistry` keys in
   // `apps/server/src/metrics-orchestrator.ts`, which use `sanitizeUrl(host-port)`.
