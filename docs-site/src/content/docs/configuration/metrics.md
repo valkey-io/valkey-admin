@@ -138,7 +138,7 @@ Network interface the metrics HTTP server binds to. The metrics endpoints have n
 
 - **Default:** `127.0.0.1`; `0.0.0.0` for the Kubernetes sidecar
 
-If you set a routable `METRICS_ADVERTISE_HOST`, set this to match.
+If you set a routable `METRICS_ADVERTISE_HOST`, set this to match it.
 
 ### `METRICS_ADVERTISE_HOST`
 
