@@ -1,5 +1,9 @@
 {
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "always" // Always ensure fixes on both explicit and auto saves.
-    }
+    },
+    // Use the workspace TypeScript (node_modules/typescript) instead of the one
+    // bundled with VS Code.
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
 }

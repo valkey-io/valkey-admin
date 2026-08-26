@@ -3,11 +3,14 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
-    "target": "ES2022",
+    "target": "ES2025",
+    "lib": ["ES2025"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "strict": true,
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
   },
   "include": ["src"]
 }

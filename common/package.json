@@ -17,7 +17,8 @@
     "test": "npx tsx --test src/__tests__/*.test.ts"
   },
   "devDependencies": {
-    "tsup": "^7.0.0",
-    "typescript": "^5.5.0"
+    "@types/node": "^24.2.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
   }
 }
