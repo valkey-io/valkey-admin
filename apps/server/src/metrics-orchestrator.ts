@@ -73,7 +73,9 @@ export const initialConnectionDetails: ConnectionDetails = {
   username: process.env.VALKEY_USERNAME,
   password: process.env.VALKEY_PASSWORD,
   tls: process.env.VALKEY_TLS === "true",
-  verifyTlsCertificate: process.env.VALKEY_VERIFY_CERT === "true",
+  // Default certificate verification ON. Only an explicit VALKEY_VERIFY_CERT=false disables it,
+  // so an unset variable never silently downgrades a TLS connection to insecure (see #445).
+  verifyTlsCertificate: process.env.VALKEY_VERIFY_CERT !== "false",
   endpointType,
   authType: process.env.VALKEY_AUTH_TYPE === "iam" ? "iam" : "password",
   awsRegion: process.env.VALKEY_AWS_REGION,
