@@ -3,7 +3,7 @@ import express from "express"
 import helmet from "helmet"
 import path from "path"
 import http from "http"
-import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
+import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS, isNodeId, toNodeId } from "valkey-common"
 import { fileURLToPath } from "url"
 import rateLimit from "express-rate-limit"
 import { connectPending, resetConnection, closeConnection } from "./actions/connection"
@@ -286,12 +286,41 @@ wss.on("connection", (ws: AliveWebSocket) => {
       // Connection-establishing actions are exempt (authorization happens after successful connect).
       const exempt = action.type === VALKEY.CONNECTION.connectPending
         || action.type === VALKEY.TOPOLOGY.discoveryEndpointPending
-      const targetConnectionId = action.payload?.connectionId
-      if (!exempt && targetConnectionId && !isConnectionAuthorized(ws.sessionId, targetConnectionId)) {
-        console.warn(`Rejected: session does not own connection ${targetConnectionId}`)
-        return
-      }
 
+      if (!exempt) {
+        const targetClusterId = action.payload?.clusterId
+
+        if (connectionId && !isConnectionAuthorized(ws.sessionId, connectionId)) {
+          console.warn(`Rejected: session does not own connection ${connectionId}`)
+          return
+        }
+
+        // clusterId only legitimate if it's the cluster of the connection the session proved it owns
+        if (targetClusterId) {
+          if (!connectionId) {
+            console.warn(`Rejected: session does not have connectionId for clusterId ${targetClusterId}`)
+            return
+          }
+
+          let connectionIdClient = clients.get(connectionId)
+          if (!connectionIdClient?.clusterId && isNodeId(connectionId)) { // connectionId is a nodeId (which is not stored in clients)
+            for (const id of clients.keys()) {
+              if (toNodeId(id) !== connectionId) continue
+              const entry = clients.get(id)
+              if (entry?.clusterId) {
+                connectionIdClient = entry
+                break
+              }
+            }
+          }
+  
+          if (connectionIdClient?.clusterId !== targetClusterId) {
+            console.warn(`Rejected: connection ${connectionId} is not part of cluster ${targetClusterId}`)
+            return
+          }
+        }
+      }
+      
       await handler(
         { ws,
           clients,

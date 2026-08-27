@@ -23,7 +23,10 @@ export type ReduxAction = {
 }
 
 export type WsActionMessage = {
-  payload: { connectionId: string },
+  payload: {
+    connectionId: string,
+    clusterId?: string,
+  },
   type: string
 }
 
