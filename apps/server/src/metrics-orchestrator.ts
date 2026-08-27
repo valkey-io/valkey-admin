@@ -46,13 +46,9 @@ type NodeInfo = {
 
 export type ClusterNodeMap = Record<string, NodeInfo>;
 
-export interface ClusterRegistry {
-  [clusterId: string]: ClusterNodeMap
-}
-
 export const clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}> = new Map()
 
-export const clusterNodesRegistry: ClusterRegistry = {}
+export const clusterNodesRegistry: Map<string, ClusterNodeMap> = new Map()
 
 export const clusterCredentials: Map<string, string | undefined> = new Map()
 
@@ -187,7 +183,7 @@ async function getClusterTopology(client: GlideClusterClient | GlideClient | nul
 export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient | null, connectionDetails = initialConnectionDetails) {
   try {
     const { discoveredClusterNodes, clusterId } = await getClusterTopology(client, connectionDetails)
-    if (clusterId && discoveredClusterNodes) clusterNodesRegistry[clusterId] = discoveredClusterNodes 
+    if (clusterId && discoveredClusterNodes) clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
   }
   catch (err) {
     if (err instanceof ConnectionError) {
@@ -346,16 +342,15 @@ async function stopMetricsServer(nodeToStop: string) {
 }
 
 export async function reconcileClusterMetricsServers(
-  clusterNodesRegistry: ClusterRegistry, 
   metricsServerMap: MetricsServerMap, 
 ) {
-  const clusterIds = Object.keys(clusterNodesRegistry)
+  const clusterIds = [...clusterNodesRegistry.keys()]
   if (clusterIds.length === 0) return
 
   await Promise.all(
     clusterIds.map(async (clusterId) => {
       try {
-        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry[clusterId])
+        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry.get(clusterId) ?? {})
         // Early return if nothing has changed
         if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
           console.debug("Cluster nodes and metrics servers are in sync")
@@ -380,7 +375,7 @@ export async function startPreconfiguredMetricsServers() {
     if (isWebMode) {
       const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, initialConnectionDetails)
       if (clusterId && discoveredClusterNodes) {
-        clusterNodesRegistry[clusterId] = discoveredClusterNodes
+        clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
         if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
       }
       runReconcileLoop()
@@ -394,7 +389,7 @@ export async function runReconcileLoop() {
   const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
   while (true) {
     try {
-      await reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap)
+      await reconcileClusterMetricsServers(metricsServerMap)
       await delay(10000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)

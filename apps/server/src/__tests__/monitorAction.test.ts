@@ -5,7 +5,7 @@ import { VALKEY } from "valkey-common"
 import { monitorRequested } from "../actions/monitorAction"
 import { updateConfig } from "../actions/config"
 import { subscribe, _reset as resetNodeWatchers } from "../node-watchers"
-import { ClusterRegistry } from "../metrics-orchestrator"
+import { ClusterNodeMap } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
   return {
@@ -20,7 +20,7 @@ describe("monitorAction", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
-  let clusterNodesRegistry: ClusterRegistry 
+  let clusterNodesRegistry: Map<string, ClusterNodeMap>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe("monitorAction", () => {
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
-    clusterNodesRegistry = {}
+    clusterNodesRegistry = new Map()
     // Config pushes ride through the retry runner now; pin retries to 0 so
     // tests keep their exact single-attempt fetch counts.
     process.env.CONFIG_RETRY_MAX_RETRIES = "0"
@@ -216,8 +216,8 @@ describe("monitorAction", () => {
     it("should send requests to all cluster nodes", async () => {
       metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
       metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-      clusterNodesRegistry = {
-        "cluster-1": {
+      clusterNodesRegistry = new Map([
+        ["cluster-1", {
           "node-1": {
             host: "127.0.0.1",
             port: 7000,
@@ -230,8 +230,8 @@ describe("monitorAction", () => {
             tls: false,
             verifyTlsCertificate: false,
           },
-        },
-      }
+        }],
+      ])
 
       const fetchCalls = mockFetch({ monitorRunning: true, checkAt: 55555 })
 
@@ -262,12 +262,12 @@ describe("monitorAction", () => {
     it("restricts the fan-out to targetNodeIds when provided (save-flow gating, Req 10.2)", async () => {
       metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
       metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-      clusterNodesRegistry = {
-        "cluster-1": {
+      clusterNodesRegistry = new Map([
+        ["cluster-1", {
           "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
           "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
-        },
-      }
+        }],
+      ])
       const fetchCalls = mockFetch({ monitorRunning: true, checkAt: 55555 })
 
       const action = {
@@ -427,7 +427,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
-  let clusterNodesRegistry: ClusterRegistry
+  let clusterNodesRegistry: Map<string, ClusterNodeMap>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -440,7 +440,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
-    clusterNodesRegistry = {}
+    clusterNodesRegistry = new Map()
     // Config pushes ride through the retry runner now; pin retries to 0 so
     // tests keep their exact single-attempt fetch counts.
     process.env.CONFIG_RETRY_MAX_RETRIES = "0"
@@ -588,8 +588,8 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
   it("should fan out across cluster nodes for both config and monitor", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-    clusterNodesRegistry = {
-      "cluster-1": {
+    clusterNodesRegistry = new Map([
+      ["cluster-1", {
         "node-1": {
           host: "127.0.0.1",
           port: 7000,
@@ -602,8 +602,8 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
           tls: false,
           verifyTlsCertificate: false,
         },
-      },
-    }
+      }],
+    ])
     const fetchCalls = mockFetchRouted({
       "/update-config": { body: { success: true, message: "", data: {} } },
       "/monitor": { body: { monitorRunning: true, checkAt: 55555 } },
@@ -638,12 +638,12 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
   it("aggregates cluster config to one failure reply when a node fails (first error)", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     metricsServerMap.set("node-2", { metricsURI: "http://localhost:9002" })
-    clusterNodesRegistry = {
-      "cluster-1": {
+    clusterNodesRegistry = new Map([
+      ["cluster-1", {
         "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
         "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
-      },
-    }
+      }],
+    ])
     // node-2 (9002) fails; node-1 succeeds.
     globalThis.fetch = (async (url: any) => {
       const urlStr = String(url)

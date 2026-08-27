@@ -4,7 +4,7 @@ import assert from "node:assert"
 import { VALKEY, COMMANDLOG_TYPE } from "valkey-common"
 import { hotKeysRequested } from "../actions/hotkeys"
 import { commandLogsRequested } from "../actions/commandLogs"
-import { ClusterRegistry } from "../metrics-orchestrator"
+import { ClusterNodeMap } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
   return {
@@ -19,7 +19,7 @@ describe("hotKeysRequested reply shape", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
-  let clusterNodesRegistry: ClusterRegistry
+  let clusterNodesRegistry: Map<string, ClusterNodeMap>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe("hotKeysRequested reply shape", () => {
     mockWs = { send: mock.fn((msg: string) => messages.push(msg)) }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
-    clusterNodesRegistry = {}
+    clusterNodesRegistry = new Map()
   })
 
   afterEach(() => {
@@ -88,12 +88,12 @@ describe("hotKeysRequested reply shape", () => {
   it("cluster hotKeysFulfilled carries { clusterId } and db-less nodeErrors[].nodeId", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     // node-2 has no metrics entry → surfaces as a nodeError with a db-less nodeId.
-    clusterNodesRegistry = {
-      "cluster-1": {
+    clusterNodesRegistry = new Map([
+      ["cluster-1", {
         "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
         "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
-      },
-    }
+      }],
+    ])
     mockFetch({ nodeId: "node-1", hotKeys: [], checkAt: 0, monitorRunning: true, lastCollectedAt: null })
 
     const action = {
@@ -120,7 +120,7 @@ describe("commandLogsRequested reply shape", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
-  let clusterNodesRegistry: ClusterRegistry
+  let clusterNodesRegistry: Map<string, ClusterNodeMap>
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
@@ -128,7 +128,7 @@ describe("commandLogsRequested reply shape", () => {
     mockWs = { send: mock.fn((msg: string) => messages.push(msg)) }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
-    clusterNodesRegistry = {}
+    clusterNodesRegistry = new Map()
   })
 
   afterEach(() => {
@@ -192,12 +192,12 @@ describe("commandLogsRequested reply shape", () => {
   it("cluster commandLogsFulfilled carries { clusterId } and db-less nodeErrors[].nodeId", async () => {
     metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
     // node-2 has no metrics entry → surfaces as a nodeError with a db-less nodeId.
-    clusterNodesRegistry = {
-      "cluster-1": {
+    clusterNodesRegistry = new Map([
+      ["cluster-1", {
         "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
         "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
-      },
-    }
+      }],
+    ])
     mockFetch({ nodeId: "node-1", rows: [], count: 0, checkAt: 0 })
 
     const action = {

@@ -175,7 +175,7 @@ describe("connectToValkey", () => {
     _resetConnectInFlight()
   })
 
-  const ctx = () => ({ clients, connectedNodesByCluster, clusterNodesRegistry: {}, metricsServerMap })
+  const ctx = () => ({ clients, connectedNodesByCluster, clusterNodesRegistry: new Map(), metricsServerMap })
 
   it("should connect to standalone Valkey instance", async () => {
     const standalone = buildStandaloneMock()
@@ -903,7 +903,7 @@ describe("teardownConnection", () => {
     const metricsServerMap: MetricsServerMap = new Map()
 
     teardownConnection(
-      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      { clients, clusterNodesRegistry: new Map(), metricsServerMap },
       "conn-1",
     )
 
@@ -919,7 +919,7 @@ describe("teardownConnection", () => {
     const metricsServerMap: MetricsServerMap = new Map()
 
     teardownConnection(
-      { clients, clusterNodesRegistry: {}, metricsServerMap },
+      { clients, clusterNodesRegistry: new Map(), metricsServerMap },
       "node-1",
     )
 
@@ -935,7 +935,7 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    const ctx = { clients, clusterNodesRegistry: {}, metricsServerMap }
+    const ctx = { clients, clusterNodesRegistry: new Map(), metricsServerMap }
     teardownConnection(ctx, "node-1")
     teardownConnection(ctx, "node-2")
 
@@ -949,7 +949,7 @@ describe("teardownConnection", () => {
 
     assert.doesNotThrow(() => {
       teardownConnection(
-        { clients, clusterNodesRegistry: {}, metricsServerMap },
+        { clients, clusterNodesRegistry: new Map(), metricsServerMap },
         "unknown",
       )
     })
