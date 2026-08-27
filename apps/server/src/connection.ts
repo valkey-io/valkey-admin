@@ -26,6 +26,7 @@ import {
 import { subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
+import { isConnectionAuthorized } from "./session"
 
 export type ConnectionContext = {
   clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>
@@ -138,6 +139,7 @@ export async function connectToValkey(
     connectionDetails: ConnectionDetails
     connectionId: string
     isRetry?: boolean
+    sessionId: string
   },
 ) {
   const { connectionId } = payload
@@ -163,6 +165,7 @@ async function connectToValkeyLocked(
     connectionDetails: ConnectionDetails
     connectionId: string
     isRetry?: boolean
+    sessionId: string
   },
 ) {
   const { clients, clusterNodesRegistry, metricsServerMap } = ctx
@@ -312,7 +315,7 @@ async function connectToValkeyLocked(
       const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
       standaloneClient.close()
 
-      const existingClusterConnection = await getExistingClusterClient(discoveredClusterNodes, clients)
+      const existingClusterConnection = await getExistingClusterClient(discoveredClusterNodes, clients, payload.sessionId)
       let clusterClient: GlideClusterClient
       if (existingClusterConnection && !payload.isRetry) {
         clusterClient = existingClusterConnection.client
@@ -668,29 +671,39 @@ function sendClusterConnectFulfilled(ws: WebSocket, payload: ClusterConnectFulfi
 }
 
 export async function getExistingConnection(
-  payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean}, 
+  payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean, sessionId: string},
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
 ) : Promise<{ client: GlideClient | GlideClusterClient; clusterId?: string | undefined; } | undefined>
 {
-  const { connectionId, connectionDetails, isRetry } = payload
+  const { connectionId, connectionDetails, isRetry, sessionId } = payload
   // If the frontend is retrying a broken connection, it's not a duplicate
   if (isRetry) {
     return undefined
   }
 
   const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
-  // Prevent duplicate connections: 
+  // Prevent duplicate connections:
   // 1) True if any resolved host:port:db is already connected
   // 2) Or if this connectionId already exists as a standalone connection
 
-  if (clients.has(connectionId)) return clients.get(connectionId)
+  // Only reuse a cached client this session is authorized for. Otherwise a session
+  // could inherit another session's authenticated client by supplying a matching
+  // endpoint with the wrong/blank credentials (credential-blind reuse). The matched id
+  // is the exact node being (re)connected to; owning it is required to reuse its client.
+  const ownsMatch = (matchedId: string): boolean =>
+    isConnectionAuthorized(sessionId, matchedId)
+
+  if (clients.has(connectionId)) {
+    return ownsMatch(connectionId) ? clients.get(connectionId) : undefined
+  }
 
   const db = connectionDetails.db
   const existingConnectionId = resolvedAddresses
     .map((address) => buildConnectionId(address, connectionDetails.port, db))
     .find((key) => clients.has(key))
 
-  return existingConnectionId ? clients.get(existingConnectionId) : undefined
+  if (!existingConnectionId) return undefined
+  return ownsMatch(existingConnectionId) ? clients.get(existingConnectionId) : undefined
 }
 
 export async function closeMetricsServer(

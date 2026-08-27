@@ -1,7 +1,50 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it } from "node:test"
+import { describe, it, beforeEach } from "node:test"
 import assert from "node:assert"
-import { parseInfo, parseResponse, parseClusterInfo } from "../utils"
+import { GlideClusterClient } from "@valkey/valkey-glide"
+import { parseInfo, parseResponse, parseClusterInfo, getExistingClusterClient } from "../utils"
+import { ensureSession, authorizeConnection, _resetSessions } from "../session"
+import type { IncomingMessage } from "http"
+
+describe("getExistingClusterClient (session-scoped reuse)", () => {
+  let sessionId: string
+  const makeClusterEntry = () => ({
+    // Satisfies isClusterClientEntry's `instanceof GlideClusterClient` check without a real client.
+    client: Object.create(GlideClusterClient.prototype) as GlideClusterClient,
+    clusterId: "cluster-1",
+  })
+
+  beforeEach(() => {
+    _resetSessions()
+    sessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
+  })
+
+  it("reuses the shared cluster client when the session owns the matched sibling node", async () => {
+    const entry = makeClusterEntry()
+    const clients = new Map([["node-A", entry]])
+    // Session connected to node-A earlier -> owns it.
+    authorizeConnection(sessionId, "node-A")
+
+    // Connecting to node-B of the same cluster: discovery surfaces node-A as an existing entry.
+    const discovered = { "node-A": {} as never, "node-B": {} as never }
+    const result = await getExistingClusterClient(discovered, clients, sessionId)
+
+    assert.strictEqual(result?.client, entry.client, "should reuse the owned cluster's client for the new node")
+  })
+
+  it("does NOT reuse when the session does not own the matched node", async () => {
+    const entry = makeClusterEntry()
+    const clients = new Map([["node-A", entry]])
+    // node-A belongs to a DIFFERENT session.
+    const otherSession = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
+    authorizeConnection(otherSession, "node-A")
+
+    const discovered = { "node-A": {} as never }
+    const result = await getExistingClusterClient(discovered, clients, sessionId)
+
+    assert.strictEqual(result, undefined, "must not inherit another session's cluster client")
+  })
+})
 
 describe("parseInfo", () => {
   it("should parse INFO response string into key-value pairs", () => {
