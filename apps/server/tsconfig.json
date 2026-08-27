@@ -2,14 +2,20 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.server.tsbuildinfo",
-    "target": "ES2022",
+    "target": "ES2025",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": [
-      "ES2022"
+      "ES2025"
     ],
     "allowJs": false,
-    "outDir": "dist",
+    // Type-check only: emit is handled by tsup (`tsup src/index.ts --out-dir dist`),
+    // never by tsc. A tsc `outDir` here would be dead config, and since the
+    // `valkey-common` path mapping pulls common/src into this program, the inferred
+    // common source directory spans both packages — which TypeScript 6.0 rejects
+    // with TS5011 unless `rootDir` is set explicitly. Setting `noEmit` instead keeps
+    // this config a pure type-check surface and avoids both TS5011 and TS6059.
+    "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,

@@ -43,3 +43,11 @@ export const toNodeId = (id: string): string => id.replace(/-db\d+$/, "")
  */
 export const isValidDatabaseIndex = (db: unknown): db is number =>
   typeof db === "number" && Number.isInteger(db) && db >= 0
+
+/**
+ * Validates it's nodeId (without the -db<number> suffix).
+ * @param id Connection or Node id
+ * @returns if id is not a connection id.
+ */
+export const isNodeId = (id: string): boolean =>
+  id.length > 0 && id === toNodeId(id) && /^[a-zA-Z0-9_-]+$/.test(id)
