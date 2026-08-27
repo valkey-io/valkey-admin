@@ -59,6 +59,19 @@ export const connectPending = withDeps<Deps, void>(
       return
     }
 
+    // A retry reconnects an existing connection and (for clusters) closes + repoints the shared
+    // client, so require ownership — same rule as resume. The frontend only retries connections it
+    // previously established, so this never rejects a legitimate retry; it prevents one session's
+    // retry from closing or repointing a connection another session owns (e.g. a same-endpoint
+    // collision on a shared instance).
+    if (payload.isRetry && !isConnectionAuthorized(sessionId, connectionId)) {
+      ws.send(JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: { connectionId, errorMessage: "Session expired. Please sign in again.", requiresAuth: true },
+      }))
+      return
+    }
+
     const client = await connectToValkey(
       { clients, connectedNodesByCluster, clusterNodesRegistry, metricsServerMap },
       ws,
