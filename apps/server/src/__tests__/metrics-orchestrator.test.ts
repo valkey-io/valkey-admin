@@ -7,22 +7,23 @@ import {
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
   clients,
+  clusterNodesRegistry,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
 } from "../metrics-orchestrator"
 import type { ConnectionDetails } from "../actions/connection"
 
-const mockClusterNodesRegistry = {
-  "cluster-1": {
+const mockClusterNodesRegistry = new Map<string, ClusterNodeMap>([
+  ["cluster-1", {
     node1: {
       host: "127.0.0.1",
       port: 6379,
       tls: false,
       verifyTlsCertificate: false,
     },
-  },
-}
+  }],
+])
 
 describe("metrics-orchestrator", () => {
   describe("findDiff", () => {
@@ -240,24 +241,34 @@ describe("metrics-orchestrator", () => {
     })
     afterEach(() => {
       mock.restoreAll()
+      // The registry is a module global now, so a seeded cluster would leak
+      // into the next test.
+      clusterNodesRegistry.clear()
     })
 
     it("should early return if registry is empty", async () => {
-      const emptyRegistry = {}
-      await reconcileClusterMetricsServers(
-        emptyRegistry, metricsServerMap)
-      assert.strictEqual(Object.keys(emptyRegistry).length, 0)
+      const findDiff = mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
+      clusterNodesRegistry.clear()
+
+      await reconcileClusterMetricsServers(metricsServerMap)
+
+      // No clusters to reconcile, so the diff is never computed.
+      assert.strictEqual(findDiff.mock.callCount(), 0)
     })
 
     it("should early return if nothing changed", async () => {
-      // findDiff mock returns empty changes
-      mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
-      mockClusterNodesRegistry["cluster-1"] = {
+      const findDiff = mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
+      const updateMetricsServers = mock.method(__test__, "updateMetricsServers", async () => {})
+      clusterNodesRegistry.set("cluster-1", {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
-      }
-      await reconcileClusterMetricsServers(
-        mockClusterNodesRegistry,metricsServerMap)
-      // updateMetricsServers should not be called because nothing changed
+      })
+
+      await reconcileClusterMetricsServers(metricsServerMap)
+
+      // The cluster is inspected, but findDiff reports no changes, so no
+      // metrics servers are started or stopped.
+      assert.strictEqual(findDiff.mock.callCount(), 1)
+      assert.strictEqual(updateMetricsServers.mock.callCount(), 0)
     })
   })
 })

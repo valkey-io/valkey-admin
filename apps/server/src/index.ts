@@ -118,13 +118,9 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function refreshAllClusterRegistries() {
   await Promise.all(
-    Object.entries(clusterNodesRegistry).map(async ([clusterId]) => {
+    [...clusterNodesRegistry].map(async ([clusterId, updatedNodes]) => {
       const clientEntry = [...clients.values()].find((e) => e.clusterId === clusterId)
       if (!clientEntry) return
-
-      const updatedNodes = clusterNodesRegistry[clusterId]
-      // Am I being too defensive here?
-      if (!updatedNodes) return
 
       wss.clients.forEach((ws) => {
         ws.send(JSON.stringify({
@@ -140,10 +136,11 @@ async function refreshAllClusterRegistriesLoop() {
   while (true) {
     try {
       await refreshAllClusterRegistries()
-      const refreshInterval = process.env.TOPOLOGY_REFRESH_INTERVAL
-      await delay( refreshInterval ? Number(refreshInterval) : 30000)
     } catch (err) {
       console.warn("Unable to refresh cluster topologies. ", err)
+    } finally {
+      const configured = Number(process.env.TOPOLOGY_REFRESH_INTERVAL)
+      await delay(Number.isFinite(configured) && configured > 0 ? configured : 30000)
     }
   }
 }

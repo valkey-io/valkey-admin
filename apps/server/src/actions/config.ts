@@ -102,7 +102,7 @@ export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
     const targetId = "clusterId" in replyId ? replyId.clusterId : replyId.nodeId
 
     const targetNodeIds =
-      typeof clusterId === "string" ? Object.keys(clusterNodesRegistry[clusterId] ?? {}) : [targetId]
+      typeof clusterId === "string" ? Object.keys(clusterNodesRegistry.get(clusterId) ?? {}) : [targetId]
     const targets = targetNodeIds.map((nodeId) => ({
       nodeId,
       metricsURI: metricsServerMap.get(nodeId)?.metricsURI,

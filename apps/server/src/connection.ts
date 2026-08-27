@@ -15,7 +15,6 @@ import {
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
 import { 
-  ClusterRegistry, 
   isWebMode, 
   MetricsServerMap, 
   startMetricsServer, 
@@ -30,7 +29,7 @@ import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valke
 export type ConnectionContext = {
   clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>
   connectedNodesByCluster: Map<string, string[]>
-  clusterNodesRegistry: ClusterRegistry
+  clusterNodesRegistry: Map<string, ClusterNodeMap>
   metricsServerMap: MetricsServerMap
 }
 
@@ -221,7 +220,7 @@ async function connectToValkeyLocked(
         const clusterClient = existingConnection.client as GlideClusterClient
         const { clusterId } = existingConnection
         const discoveredClusterNodes =
-          clusterNodesRegistry[clusterId] ??
+          clusterNodesRegistry.get(clusterId) ??
           (await discoverCluster(clusterClient, payload)).discoveredClusterNodes
         return commitClusterConnection(ctx, ws, {
           clusterClient,
@@ -345,10 +344,10 @@ async function connectToValkeyLocked(
 
       try {
         clusterCredentials.set(clusterId, payload.connectionDetails.password)
-        clusterNodesRegistry[clusterId] = discoveredClusterNodes
+        clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
 
         if (isWebMode) {
-          reconcileClusterMetricsServers(clusterNodesRegistry, metricsServerMap)
+          reconcileClusterMetricsServers(metricsServerMap)
         }
 
         await commitClusterConnection(ctx, ws, {
@@ -561,7 +560,7 @@ async function commitClusterConnection(
     getDatabasesCount(clusterClient, ["cluster-databases", "databases"]),
   ])
 
-  clusterNodesRegistry[clusterId] = discoveredClusterNodes
+  clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
   clients.set(connectionId, { client: clusterClient, clusterId })
 
   const nodes = connectedNodesByCluster.get(clusterId)
@@ -752,12 +751,12 @@ export function teardownConnection(
 
     if (connection.clusterId) {
       // Polling ends with the client; drop all CPU baselines so a reconnect starts fresh
-      Object.keys(clusterNodesRegistry[connection.clusterId] ?? {}).forEach(
+      Object.keys(clusterNodesRegistry.get(connection.clusterId) ?? {}).forEach(
         (nodeId) => clearCpuSamples(nodeId),
       )
 
       if (!isWebMode) {
-        delete clusterNodesRegistry[connection.clusterId]
+        clusterNodesRegistry.delete(connection.clusterId)
         clusterCredentials.delete(connection.clusterId)
       }
     }

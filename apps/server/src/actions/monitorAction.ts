@@ -51,7 +51,7 @@ export const monitorRequested = withDeps<Deps, void>(
     const restrictToNodeIds = action.payload.targetNodeIds as string[] | undefined
 
     if (typeof clusterId === "string") {
-      const allNodeIds = Object.keys(clusterNodesRegistry[clusterId] ?? {})
+      const allNodeIds = Object.keys(clusterNodesRegistry.get(clusterId) ?? {})
       const targetNodeIds = restrictToNodeIds
         ? allNodeIds.filter((id) => restrictToNodeIds.includes(id))
         : allNodeIds
