@@ -28,7 +28,7 @@ import { monitorRequested } from "./actions/monitorAction"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
 import { isElectron } from "./metrics-orchestrator"
-import { Handler, ReduxAction, unknownHandler, type WsActionMessage } from "./actions/utils"
+import { Handler, ReduxAction, safeSend, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
   startPreconfiguredMetricsServers,
@@ -116,34 +116,41 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
-async function refreshAllClusterRegistries() {
-  await Promise.all(
-    Object.entries(clusterNodesRegistry).map(async ([clusterId]) => {
-      const clientEntry = [...clients.values()].find((e) => e.clusterId === clusterId)
-      if (!clientEntry) return
+function refreshAllClusterRegistries() {
+  const connectionIdsByCluster = new Map<string, string[]>()
+  for (const [connectionId, entry] of clients) {
+    if (!entry.clusterId) continue
+    const ids = connectionIdsByCluster.get(entry.clusterId) ?? []
+    ids.push(connectionId)
+    connectionIdsByCluster.set(entry.clusterId, ids)
+  }
 
-      const updatedNodes = clusterNodesRegistry[clusterId]
-      // Am I being too defensive here?
-      if (!updatedNodes) return
-
-      wss.clients.forEach((ws) => {
-        ws.send(JSON.stringify({
-          type: VALKEY.CLUSTER.updateClusterInfo,
-          payload: { clusterId, clusterNodes: updatedNodes },
-        }))
-      })
-    }),
-  )
+  for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
+    const connectionIds = connectionIdsByCluster.get(clusterId)
+    if (!connectionIds) continue
+  
+    const message = JSON.stringify({
+      type: VALKEY.CLUSTER.updateClusterInfo,
+      payload: { clusterId, clusterNodes },
+    })
+  
+    for (const ws of wss.clients) {
+      const { sessionId } = ws as AliveWebSocket
+      if (!connectionIds.some((id) => isConnectionAuthorized(sessionId, id))) continue
+      safeSend(ws, message)
+    }
+  }
 }
 
 async function refreshAllClusterRegistriesLoop() {
   while (true) {
     try {
-      await refreshAllClusterRegistries()
-      const refreshInterval = process.env.TOPOLOGY_REFRESH_INTERVAL
-      await delay( refreshInterval ? Number(refreshInterval) : 30000)
+      refreshAllClusterRegistries()
     } catch (err) {
       console.warn("Unable to refresh cluster topologies. ", err)
+    } finally {
+      const configured = Number(process.env.TOPOLOGY_REFRESH_INTERVAL)
+      await delay(Number.isFinite(configured) && configured > 0 ? configured : 30000)
     }
   }
 }

@@ -7,7 +7,7 @@ import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
 import { VALKEY } from "valkey-common"
 import { runConfigPushSession } from "../actions/config"
-import { ClusterRegistry } from "../metrics-orchestrator"
+import { ClusterNodeMap } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
   return {
@@ -22,7 +22,7 @@ describe("config actions", () => {
   let messages: string[]
   let metricsServerMap: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
-  let clusterNodesRegistry: ClusterRegistry
+  let clusterNodesRegistry: Map<string, ClusterNodeMap>
   let clients: Map<string, any>
   const originalFetch = globalThis.fetch
 
@@ -36,7 +36,7 @@ describe("config actions", () => {
     }
     metricsServerMap = new Map()
     connectedNodesByCluster = new Map()
-    clusterNodesRegistry = {}
+    clusterNodesRegistry = new Map()
     clients = new Map()
     // Fast backoff so retry tests run in milliseconds.
     process.env.CONFIG_RETRY_DELAYS_MS = "1,1,1"
@@ -61,12 +61,12 @@ describe("config actions", () => {
     ws: mockWs, metricsServerMap, connectedNodesByCluster, clients, connectionId: "", clusterNodesRegistry,
   } as any)
 
-  const twoNodeRegistry = (): ClusterRegistry => ({
-    "cluster-1": {
+  const twoNodeRegistry = (): Map<string, ClusterNodeMap> => new Map([
+    ["cluster-1", {
       "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
       "node-2": { host: "127.0.0.1", port: 7001, tls: false, verifyTlsCertificate: false },
-    },
-  })
+    }],
+  ])
 
   // Parsed messages split into live status pushes vs aggregate replies.
   const parsed = () => messages.map((m: string) => JSON.parse(m))

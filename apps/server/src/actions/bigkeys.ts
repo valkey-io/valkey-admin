@@ -75,7 +75,7 @@ export const bigKeysRequested = withDeps<Deps, void>(
 
     const nodes =
       typeof clusterId === "string"
-        ? clusterNodesRegistry[clusterId]
+        ? clusterNodesRegistry.get(clusterId)
         : undefined
 
     const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]

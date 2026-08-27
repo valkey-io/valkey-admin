@@ -103,7 +103,7 @@ export const commandLogsRequested = withDeps<Deps, void>(
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
     const count = Number(action.payload.count) || Number(process.env.COMMAND_LOGS_COUNT) || 100
 
-    const nodes = typeof clusterId === "string" ? clusterNodesRegistry[clusterId] : undefined
+    const nodes = typeof clusterId === "string" ? clusterNodesRegistry.get(clusterId) : undefined
     const nodeIds = nodes ? Object.keys(nodes) : [toNodeId(connectionId)]
 
     const promises = nodeIds.map(async (nodeId: string) => {
