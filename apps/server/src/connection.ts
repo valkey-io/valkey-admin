@@ -690,11 +690,8 @@ export async function getExistingConnection(
   // could inherit another session's authenticated client by supplying a matching
   // endpoint with the wrong/blank credentials (credential-blind reuse). The matched id
   // is the exact node being (re)connected to; owning it is required to reuse its client.
-  const isMatchAuthorized = (matchedId: string): boolean =>
-    isConnectionAuthorized(sessionId, matchedId)
-
   if (clients.has(connectionId)) {
-    return isMatchAuthorized(connectionId) ? clients.get(connectionId) : undefined
+    return isConnectionAuthorized(sessionId, connectionId) ? clients.get(connectionId) : undefined
   }
 
   const db = connectionDetails.db
@@ -703,7 +700,7 @@ export async function getExistingConnection(
     .find((key) => clients.has(key))
 
   if (!existingConnectionId) return undefined
-  return isMatchAuthorized(existingConnectionId) ? clients.get(existingConnectionId) : undefined
+  return isConnectionAuthorized(sessionId, existingConnectionId) ? clients.get(existingConnectionId) : undefined
 }
 
 export async function closeMetricsServer(
