@@ -108,7 +108,7 @@ describe("configSlice", () => {
           clusterId: "cluster-1",
           outcome: "fulfilled",
           nodeResults: [{ nodeId: "node-1", success: true, message: "ok" }],
-          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000, monitoringInterval: 7000 } },
+          appliedConfig: { epics: { monitor: { monitoringDuration: 5000, monitoringInterval: 7000 } } },
         }),
       )
 
@@ -125,7 +125,7 @@ describe("configSlice", () => {
           nodeId: "host-6379",
           outcome: "fulfilled",
           nodeResults: [{ nodeId: "host-6379", success: true, message: "ok" }],
-          appliedConfig: { epic: { name: "monitor", monitoringDuration: 1234 } },
+          appliedConfig: { epics: { monitor: { monitoringDuration: 1234 } } },
         }),
       )
 
@@ -163,7 +163,7 @@ describe("configSlice", () => {
             { nodeId: "node-1", success: true, message: "ok" },
             { nodeId: "node-2", success: false, message: "boom" },
           ],
-          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000, monitoringInterval: 7000 } },
+          appliedConfig: { epics: { monitor: { monitoringDuration: 5000, monitoringInterval: 7000 } } },
         }),
       )
 
@@ -188,7 +188,7 @@ describe("configSlice", () => {
             { nodeId: "node-1", success: false, message: "boom" },
             { nodeId: "node-2", success: false, message: "also boom" },
           ],
-          appliedConfig: { epic: { name: "monitor", monitoringDuration: 5000 } },
+          appliedConfig: { epics: { monitor: { monitoringDuration: 5000 } } },
         }),
       )
 
@@ -277,7 +277,7 @@ describe("configSlice", () => {
   })
 
   describe("config/updateConfig (optimistic session reset)", () => {
-    const config = { epic: { name: "monitor" } }
+    const config = { epics: { monitor: { monitoringDuration: 5000 } } }
 
     it("keys by clusterId when present", () => {
       const state = configReducer(
@@ -396,7 +396,7 @@ describe("configSlice", () => {
         updateConfig({
           connectionId: "node-1-db0",
           clusterId: "cluster-1",
-          config: { epic: { name: "monitor" } },
+          config: { epics: { monitor: { monitoringDuration: 5000 } } },
         }),
       )
 
@@ -499,7 +499,7 @@ describe("configSlice", () => {
 
       const updating = configReducer(
         initialState,
-        updateConfig({ connectionId: "host-6379-db0", config: { epic: { name: "monitor" } } }),
+        updateConfig({ connectionId: "host-6379-db0", config: { epics: { monitor: { monitoringDuration: 5000 } } } }),
       )
       expect(updating["host-6379"].kind).toBe("standalone")
     })

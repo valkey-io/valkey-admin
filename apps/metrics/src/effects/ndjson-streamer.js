@@ -1,19 +1,22 @@
 import fs from "node:fs"
 import readline from "node:readline"
 import path from "node:path"
-import { COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, MONITOR } from "../utils/constants.js"
+import { getConfig } from "../config.js"
+import { EPIC_KINDS } from "../utils/constants.js"
 import { dayStr, parseSeq } from "../utils/helpers.js"
 
-const DATA_DIR = process.env.DATA_DIR || path.resolve(process.cwd(), "data")
+// Read per call rather than at import time so a config reload is picked up.
+const dataDir = () => getConfig().server.data_dir
 
 const filePathsFor = async (prefix, dates) => {
+  const dir = dataDir()
   const dayStrs = new Set(dates.map(dayStr))
-  const allFiles = (await fs.promises.readdir(DATA_DIR))
+  const allFiles = (await fs.promises.readdir(dir))
     .filter((file) => file.startsWith(`${prefix}_`) && file.endsWith(".ndjson"))
 
   const withStatsSeq = await Promise.all(
     allFiles.map(async (file) => {
-      const filePath = path.join(DATA_DIR, file)
+      const filePath = path.join(dir, file)
       const stat = await fs.promises.stat(filePath)
       return { file, filePath, birthtime: stat.birthtime, seq: parseSeq(file) }
     }),
@@ -88,6 +91,16 @@ export async function streamNdjson(
   return finalize(acc)
 }
 
-export const [memory_stats, info_cpu, slowlog_len, commandlog_slow, commandlog_large_reply, commandlog_large_request, monitor] =
-  ["memory", "cpu", "slowlog_len", COMMANDLOG_SLOW, COMMANDLOG_LARGE_REPLY, COMMANDLOG_LARGE_REQUEST, MONITOR]
-    .map((filePrefix) => (options = {}) => streamNdjson(filePrefix, options))
+// One streamer per epic kind, keyed by the epic name that also prefixes its
+// NDJSON files, so readers and writers cannot drift apart.
+const streamerFor = (filePrefix) => (options = {}) => streamNdjson(filePrefix, options)
+
+export const {
+  memory,
+  cpu,
+  slowlog_len,
+  commandlog_slow,
+  commandlog_large_reply,
+  commandlog_large_request,
+  monitor,
+} = Object.fromEntries(EPIC_KINDS.map((kind) => [kind, streamerFor(kind)]))

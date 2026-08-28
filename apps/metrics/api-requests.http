@@ -152,17 +152,21 @@ Accept: application/json
 # UPDATE CONFIG
 #####################################################################
 
-### Update config (example payload)
+### Update epic settings (example payload)
 POST {{baseUrl}}/update-config
 Content-Type: application/json
 Accept: application/json
 
 {
-  "server": {
-    "port": 3000,
-    "data_dir": "./data"
-  },
-  "valkey": {
-    "url": "valkey://localhost:6379"
+  "epics": {
+    "monitor": {
+      "monitoringDuration": 15000,
+      "monitoringInterval": 5000,
+      "maxCommandsPerRun": 1000000,
+      "cutoffFrequency": 100
+    },
+    "cpu": {
+      "poll_ms": 10000
+    }
   }
 }

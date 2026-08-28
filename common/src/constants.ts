@@ -253,6 +253,26 @@ export const METRICS_EVICTION_POLICY = {
   INTERVAL: 1 * MILLISECONDS_IN_A_DAY,
 }
 
+/**
+ * Bounds for the epic (collection stream) fields that `POST /update-config`
+ * may tune. Shared so the metrics validator and the UI inputs that produce
+ * these values cannot drift apart.
+ *
+ * Calibrated against `apps/metrics/config.yml`:
+ *  - `data_retention_mb` below 1 MB yields a capacity smaller than a single
+ *    file, which disables the writer's rotation and eviction
+ *  - `poll_ms` below a second would hammer the node being sampled
+ */
+export const EPIC_FIELD_BOUNDS = {
+  monitoringDuration: { min: 1, max: 3_600_000 },   // capture window, up to 1h
+  monitoringInterval: { min: 1, max: MILLISECONDS_IN_A_DAY }, // pause between runs
+  maxCommandsPerRun: { min: 1, max: 10_000_000 },
+  cutoffFrequency: { min: 1, max: 1_000_000 },
+  poll_ms: { min: 1_000, max: 3_600_000 },
+  data_retention_mb: { min: 1, max: 10_240 },
+  data_retention_days: { min: 1, max: 365 },
+} as const
+
 export type EndpointType = "node" | "cluster-endpoint"
 
 export const CONNECTION_TEARDOWN_DELAY_MS = Number(nodeEnv.CONNECTION_TEARDOWN_DELAY_MS ?? 10000)

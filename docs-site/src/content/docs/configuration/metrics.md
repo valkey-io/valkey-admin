@@ -34,24 +34,24 @@ After the YAML is parsed, a small set of environment variables is allowed to ove
 
 ## Per-Epic Settings
 
-Each entry in the `epics` array describes one collector. The fields below apply to every epic; the `monitor` epic adds a few extras for sampling behavior.
+Each entry in the `epics` array describes one collection stream. The fields below apply to every epic; the `monitor` epic adds a few extras for sampling behavior.
 
 ### Common fields
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `name` | Identifier used in logs and the orchestrator registry. | required |
-| `type` | Collector implementation. One of `memory_stats`, `info_cpu`, `commandlog_slow`, `commandlog_large_request`, `commandlog_large_reply`, `slowlog_len`, `monitor`. | required |
+| `name` | The epic's only identifier. It selects the collector implementation, prefixes the NDJSON files written under `DATA_DIR`, and labels the epic in logs and the orchestrator registry. One of `memory`, `cpu`, `slowlog_len`, `commandlog_slow`, `commandlog_large_request`, `commandlog_large_reply`, `monitor`. | required |
 | `poll_ms` | How often (ms) the collector runs. | varies per epic |
-| `file_prefix` | Filename prefix for the NDJSON output written under `DATA_DIR`. | required |
 | `data_retention_mb` | Max disk space (MB) this epic's NDJSON files may use. Oldest files are evicted when the budget is exceeded. | `10` |
 | `data_retention_days` | Files older than this (by birthtime) are deleted during the daily cleanup sweep. | `30` |
+
+Names must match `^[a-z0-9_]+$`; the metrics process refuses to start on anything else, because the name becomes part of a file path. An epic whose name is not one of the values above collects nothing and is dropped at load with an error logged.
 
 The `Default` column shows the **fallback defaults applied by the YAML merge**. `apps/metrics/config.yml` overrides these with lower values per epic (3–15 MB, 5 days). See the file itself for the full per-epic configuration.
 
 ### Monitor-only fields
 
-These apply only when `type: monitor` and control the `MONITOR`-based hot keys sampling cycle:
+These apply only to the epic named `monitor` and control the `MONITOR`-based hot keys sampling cycle:
 
 | Field | Description | Default |
 |-------|-------------|---------------------------|
@@ -167,12 +167,14 @@ TCP port the metrics HTTP server listens on. Setting `PORT=0` lets the OS assign
 
 Directory where NDJSON metric files are written and rotated. The server passes a per-node subdirectory here when spawning children, so each child gets its own slice of disk.
 
-- **Default:** `cfg.server.data_dir` from `config.yml` (`/app/data`); the cleaner module falls back to `./data` if no value is available
+- **Default:** `cfg.server.data_dir` from `config.yml` (`/app/data`)
 - **Overrides:** `cfg.server.data_dir`
 
 ### `CONFIG_PATH`
 
 Absolute path to the `config.yml` file. When set, the metrics process loads its config from this location instead of the bundled `apps/metrics/config.yml`. The Electron build uses this to point at a config file packaged inside the app bundle.
+
+`POST /update-config` writes tuning changes back into this file. Mounting it read-only or serving it from a ConfigMap is supported — updates then apply to the running process only and report `"persisted": false`.
 
 ## Collector Tuning
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { AlertTriangle } from "lucide-react"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
-import { MONITOR_ACTION } from "@common/src/constants"
+import { MONITOR_ACTION, EPIC_FIELD_BOUNDS } from "@common/src/constants"
 import { toNodeId } from "@common/src/connection-id.ts"
 import { ChartModal } from "../../ui/chart-modal"
 import { Button } from "../../ui/button"
@@ -65,9 +65,13 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
         connectionId,
         clusterId,
         config: {
-          epic: {
-            name: "monitor", monitoringDuration: monitorDuration,
-            monitoringInterval: monitorInterval, maxCommandsPerRun, cutoffFrequency,
+          epics: {
+            monitor: {
+              monitoringDuration: monitorDuration,
+              monitoringInterval: monitorInterval,
+              maxCommandsPerRun,
+              cutoffFrequency,
+            },
           },
         },
         monitorAction: MONITOR_ACTION.START,
@@ -119,7 +123,8 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
             </div>
             <NumberInput
               aria-label="Monitor Duration"
-              min={1}
+              max={EPIC_FIELD_BOUNDS.monitoringDuration.max}
+              min={EPIC_FIELD_BOUNDS.monitoringDuration.min}
               onChange={setMonitorDuration}
               step={1000}
               style={{ width: "100px" }}
@@ -134,7 +139,8 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
             </div>
             <NumberInput
               aria-label="Monitor Interval"
-              min={1}
+              max={EPIC_FIELD_BOUNDS.monitoringInterval.max}
+              min={EPIC_FIELD_BOUNDS.monitoringInterval.min}
               onChange={setMonitorInterval}
               step={1000}
               style={{ width: "100px" }}
@@ -153,7 +159,8 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
             </div>
             <NumberInput
               aria-label="Max Commands Per Run"
-              min={1}
+              max={EPIC_FIELD_BOUNDS.maxCommandsPerRun.max}
+              min={EPIC_FIELD_BOUNDS.maxCommandsPerRun.min}
               onChange={setMaxCommandsPerRun}
               step={100000}
               style={{ width: "140px" }}
@@ -172,7 +179,8 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
             </div>
             <NumberInput
               aria-label="Cutoff Frequency"
-              min={1}
+              max={EPIC_FIELD_BOUNDS.cutoffFrequency.max}
+              min={EPIC_FIELD_BOUNDS.cutoffFrequency.min}
               onChange={setCutoffFrequency}
               step={10}
               style={{ width: "100px" }}

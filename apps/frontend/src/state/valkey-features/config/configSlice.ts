@@ -137,14 +137,18 @@ const reconcileNodeStatuses = (
 }
 
 /**
- * Merge the monitoring fields of a reply's appliedConfig into the entry. 
+ * Merge the monitoring fields of a reply's appliedConfig into the entry.
+ *
+ * `appliedConfig` mirrors the request: `{ epics: { <epicName>: { ...fields } } }`.
+ * Only the `monitor` epic carries the settings this slice tracks.
  */
 const applyMonitoringConfig = (entry: ConfigEntry, appliedConfig: unknown): void => {
-  const epic = (appliedConfig as { epic?: Record<string, unknown> } | undefined)?.epic
-  if (!epic) return
+  const epics = (appliedConfig as { epics?: Record<string, Record<string, unknown>> } | undefined)?.epics
+  const monitorEpic = epics?.monitor
+  if (!monitorEpic) return
   const updatedMonitoringConfig = R.pick(
     Object.keys(defaultConfig().monitoring),
-    epic,
+    monitorEpic,
   )
   entry.monitoring = {
     ...entry.monitoring,

@@ -486,7 +486,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } } },
+      payload: { connectionId: "conn-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       meta: undefined,
     }
 
@@ -529,7 +529,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
+      payload: { connectionId: "conn-1", config: { epics: { monitor: { monitoringDuration: 5000 } } }, monitorAction: "start" },
       meta: undefined,
     }
 
@@ -568,7 +568,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "conn-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
+      payload: { connectionId: "conn-1", config: { epics: { monitor: { monitoringDuration: 5000 } } }, monitorAction: "start" },
       meta: undefined,
     }
 
@@ -611,7 +611,12 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } }, monitorAction: "start" },
+      payload: {
+        connectionId: "node-1",
+        clusterId: "cluster-1",
+        config: { epics: { monitor: { monitoringDuration: 5000 } } },
+        monitorAction: "start",
+      },
       meta: undefined,
     }
 
@@ -655,7 +660,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+      payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       meta: undefined,
     }
 
@@ -675,7 +680,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
     const action = {
       type: VALKEY.CONFIG.updateConfig,
-      payload: { connectionId: "host-6379-db0", config: { epic: { name: "monitor" } } },
+      payload: { connectionId: "host-6379-db0", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       meta: undefined,
     }
 

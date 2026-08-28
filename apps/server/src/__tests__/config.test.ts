@@ -93,7 +93,7 @@ describe("config actions", () => {
 
       const action = {
         type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       }
 
       await runConfigPushSession(deps())(action as any)
@@ -133,7 +133,7 @@ describe("config actions", () => {
 
       const action = {
         type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       }
 
       await runConfigPushSession(deps())(action as any)
@@ -152,7 +152,7 @@ describe("config actions", () => {
       // The failed reply is PARTIAL here (node-1 succeeded), so it still
       // carries the applied config: node-1 DID apply it and the frontend
       // shows it.
-      assert.deepStrictEqual(sent[0].payload.appliedConfig, { epic: { name: "monitor" } })
+      assert.deepStrictEqual(sent[0].payload.appliedConfig, { epics: { monitor: { monitoringDuration: 5000 } } })
     })
 
     it("omits appliedConfig from a total-failure reply (no node applied it)", async () => {
@@ -164,7 +164,7 @@ describe("config actions", () => {
 
       const action = {
         type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       }
 
       await runConfigPushSession(deps())(action as any)
@@ -193,7 +193,7 @@ describe("config actions", () => {
 
       const makeAction = () => ({
         type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       })
 
       const first = runConfigPushSession(deps())(makeAction() as any)
@@ -241,7 +241,7 @@ describe("config actions", () => {
 
       const action = {
         type: VALKEY.CONFIG.updateConfig,
-        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epic: { name: "monitor" } } },
+        payload: { connectionId: "node-1", clusterId: "cluster-1", config: { epics: { monitor: { monitoringDuration: 5000 } } } },
       }
 
       await runConfigPushSession(deps())(action as any)

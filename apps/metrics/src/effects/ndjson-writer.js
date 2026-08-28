@@ -35,6 +35,20 @@ export const makeNdjsonWriter = ({ dataDir, filePrefix, maxFiles, maxFileSize })
   let prevDay
   let seq
 
+  const resolvedDir = path.resolve(dataDir)
+
+  /**
+   * Asserts that `filePrefix` comes from operator-controlled config
+   * and the API cannot set it.
+   */
+  const containedPath = (fileName) => {
+    const candidate = path.resolve(dataDir, fileName)
+    if (candidate !== resolvedDir && !candidate.startsWith(resolvedDir + path.sep)) {
+      throw new Error(`Refusing to write outside the data dir: ${candidate}`)
+    }
+    return candidate
+  }
+
   const fileWithSizeFor = async (ts) => {
     const day = dayStr(ts)
     if (day !== prevDay) {
@@ -42,11 +56,11 @@ export const makeNdjsonWriter = ({ dataDir, filePrefix, maxFiles, maxFileSize })
       seq = await discoverMaxSeq(dataDir, filePrefix, day)
     }
 
-    const currentFile = path.join(dataDir, `${filePrefix}_${day}_${seq}.ndjson`)
+    const currentFile = containedPath(`${filePrefix}_${day}_${seq}.ndjson`)
     const currentSize = await fs.promises.stat(currentFile).then((s) => s.size).catch(() => 0)
     if (currentSize >= maxFileSize) {
       await advanceSeq()
-      return { file: path.join(dataDir, `${filePrefix}_${day}_${seq}.ndjson`), size: 0 }
+      return { file: containedPath(`${filePrefix}_${day}_${seq}.ndjson`), size: 0 }
     }
 
     return { file: currentFile, size: currentSize }

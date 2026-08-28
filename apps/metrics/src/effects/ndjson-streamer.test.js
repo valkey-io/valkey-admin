@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { mockEnv, createAsyncIterator, createNdjsonLines } from "../__tests__/test-helpers.js"
+import { createAsyncIterator, createNdjsonLines } from "../__tests__/test-helpers.js"
 
 // Mock node modules
 vi.mock("node:fs", () => ({
@@ -19,10 +19,16 @@ vi.mock("node:readline", () => ({
   },
 }))
 
+// The streamer reads its directory from the loaded config (which already folds
+// in DATA_DIR), so tests drive it through the config module.
+const mockConfig = { server: { data_dir: "/test/data" } }
+vi.mock("../config.js", () => ({
+  getConfig: () => mockConfig,
+}))
+
 describe("ndjson-streamer", () => {
   let fs
   let readline
-  let cleanupEnv
 
   beforeEach(async () => {
     vi.resetModules()
@@ -68,10 +74,6 @@ describe("ndjson-streamer", () => {
 
   afterEach(() => {
     vi.clearAllMocks()
-    if (cleanupEnv) {
-      cleanupEnv()
-      cleanupEnv = null
-    }
   })
 
   describe("streamNdjson", () => {
@@ -237,8 +239,8 @@ describe("ndjson-streamer", () => {
       expect(file1).toMatch(/my_metric_\d{8}_\d+\.ndjson$/)
     })
 
-    it("should use DATA_DIR environment variable", async () => {
-      cleanupEnv = mockEnv({ DATA_DIR: "/custom/data/dir" })
+    it("should read from the data dir resolved in config", async () => {
+      mockConfig.server.data_dir = "/custom/data/dir"
 
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, "")
       fs.promises.readdir.mockResolvedValue([`test_${today}_0.ndjson`])
@@ -251,6 +253,8 @@ describe("ndjson-streamer", () => {
 
       const file1 = fs.createReadStream.mock.calls[0][0]
       expect(file1).toContain("/custom/data/dir")
+
+      mockConfig.server.data_dir = "/test/data"
     })
   })
 
@@ -260,8 +264,8 @@ describe("ndjson-streamer", () => {
       readline.createInterface.mockReturnValue(createAsyncIterator(lines))
 
       const {
-        memory_stats,
-        info_cpu,
+        memory,
+        cpu,
         slowlog_len,
         commandlog_slow,
         commandlog_large_reply,
@@ -269,8 +273,8 @@ describe("ndjson-streamer", () => {
         monitor,
       } = await import("./ndjson-streamer.js")
 
-      expect(typeof memory_stats).toBe("function")
-      expect(typeof info_cpu).toBe("function")
+      expect(typeof memory).toBe("function")
+      expect(typeof cpu).toBe("function")
       expect(typeof slowlog_len).toBe("function")
       expect(typeof commandlog_slow).toBe("function")
       expect(typeof commandlog_large_reply).toBe("function")
@@ -278,7 +282,7 @@ describe("ndjson-streamer", () => {
       expect(typeof monitor).toBe("function")
 
       // Test that they work
-      const result = await memory_stats()
+      const result = await memory()
       expect(Array.isArray(result)).toBe(true)
     })
   })
