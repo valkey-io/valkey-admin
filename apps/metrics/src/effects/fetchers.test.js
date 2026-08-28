@@ -23,7 +23,7 @@ describe("fetchers", () => {
     delete process.env.VALKEY_PORT
   })
 
-  describe("memory_stats", () => {
+  describe("memory", () => {
     it("should parse INFO MEMORY output correctly", async () => {
       client.info
         .mockResolvedValueOnce(
@@ -40,7 +40,7 @@ allocator_rss_ratio:1.11`,
         )
         .mockResolvedValueOnce("db0:keys=50,expires=0,avg_ttl=0")
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result.find((r) => r.metric === "used_memory")?.value).toBe(800000)
       expect(result.find((r) => r.metric === "peak_allocated")?.value).toBe(1100000)
@@ -57,7 +57,7 @@ used_memory:900000`,
         )
         .mockResolvedValueOnce("db0:keys=100,expires=0,avg_ttl=0")
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result.find((r) => r.metric === "keys_bytes_per_key")?.value).toBe(8000)
     })
@@ -71,7 +71,7 @@ mem_fragmentation_ratio:1.25`,
         )
         .mockResolvedValueOnce("")
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result).toHaveLength(2)
       expect(result.find((r) => r.metric === "used_memory")?.value).toBe(800000)
@@ -81,7 +81,7 @@ mem_fragmentation_ratio:1.25`,
     it("should return empty rows when INFO MEMORY is empty", async () => {
       client.info.mockResolvedValueOnce("").mockResolvedValueOnce("")
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result).toEqual([])
     })
@@ -91,7 +91,7 @@ mem_fragmentation_ratio:1.25`,
         .mockResolvedValueOnce("used_memory:100\nused_memory_peak:200")
         .mockResolvedValueOnce("")
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result.every((r) => r.ts === Date.now())).toBe(true)
     })
@@ -109,7 +109,7 @@ mem_fragmentation_ratio:1.25`,
           "valkey-5.valkey-headless.valkey.svc.cluster.local:6379": "db0:keys=2,expires=0,avg_ttl=0",
         })
 
-      const result = await fetcher.memory_stats()
+      const result = await fetcher.memory()
 
       expect(result).toHaveLength(2)
       expect(result.find((r) => r.metric === "used_memory")?.value).toBe(200)
@@ -117,7 +117,7 @@ mem_fragmentation_ratio:1.25`,
     })
   })
 
-  describe("info_cpu", () => {
+  describe("cpu", () => {
     it("should parse INFO CPU output correctly", async () => {
       client.info.mockResolvedValue(
         `used_cpu_sys:10.5
@@ -125,7 +125,7 @@ mem_fragmentation_ratio:1.25`,
         used_cpu_sys_children:0.1`,
       )
 
-      const result = await fetcher.info_cpu()
+      const result = await fetcher.cpu()
 
       expect(result).toHaveLength(3)
       expect(result.find((r) => r.metric === "used_cpu_sys").value).toBe(10.5)
@@ -143,7 +143,7 @@ mem_fragmentation_ratio:1.25`,
         used_cpu_user:20.3`,
       )
 
-      const result = await fetcher.info_cpu()
+      const result = await fetcher.cpu()
 
       // Should only have 2 metrics, not the headers
       expect(result).toHaveLength(2)
@@ -159,7 +159,7 @@ mem_fragmentation_ratio:1.25`,
         used_cpu_sys_children:0.1`,
       )
 
-      const result = await fetcher.info_cpu()
+      const result = await fetcher.cpu()
 
       expect(result).toHaveLength(3)
     })
@@ -169,12 +169,12 @@ mem_fragmentation_ratio:1.25`,
       client.info.mockResolvedValue(
         "used_cpu_sys:10.5\r\nused_cpu_user:20.3\r\n",
       )
-      let result = await fetcher.info_cpu()
+      let result = await fetcher.cpu()
       expect(result).toHaveLength(2)
 
       // Test with LF
       client.info.mockResolvedValue("used_cpu_sys:10.5\nused_cpu_user:20.3\n")
-      result = await fetcher.info_cpu()
+      result = await fetcher.cpu()
       expect(result).toHaveLength(2)
     })
 
@@ -186,7 +186,7 @@ mem_fragmentation_ratio:1.25`,
         another_invalid:abc`,
       )
 
-      const result = await fetcher.info_cpu()
+      const result = await fetcher.cpu()
 
       expect(result).toHaveLength(2)
       expect(result.find((r) => r.metric === "used_cpu_sys")).toBeTruthy()
@@ -202,7 +202,7 @@ mem_fragmentation_ratio:1.25`,
         "valkey-5.valkey-headless.valkey.svc.cluster.local:6379": "used_cpu_sys:2.5",
       })
 
-      const result = await fetcher.info_cpu()
+      const result = await fetcher.cpu()
 
       expect(result).toHaveLength(1)
       expect(result[0].metric).toBe("used_cpu_sys")

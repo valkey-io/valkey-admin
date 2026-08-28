@@ -34,8 +34,8 @@ describe("ndjson-cleaner", () => {
     cfg = {
       server: { data_dir: "/app/data" },
       epics: [
-        { name: "memory", file_prefix: "memory", data_retention_days: 30 },
-        { name: "cpu", file_prefix: "cpu", data_retention_days: 30 },
+        { name: "memory", data_retention_days: 30 },
+        { name: "cpu", data_retention_days: 30 },
       ],
     }
   })
