@@ -174,6 +174,8 @@ Directory where NDJSON metric files are written and rotated. The server passes a
 
 Absolute path to the `config.yml` file. When set, the metrics process loads its config from this location instead of the bundled `apps/metrics/config.yml`. The Electron build uses this to point at a config file packaged inside the app bundle.
 
+`POST /update-config` writes tuning changes back into this file. Mounting it read-only or serving it from a ConfigMap is supported — updates then apply to the running process only and report `"persisted": false`.
+
 ## Collector Tuning
 
 These also override fields under `collector` in `config.yml`. Use them to change batch behavior without editing the YAML.

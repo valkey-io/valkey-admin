@@ -43,6 +43,12 @@ updateCollectorMeta(MONITOR, {
 })
 const startMonitor = async (cfg) => {
   const monitorEpic = cfg.epics.find((e) => e.name === MONITOR)
+  if (!monitorEpic) {
+    throw new Error(
+      `No "${MONITOR}" epic is configured, so monitoring cannot start. `
+      + "Add it to the metrics config file (CONFIG_PATH).",
+    )
+  }
 
   // Phase 1: Verify MONITOR command is supported (fast — throws if not)
   await connectMonitor()

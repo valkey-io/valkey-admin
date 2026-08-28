@@ -15,8 +15,23 @@ vi.mock("yaml", () => ({
   default: {
     parse: vi.fn(),
     stringify: vi.fn(),
+    parseDocument: vi.fn(),
   },
 }))
+
+/**
+ * Stand-in for a parsed YAML document. Only what the persist path touches:
+ * `get("epics").items` to resolve an epic by name, `setIn` to patch a field,
+ * and `toString` to serialize. Byte-level behaviour is covered against a real
+ * parser in config-persistence.test.js.
+ */
+const mockDocument = (epicNames = ["monitor", "cpu"]) => ({
+  setIn: vi.fn(),
+  toString: () => "patched yaml",
+  get: (key) => (key === "epics"
+    ? { items: epicNames.map((name) => ({ get: (field) => (field === "name" ? name : undefined) })) }
+    : undefined),
+})
 
 describe("config", () => {
   let fs
@@ -35,6 +50,7 @@ describe("config", () => {
     fs.readFileSync.mockReturnValue("")
     YAML.parse.mockReturnValue({})
     YAML.stringify.mockReturnValue("")
+    YAML.parseDocument.mockImplementation(() => mockDocument())
   })
 
   afterEach(() => {
@@ -321,28 +337,49 @@ describe("config", () => {
   })
 
   describe("updateConfig", () => {
-    it("should apply and persist a valid patch", async () => {
+    it("should apply the patch in memory and report it as persisted", async () => {
       YAML.parse.mockReturnValue({
         epics: [{ name: "monitor", monitoringDuration: 10000, cutoffFrequency: 100 }],
       })
+      const doc = mockDocument(["monitor"])
+      YAML.parseDocument.mockReturnValue(doc)
 
-      const { updateConfig } = await import("./config.js")
+      const { getConfig, updateConfig } = await import("./config.js")
       const result = updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
 
       expect(result.success).toBe(true)
-      expect(YAML.stringify).toHaveBeenCalled()
-      expect(fs.writeFileSync).toHaveBeenCalled()
-      expect(fs.renameSync).toHaveBeenCalled()
+      expect(result.persisted).toBe(true)
 
-      // Only the patched field changes; identity and untouched fields survive.
-      const written = YAML.stringify.mock.calls[0][0]
-      expect(written.epics[0]).toEqual({
+      // In memory: only the patched field changes, identity and siblings survive.
+      expect(getConfig().epics[0]).toEqual({
         name: "monitor",
         monitoringDuration: 20000,
         cutoffFrequency: 100,
         data_retention_mb: 10,
         data_retention_days: 30,
       })
+
+      // On disk: the document is patched in place, not re-serialized.
+      expect(doc.setIn).toHaveBeenCalledWith(["epics", 0, "monitoringDuration"], 20000)
+      expect(doc.setIn).toHaveBeenCalledTimes(1)
+      expect(YAML.stringify).not.toHaveBeenCalled()
+    })
+
+    it("should report persisted: false when the config file cannot be written", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor", monitoringDuration: 10000 }] })
+      fs.writeFileSync.mockImplementationOnce(() => { throw new Error("EROFS: read-only file system") })
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { getConfig, updateConfig } = await import("./config.js")
+      const result = updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
+
+      // The update still applies: durability is best effort, the request is not.
+      expect(result.success).toBe(true)
+      expect(result.statusCode).toBe(200)
+      expect(result.persisted).toBe(false)
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("applies to this process only"))
+      consoleError.mockRestore()
     })
 
     it("should apply multiple epics in a single write", async () => {
@@ -363,11 +400,7 @@ describe("config", () => {
 
       expect(result.success).toBe(true)
       expect(fs.writeFileSync).toHaveBeenCalledTimes(1)
-
-      const written = YAML.stringify.mock.calls[0][0]
-      expect(written.epics[0].monitoringDuration).toBe(20000)
-      expect(written.epics[1].poll_ms).toBe(10000)
-      expect(written.epics[1].data_retention_days).toBe(7)
+      expect(fs.renameSync).toHaveBeenCalledTimes(1)
     })
 
     it("should write nothing when any epic in the payload is invalid", async () => {
@@ -419,43 +452,34 @@ describe("config", () => {
       expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should create temporary file before renaming (atomic write)", async () => {
+    it("should stage through a process-unique temporary file before renaming", async () => {
       YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
       const { updateConfig } = await import("./config.js")
       updateConfig({ epics: { monitor: { monitoringDuration: 5000 } } })
 
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(".tmp"),
-        expect.any(String),
-        "utf8",
-      )
-
       const tmpPath = fs.writeFileSync.mock.calls[0][0]
       const finalPath = fs.renameSync.mock.calls[0][1]
 
-      expect(tmpPath).toContain(".tmp")
+      // The pid keeps sibling metrics processes from staging through one path.
+      expect(tmpPath).toContain(`.${process.pid}.tmp`)
       expect(finalPath).not.toContain(".tmp")
       expect(fs.renameSync).toHaveBeenCalledWith(tmpPath, finalPath)
     })
 
-    it("should reload config after update", async () => {
-      const initialConfig = { epics: [{ name: "monitor", monitoringDuration: 10000 }] }
-      const updatedConfig = { epics: [{ name: "monitor", monitoringDuration: 20000 }] }
-
-      YAML.parse.mockReturnValueOnce(initialConfig)
-      YAML.parse.mockReturnValueOnce(initialConfig) // for getConfig call inside updateConfig
-      YAML.parse.mockReturnValueOnce(updatedConfig) // for reload after write
+    it("should serve the applied patch from memory, not a re-read", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor", monitoringDuration: 10000 }] })
+      YAML.parseDocument.mockReturnValue(mockDocument(["monitor"]))
 
       const { getConfig, updateConfig } = await import("./config.js")
 
-      const before = getConfig()
-      expect(before.epics[0].monitoringDuration).toBe(10000)
+      expect(getConfig().epics[0].monitoringDuration).toBe(10000)
 
       updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
 
-      // getConfig should reflect the updated value (from reload)
-      const after = getConfig()
-      expect(after.epics[0].monitoringDuration).toBe(20000)
+      // The in-memory value stands even though the mocked file still parses to
+      // the old one, so a failed or partial write cannot roll the update back.
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
     })
   })
 })

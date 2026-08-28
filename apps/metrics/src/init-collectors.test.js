@@ -250,6 +250,17 @@ describe("init-collectors", () => {
       makeMonitorStream.mockReturnValue(mockSubject)
     })
 
+    it("should fail with a legible error when no monitor epic is configured", async () => {
+      const monitorConfig = createMockConfig({ epics: [{ name: "cpu", poll_ms: 5000 }] })
+
+      const { startMonitor } = await import("./init-collectors.js")
+
+      // Without this guard the missing epic surfaces as
+      // "Cannot read properties of undefined (reading 'data_retention_mb')".
+      await expect(startMonitor(monitorConfig)).rejects.toThrow(/No "monitor" epic is configured/)
+      expect(makeMonitorStream).not.toHaveBeenCalled()
+    })
+
     it("should create monitor stream with correct config", async () => {
       const monitorConfig = createMockConfig({
         epics: [

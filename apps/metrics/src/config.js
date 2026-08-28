@@ -82,15 +82,52 @@ const loadConfig = () => {
 
   return cfg
 }
+
 const getConfig = () => config ? config : loadConfig()
 
-const setConfig = (newConfig) => {
-  const tmpPath = `${cfgPath}.tmp`
+/**
+ * Locate an epic inside the parsed YAML document by name.
+ */
+const epicDocumentIndex = (doc, name) => {
+  const items = doc.get("epics")?.items ?? []
+  return items.findIndex((item) => (typeof item?.get === "function" ? item.get("name") : item?.name) === name)
+}
 
-  fs.writeFileSync(tmpPath, YAML.stringify(newConfig), "utf8")
-  fs.renameSync(tmpPath, cfgPath)
+/**
+ * Write the patch back into the operator's config file, best effort.
+ *
+ * The file is patched as a YAML document rather than re-serialized from the
+ * runtime config, so comments, key order and quoting survive and no
+ * environment-resolved value (`data_dir`, `port`, `batch_*`) is ever written back.
+ *
+ * Returns whether the write succeeded. A failure is logged and reported, never
+ * thrown: the update has already been applied in memory, and refusing the
+ * request would make the endpoint unusable wherever the config file is mounted
+ * read-only.
+ */
+const persistPatches = (patchesByEpic) => {
+  try {
+    const doc = YAML.parseDocument(fs.readFileSync(cfgPath, "utf8"))
 
-  config = loadConfig()
+    for (const [name, fields] of Object.entries(patchesByEpic)) {
+      const epicIndex = epicDocumentIndex(doc, name)
+      if (epicIndex === -1) continue // the name came from this file, so this is unreachable in practice
+      for (const [field, value] of Object.entries(fields)) {
+        doc.setIn(["epics", epicIndex, field], value)
+      }
+    }
+
+    const tmpPath = `${cfgPath}.${process.pid}.tmp`
+    fs.writeFileSync(tmpPath, doc.toString(), "utf8")
+    fs.renameSync(tmpPath, cfgPath)
+    return true
+  } catch (error) {
+    console.error(
+      `[config] Could not persist the update to ${cfgPath}; it applies to this process only `
+      + `and will be lost on restart: ${error.message}`,
+    )
+    return false
+  }
 }
 
 const badRequestReply = (message) => ({ success: false, statusCode: 400, message, data: {} })
@@ -98,10 +135,13 @@ const badRequestReply = (message) => ({ success: false, statusCode: 400, message
 /**
  * Apply a validated set of per-epic patches.
  *
- * All-or-nothing: the payload is validated, then every named epic is resolved
- * against the loaded config before anything is written, so a request that
- * names one bad epic leaves `config.yml` untouched. A successful request
- * results in exactly one write.
+ * All-or-nothing: the payload is validated and every named epic resolved
+ * against the loaded config before anything changes, so a request naming one
+ * bad epic changes nothing at all.
+ *
+ * The patch is applied to the in-memory config first and then persisted to the
+ * overrides file, so an unwritable data dir costs durability but never the
+ * update itself — `persisted` reports which happened.
  *
  * Only the fields in the schema's allowlist are copied onto the existing
  * entry; identity (`name`) is never touched, so no API input can reach a
@@ -129,13 +169,14 @@ const updateConfig = (partialConfig) => {
     const epicIndex = newConfig.epics.findIndex((epic) => epic.name === name)
     newConfig.epics[epicIndex] = { ...newConfig.epics[epicIndex], ...fields }
   }
-  setConfig(newConfig)
+  config = newConfig
 
   return {
     success: true,
     statusCode: 200,
     message: "",
     data: parsed.data,
+    persisted: persistPatches(parsed.data.epics),
   }
 }
 
