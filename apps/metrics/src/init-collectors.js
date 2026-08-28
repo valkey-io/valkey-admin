@@ -51,7 +51,7 @@ const startMonitor = async (cfg) => {
   const { maxFiles, maxFileSize } = computeCapacity(monitorEpic.data_retention_mb)
   const nd = makeNdjsonWriter({
     dataDir: cfg.server.data_dir,
-    filePrefix: monitorEpic.file_prefix || MONITOR,
+    filePrefix: monitorEpic.name,
     maxFiles,
     maxFileSize,
   })
@@ -116,15 +116,15 @@ const stopMonitor = async () => await monitorStopper()
 
 const setupCollectors = async (client, cfg) => {
   const fetcher = makeFetcher(client)
+  // An epic's name is its kind: it selects the fetcher and prefixes the files.
   await Promise.all(cfg.epics
-    .filter((f) => f.name !== MONITOR && fetcher[f.type])
+    .filter((f) => f.name !== MONITOR && fetcher[f.name])
     .map(async (f) => {
-      const fn = fetcher[f.type]
-      const prefix = f.file_prefix || f.name
+      const fn = fetcher[f.name]
       const { maxFiles, maxFileSize } = computeCapacity(f.data_retention_mb)
       const nd = makeNdjsonWriter({
         dataDir: cfg.server.data_dir,
-        filePrefix: prefix,
+        filePrefix: f.name,
         maxFiles,
         maxFileSize,
       })

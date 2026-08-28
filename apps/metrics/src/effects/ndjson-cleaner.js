@@ -17,7 +17,7 @@ const retentionForFile = (fileName, retentionByPrefix) => {
 }
 
 export const setupNdjsonCleaner = ( cfg ) => {
-  const retentionByPrefix = cfg.epics.map((e) => [e.file_prefix || e.name, e.data_retention_days])
+  const retentionByPrefix = cfg.epics.map((e) => [e.name, e.data_retention_days])
 
   const pipeline$ = timer(0, METRICS_EVICTION_POLICY.INTERVAL).pipe(
     exhaustMap(() => 

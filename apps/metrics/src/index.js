@@ -24,7 +24,7 @@ async function main() {
   if (process.env.DEBUG_METRICS === "1") {
     console.log("Metrics config loaded:", JSON.stringify({
       data_dir: cfg.server.data_dir,
-      epics: cfg.epics?.map(({ name, type, file_prefix }) => ({ name, type, file_prefix })),
+      epics: cfg.epics?.map(({ name, poll_ms }) => ({ name, poll_ms })),
     }))
   }
 
@@ -43,7 +43,7 @@ async function main() {
   app.get("/memory", async (req, res) => {
     try {
       const { maxPoints, since, until } = parseQuery(memoryQuerySchema)(req.query)
-      const series = await Streamer.memory_stats(memoryFold({ maxPoints, since, until }))
+      const series = await Streamer.memory(memoryFold({ maxPoints, since, until }))
       res.json(series)
     } catch (e) {
       console.error(e)
@@ -54,7 +54,7 @@ async function main() {
   app.get("/cpu", async (req, res) => {
     try {
       const { maxPoints, tolerance, since, until } = parseQuery(cpuQuerySchema)(req.query)
-      const series = await Streamer.info_cpu(cpuFold({ maxPoints, tolerance, since, until }))
+      const series = await Streamer.cpu(cpuFold({ maxPoints, tolerance, since, until }))
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })
@@ -111,7 +111,8 @@ async function main() {
     try {
       const result = updateConfig(req.body)
 
-      if (result.success && result.data.epic?.name === MONITOR) {
+      // Restart the running monitor when its own settings were part of the update
+      if (result.success && Object.hasOwn(result.data.epics, MONITOR)) {
         const { isRunning } = readMonitorMetadata()
         if (isRunning) {
           await monitorHandler(ACTION.STOP, getConfig())
