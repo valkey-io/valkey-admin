@@ -9,6 +9,7 @@ import * as R from "ramda"
 import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
 import { ClusterNodeMap } from "./metrics-orchestrator"
+import { isConnectionAuthorized } from "./session"
 export const dns = {
   lookup,
   reverse,
@@ -157,11 +158,19 @@ function isClusterClientEntry(
 export async function getExistingClusterClient(
   discoveredClusterNodes: ClusterNodeMap, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
+  sessionId: string,
 ) {
   // Check if we've already connected to this cluster before 
   const existingKey = Object.keys(discoveredClusterNodes).find(
     (key) => isClusterClientEntry(clients.get(key)),
   )
+
+  // Only reuse the shared cluster client if the calling session owns the matched
+  // sibling node (e.g. the node it connected to earlier). Otherwise a different
+  // session could inherit this cluster's authenticated client without authenticating.
+  if (existingKey && !isConnectionAuthorized(sessionId, existingKey)) {
+    return undefined
+  }
 
   const existingConnection = existingKey
     ? clients.get(existingKey) as { client: GlideClusterClient; clusterId?: string }

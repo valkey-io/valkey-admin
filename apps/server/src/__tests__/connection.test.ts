@@ -15,6 +15,8 @@ import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
 import { _reset as resetNodeWatchers } from "../node-watchers"
+import { ensureSession, authorizeConnection, _resetSessions } from "../session"
+import type { IncomingMessage } from "http"
 
 const DEFAULT_PAYLOAD = {
   connectionDetails: {
@@ -28,6 +30,7 @@ const DEFAULT_PAYLOAD = {
     db: 0,
   } as ConnectionDetails,
   connectionId: "",
+  sessionId: "test-session",
 }
 
 const SLOTS_RESPONSE = [
@@ -144,6 +147,7 @@ describe("connectToValkey", () => {
   let clients: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
   let metricsServerMap: MetricsServerMap
+  let testSessionId: string
   beforeEach(() => {
     messages = []
     mockWs = {
@@ -152,6 +156,11 @@ describe("connectToValkey", () => {
     clients = new Map()
     connectedNodesByCluster = new Map()
     metricsServerMap = new Map()
+    // Seed a real session and point the default payload at it so that reuse tests,
+    // which now require the session to own the reused connection, can authorize it.
+    _resetSessions()
+    testSessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
+    DEFAULT_PAYLOAD.sessionId = testSessionId
     // metricsServerMap is keyed by metrics-node-id; the empty Connection_Identifier
     // strips to the empty string, which matches the empty connectionId used by
     // the default payload in these tests.
@@ -254,6 +263,10 @@ describe("connectToValkey", () => {
 
     await withMockedClients(standalone, null, async () => {
       const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-shared" }
+      // The session owns the connection it is (re)connecting to; the handler authorizes
+      // it on connect. Simulate that here so the concurrent duplicate reuses rather than
+      // creating a second client.
+      authorizeConnection(testSessionId, "conn-shared")
       const [a, b] = await Promise.all([
         connectToValkey(ctx(), mockWs, payload),
         connectToValkey(ctx(), mockWs, payload),
@@ -279,6 +292,10 @@ describe("connectToValkey", () => {
       const first = await connectToValkey(ctx(), mockWs, payload)
       assert.strictEqual(first, cluster)
       assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 1)
+
+      // The handler authorizes the connection after a successful connect; simulate that
+      // here (this test bypasses the handler) so the session owns the connection it reuses.
+      authorizeConnection(testSessionId, "conn-Z")
 
       messages.length = 0
 
@@ -355,6 +372,7 @@ describe("connectToValkey", () => {
   it("should use correct client configuration", async () => {
     const standalone = buildStandaloneMock()
     const altPayload = {
+      sessionId: "test-session",
       connectionDetails: {
         host: "192.168.1.1",
         port: "7000",
@@ -456,6 +474,7 @@ describe("connectToValkey", () => {
 
       await withMockedClients(newStandalone, newCluster, async () => {
         await connectToValkey(ctx(), mockWs, {
+          sessionId: "test-session",
           connectionId,
           connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, ...tc.overrides },
           isRetry: true,
@@ -478,6 +497,7 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: undefined }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 15)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 15 },
       })
@@ -505,6 +525,7 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: undefined }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 16)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 16 },
       })
@@ -532,6 +553,7 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: "32" }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 31)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 31 },
       })
@@ -570,6 +592,7 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ configGetError: true }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 20)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 20 },
       })
@@ -607,6 +630,7 @@ describe("connectToValkey", () => {
     await withMockedClients(standaloneFactory, null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 5)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 5 },
       })
@@ -635,6 +659,7 @@ describe("connectToValkey", () => {
     await withMockedClients(standalone, cluster, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 8)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 8 },
       })
@@ -667,6 +692,7 @@ describe("connectToValkey", () => {
     await withMockedClients(standalone, cluster, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 2)
       await connectToValkey(ctx(), mockWs, {
+        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 2 },
       })
@@ -726,6 +752,7 @@ describe("connectToValkey", () => {
       await withMockedClients(standalone, cluster, async () => {
         const connectionId = buildConnectionId("127.0.0.1", "6379", 1)
         await connectToValkey(ctx(), mockWs, {
+          sessionId: "test-session",
           connectionId,
           connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 1 },
         })
@@ -802,8 +829,11 @@ describe("resolveHostnameOrIpAddress", () => {
 })
 
 describe("getExistingConnection", () => {
+  let unitSessionId: string
   beforeEach(() => {
     mock.restoreAll()
+    _resetSessions()
+    unitSessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
   })
 
   it("returns the existing connection when host:port resolves to one already in clients", async () => {
@@ -814,9 +844,12 @@ describe("getExistingConnection", () => {
     const existingClient = {} as any
     const clients = new Map()
     clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: existingClient })
+    // Session must own the matched id for reuse to be returned.
+    authorizeConnection(unitSessionId, buildConnectionId("10.0.0.1", "6379", 0))
 
     const result = await getExistingConnection(
       {
+        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -838,6 +871,7 @@ describe("getExistingConnection", () => {
 
     const result = await getExistingConnection(
       {
+        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -859,6 +893,7 @@ describe("getExistingConnection", () => {
 
     const result = await getExistingConnection(
       {
+        sessionId: unitSessionId,
         connectionId: "abc123",
         isRetry: true,
         connectionDetails: {
@@ -879,9 +914,12 @@ describe("getExistingConnection", () => {
     const directClient = {} as any
     const clients = new Map()
     clients.set("abc123", { client: directClient })
+    // Session must own the matched id for reuse to be returned.
+    authorizeConnection(unitSessionId, "abc123")
 
     const result = await getExistingConnection(
       {
+        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -892,6 +930,35 @@ describe("getExistingConnection", () => {
 
     assert.ok(result)
     assert.strictEqual(result.client, directClient)
+  })
+
+  it("does NOT return another session's client when this session is not authorized", async () => {
+    // Credential-blind reuse regression: a different session must not inherit a client
+    // it never authenticated. The match exists but this session does not own it.
+    mock.method(dns, "lookup", async () => [
+      { address: "10.0.0.1", family: 4 },
+    ])
+
+    const victimClient = {} as any
+    const clients = new Map()
+    const matchedId = buildConnectionId("10.0.0.1", "6379", 0)
+    clients.set(matchedId, { client: victimClient })
+    // Authorize the id for a DIFFERENT session (the victim), not ours.
+    const victimSession = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
+    authorizeConnection(victimSession, matchedId)
+
+    const result = await getExistingConnection(
+      {
+        sessionId: unitSessionId, // our session — never authorized for matchedId
+        connectionId: "abc123",
+        connectionDetails: {
+          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
+        } as any,
+      },
+      clients,
+    )
+
+    assert.strictEqual(result, undefined, "must not hand back a client this session does not own")
   })
 })
 

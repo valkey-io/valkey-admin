@@ -38,8 +38,33 @@ export const connectPending = withDeps<Deps, void>(
     const payload = action.payload as ConnectPayload
     const { connectionId } = payload
 
+    // ws.sessionId is assigned for every upgrade (ensureSession), so this is a defensive
+    // invariant, not the expiry path (expiry is handled by isConnectionAuthorized returning
+    // false because the session record is gone). Fail closed rather than connect without a
+    // session to scope client reuse to.
+    if (!sessionId) {
+      ws.send(JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: { connectionId, errorMessage: "Unable to establish a session. Please reload and try again.", requiresAuth: true },
+      }))
+      return
+    }
+
     // if connection is being resumed, check if the session is still valid and if the connection exists
     if (payload.isResume && (!isConnectionAuthorized(sessionId, connectionId) || !clients.has(connectionId))) {
+      ws.send(JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: { connectionId, errorMessage: "Session expired. Please sign in again.", requiresAuth: true },
+      }))
+      return
+    }
+
+    // A retry reconnects an existing connection and (for clusters) closes + repoints the shared
+    // client, so require ownership — same rule as resume. The frontend only retries connections it
+    // previously established, so this never rejects a legitimate retry; it prevents one session's
+    // retry from closing or repointing a connection another session owns (e.g. a same-endpoint
+    // collision on a shared instance).
+    if (payload.isRetry && !isConnectionAuthorized(sessionId, connectionId)) {
       ws.send(JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,
         payload: { connectionId, errorMessage: "Session expired. Please sign in again.", requiresAuth: true },
@@ -50,7 +75,7 @@ export const connectPending = withDeps<Deps, void>(
     const client = await connectToValkey(
       { clients, connectedNodesByCluster, clusterNodesRegistry, metricsServerMap },
       ws,
-      payload,
+      { ...payload, sessionId },
     )
 
     if (client) {
