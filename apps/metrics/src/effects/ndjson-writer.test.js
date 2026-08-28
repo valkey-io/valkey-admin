@@ -20,6 +20,32 @@ describe("ndjson-writer", () => {
       .filter((f) => f.startsWith(`${prefix}_`) && f.endsWith(".ndjson"))
       .sort()
 
+  describe("path containment", () => {
+    it("refuses to write outside the data dir", async () => {
+      // Tripwire: nothing reachable from the API can set filePrefix today, so
+      // this guards against a future regression reintroducing that path.
+      const writer = makeNdjsonWriter({
+        dataDir: tmpDir,
+        filePrefix: "../escaped",
+        maxFiles: 4,
+        maxFileSize: 1024 * 1024,
+      })
+
+      await expect(writer.appendRows([{ ts: Date.now(), value: 1 }]))
+        .rejects.toThrow(/Refusing to write outside the data dir/)
+
+      const parentDir = path.dirname(tmpDir)
+      expect(fs.readdirSync(parentDir).filter((f) => f.startsWith("escaped_"))).toHaveLength(0)
+    })
+
+    it("writes normally for a plain prefix", async () => {
+      const writer = makeNdjsonWriter({ dataDir: tmpDir, filePrefix: "safe", maxFiles: 4, maxFileSize: 1024 * 1024 })
+      await writer.appendRows([{ ts: Date.now(), value: 1 }])
+
+      expect(listFiles("safe")).toHaveLength(1)
+    })
+  })
+
   describe("basic writing", () => {
     it("creates a file and appends rows", async () => {
       const writer = makeNdjsonWriter({ dataDir: tmpDir, filePrefix: "test", maxFiles: 4, maxFileSize: 1024 * 1024 })

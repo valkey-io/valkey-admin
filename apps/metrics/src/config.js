@@ -3,6 +3,8 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { mergeDeepLeft } from "ramda"
 import YAML from "yaml"
+import { configUpdateSchema, findForbiddenKey, formatIssues } from "./config-schema.js"
+import { EPIC_KINDS } from "./utils/constants.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,6 +27,30 @@ const DEFAULTS = {
   epics: [],
 }
 
+const EPIC_NAME_PATTERN = /^[a-z0-9_]+$/
+
+/**
+ * An epic's `name` is its only identifier: it selects the fetcher and becomes
+ * the prefix of the NDJSON files written under `data_dir`. Because it reaches
+ * `path.join`, an unsafe name is a hard configuration error rather than
+ * something to work around. A name that is merely unrecognised collects nothing (no fetcher matches), 
+ * so it is dropped with a warning instead.
+ */
+const validEpics = (epics) => epics.filter((epic) => {
+  const name = epic?.name
+  if (typeof name !== "string" || !EPIC_NAME_PATTERN.test(name)) {
+    throw new Error(
+      `Invalid epic name in ${cfgPath}: ${JSON.stringify(name)}. `
+      + "Epic names may only contain lowercase letters, digits and underscores.",
+    )
+  }
+  if (!EPIC_KINDS.includes(name)) {
+    console.error(`[config] Ignoring unknown epic "${name}". Known epics: ${EPIC_KINDS.join(", ")}`)
+    return false
+  }
+  return true
+})
+
 const loadConfig = () => {
   const text = fs.readFileSync(cfgPath, "utf8")
   const parsed = YAML.parse(text) || {}
@@ -38,7 +64,7 @@ const loadConfig = () => {
     }
   }
   if (!Array.isArray(cfg.epics)) cfg.epics = []
-  cfg.epics = cfg.epics.map((e) => ({ ...EPIC_DEFAULTS, ...e }))
+  cfg.epics = validEpics(cfg.epics).map((e) => ({ ...EPIC_DEFAULTS, ...e }))
 
   if (process.env.PORT) cfg.server.port = Number(process.env.PORT)
   if (process.env.DATA_DIR) cfg.server.data_dir = process.env.DATA_DIR
@@ -56,103 +82,103 @@ const loadConfig = () => {
 
   return cfg
 }
+
 const getConfig = () => config ? config : loadConfig()
 
-const setConfig = (newConfig) => {
-  const tmpPath = `${cfgPath}.tmp`
-
-  fs.writeFileSync(tmpPath, YAML.stringify(newConfig), "utf8")
-  fs.renameSync(tmpPath, cfgPath)
-
-  config = loadConfig()
+/**
+ * Locate an epic inside the parsed YAML document by name.
+ */
+const epicDocumentIndex = (doc, name) => {
+  const items = doc.get("epics")?.items ?? []
+  return items.findIndex((item) => (typeof item?.get === "function" ? item.get("name") : item?.name) === name)
 }
 
-const updateConfig = (partialConfig) => {
-  const validationError = validatePartialConfig(partialConfig)
+/**
+ * Write the patch back into the operator's config file, best effort.
+ *
+ * The file is patched as a YAML document rather than re-serialized from the
+ * runtime config, so comments, key order and quoting survive and no
+ * environment-resolved value (`data_dir`, `port`, `batch_*`) is ever written back.
+ *
+ * Returns whether the write succeeded. A failure is logged and reported, never
+ * thrown: the update has already been applied in memory, and refusing the
+ * request would make the endpoint unusable wherever the config file is mounted
+ * read-only.
+ */
+const persistPatches = (patchesByEpic) => {
+  try {
+    const doc = YAML.parseDocument(fs.readFileSync(cfgPath, "utf8"))
 
-  if (validationError) {
-    return {
-      success: false,
-      statusCode: 400,
-      message: validationError.message,
-      data: validationError,
-    }
-  }
-  const cfg = getConfig()
-  
-  if (partialConfig.epic) {
-    // TODO: use zod for validation
-    const { name, ...fields } = partialConfig.epic
-    const epicIndex = cfg.epics.findIndex((e) => e.name === name)
-    if (epicIndex === -1) {
-      return {
-        success: false,
-        statusCode: 400,
-        message: `Unknown epic: ${name}`,
-        data: {},
+    for (const [name, fields] of Object.entries(patchesByEpic)) {
+      const epicIndex = epicDocumentIndex(doc, name)
+      if (epicIndex === -1) continue // the name came from this file, so this is unreachable in practice
+      for (const [field, value] of Object.entries(fields)) {
+        doc.setIn(["epics", epicIndex, field], value)
       }
     }
-    const newConfig = structuredClone(cfg)
-    newConfig.epics[epicIndex] = mergeDeepLeft(fields, newConfig.epics[epicIndex])
-    setConfig(newConfig)
-  } else {
-    const newConfig = mergeDeepLeft(partialConfig, cfg)
-    setConfig(newConfig)
+
+    const tmpPath = `${cfgPath}.${process.pid}.tmp`
+    fs.writeFileSync(tmpPath, doc.toString(), "utf8")
+    fs.renameSync(tmpPath, cfgPath)
+    return true
+  } catch (error) {
+    console.error(
+      `[config] Could not persist the update to ${cfgPath}; it applies to this process only `
+      + `and will be lost on restart: ${error.message}`,
+    )
+    return false
   }
+}
+
+const badRequestReply = (message) => ({ success: false, statusCode: 400, message, data: {} })
+
+/**
+ * Apply a validated set of per-epic patches.
+ *
+ * All-or-nothing: the payload is validated and every named epic resolved
+ * against the loaded config before anything changes, so a request naming one
+ * bad epic changes nothing at all.
+ *
+ * The patch is applied to the in-memory config first and then persisted to the
+ * overrides file, so an unwritable data dir costs durability but never the
+ * update itself — `persisted` reports which happened.
+ *
+ * Only the fields in the schema's allowlist are copied onto the existing
+ * entry; identity (`name`) is never touched, so no API input can reach a
+ * filesystem path.
+ */
+const updateConfig = (partialConfig) => {
+  const forbiddenKey = findForbiddenKey(partialConfig)
+  if (forbiddenKey) return badRequestReply(`Illegal key: ${forbiddenKey}`)
+
+  const parsed = configUpdateSchema.safeParse(partialConfig)
+  if (!parsed.success) return badRequestReply(formatIssues(parsed.error))
+
+  const cfg = getConfig()
+  const patches = Object.entries(parsed.data.epics)
+
+  const unknownNames = patches
+    .map(([name]) => name)
+    .filter((name) => !cfg.epics.some((epic) => epic.name === name))
+  if (unknownNames.length > 0) {
+    return badRequestReply(`Unknown epics: ${unknownNames.join(", ")}`)
+  }
+
+  const newConfig = structuredClone(cfg)
+  for (const [name, fields] of patches) {
+    const epicIndex = newConfig.epics.findIndex((epic) => epic.name === name)
+    newConfig.epics[epicIndex] = { ...newConfig.epics[epicIndex], ...fields }
+  }
+  config = newConfig
 
   return {
     success: true,
     statusCode: 200,
     message: "",
-    data: partialConfig,
+    data: parsed.data,
+    persisted: persistPatches(parsed.data.epics),
   }
 }
-
-const validatePartialConfig = (partialConfig) => {
-  if (partialConfig == null || typeof partialConfig !== "object" || Array.isArray(partialConfig)) {
-    return new Error("Config update must be an object")
-  }
-
-  if (partialConfig.epic !== undefined) {
-    if (typeof partialConfig.epic !== "object" || Array.isArray(partialConfig.epic)) {
-      return new Error("epic must be an object")
-    }
-
-    const { name, monitoringDuration, monitoringInterval, maxCommandsPerRun } = partialConfig.epic
-
-    if (typeof name !== "string" || name.length === 0) {
-      return new Error("epic.name must be a non-empty string")
-    }
-
-    if (
-      monitoringDuration !== undefined &&
-      !isPositiveNumber(monitoringDuration)
-    ) {
-      return new Error("monitoringDuration must be a positive non-zero number")
-    }
-
-    if (
-      monitoringInterval !== undefined &&
-      !isPositiveNumber(monitoringInterval)
-    ) {
-      return new Error("monitoringInterval must be a positive non-zero number")
-    }
-
-    if (
-      maxCommandsPerRun !== undefined &&
-      !isPositiveNumber(maxCommandsPerRun)
-    ) {
-      return new Error("maxCommandsPerRun must be a positive non-zero number")
-    }
-  }
-
-  return null
-}
-
-const isPositiveNumber = (value) =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  value > 0
 
 export { getConfig, updateConfig }
 

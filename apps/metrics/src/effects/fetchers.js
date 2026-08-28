@@ -65,7 +65,7 @@ const parseKeyCount = R.pipe(
 )
 
 export const makeFetcher = (client) => ({
-  memory_stats: async () => {
+  memory: async () => {
     const memoryInfo = normalizeNodeScopedResponse(
       await client.info([InfoOptions.Memory]),
     )
@@ -73,8 +73,8 @@ export const makeFetcher = (client) => ({
       await client.info([InfoOptions.Keyspace]),
     )
     if (debugMetrics) {
-      log.info("[memory_stats] raw info preview", String(memoryInfo).split(/\r?\n/).slice(0, 20).join("\n"))
-      log.info("[memory_stats] raw keyspace preview", String(keyspaceInfo).split(/\r?\n/).slice(0, 10).join("\n"))
+      log.info("[memory] raw info preview", String(memoryInfo).split(/\r?\n/).slice(0, 20).join("\n"))
+      log.info("[memory] raw keyspace preview", String(keyspaceInfo).split(/\r?\n/).slice(0, 10).join("\n"))
     }
     const ts = Date.now()
     const metrics = Object.fromEntries(parseInfoToPairs(memoryInfo))
@@ -104,13 +104,13 @@ export const makeFetcher = (client) => ({
       kvPairsToRows(ts),
     )(derivedPairs)
     if (debugMetrics) {
-      log.info("[memory_stats] normalized row count", rows.length)
-      log.info("[memory_stats] normalized row preview", rows.slice(0, 10))
+      log.info("[memory] normalized row count", rows.length)
+      log.info("[memory] normalized row preview", rows.slice(0, 10))
     }
     return rows
   },
 
-  info_cpu: async () => {
+  cpu: async () => {
     const raw = normalizeNodeScopedResponse(
       await client.info([InfoOptions.Cpu]),
     )

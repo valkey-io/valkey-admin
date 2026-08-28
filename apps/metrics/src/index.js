@@ -1,11 +1,12 @@
 import fs from "node:fs"
 import express from "express"
-import { getConfig, updateConfig } from "./config.js"
+import { getConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors, stopCollectors } from "./init-collectors.js"
 import { getCommandLogs } from "./handlers/commandlog-handler.js"
 import { getDashboardInfo } from "./handlers/info-handler.js"
-import { monitorHandler, readMonitorMetadata, useMonitor } from "./handlers/monitor-handler.js"
+import { updateConfigHandler } from "./handlers/update-config-handler.js"
+import { monitorHandler, useMonitor } from "./handlers/monitor-handler.js"
 import { calculateHotKeysFromHotSlots } from "./analyzers/calculate-hot-keys.js"
 import { enrichHotKeys } from "./analyzers/enrich-hot-keys.js"
 import cpuFold from "./analyzers/calculate-cpu-usage.js"
@@ -14,7 +15,6 @@ import { bigKeysQuerySchema, cpuQuerySchema, memoryQuerySchema, parseQuery } fro
 import { sanitizeUrl } from "./utils/helpers.js"
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 import { createValkeyClient } from "./valkey-client.js"
-import { ACTION, MONITOR } from "./utils/constants.js"
 import { scanBigKeys } from "./analyzers/scan-big-keys.js"
 
 async function main() {
@@ -24,7 +24,7 @@ async function main() {
   if (process.env.DEBUG_METRICS === "1") {
     console.log("Metrics config loaded:", JSON.stringify({
       data_dir: cfg.server.data_dir,
-      epics: cfg.epics?.map(({ name, type, file_prefix }) => ({ name, type, file_prefix })),
+      epics: cfg.epics?.map(({ name, poll_ms }) => ({ name, poll_ms })),
     }))
   }
 
@@ -43,7 +43,7 @@ async function main() {
   app.get("/memory", async (req, res) => {
     try {
       const { maxPoints, since, until } = parseQuery(memoryQuerySchema)(req.query)
-      const series = await Streamer.memory_stats(memoryFold({ maxPoints, since, until }))
+      const series = await Streamer.memory(memoryFold({ maxPoints, since, until }))
       res.json(series)
     } catch (e) {
       console.error(e)
@@ -54,7 +54,7 @@ async function main() {
   app.get("/cpu", async (req, res) => {
     try {
       const { maxPoints, tolerance, since, until } = parseQuery(cpuQuerySchema)(req.query)
-      const series = await Streamer.info_cpu(cpuFold({ maxPoints, tolerance, since, until }))
+      const series = await Streamer.cpu(cpuFold({ maxPoints, tolerance, since, until }))
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })
@@ -107,28 +107,7 @@ async function main() {
     else useMonitor(res, client, ownNodeId, Number(req.query.count) || 50)
   })
 
-  app.post("/update-config", async (req, res) => {
-    try {
-      const result = updateConfig(req.body)
-
-      if (result.success && result.data.epic?.name === MONITOR) {
-        const { isRunning } = readMonitorMetadata()
-        if (isRunning) {
-          await monitorHandler(ACTION.STOP, getConfig())
-          await monitorHandler(ACTION.START, getConfig())
-        }
-      }
-
-      return res.status(result.statusCode).json(result)
-    }
-    catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error instanceof Error ? error.message : String(error),
-        data: error,
-      })
-    }
-  })
+  app.post("/update-config", (req, res) => updateConfigHandler(req, res))
 
   app.post("/connection/close", async (req, res) => {
     try {

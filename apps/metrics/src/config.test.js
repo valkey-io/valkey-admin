@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { EPIC_FIELD_BOUNDS } from "../../../common/src/constants.js"
 import { mockEnv } from "./__tests__/test-helpers.js"
 
 // Mock node:fs and yaml modules
@@ -14,8 +15,23 @@ vi.mock("yaml", () => ({
   default: {
     parse: vi.fn(),
     stringify: vi.fn(),
+    parseDocument: vi.fn(),
   },
 }))
+
+/**
+ * Stand-in for a parsed YAML document. Only what the persist path touches:
+ * `get("epics").items` to resolve an epic by name, `setIn` to patch a field,
+ * and `toString` to serialize. Byte-level behaviour is covered against a real
+ * parser in config-persistence.test.js.
+ */
+const mockDocument = (epicNames = ["monitor", "cpu"]) => ({
+  setIn: vi.fn(),
+  toString: () => "patched yaml",
+  get: (key) => (key === "epics"
+    ? { items: epicNames.map((name) => ({ get: (field) => (field === "name" ? name : undefined) })) }
+    : undefined),
+})
 
 describe("config", () => {
   let fs
@@ -34,6 +50,7 @@ describe("config", () => {
     fs.readFileSync.mockReturnValue("")
     YAML.parse.mockReturnValue({})
     YAML.stringify.mockReturnValue("")
+    YAML.parseDocument.mockImplementation(() => mockDocument())
   })
 
   afterEach(() => {
@@ -44,88 +61,157 @@ describe("config", () => {
     }
   })
 
-  describe("validatePartialConfig", () => {
-    it("should accept valid config with epic object", async () => {
+  describe("request validation", () => {
+    it("should accept a patch for a wired epic", async () => {
       YAML.parse.mockReturnValue({
         epics: [{ name: "monitor", monitoringDuration: 10000 }],
       })
       const { updateConfig } = await import("./config.js")
       const result = updateConfig({
-        epic: { name: "monitor", monitoringDuration: 15000 },
+        epics: { monitor: { monitoringDuration: 15000 } },
       })
       expect(result.success).toBe(true)
     })
 
-    it("should reject null or non-object configs", async () => {
+    it("should reject null or non-object payloads", async () => {
       const { updateConfig } = await import("./config.js")
 
       expect(updateConfig(null).success).toBe(false)
-      expect(updateConfig(null).message).toContain("must be an object")
-
       expect(updateConfig("string").success).toBe(false)
       expect(updateConfig(123).success).toBe(false)
       expect(updateConfig([]).success).toBe(false)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should reject invalid epic object", async () => {
+    it("should reject every top-level key other than epics", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
       const { updateConfig } = await import("./config.js")
 
-      expect(updateConfig({ epic: "not an object" }).success).toBe(false)
-      expect(updateConfig({ epic: "not an object" }).message).toContain(
-        "epic must be an object",
-      )
+      // data_dir is a second, traversal-free way to redirect where NDJSON is
+      // written, so it must not be settable through the API.
+      const dataDir = updateConfig({ server: { data_dir: "/etc" } })
+      expect(dataDir.success).toBe(false)
+      expect(dataDir.statusCode).toBe(400)
+      expect(dataDir.message).toContain("server")
 
-      expect(updateConfig({ epic: 123 }).success).toBe(false)
-      expect(updateConfig({ epic: [] }).success).toBe(false)
+      expect(updateConfig({ collector: { batch_ms: 1 } }).success).toBe(false)
+      expect(updateConfig({ backend: { ping_interval: 1 } }).success).toBe(false)
+      expect(updateConfig({ valkey: { mode: "cluster" } }).success).toBe(false)
+      expect(updateConfig({
+        epics: { monitor: { monitoringDuration: 5000 } },
+        server: { data_dir: "/etc" },
+      }).success).toBe(false)
+
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should reject epic without name", async () => {
+    it("should reject a wholesale epics array", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
       const { updateConfig } = await import("./config.js")
 
-      expect(updateConfig({ epic: {} }).success).toBe(false)
-      expect(updateConfig({ epic: {} }).message).toContain("epic.name must be a non-empty string")
-
-      expect(updateConfig({ epic: { name: "" } }).success).toBe(false)
-      expect(updateConfig({ epic: { name: 123 } }).success).toBe(false)
+      // An array would replace cfg.epics outright, letting a caller invent
+      // epics (and their filename prefixes) instead of tuning existing ones.
+      const result = updateConfig({ epics: [{ name: "evil", poll_ms: 5000 }] })
+      expect(result.success).toBe(false)
+      expect(result.statusCode).toBe(400)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should reject invalid epic fields", async () => {
+    it("should reject an empty epics map or an empty patch", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
       const { updateConfig } = await import("./config.js")
 
-      // Invalid monitoringDuration (0, negative, non-number)
-      expect(
-        updateConfig({ epic: { name: "monitor", monitoringDuration: 0 } }).success,
-      ).toBe(false)
-      expect(
-        updateConfig({ epic: { name: "monitor", monitoringDuration: -100 } }).message,
-      ).toContain("monitoringDuration must be a positive")
-
-      expect(
-        updateConfig({ epic: { name: "monitor", monitoringDuration: NaN } }).success,
-      ).toBe(false)
-      expect(
-        updateConfig({ epic: { name: "monitor", monitoringDuration: "1000" } }).success,
-      ).toBe(false)
-
-      // Invalid monitoringInterval
-      expect(
-        updateConfig({ epic: { name: "monitor", monitoringInterval: 0 } }).success,
-      ).toBe(false)
-
-      // Invalid maxCommandsPerRun
-      expect(
-        updateConfig({ epic: { name: "monitor", maxCommandsPerRun: -1 } }).success,
-      ).toBe(false)
+      expect(updateConfig({}).success).toBe(false)
+      expect(updateConfig({ epics: {} }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: {} } }).success).toBe(false)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should reject unknown epic name", async () => {
+    it("should reject prototype-polluting epic keys", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
+      const { updateConfig } = await import("./config.js")
+
+      const payload = JSON.parse("{\"epics\":{\"__proto__\":{\"poll_ms\":5000}}}")
+      const result = updateConfig(payload)
+      expect(result.success).toBe(false)
+      expect(result.message).toContain("__proto__")
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+    })
+
+    it("should reject epic names outside the safe token pattern", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
+      const { updateConfig } = await import("./config.js")
+
+      expect(updateConfig({ epics: { "../../etc/cron.d": { poll_ms: 5000 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { "Monitor": { poll_ms: 5000 } } }).success).toBe(false)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+    })
+
+    it("should reject unknown fields inside an epic patch", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor", file_prefix: "monitor" }] })
+      const { updateConfig } = await import("./config.js")
+
+      // file_prefix reaches path.join() in the NDJSON writer, so it must never
+      // be settable from a request.
+      const traversal = updateConfig({ epics: { monitor: { file_prefix: "../../../tmp/pwn" } } })
+      expect(traversal.success).toBe(false)
+      expect(traversal.statusCode).toBe(400)
+      expect(traversal.message).toContain("file_prefix")
+
+      expect(updateConfig({ epics: { monitor: { name: "other" } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { type: "monitor" } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { nonsense: 1 } } }).success).toBe(false)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+    })
+
+    it("should reject out-of-range and non-integer field values", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }, { name: "cpu" }] })
+      const { updateConfig } = await import("./config.js")
+
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: 0 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: -100 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: NaN } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: "1000" } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: 1.5 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringDuration: 3_600_001 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { monitoringInterval: 0 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { maxCommandsPerRun: -1 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { monitor: { cutoffFrequency: 0 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { cpu: { poll_ms: 999 } } }).success).toBe(false)
+      // Retention below 1 MB would make computeCapacity disable rotation.
+      expect(updateConfig({ epics: { cpu: { data_retention_mb: 0 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { cpu: { data_retention_mb: "x" } } }).success).toBe(false)
+      expect(updateConfig({ epics: { cpu: { data_retention_days: 0 } } }).success).toBe(false)
+      expect(updateConfig({ epics: { cpu: { data_retention_days: 366 } } }).success).toBe(false)
+
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+    })
+
+    it("should accept values at the bounds the UI can produce", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
+      const { updateConfig } = await import("./config.js")
+
+      expect(updateConfig({
+        epics: {
+          monitor: {
+            monitoringDuration: EPIC_FIELD_BOUNDS.monitoringDuration.min,
+            monitoringInterval: EPIC_FIELD_BOUNDS.monitoringInterval.max,
+            maxCommandsPerRun: EPIC_FIELD_BOUNDS.maxCommandsPerRun.max,
+            cutoffFrequency: EPIC_FIELD_BOUNDS.cutoffFrequency.min,
+          },
+        },
+      }).success).toBe(true)
+    })
+
+    it("should reject unknown epic names", async () => {
       YAML.parse.mockReturnValue({
         epics: [{ name: "monitor" }],
       })
       const { updateConfig } = await import("./config.js")
-      const result = updateConfig({ epic: { name: "nonexistent", monitoringDuration: 5000 } })
+      const result = updateConfig({ epics: { nonexistent: { monitoringDuration: 5000 } } })
       expect(result.success).toBe(false)
       expect(result.message).toContain("Unknown epic")
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
   })
 
@@ -144,6 +230,29 @@ describe("config", () => {
       expect(fs.readFileSync).toHaveBeenCalled()
       expect(YAML.parse).toHaveBeenCalled()
       expect(config.valkey.url).toBe("valkey://localhost:6380")
+    })
+
+    it("should refuse to load an epic whose name is not a safe token", async () => {
+      // The name becomes a filename prefix under data_dir, so an unsafe one is
+      // a hard configuration error rather than something to work around.
+      YAML.parse.mockReturnValue({ epics: [{ name: "../../etc/cron.d" }] })
+
+      const { getConfig } = await import("./config.js")
+      expect(() => getConfig()).toThrow(/Invalid epic name/)
+    })
+
+    it("should drop epics whose name is not a known kind", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [{ name: "monitor" }, { name: "not_a_collector" }],
+      })
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { getConfig } = await import("./config.js")
+      const config = getConfig()
+
+      expect(config.epics.map((e) => e.name)).toEqual(["monitor"])
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("not_a_collector"))
+      consoleError.mockRestore()
     })
 
     it("should apply default values when parsed config is empty", async () => {
@@ -228,26 +337,114 @@ describe("config", () => {
   })
 
   describe("updateConfig", () => {
-    it("should merge and persist valid partial config", async () => {
-      const existingConfig = {
-        valkey: { url: "valkey://localhost:6379" },
-        server: { port: 3000, data_dir: "/app/data" },
-      }
+    it("should apply the patch in memory and report it as persisted", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [{ name: "monitor", monitoringDuration: 10000, cutoffFrequency: 100 }],
+      })
+      const doc = mockDocument(["monitor"])
+      YAML.parseDocument.mockReturnValue(doc)
 
-      YAML.parse.mockReturnValue(existingConfig)
-
-      const { updateConfig } = await import("./config.js")
-      const result = updateConfig({ server: { port: 4000 } })
+      const { getConfig, updateConfig } = await import("./config.js")
+      const result = updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
 
       expect(result.success).toBe(true)
-      expect(YAML.stringify).toHaveBeenCalled()
-      expect(fs.writeFileSync).toHaveBeenCalled()
-      expect(fs.renameSync).toHaveBeenCalled()
+      expect(result.persisted).toBe(true)
+
+      // In memory: only the patched field changes, identity and siblings survive.
+      expect(getConfig().epics[0]).toEqual({
+        name: "monitor",
+        monitoringDuration: 20000,
+        cutoffFrequency: 100,
+        data_retention_mb: 10,
+        data_retention_days: 30,
+      })
+
+      // On disk: the document is patched in place, not re-serialized.
+      expect(doc.setIn).toHaveBeenCalledWith(["epics", 0, "monitoringDuration"], 20000)
+      expect(doc.setIn).toHaveBeenCalledTimes(1)
+      expect(YAML.stringify).not.toHaveBeenCalled()
+    })
+
+    it("should report persisted: false when the config file cannot be written", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor", monitoringDuration: 10000 }] })
+      fs.writeFileSync.mockImplementationOnce(() => { throw new Error("EROFS: read-only file system") })
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { getConfig, updateConfig } = await import("./config.js")
+      const result = updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
+
+      // The update still applies: durability is best effort, the request is not.
+      expect(result.success).toBe(true)
+      expect(result.statusCode).toBe(200)
+      expect(result.persisted).toBe(false)
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("applies to this process only"))
+      consoleError.mockRestore()
+    })
+
+    it("should apply multiple epics in a single write", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [
+          { name: "monitor", monitoringDuration: 10000 },
+          { name: "cpu", poll_ms: 5000 },
+        ],
+      })
+
+      const { updateConfig } = await import("./config.js")
+      const result = updateConfig({
+        epics: {
+          monitor: { monitoringDuration: 20000 },
+          cpu: { poll_ms: 10000, data_retention_days: 7 },
+        },
+      })
+
+      expect(result.success).toBe(true)
+      expect(fs.writeFileSync).toHaveBeenCalledTimes(1)
+      expect(fs.renameSync).toHaveBeenCalledTimes(1)
+    })
+
+    it("should write nothing when any epic in the payload is invalid", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [
+          { name: "monitor", monitoringDuration: 10000 },
+          { name: "cpu", poll_ms: 5000 },
+        ],
+      })
+
+      const { updateConfig } = await import("./config.js")
+      const result = updateConfig({
+        epics: {
+          monitor: { monitoringDuration: 20000 },
+          cpu: { poll_ms: 1 },
+        },
+      })
+
+      expect(result.success).toBe(false)
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
+      expect(fs.renameSync).not.toHaveBeenCalled()
+    })
+
+    it("should write nothing when any epic in the payload is unknown", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [{ name: "monitor", monitoringDuration: 10000 }],
+      })
+
+      const { updateConfig } = await import("./config.js")
+      const result = updateConfig({
+        epics: {
+          monitor: { monitoringDuration: 20000 },
+          ghost: { poll_ms: 5000 },
+        },
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.message).toContain("ghost")
+      expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
     it("should return error response for invalid config", async () => {
       const { updateConfig } = await import("./config.js")
-      const result = updateConfig({ epic: "not an object" })
+      const result = updateConfig({ epics: "not an object" })
 
       expect(result.success).toBe(false)
       expect(result.statusCode).toBe(400)
@@ -255,42 +452,34 @@ describe("config", () => {
       expect(fs.writeFileSync).not.toHaveBeenCalled()
     })
 
-    it("should create temporary file before renaming (atomic write)", async () => {
+    it("should stage through a process-unique temporary file before renaming", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor" }] })
       const { updateConfig } = await import("./config.js")
-      updateConfig({ server: { port: 5000 } })
-
-      expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(".tmp"),
-        expect.any(String),
-        "utf8",
-      )
+      updateConfig({ epics: { monitor: { monitoringDuration: 5000 } } })
 
       const tmpPath = fs.writeFileSync.mock.calls[0][0]
       const finalPath = fs.renameSync.mock.calls[0][1]
 
-      expect(tmpPath).toContain(".tmp")
+      // The pid keeps sibling metrics processes from staging through one path.
+      expect(tmpPath).toContain(`.${process.pid}.tmp`)
       expect(finalPath).not.toContain(".tmp")
       expect(fs.renameSync).toHaveBeenCalledWith(tmpPath, finalPath)
     })
 
-    it("should reload config after update", async () => {
-      const initialConfig = { server: { port: 3000 } }
-      const updatedConfig = { server: { port: 4000 } }
-
-      YAML.parse.mockReturnValueOnce(initialConfig)
-      YAML.parse.mockReturnValueOnce(initialConfig) // for getConfig call inside updateConfig
-      YAML.parse.mockReturnValueOnce(updatedConfig) // for reload after write
+    it("should serve the applied patch from memory, not a re-read", async () => {
+      YAML.parse.mockReturnValue({ epics: [{ name: "monitor", monitoringDuration: 10000 }] })
+      YAML.parseDocument.mockReturnValue(mockDocument(["monitor"]))
 
       const { getConfig, updateConfig } = await import("./config.js")
 
-      const before = getConfig()
-      expect(before.server.port).toBe(3000)
+      expect(getConfig().epics[0].monitoringDuration).toBe(10000)
 
-      updateConfig({ server: { port: 4000 } })
+      updateConfig({ epics: { monitor: { monitoringDuration: 20000 } } })
 
-      // getConfig should reflect the updated value (from reload)
-      const after = getConfig()
-      expect(after.server.port).toBe(4000)
+      // The in-memory value stands even though the mocked file still parses to
+      // the old one, so a failed or partial write cannot roll the update back.
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
+      expect(getConfig().epics[0].monitoringDuration).toBe(20000)
     })
   })
 })

@@ -51,16 +51,12 @@ describe("init-collectors", () => {
       epics: [
         {
           name: "cpu",
-          type: "info_cpu",
           poll_ms: 1000,
-          file_prefix: "cpu",
           data_retention_mb: 5,
         },
         {
           name: "memory",
-          type: "memory_stats",
           poll_ms: 2000,
-          file_prefix: "memory",
           data_retention_mb: 10,
         },
       ],
@@ -74,8 +70,8 @@ describe("init-collectors", () => {
     makeNdjsonWriter.mockReturnValue(mockWriter)
 
     const mockFetcher = {
-      info_cpu: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "cpu", value: 10 }]),
-      memory_stats: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "mem", value: 100 }]),
+      cpu: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "cpu", value: 10 }]),
+      memory: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "mem", value: 100 }]),
     }
     makeFetcher.mockReturnValue(mockFetcher)
 
@@ -96,17 +92,17 @@ describe("init-collectors", () => {
       expect(startCollector).toHaveBeenCalledTimes(2)
     })
 
-    it("should skip epics without matching fetcher type", async () => {
+    it("should skip epics with no matching fetcher", async () => {
       const configWithUnknown = createMockConfig({
         epics: [
-          { name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 },
-          { name: "unknown", type: "unknown_type", poll_ms: 1000, data_retention_mb: 5 },
+          { name: "cpu", poll_ms: 1000, data_retention_mb: 5 },
+          { name: "unknown", poll_ms: 1000, data_retention_mb: 5 },
         ],
       })
 
       const mockFetcher = {
-        info_cpu: vi.fn().mockResolvedValue([]),
-        // unknown_type doesn't exist
+        cpu: vi.fn().mockResolvedValue([]),
+        // no fetcher named "unknown"
       }
       makeFetcher.mockReturnValue(mockFetcher)
 
@@ -149,12 +145,12 @@ describe("init-collectors", () => {
 
     it("should perform initial fetch before starting polling", async () => {
       const mockFetcher = {
-        info_cpu: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "cpu", value: 10 }]),
+        cpu: vi.fn().mockResolvedValue([{ ts: Date.now(), metric: "cpu", value: 10 }]),
       }
       makeFetcher.mockReturnValue(mockFetcher)
 
       const configWithOneCpu = createMockConfig({
-        epics: [{ name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 }],
+        epics: [{ name: "cpu", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors } = await import("./init-collectors.js")
@@ -162,7 +158,7 @@ describe("init-collectors", () => {
       await setupCollectors(client, configWithOneCpu)
 
       // Fetcher should be called at least once for initial fetch
-      expect(mockFetcher.info_cpu).toHaveBeenCalled()
+      expect(mockFetcher.cpu).toHaveBeenCalled()
 
       // Writer should have been called with initial data
       const writer = makeNdjsonWriter.mock.results[0].value
@@ -172,13 +168,13 @@ describe("init-collectors", () => {
     it("should filter out monitor epic", async () => {
       const configWithMonitor = createMockConfig({
         epics: [
-          { name: "cpu", type: "info_cpu", poll_ms: 1000, data_retention_mb: 5 },
-          { name: "monitor", type: "monitor_stream", poll_ms: 1000, data_retention_mb: 10 },
+          { name: "cpu", poll_ms: 1000, data_retention_mb: 5 },
+          { name: "monitor", poll_ms: 1000, data_retention_mb: 10 },
         ],
       })
 
       const mockFetcher = {
-        info_cpu: vi.fn().mockResolvedValue([]),
+        cpu: vi.fn().mockResolvedValue([]),
         monitor_stream: vi.fn().mockResolvedValue([]),
       }
       makeFetcher.mockReturnValue(mockFetcher)
@@ -208,7 +204,7 @@ describe("init-collectors", () => {
       makeFetcher.mockReturnValue(mockFetcher)
 
       const testConfig = createMockConfig({
-        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
+        epics: [{ name: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors } = await import("./init-collectors.js")
@@ -228,7 +224,7 @@ describe("init-collectors", () => {
       makeFetcher.mockReturnValue(mockFetcher)
 
       const testConfig = createMockConfig({
-        epics: [{ name: "test_collector", type: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
+        epics: [{ name: "test_collector", poll_ms: 1000, data_retention_mb: 5 }],
       })
 
       const { setupCollectors, getCollectorMeta } = await import("./init-collectors.js")
@@ -254,12 +250,22 @@ describe("init-collectors", () => {
       makeMonitorStream.mockReturnValue(mockSubject)
     })
 
+    it("should fail with a legible error when no monitor epic is configured", async () => {
+      const monitorConfig = createMockConfig({ epics: [{ name: "cpu", poll_ms: 5000 }] })
+
+      const { startMonitor } = await import("./init-collectors.js")
+
+      // Without this guard the missing epic surfaces as
+      // "Cannot read properties of undefined (reading 'data_retention_mb')".
+      await expect(startMonitor(monitorConfig)).rejects.toThrow(/No "monitor" epic is configured/)
+      expect(makeMonitorStream).not.toHaveBeenCalled()
+    })
+
     it("should create monitor stream with correct config", async () => {
       const monitorConfig = createMockConfig({
         epics: [
           {
             name: "monitor",
-            type: "monitor",
             monitoringDuration: 5000,
             monitoringInterval: 10000,
             data_retention_mb: 10,
