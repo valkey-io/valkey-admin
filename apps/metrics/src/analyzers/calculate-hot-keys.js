@@ -94,12 +94,12 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
       cursorToSlot = Number(cursor) & 0x3FFF
 
     } while (cursorToSlot === slotId && cursor !== 0)
-    
-    return keys
+
+    return { slotId, keys }
   })
 
-  const slotKeys = await Promise.all(slotPromises)
-  const allKeys = slotKeys.flat()
+  const slotEntries = await Promise.all(slotPromises)
+  const allKeys = slotEntries.flatMap(({ slotId, keys }) => keys.map((key) => ({ key, slotId })))
 
   // Pipeline OBJECT FREQ in chunks to avoid overwhelming the server
   const { PIPELINE_CHUNK_SIZE } = VALKEY_CLIENT
@@ -107,7 +107,7 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
   for (let i = 0; i < allKeys.length; i += PIPELINE_CHUNK_SIZE) {
     const chunk = allKeys.slice(i, i + PIPELINE_CHUNK_SIZE)
     const batch = new Batch(false)
-    for (const key of chunk) {
+    for (const { key } of chunk) {
       batch.customCommand(["OBJECT", "FREQ", key])
     }
     const chunkResults = await client.exec(batch)
@@ -118,13 +118,15 @@ export const calculateHotKeysFromHotSlots = async (client, { count = 50 } = {}) 
   for (let i = 0; i < allKeys.length; i++) {
     const freq = parseInt(freqResults[i])
     if (isNaN(freq) || freq <= 1) continue
+
+    const { key, slotId } = allKeys[i]
     if (heap.size() < count) {
-      heap.push({ key: allKeys[i], freq })
+      heap.push({ key, freq, slotId })
     } else if (freq > heap.peek().freq) {
       heap.pop()
-      heap.push({ key: allKeys[i], freq })
+      heap.push({ key, freq, slotId })
     }
   }
-  return heap.toArray().map(({ key, freq }) => [key, freq])
 
-} 
+  return heap.toArray().map(({ key, freq, slotId }) => [key, freq, slotId])
+}
