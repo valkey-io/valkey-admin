@@ -6,6 +6,7 @@ import { truncateText } from "@common/src/truncate-text"
 import { Typography } from "../../ui/typography"
 import { EmptyState } from "../../ui/empty-state"
 import { HeatmapLegend } from "./heatmap-legend"
+import { NodeFilterDropdown } from "./node-filter-dropdown"
 import { getColor, snapToBucket } from "./heatmap-scale"
 import type { HotKeyEntry } from "./hot-keys"
 
@@ -136,11 +137,12 @@ function SlotDetails({ group, totalHotKeys, onKeyClick }: {
 export function SlotHeatmap({ hotKeys, failedNodeCount, onKeyClick }: SlotHeatmapProps) {
   const [selectedBuckets, setSelectedBuckets] = useState<Set<number>>(new Set())
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null)
+  const [selectedNode, setSelectedNode] = useState("all")
   const [hovered, setHovered] = useState<HoveredSlot | null>(null)
 
-  const groups = groupKeysBySlot(hotKeys)
+  const allGroups = groupKeysBySlot(hotKeys)
 
-  if (groups.length === 0) {
+  if (allGroups.length === 0) {
     return (
       <EmptyState
         icon={<Grid2x2X size={48} />}
@@ -149,10 +151,20 @@ export function SlotHeatmap({ hotKeys, failedNodeCount, onKeyClick }: SlotHeatma
     )
   }
 
+  const nodes = [...new Set(allGroups.flatMap((group) => group.nodeId ?? []))].sort()
+  const activeNode = nodes.includes(selectedNode) ? selectedNode : "all"
+  const groups = activeNode === "all"
+    ? allGroups
+    : allGroups.filter((group) => group.nodeId === activeNode)
+
   const max = groups[0].rows.length
   const min = groups.at(-1)!.rows.length
   const totalHotKeys = groups.reduce((sum, group) => sum + group.rows.length, 0)
-  const nodeCount = new Set(groups.map((group) => group.nodeId ?? "Unknown")).size
+
+  const handleNodeSelect = (node: string) => {
+    setSelectedNode(node)
+    setSelectedSlotId(null)
+  }
 
   const hasBucketFilter = selectedBuckets.size > 0
   const isActive = (ratio: number) => !hasBucketFilter || selectedBuckets.has(snapToBucket(ratio))
@@ -170,7 +182,6 @@ export function SlotHeatmap({ hotKeys, failedNodeCount, onKeyClick }: SlotHeatma
   const chips = [
     `${groups.length} hot slot${groups.length !== 1 ? "s" : ""}`,
     `${totalHotKeys} hot key${totalHotKeys !== 1 ? "s" : ""}`,
-    `${nodeCount} node${nodeCount !== 1 ? "s" : ""}`,
   ]
 
   return (
@@ -184,6 +195,13 @@ export function SlotHeatmap({ hotKeys, failedNodeCount, onKeyClick }: SlotHeatma
             <Typography variant="bodyXs">{chip}</Typography>
           </span>
         ))}
+        <NodeFilterDropdown
+          allLabel={`${nodes.length} node${nodes.length !== 1 ? "s" : ""}`}
+          className="w-auto h-7 rounded-full px-3 py-1 text-xs font-normal bg-primary/10 border-primary/20 dark:bg-primary/10"
+          nodes={nodes}
+          onSelect={handleNodeSelect}
+          selectedNode={activeNode}
+        />
         {failedNodeCount > 0 && (
           <Typography className="text-destructive" variant="bodyXs">
             Partial — {failedNodeCount} node{failedNodeCount !== 1 ? "s" : ""} failed to report
