@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { EPIC_FIELD_BOUNDS } from "../../../common/src/constants.js"
+import { EPIC_NAME_PATTERN } from "./utils/constants.js"
 
 /**
  * Request schema for POST /update-config.
@@ -18,9 +19,6 @@ import { EPIC_FIELD_BOUNDS } from "../../../common/src/constants.js"
  * Field bounds live in `common/src/constants.ts` so the UI inputs that produce
  * these values and this validator cannot drift apart.
  */
-
-// Epic names double as NDJSON filename prefixes, so keep them to a safe token.
-const EPIC_NAME_PATTERN = /^[a-z0-9_]+$/
 
 // Map keys that would touch an object's prototype instead of creating a
 // property. Rejected before parsing so they can never reach object assembly.
