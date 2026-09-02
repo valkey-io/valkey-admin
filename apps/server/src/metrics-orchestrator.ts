@@ -13,11 +13,23 @@
  * map directly with a Connection_Identifier.
  */
 import { GlideClient, GlideClusterClient, ConnectionError, ServiceType } from "@valkey/valkey-glide"
-import { ChildProcess, spawn } from "child_process"
+import { ChildProcess, spawn, type SpawnOptions } from "child_process"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
-import { DEPLOYMENT_TYPE, sanitizeUrl, toNodeId } from "valkey-common"
+import {
+  DEPLOYMENT_TYPE,
+  ORCHESTRATOR_AUTH_DOMAIN,
+  ORCHESTRATOR_AUTH_HEADER,
+  ORCHESTRATOR_AUTH_KEY_ENV,
+  ORCHESTRATOR_AUTH_WINDOW_ENV,
+  generateOrchestratorAuthKey,
+  isNodeId,
+  resolveOrchestratorAuthWindowMs,
+  sanitizeUrl,
+  toNodeId,
+  verifyOrchestratorAuthCredential
+} from "valkey-common"
 import { discoverCluster, belongsToCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
@@ -53,6 +65,31 @@ export const clusterNodesRegistry: Map<string, ClusterNodeMap> = new Map()
 export const clusterCredentials: Map<string, string | undefined> = new Map()
 
 export const metricsServerMap: MetricsServerMap = new Map()
+
+/**
+ * HMAC key material for spawned collectors, keyed by metrics-node-id.
+ */
+const collectorKeys: Map<string, string> = new Map()
+
+/**
+ * Resolve the only key material acceptable for `nodeId`.
+ *
+ * A spawned collector's key is authoritative for its node: nothing else may
+ * be accepted in its place, or a credential valid for one node could be
+ * replayed against another.
+ */
+export function resolveCollectorKey(nodeId: string): string | undefined {
+  return collectorKeys.get(nodeId)
+}
+
+/**
+ * Drop a collector's key. Called wherever a `metricsServerMap` entry is
+ * removed so the two stay in lockstep and no secret outlives the process it
+ * belonged to.
+ */
+export function forgetCollectorKey(nodeId: string): void {
+  collectorKeys.delete(nodeId)
+}
 
 export const isWebMode = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.WEB
 export const isKubernetes = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.K8
@@ -100,48 +137,153 @@ function flattenClusterNodeMap(clusterNodeMap: ClusterNodeMap): ClusterNodeMap {
   }, {} as ClusterNodeMap)
 }
 
+/**
+ * Read the credential header, rejecting a repeated header outright: express
+ * surfaces duplicates as an array, and picking one would let a client stage
+ * two candidate credentials per request.
+ */
+function readOrchestratorAuthHeader(req: Request): string | undefined {
+  const raw = req.headers[ORCHESTRATOR_AUTH_HEADER]
+  return typeof raw === "string" ? raw : undefined
+}
+
+/**
+ * Longest `nodeId` accepted. Ids are `<host>-<port>` passed through
+ * `sanitizeUrl`, so the theoretical maximum is a 253-character DNS name plus a
+ * separator and a five-digit port — 259. The bound exists only to stop an
+ * unauthenticated caller pushing an unbounded string into the log.
+ */
+const MAX_NODE_ID_LENGTH = 320
+
+/**
+ * Gate `nodeId` at the route boundary, before it is verified or logged.
+ *
+ * `isNodeId` restricts the value to `[a-zA-Z0-9_-]`, which every legitimate id
+ * satisfies by construction: both the orchestrator and the collector derive
+ * ids through `sanitizeUrl`, which maps everything else to `-`. Enforcing that
+ * here means any id reaching the rest of the handler is safe by type — no
+ * newlines to forge log records with, no control characters or terminal escape
+ * sequences, and a bounded length. An id that fails this check cannot match
+ * any collector, so rejecting it early costs nothing.
+ */
+function isAcceptableNodeId(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length <= MAX_NODE_ID_LENGTH
+    && isNodeId(value)
+}
+
+/**
+ * A metrics URI is only usable as a `fetch` base if it parses and speaks
+ * http(s).
+ */
+function isUsableMetricsUri(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0) return false
+  try {
+    const { protocol } = new URL(value)
+    return protocol === "http:" || protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+/**
+ * `POST /orchestrator/register` — a collector advertising where it can be
+ * reached.
+ *
+ * Verifies before mutation, and answers 401 for everything unverifiable.
+ */
+function handleRegister(req: Request, res: Response): void {
+  const { metricsServerUri, nodeId, timestamp } = req.body ?? {}
+
+  if (!isAcceptableNodeId(nodeId)) {
+    // Logged without the value as it is untrusted here and cannot
+    // match any collector, so there is nothing about it worth recording.
+    console.warn("Rejected metrics registration: malformed nodeId")
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  const verification = verifyOrchestratorAuthCredential({
+    key: resolveCollectorKey(nodeId),
+    credential: readOrchestratorAuthHeader(req),
+    domain: ORCHESTRATOR_AUTH_DOMAIN.REGISTER,
+    fields: { nodeId, metricsServerUri, timestamp },
+    windowMs: resolveOrchestratorAuthWindowMs(process.env[ORCHESTRATOR_AUTH_WINDOW_ENV]),
+  })
+
+  if (!verification.ok) {
+    const skew = verification.skewMs === undefined ? "" : ` (clock skew ${verification.skewMs}ms)`
+    console.warn(`Rejected metrics registration for ${nodeId}: ${verification.reason}${skew}`)
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  if (!isUsableMetricsUri(metricsServerUri)) {
+    console.warn(`Rejected metrics registration for ${nodeId}: unusable metricsServerUri`)
+    res.status(400).send("Invalid metricsServerUri")
+    return
+  }
+
+  const entry = metricsServerMap.get(nodeId)
+  if (!entry) {
+    // Key material without an entry means the spawn did not complete.
+    console.warn(`Rejected metrics registration for ${nodeId}: no metrics server entry`)
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  entry.metricsURI = metricsServerUri
+  entry.lastSeen = Date.now()
+  console.log(`Metrics server registered for ${nodeId} at ${metricsServerUri}`)
+  res.send("Registered node")
+}
+
+/**
+ * `POST /orchestrator/ping` — a collector keeping its entry off the staleness
+ * sweep. Authenticated on the same terms as registration, under a distinct
+ * domain so a registration credential cannot be presented here.
+ */
+function handlePing(req: Request, res: Response): void {
+  const { nodeId, timestamp } = req.body ?? {}
+
+  if (!isAcceptableNodeId(nodeId)) {
+    console.warn("Rejected metrics ping: malformed nodeId")
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  const verification = verifyOrchestratorAuthCredential({
+    key: resolveCollectorKey(nodeId),
+    credential: readOrchestratorAuthHeader(req),
+    domain: ORCHESTRATOR_AUTH_DOMAIN.PING,
+    fields: { nodeId, timestamp },
+    windowMs: resolveOrchestratorAuthWindowMs(process.env[ORCHESTRATOR_AUTH_WINDOW_ENV]),
+  })
+
+  if (!verification.ok) {
+    const skew = verification.skewMs === undefined ? "" : ` (clock skew ${verification.skewMs}ms)`
+    console.warn(`Rejected metrics ping for ${nodeId}: ${verification.reason}${skew}`)
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  const entry = metricsServerMap.get(nodeId)
+  if (!entry) {
+    console.warn(`Rejected metrics ping for ${nodeId}: no metrics server entry`)
+    res.status(401).send("Unauthorized")
+    return
+  }
+
+  entry.lastSeen = Date.now()
+  res.sendStatus(200)
+}
+
 export function createMetricsOrchestratorRouter() {
   const router = Router()
 
-  router.post("/register", (req: Request, res: Response) => {
-    const { metricsServerUri, nodeId, pid } = req.body
+  router.post("/register", handleRegister)
+  router.post("/ping", handlePing)
 
-    if (metricsServerMap.has(nodeId))  {
-      const now = Date.now()  
-      const entry = metricsServerMap.get(nodeId)
-      console.log(`Metrics server registered for ${nodeId} at ${metricsServerUri}`)
-      // If we spawned the metrics process using the orchestrator
-      if (entry) {
-        entry.metricsURI = metricsServerUri 
-        entry.lastSeen = now
-        res.send("Registered node")
-      }
-      // If the metrics process was spawned using connection epic
-      else {
-        metricsServerMap.set(nodeId, {
-          metricsURI: metricsServerUri,
-          pid: Number(pid),
-          lastSeen: now,
-        })
-        res.send("Registered node")
-      }
-    }   
-    else {
-      res.status(404).send("Invalid nodeId")
-    }
-  })
-
-  router.post("/ping", async (req: Request, res: Response) => {
-    const { nodeId } = req.body
-    const entry = metricsServerMap.get(nodeId)
-    if (entry) {
-      entry.lastSeen = Date.now()
-      res.sendStatus(200)
-    }
-    else {
-      res.status(404).send("Node not found")
-    }
-  })
   return router
 }
 
@@ -258,6 +400,15 @@ export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
     })
   }
   metricsMap.clear()
+  collectorKeys.clear()
+}
+
+/**
+ * Indirection over `child_process.spawn` so tests can observe the environment
+ * handed to a collector without starting a real process.
+ */
+function spawnProcess(command: string, args: string[], options: SpawnOptions): ChildProcess {
+  return spawn(command, args, options)
 }
 
 export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) {
@@ -274,7 +425,13 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
   const data_dir = process.env.DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data")
 
   console.log("Starting metrics server for: ", nodeId)
-  const proc: ChildProcess = spawn(process.execPath, [metricsServerPath], {
+
+  // Minted before the spawn so the key is already resolvable when the child
+  // races ahead and registers.
+  const collectorKey = generateOrchestratorAuthKey()
+  collectorKeys.set(nodeId, collectorKey)
+
+  const proc: ChildProcess = internals.spawnProcess(process.execPath, [metricsServerPath], {
     env: {
       ...process.env,
       PORT: "0",
@@ -292,6 +449,11 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
       METRICS_BIND_HOST: process.env.METRICS_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1"),
       DATA_DIR: `${data_dir}/${nodeId}`,
       CONFIG_PATH: configPath,
+      // MUST stay after the `...process.env` spread. The orchestrator may
+      // itself carry an ORCHESTRATOR_KEY (the shared key used by externally
+      // managed collectors), which the spread would otherwise hand to every
+      // child.
+      [ORCHESTRATOR_AUTH_KEY_ENV]: collectorKey,
     },
     stdio: ["ignore", "ignore", "pipe"], // only capture stderr
   })
@@ -329,11 +491,13 @@ async function stopMetricsServer(nodeToStop: string) {
     const entry = metricsServerMap.get(nodeToStop)
     if (isKubernetes) {
       metricsServerMap.delete(nodeToStop)
+      forgetCollectorKey(nodeToStop)
       return
     }
     if (entry?.pid) {
       try { process?.kill(entry.pid, "SIGTERM") } catch { /* already dead */ }
       metricsServerMap.delete(nodeToStop)
+      forgetCollectorKey(nodeToStop)
     }
   }
   catch (e) {
@@ -415,6 +579,10 @@ const internals =  {
   stopMetricsServers,
   stopMetricsServer,
   ttl,
+  collectorKeys,
+  spawnProcess,
+  handleRegister,
+  handlePing,
 }
 
 export { internals as __test__ }

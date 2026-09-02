@@ -3,7 +3,7 @@ title: Metrics
 description: Configuration for the apps/metrics process
 ---
 
-The `apps/metrics` process is a small Node.js sampler. Each instance is responsible for exactly one Valkey node (or one cluster, when run standalone): it opens a connection, runs the collectors defined in its config, writes NDJSON output to disk, exposes an HTTP API the server consumes, and registers itself with the Valkey Admin server's `/orchestrator/register` endpoint at startup.
+The `apps/metrics` process is a small Node.js sampler. Each instance is responsible for exactly one Valkey node (or one cluster, when run standalone): it opens a connection, runs the collectors defined in its config, writes NDJSON output to disk, exposes an HTTP API the server consumes, and registers itself with the Valkey Admin server's `/orchestrator/register` endpoint at startup. Registration is authenticated, see [`ORCHESTRATOR_KEY`](#orchestrator_key).
 
 The metrics process is unusual in that it has **two** sources of configuration that layer on top of each other:
 
@@ -151,6 +151,29 @@ Legacy alias for `METRICS_ADVERTISE_HOST`. Kept for backward compatibility; new 
 ### `METRICS_ADVERTISE_PORT`
 
 Port advertised to the server. If unset, the process advertises the actual port assigned by `app.listen()`. This is what makes `PORT=0` work — the OS picks a free port and the process tells the server which one.
+
+### `ORCHESTRATOR_KEY`
+
+Key material used to sign the `register` and `ping` requests. Registration is authenticated, so a collector cannot advertise itself without it.
+
+When the Valkey Admin server spawns this process — Electron, Web, and Docker deployments — it generates a key for this collector alone and injects it, so there is nothing to configure.
+
+Each request carries an HMAC-SHA256 tag over the node id, the advertised URI, and a timestamp, sent in an `X-Orchestrator-Auth` header. Because the advertised URI is part of what is signed, a credential captured off the wire cannot be reused to advertise a different address.
+
+Starting without this variable is fatal by design: the process logs one error and exits rather than sending requests that can only be refused.
+
+- **Default:** unset; supplied by the spawning server
+- **Read in:** `apps/metrics/src/utils/orchestrator-auth.js`
+
+Rejections are reported with the server's reason, which distinguishes the common causes:
+
+| Log line | Cause |
+|---|---|
+| `Register failed: 401 Unauthorized` | Wrong or missing key, or the server has no entry for this node id |
+| `Register failed: 400 Invalid metricsServerUri` | Signed correctly, but the advertised URI is not a usable `http`/`https` address, check `METRICS_ADVERTISE_HOST` and `METRICS_ADVERTISE_PORT` |
+
+A ping answered with `401` triggers one re-registration attempt, which recovers a collector whose entry was pruned by the staleness sweep.
+
 
 ## HTTP & Storage
 

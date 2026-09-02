@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, toNodeId } from "valkey-common"
+import { VALKEY, toNodeId, buildUrl } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 interface MemoryMetric {
@@ -77,7 +77,7 @@ export const memoryUsageRequested = withDeps<Deps, void>(
         }
         const since = Date.now() - hoursInMs[timeRange as TimeRange]
 
-        const url = `${metricsServerURI}/memory?since=${since}&maxPoints=60`
+        const url = buildUrl(metricsServerURI, "/memory", { since, maxPoints: 60 })
 
         const response = await fetchWithTimeout(url)
         const parsedResponse: MemoryUsageResponse = await response.json() as MemoryUsageResponse

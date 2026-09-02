@@ -3,7 +3,8 @@ import {
   VALKEY,
   type AggregateReplyId,
   type NodeResultsReply,
-  toNodeId
+  toNodeId,
+  buildUrl
 } from "valkey-common"
 import { Deps, withDeps, fetchWithTimeout, safeSend, type ReduxAction } from "./utils"
 import { toOutcome, type CollectionResult } from "./node-fanout"
@@ -54,8 +55,8 @@ async function postConfigToNode(
     return { success: false, message: "Metrics server URI not found" }
   }
   try {
-    const url = new URL("/update-config", metricsServerURI)
-    const response = await fetchWithTimeout(url.toString(), {
+    const url = buildUrl(metricsServerURI, "/update-config")
+    const response = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),

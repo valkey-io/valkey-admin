@@ -3,7 +3,14 @@ import express from "express"
 import helmet from "helmet"
 import path from "path"
 import http from "http"
-import { VALKEY, CONNECTION_TEARDOWN_DELAY_MS, isNodeId, toNodeId } from "valkey-common"
+import {
+  VALKEY,
+  CONNECTION_TEARDOWN_DELAY_MS,
+  isNodeId,
+  toNodeId,
+  ORCHESTRATOR_RATE_LIMIT_MAX_ENV,
+  resolveOrchestratorRateLimitMax
+} from "valkey-common"
 import { fileURLToPath } from "url"
 import rateLimit from "express-rate-limit"
 import { connectPending, resetConnection, closeConnection } from "./actions/connection"
@@ -70,6 +77,26 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
+
+/**
+ * Dedicated limit for the collector control plane.
+ *
+ * `/orchestrator/*` gets its own bucket rather than sharing the UI limiter 
+ * because the UI limit is per browser, while this one is effectively per cluster.
+ *
+ * Spawned collectors all call back to `SERVER_HOST` from the same host, so
+ * express-rate-limit's per-address keying puts an entire cluster's collectors
+ * into a single loopback bucket. At a 10s ping interval that is 6 requests per
+ * minute per node, so the UI's 100/min ceiling would begin throttling
+ * legitimate collectors at around 16 nodes. Sizing this separately keeps the
+ * two tunable independently.
+ */
+const orchestratorLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: resolveOrchestratorRateLimitMax(process.env[ORCHESTRATOR_RATE_LIMIT_MAX_ENV]),
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 const app = express()
 const port = Number(process.env.PORT) || 8080
 const server = http.createServer(app)
@@ -80,7 +107,7 @@ const __dirname = path.dirname(__filename)
 const frontendDist = path.join(__dirname, "../../frontend/dist")
 
 app.use((req, res, next) => {
-  if (req.path.startsWith("/orchestrator")) return next()
+  if (req.path.startsWith("/orchestrator")) return orchestratorLimiter(req, res, next)
   return limiter(req, res, next)
 })
 
