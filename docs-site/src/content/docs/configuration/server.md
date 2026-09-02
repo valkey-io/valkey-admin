@@ -122,6 +122,8 @@ Because the advertised URI is covered by the tag, a captured credential cannot b
 
 Every field in the request body is signed. The server ignores anything else it receives, so an unsigned field cannot influence what gets recorded.
 
+Beyond authentication, the server validates the advertised URI itself. It must be an `http`/`https` origin with no path, query, or fragment. In every non-Kubernetes mode (Electron, Web, Docker) the collector is a loopback child of the server, so its advertised host must be loopback (`127.0.0.1`, `localhost`, or `::1`); a URI naming any other host is rejected with `400`. This is defense in depth — authentication already restricts *who* may register, and this restricts *where* a registration can point the server's own requests, so a collector whose key leaked still cannot turn the server into an SSRF relay. Kubernetes sidecars legitimately advertise a routable pod address and are not subject to the loopback restriction.
+
 A collector that starts without `ORCHESTRATOR_KEY` logs a single error and shuts down rather than issuing requests that can only be refused.
 
 Requests to `/orchestrator/*` are rate limited separately from the UI, defaulting to 600 per minute per source address — see [`ORCHESTRATOR_RATE_LIMIT_MAX`](#orchestrator_rate_limit_max).

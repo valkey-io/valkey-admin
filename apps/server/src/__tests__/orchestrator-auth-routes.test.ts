@@ -341,6 +341,61 @@ describe("POST /orchestrator/register", () => {
     assert.strictEqual(entry?.metricsURI, metricsServerUri)
   })
 
+  it("rejects a signed URI advertising a non-loopback host with 400", () => {
+    // Defence-in-depth: a compromised collector could otherwise point the
+    // orchestrator's fetches at an arbitrary host (SSRF).
+    const timestamp = Date.now()
+    const metricsServerUri = "http://169.254.169.254/"
+    const { res, captured } = makeRes()
+
+    __test__.handleRegister(
+      makeReq(
+        { nodeId: NODE_ID, metricsServerUri, timestamp },
+        signRegister({ metricsServerUri, timestamp }),
+      ),
+      res,
+    )
+
+    assert.strictEqual(captured.statusCode, 400)
+    assertEntryUntouched()
+  })
+
+  it("rejects a signed URI advertising an internal service name with 400", () => {
+    const timestamp = Date.now()
+    const metricsServerUri = "http://internal-service:8080/"
+    const { res, captured } = makeRes()
+
+    __test__.handleRegister(
+      makeReq(
+        { nodeId: NODE_ID, metricsServerUri, timestamp },
+        signRegister({ metricsServerUri, timestamp }),
+      ),
+      res,
+    )
+
+    assert.strictEqual(captured.statusCode, 400)
+    assertEntryUntouched()
+  })
+
+  it("accepts a loopback URI advertised as localhost or IPv6 loopback", () => {
+    for (const metricsServerUri of ["http://localhost:54321/", "http://[::1]:54321/"]) {
+      metricsServerMap.set(NODE_ID, { metricsURI: SEEDED_URI, pid: 4242, lastSeen: SEEDED_LAST_SEEN })
+      const timestamp = Date.now()
+      const { res, captured } = makeRes()
+
+      __test__.handleRegister(
+        makeReq(
+          { nodeId: NODE_ID, metricsServerUri, timestamp },
+          signRegister({ metricsServerUri, timestamp }),
+        ),
+        res,
+      )
+
+      assert.strictEqual(captured.statusCode, 200, `expected 200 for ${metricsServerUri}`)
+      assert.strictEqual(metricsServerMap.get(NODE_ID)?.metricsURI, metricsServerUri)
+    }
+  })
+
   it("never writes credential material to the log", () => {
     const logged: string[] = []
     const capture = (...args: unknown[]) => { logged.push(args.map(String).join(" ")) }

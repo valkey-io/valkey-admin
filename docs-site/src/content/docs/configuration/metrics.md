@@ -142,6 +142,8 @@ Network interface the metrics HTTP server binds to. The metrics endpoints have n
 
 Host the metrics process advertises to the server in its registration payload — this is the host the orchestrator will actually dial back. Use it to bridge bind-vs-advertise differences in containers.
 
+Outside Kubernetes the collector runs as a loopback child of the server, which pins the advertised host to loopback and rejects a registration naming any other host with `400`. Set a non-loopback value here only in the Kubernetes sidecar case, where the advertised address is the pod IP or service name. See [Collector authentication](/configuration/server/#collector-authentication).
+
 - **Default:** falls back to `METRICS_HOST`, then `127.0.0.1`
 
 ### `METRICS_HOST`

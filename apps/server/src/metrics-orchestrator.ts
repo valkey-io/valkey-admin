@@ -192,6 +192,40 @@ function isUsableMetricsUri(value: unknown): value is string {
 }
 
 /**
+ * Loopback hosts a spawned collector may legitimately advertise.
+ */
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"])
+
+/**
+ * Confirm an advertised URI points back at the orchestrator's own host.
+ *
+ * Defence-in-depth against a *compromised* collector. Authentication proves
+ * only that the legitimate collector for a `nodeId` is registering; it does
+ * not constrain the URI that collector advertises, and the orchestrator then
+ * issues server-side `fetch`es against it. Without this pin a collector whose
+ * key has leaked could advertise any `scheme://host:port` and turn the
+ * orchestrator into an SSRF relay from its network position.
+ *
+ * The pin applies only to spawned collectors (every non-Kubernetes mode:
+ * Electron, Web, Docker). Those bind loopback and advertise `127.0.0.1`
+ * (see `METRICS_ADVERTISE_HOST`, which defaults to `127.0.0.1`), so loopback
+ * is the only legitimate host and anything else is rejected. Kubernetes
+ * sidecars legitimately advertise a routable pod address, so host validation
+ * there must be source-address based and is deferred to the sidecar
+ * registration path.
+ */
+function isPinnedMetricsHost(uri: string): boolean {
+  // In Kubernetes a collector legitimately advertises a non-loopback address,
+  // so the loopback pin does not apply.
+  if (isKubernetes) return true
+  try {
+    return LOOPBACK_HOSTS.has(new URL(uri).hostname)
+  } catch {
+    return false
+  }
+}
+
+/**
  * `POST /orchestrator/register` — a collector advertising where it can be
  * reached.
  *
@@ -225,6 +259,12 @@ function handleRegister(req: Request, res: Response): void {
 
   if (!isUsableMetricsUri(metricsServerUri)) {
     console.warn(`Rejected metrics registration for ${nodeId}: unusable metricsServerUri`)
+    res.status(400).send("Invalid metricsServerUri")
+    return
+  }
+
+  if (!isPinnedMetricsHost(metricsServerUri)) {
+    console.warn(`Rejected metrics registration for ${nodeId}: advertised host not permitted`)
     res.status(400).send("Invalid metricsServerUri")
     return
   }
