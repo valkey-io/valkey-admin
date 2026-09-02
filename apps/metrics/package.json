@@ -5,6 +5,7 @@
   "scripts": {
     "build": "vite build --config vite.config.ts",
     "start": "node src/index.js",
+    "pretest": "npm run build --prefix ../../common",
     "test": "vitest run",
     "test:watch": "vitest"
   },
