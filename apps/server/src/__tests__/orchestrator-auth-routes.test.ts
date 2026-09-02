@@ -285,6 +285,62 @@ describe("POST /orchestrator/register", () => {
     assertEntryUntouched()
   })
 
+  it("rejects a signed URI carrying a path prefix with 400", () => {
+    // A base with a path would be silently dropped by `new URL("/memory", base)`,
+    // sending requests to the host root instead of under the prefix.
+    const timestamp = Date.now()
+    const metricsServerUri = "http://127.0.0.1:54321/metrics"
+    const { res, captured } = makeRes()
+
+    __test__.handleRegister(
+      makeReq(
+        { nodeId: NODE_ID, metricsServerUri, timestamp },
+        signRegister({ metricsServerUri, timestamp }),
+      ),
+      res,
+    )
+
+    assert.strictEqual(captured.statusCode, 400)
+    assertEntryUntouched()
+  })
+
+  it("rejects a signed URI carrying a query or fragment with 400", () => {
+    const timestamp = Date.now()
+    const metricsServerUri = "http://127.0.0.1:54321/?x=1"
+    const { res, captured } = makeRes()
+
+    __test__.handleRegister(
+      makeReq(
+        { nodeId: NODE_ID, metricsServerUri, timestamp },
+        signRegister({ metricsServerUri, timestamp }),
+      ),
+      res,
+    )
+
+    assert.strictEqual(captured.statusCode, 400)
+    assertEntryUntouched()
+  })
+
+  it("accepts an origin-only URI with an explicit root path", () => {
+    // `new URL` normalizes a bare origin's path to "/", so a trailing slash
+    // must remain acceptable — it is the same origin the collector advertises.
+    const timestamp = Date.now()
+    const metricsServerUri = "http://127.0.0.1:54321/"
+    const { res, captured } = makeRes()
+
+    __test__.handleRegister(
+      makeReq(
+        { nodeId: NODE_ID, metricsServerUri, timestamp },
+        signRegister({ metricsServerUri, timestamp }),
+      ),
+      res,
+    )
+
+    assert.strictEqual(captured.statusCode, 200)
+    const entry = metricsServerMap.get(NODE_ID)
+    assert.strictEqual(entry?.metricsURI, metricsServerUri)
+  })
+
   it("never writes credential material to the log", () => {
     const logged: string[] = []
     const capture = (...args: unknown[]) => { logged.push(args.map(String).join(" ")) }

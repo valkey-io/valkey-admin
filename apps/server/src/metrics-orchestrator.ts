@@ -173,14 +173,19 @@ function isAcceptableNodeId(value: unknown): value is string {
 }
 
 /**
- * A metrics URI is only usable as a `fetch` base if it parses and speaks
- * http(s).
+ * A metrics URI is only usable as a `fetch` base if it parses, speaks
+ * http(s), and carries no path, query, or fragment of its own.
  */
 function isUsableMetricsUri(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0) return false
   try {
-    const { protocol } = new URL(value)
-    return protocol === "http:" || protocol === "https:"
+    const { protocol, pathname, search, hash } = new URL(value)
+    if (protocol !== "http:" && protocol !== "https:") return false
+    // `new URL` normalizes an absent path to "/", so "/" is the only
+    // acceptable pathname; anything longer is a prefix that would be dropped.
+    if (pathname !== "/") return false
+    if (search !== "" || hash !== "") return false
+    return true
   } catch {
     return false
   }
