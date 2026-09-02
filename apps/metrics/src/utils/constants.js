@@ -8,6 +8,8 @@ export const COMMANDLOG_SLOW = "commandlog_slow"
 export const COMMANDLOG_LARGE_REPLY = "commandlog_large_reply"
 export const COMMANDLOG_LARGE_REQUEST = "commandlog_large_request"
 
+export const EPIC_NAME_PATTERN = /^[a-z0-9_]+$/
+
 /**
  * The collection streams ("epics"), one identifier per data kind.
  */

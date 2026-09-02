@@ -2,7 +2,7 @@ import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials, Servic
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl, toNodeId } from "valkey-common"
+import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl, toNodeId, buildUrl } from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
   getExistingClusterClient, 
@@ -21,6 +21,7 @@ import {
   clusterCredentials, 
   reconcileClusterMetricsServers, 
   isKubernetes, 
+  forgetCollectorKey,
   ClusterNodeMap } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
@@ -723,13 +724,14 @@ export async function closeMetricsServer(
 
   const metricsServerUri = metricsServerMap.get(nodeId)?.metricsURI
   if (metricsServerUri) {
-    const res = await fetch(`${metricsServerUri}/connection/close`, 
+    const res = await fetch(buildUrl(metricsServerUri, "/connection/close"), 
       { method: "POST",
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ connectionId: nodeId }), 
       })
     if (res.ok) {
       metricsServerMap.delete(nodeId)
+      forgetCollectorKey(nodeId)
       console.log(`Metrics server for ${nodeId} closed successfully`)
     }
     else console.warn("Could not kill metrics server process")

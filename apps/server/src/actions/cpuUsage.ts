@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, toNodeId } from "valkey-common"
+import { VALKEY, toNodeId, buildUrl } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 type CpuUsageResponse = Array<{
@@ -71,7 +71,7 @@ export const cpuUsageRequested = withDeps<Deps, void>(
         }
         const since = Date.now() - hoursInMs[timeRange as TimeRange]
 
-        const url = `${metricsServerURI}/cpu?since=${since}&maxPoints=120`
+        const url = buildUrl(metricsServerURI, "/cpu", { since, maxPoints: 120 })
 
         const response = await fetchWithTimeout(url)
         const parsedResponse: CpuUsageResponse = await response.json() as CpuUsageResponse

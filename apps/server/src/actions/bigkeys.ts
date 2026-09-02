@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
 
@@ -86,11 +86,12 @@ export const bigKeysRequested = withDeps<Deps, void>(
         console.warn("Metrics server not started for node: ", nodeId)
         return { nodeId, error: "Metrics server not started" } as NodeError
       }
-      const url = new URL("/big-keys", metricsServerURI)
-      url.searchParams.set("scanLimit", String(effectiveScanLimit))
-      url.searchParams.set("topN", String(effectiveTopN))
+      const url = buildUrl(metricsServerURI, "/big-keys", {
+        scanLimit: effectiveScanLimit,
+        topN: effectiveTopN,
+      })
       try {
-        console.debug("[Big keys] Fetching from:", url.href)
+        console.debug("[Big keys] Fetching from:", url)
         const response = await fetch(url)
         if (!response.ok) {
           const errorBody = await response.json() as { error?: string }

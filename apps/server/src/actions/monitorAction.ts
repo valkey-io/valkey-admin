@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId } from "valkey-common"
+import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId, buildUrl } from "valkey-common"
 import { withDeps, type Deps, fetchWithTimeout } from "./utils"
 import { getOtherWatchers } from "../node-watchers"
 
@@ -86,7 +86,7 @@ async function runMonitorForNode(
   }
 
   try {
-    const url = `${metricsServerURI}/monitor?action=${monitorAction as MonitorAction}`
+    const url = buildUrl(metricsServerURI, "/monitor", { action: monitorAction as MonitorAction })
 
     console.debug(`[Monitor] ${monitorAction} request to:`, url)
     const response = await fetchWithTimeout(url)

@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, toNodeId } from "valkey-common"
+import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
 
@@ -81,7 +81,7 @@ const sendCommandLogsError = (
 }
 
 const fetchCommandLogs = async (metricsServerURI: string, commandLogType: CommandLogType, count: number): Promise<CommandLogResponse> => {
-  const url = `${metricsServerURI}/commandlog?type=${commandLogType}&count=${count}`
+  const url = buildUrl(metricsServerURI, "/commandlog", { type: commandLogType, count })
   const initialResponse = await fetch(url)
   if (!initialResponse.ok) {
     const body = await initialResponse.json().catch(() => ({})) as { error?: string }

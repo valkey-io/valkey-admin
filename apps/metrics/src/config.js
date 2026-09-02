@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import { mergeDeepLeft } from "ramda"
 import YAML from "yaml"
 import { configUpdateSchema, findForbiddenKey, formatIssues } from "./config-schema.js"
-import { EPIC_KINDS } from "./utils/constants.js"
+import { EPIC_KINDS, EPIC_NAME_PATTERN } from "./utils/constants.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,8 +26,6 @@ const DEFAULTS = {
   collector: { batch_ms: 60000, batch_max: 500 },
   epics: [],
 }
-
-const EPIC_NAME_PATTERN = /^[a-z0-9_]+$/
 
 /**
  * An epic's `name` is its only identifier: it selects the fetcher and becomes
