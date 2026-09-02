@@ -1,6 +1,6 @@
 import { GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
-import { VALKEY, METRICS_SERVER_NOT_READY } from "valkey-common"
+import { VALKEY, METRICS_SERVER_NOT_READY, buildUrl } from "valkey-common"
 import { type ParsedClusterInfo, parseClusterInfo } from "./utils"
 import { computeClusterUtilization, type NodeUtilization } from "./node-utilization"
 import { fetchWithTimeout } from "./actions/utils"
@@ -57,7 +57,7 @@ export async function setDashboardData(
   }
 
   try {
-    const response = await fetchWithTimeout(`${metricsServerURI}/info`)
+    const response = await fetchWithTimeout(buildUrl(metricsServerURI, "/info"))
     if (!response.ok) {
       throw new Error(`Metrics server responded with ${response.status}`)
     }

@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps } from "./utils"
 
@@ -69,11 +69,12 @@ export const hotKeysRequested = withDeps<Deps, void>(
         console.warn("Metrics server not started for node: ", nodeId)
         return { nodeId, error: "Metrics server not started" } as NodeError
       }
-      const url = new URL("/hot-keys", metricsServerURI)
-      if (clusterSlotStatsEnabled && lfuEnabled) url.searchParams.set("useHotSlots", "true")
-      url.searchParams.set("count", String(count))
+      const url = buildUrl(metricsServerURI, "/hot-keys", {
+        ...(clusterSlotStatsEnabled && lfuEnabled ? { useHotSlots: "true" } : {}),
+        count,
+      })
       try {
-        console.debug("[Hot keys] Fetching from:", url.href)
+        console.debug("[Hot keys] Fetching from:", url)
         const initialResponse = await fetch(url)
         if (!initialResponse.ok) {
           const errorBody = await initialResponse.json() as { error?: string }
