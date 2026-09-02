@@ -46,7 +46,7 @@ Controls how the server manages metrics processes and which nodes get monitored.
 
 - **`Electron`** — spawn metrics only for explicitly connected nodes (desktop default)
 - **`Web`** — spawn metrics for all cluster nodes on any successful connection (Docker default)
-- **`K8`** — expect externally-managed metrics sidecars that self-register via `/orchestrator/register`
+- **`K8`** — expect externally-managed metrics sidecars that self-register via `/orchestrator/register`. Registration requires a credential these sidecars cannot currently obtain, so this mode does not yet collect metrics; see [Kubernetes deployment](/deployment/kubernetes/).
 
 - **Default:** `Electron` for the desktop build, `Web` for Docker
 - **Read in:** `apps/server/src/metrics-orchestrator.ts`, `apps/server/src/websocket-origin.ts`
@@ -64,6 +64,67 @@ How long (in milliseconds) the server waits between cluster topology refresh cyc
 
 - **Default:** `30000`
 - **Read in:** `apps/server/src/index.ts`
+
+### `ORCHESTRATOR_AUTH_WINDOW_MS`
+
+How far (in milliseconds) a collector's signed timestamp may sit from server time before its credential is refused. Widen this only if collectors and the server run on hosts whose clocks cannot be kept closely in sync.
+
+A registration or ping rejected for skew is logged with the measured offset, so a clock problem is distinguishable from a bad credential:
+
+```text
+Rejected metrics registration for 127-0-0-1-6379: stale_timestamp (clock skew 94000ms)
+```
+
+- **Default:** `60000`
+- **Read in:** `apps/server/src/metrics-orchestrator.ts`
+
+### `ORCHESTRATOR_KEY`
+
+Key material a metrics collector uses to authenticate to `/orchestrator/register` and `/orchestrator/ping`. See [Collector authentication](#collector-authentication) below.
+
+**Do not set this yourself in Electron, Web, or Docker mode.** The server mints a separate key per collector it spawns and injects it into that child, overriding anything inherited from the server's own environment.
+
+- **Default:** unset
+- **Read in:** `apps/server/src/metrics-orchestrator.ts`, `apps/metrics/src/utils/orchestrator-auth.js`
+
+### `ORCHESTRATOR_RATE_LIMIT_MAX`
+
+Requests per minute allowed on `/orchestrator/*`, counted per source address and tracked separately from the UI's own limit.
+
+This is effectively a **per-cluster** budget, not a per-collector one. Spawned collectors all call back to `SERVER_HOST` from the same host, so every collector in a cluster shares a single loopback bucket. Each one sends roughly 6 requests per minute at the default 10s ping interval, so the budget you need scales with node count:
+
+| Cluster nodes | Steady-state requests/min |
+|---|---|
+| 6 | 36 |
+| 30 | 180 |
+| 100 | 600 |
+
+The default covers about 100 nodes with headroom for registration retries. Raise it for larger clusters, or if collectors are configured with a shorter `ping_interval`. Symptom of a ceiling that is too low: collectors logging `Register failed: 429` or `Ping failed: 429`, and nodes intermittently losing their metrics.
+
+- **Default:** `600`
+- **Read in:** `apps/server/src/index.ts`
+
+## Collector Authentication
+
+The `/orchestrator` routes accept writes that change where the server sends its own requests: a registration records the URI the server will later fetch metrics from. Both routes therefore require a credential, and an unauthenticated or unverifiable request is answered with `401` and changes nothing.
+
+For Electron, Web, and Docker deployments this needs no configuration. When the server spawns a collector it generates a random key for that collector alone, keeps it in memory, and passes it to the child through the spawn environment as `ORCHESTRATOR_KEY`. The key is discarded when the collector stops.
+
+The collector signs each request with an HMAC-SHA256 tag over its node id, the URI it is advertising, and a timestamp, and sends the result in an `X-Orchestrator-Auth` header:
+
+```text
+POST /orchestrator/register
+X-Orchestrator-Auth: v1;<tag>
+{"nodeId":"127-0-0-1-6379","metricsServerUri":"http://127.0.0.1:54321","timestamp":1772404800000}
+```
+
+Because the advertised URI is covered by the tag, a captured credential cannot be reused to point the server at a different address — it can only re-assert the URI it was issued for. The timestamp bounds how long a captured credential stays usable, and registration and ping credentials are not interchangeable.
+
+Every field in the request body is signed. The server ignores anything else it receives, so an unsigned field cannot influence what gets recorded.
+
+A collector that starts without `ORCHESTRATOR_KEY` logs a single error and shuts down rather than issuing requests that can only be refused.
+
+Requests to `/orchestrator/*` are rate limited separately from the UI, defaulting to 600 per minute per source address — see [`ORCHESTRATOR_RATE_LIMIT_MAX`](#orchestrator_rate_limit_max).
 
 ### `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`
 
@@ -154,6 +215,10 @@ The host that spawned children should call back to when registering with `/orche
 The port that spawned children should call back to when registering.
 
 - **Default:** `8080`
+
+### `ORCHESTRATOR_KEY` (set per child, not inherited)
+
+Unlike the variables above, this one is **not** inherited from the server. The server overrides it with a freshly generated per-collector key after copying its own environment, so a value set on the server never reaches a spawned child. See [Collector authentication](#collector-authentication).
 
 ### `DATA_DIR`
 

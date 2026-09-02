@@ -181,6 +181,17 @@ kubectl logs -n valkey valkey-0 -c metrics
 
 You want to see `Register success` in the metrics sidecar log.
 
+:::caution[Sidecar registration is not yet functional]
+Sidecar registration does not currently succeed in `DEPLOYMENT_MODE=K8`. The orchestrator only tracks collectors it spawned itself, and it does not spawn sidecars, so a sidecar's registration is rejected and the sidecar exits after 30 attempts:
+
+```text
+Register failed: 401 Unauthorized
+Failed to register with server after 30 attempts. Shutting down.
+```
+
+Support  is in progress. Until then the Kubernetes sidecar topology on this page will deploy but will not populate metrics panels. Use the [Docker deployment](/deployment/docker/) for a working metrics path.
+:::
+
 ### Charts Empty in the UI
 
 Check whether the sidecar is writing NDJSON files:
