@@ -16,6 +16,7 @@
     "@smithy/signature-v4": "^5.3.13",
     "@valkey/valkey-glide": "^2.4.0",
     "express": "^4.21.2",
+    "google-auth-library": "^11.0.2",
     "heap-js": "^2.7.1",
     "iovalkey": "^0.3.3",
     "ramda": "^0.31.3",
