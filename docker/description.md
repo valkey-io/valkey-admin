@@ -67,6 +67,21 @@ $ docker run -d --name valkey-admin -p 8080:8080 \
   valkey/valkey-admin
 ```
 
+### GCP Memorystore for Valkey with IAM authentication
+
+Runs with Application Default Credentials (Workload Identity in GKE, the metadata
+server on GCE, or a mounted `GOOGLE_APPLICATION_CREDENTIALS` key file locally).
+No password is supplied — the token is minted and rotated automatically.
+
+```console
+$ docker run -d --name valkey-admin -p 8080:8080 \
+  -e VALKEY_HOST=your-instance-endpoint \
+  -e VALKEY_PORT=6379 \
+  -e VALKEY_AUTH_TYPE=gcp-iam \
+  -e VALKEY_TLS=true \
+  valkey/valkey-admin
+```
+
 ### Environment variables
 
 Here are all the relevant environment variables for configuration
@@ -80,7 +95,7 @@ Here are all the relevant environment variables for configuration
 | `VALKEY_USERNAME` | Valkey username | — |
 | `VALKEY_PASSWORD` | Valkey password | — |
 | `VALKEY_TLS` | Enable TLS | `false` |
-| `VALKEY_AUTH_TYPE` | Authentication type (`password`, `iam`) | `password` |
+| `VALKEY_AUTH_TYPE` | Authentication type (`password`, `iam`, `gcp-iam`) | `password` |
 | `HOT_KEYS_COUNT` | Maximum hot keys returned per query | `50` |
 | `COMMAND_LOGS_COUNT` | Maximum command log entries returned per query | `100` |
 | `KEY_VALUE_SIZE_LIMIT_BYTES` | Max value size (bytes) shown in the Key Browser before a size warning | `2048` |

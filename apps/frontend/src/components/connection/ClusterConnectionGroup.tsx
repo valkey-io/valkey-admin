@@ -101,7 +101,7 @@ export const ClusterConnectionGroup = ({ clusterId, connections, highlight = "",
   const handleConnectLatest = () => {
     if (!lastOpenedNode) return
     const { password, authType } = lastOpenedNode.connection.connectionDetails
-    if (authType !== "iam" && R.isNil(password) && onPasswordRequired) {
+    if (authType !== "iam" && authType !== "gcp-iam" && R.isNil(password) && onPasswordRequired) {
       onPasswordRequired(lastOpenedNode.connectionId)
       return
     }

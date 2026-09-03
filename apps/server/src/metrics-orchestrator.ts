@@ -33,6 +33,8 @@ import {
 import { discoverCluster, belongsToCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
+import { mintGcpAccessToken } from "./gcp-iam-provider"
+import { registerGcpTokenRefresh } from "./iam-token-refresh"
 
 // Assumes nodeId is unique among all clusters
 export type MetricsServerMap = Map<string,
@@ -50,8 +52,9 @@ type NodeInfo = {
   password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean;
+  caCertPath?: string;
   replicas?: { id: string; host: string; port: number }[];
-  authType?: "password" | "iam";
+  authType?: "password" | "iam" | "gcp-iam";
   awsRegion?: string;
   awsReplicationGroupId?: string;
 }
@@ -109,8 +112,13 @@ export const initialConnectionDetails: ConnectionDetails = {
   // Default certificate verification ON. Only an explicit VALKEY_VERIFY_CERT=false disables it,
   // so an unset variable never silently downgrades a TLS connection to insecure (see #445).
   verifyTlsCertificate: process.env.VALKEY_VERIFY_CERT !== "false",
+  caCertPath: process.env.VALKEY_CA_CERT_PATH,
   endpointType,
-  authType: process.env.VALKEY_AUTH_TYPE === "iam" ? "iam" : "password",
+  authType: process.env.VALKEY_AUTH_TYPE === "iam"
+    ? "iam"
+    : process.env.VALKEY_AUTH_TYPE === "gcp-iam"
+      ? "gcp-iam"
+      : "password",
   awsRegion: process.env.VALKEY_AWS_REGION,
   awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
   db: Number(process.env.VALKEY_DB ?? 0),
@@ -337,12 +345,18 @@ let initialClient: GlideClient | null = null
 export async function getInitialClient() {
   if (!initialClient) {
     initialClient = await createClient(initialConnectionDetails)
+    if (initialConnectionDetails.authType === "gcp-iam") {
+      registerGcpTokenRefresh(initialClient, "orchestrator")
+    }
   }
   return initialClient
 }
 
 async function createClient(connectionDetails: ConnectionDetails) {
-  const { host, port, username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId, db } = connectionDetails
+  const {
+    host, port, username, password, tls, verifyTlsCertificate, caCertPath,
+    authType, awsRegion, awsReplicationGroupId, db,
+  } = connectionDetails
   const addresses = [{ host, port: Number(port) }]
   const credentials =
     authType === "iam"
@@ -354,9 +368,11 @@ async function createClient(connectionDetails: ConnectionDetails) {
           region: awsRegion!,
         },
       }
-      : password ? { username, password } : undefined
+      : authType === "gcp-iam"
+        ? { username: "default", password: await mintGcpAccessToken() }
+        : password ? { username, password } : undefined
 
-  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, databaseId: db })
+  return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, caCertPath, databaseId: db })
 }
 
 async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {
@@ -486,6 +502,7 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
       VALKEY_PASSWORD: nodeToStart.password,
       VALKEY_TLS: String(nodeToStart.tls),
       VALKEY_VERIFY_CERT: String(nodeToStart.verifyTlsCertificate),
+      ...(nodeToStart.caCertPath && { VALKEY_CA_CERT_PATH: nodeToStart.caCertPath }),
       VALKEY_AUTH_TYPE: nodeToStart.authType ?? "password",
       VALKEY_AWS_REGION: nodeToStart.awsRegion,
       VALKEY_REPLICATION_GROUP_ID: nodeToStart.awsReplicationGroupId,

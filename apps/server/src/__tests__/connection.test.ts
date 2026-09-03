@@ -1,8 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, mock, beforeEach, afterEach } from "node:test"
 import assert from "node:assert"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
 import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey-common"
+import { GoogleAuth } from "google-auth-library"
 import {
   _resetConnectInFlight,
   _resetInFlightClusterClients,
@@ -345,6 +349,62 @@ describe("connectToValkey", () => {
       assert.strictEqual(config.credentials.iamConfig.region, "us-east-1")
       assert.strictEqual(config.credentials.password, undefined)
     })
+  })
+
+  it("should mint an access token as the password when authType is gcp-iam", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-gcp-token")
+
+    const gcpPayload = {
+      ...DEFAULT_PAYLOAD,
+      connectionDetails: {
+        ...DEFAULT_PAYLOAD.connectionDetails,
+        authType: "gcp-iam" as const,
+        username: "ignored@project.iam.gserviceaccount.com",
+        password: undefined,
+      },
+    }
+
+    await withMockedClients(standalone, cluster, async () => {
+      await connectToValkey(ctx(), mockWs, gcpPayload)
+
+      const calls = (GlideClusterClient.createClient as any).mock.calls
+      assert.ok(calls.length > 0)
+      const config = calls[0].arguments[0]
+      assert.strictEqual(config.credentials.password, "fake-gcp-token")
+      assert.strictEqual(config.credentials.username, "default")
+      assert.strictEqual(config.credentials.iamConfig, undefined)
+    })
+  })
+
+  it("passes the connection's caCertPath to Glide as rootCertificates", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const caPath = path.join(os.tmpdir(), `valkey-ca-${process.pid}-${Date.now()}.pem`)
+    fs.writeFileSync(caPath, "-----BEGIN CERTIFICATE-----\ntestca\n-----END CERTIFICATE-----\n")
+
+    const tlsPayload = {
+      ...DEFAULT_PAYLOAD,
+      connectionDetails: {
+        ...DEFAULT_PAYLOAD.connectionDetails,
+        tls: true,
+        verifyTlsCertificate: true,
+        caCertPath: caPath,
+      },
+    }
+
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        await connectToValkey(ctx(), mockWs, tlsPayload)
+        const config = (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]
+        const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
+        assert.ok(Buffer.isBuffer(ca))
+        assert.match(ca.toString(), /BEGIN CERTIFICATE/)
+      })
+    } finally {
+      fs.rmSync(caPath, { force: true })
+    }
   })
 
   it("should handle connection errors", async () => {

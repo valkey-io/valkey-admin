@@ -27,6 +27,8 @@ import { subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 import { isConnectionAuthorized } from "./session"
+import { mintGcpAccessToken } from "./gcp-iam-provider"
+import { registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "./iam-token-refresh"
 
 export type ConnectionContext = {
   clients: Map<string, { client: GlideClient | GlideClusterClient; clusterId?: string }>
@@ -172,7 +174,7 @@ async function connectToValkeyLocked(
 
   const {
     host, port, username, password, tls: useTLS,
-    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
+    verifyTlsCertificate, caCertPath, authType, awsRegion, awsReplicationGroupId,
   } = payload.connectionDetails
 
   const db = payload.connectionDetails.db
@@ -194,7 +196,9 @@ async function connectToValkeyLocked(
           region: awsRegion!,
         },
       }
-      : password ? { username, password } : undefined
+      : authType === "gcp-iam"
+        ? { username: "default", password: await mintGcpAccessToken() }
+        : password ? { username, password } : undefined
 
   let standaloneClient: GlideClient | undefined
 
@@ -257,6 +261,7 @@ async function connectToValkeyLocked(
       credentials,
       useTLS,
       verifyTlsCertificate,
+      caCertPath,
     })
 
     // Open the registration gate: the metrics process spawned below will POST
@@ -331,6 +336,7 @@ async function connectToValkeyLocked(
             credentials,
             useTLS,
             verifyTlsCertificate,
+            caCertPath,
             databaseId: clusterDatabaseId,
           })
           inFlightClusterClients.set(clusterId, ownInflight)
@@ -367,6 +373,7 @@ async function connectToValkeyLocked(
         }
 
         shouldCloseClusterClientOnError = false
+        if (authType === "gcp-iam") registerGcpTokenRefresh(clusterClient, `cluster ${clusterId}`)
         return clusterClient
       } finally {
         if (ownInflight && inFlightClusterClients.get(clusterId) === ownInflight) {
@@ -409,6 +416,7 @@ async function connectToValkeyLocked(
         credentials,
         useTLS,
         verifyTlsCertificate,
+        caCertPath,
         databaseId: db,
       })
       clients.set(connectionId, { client: standaloneClient })
@@ -431,6 +439,7 @@ async function connectToValkeyLocked(
       },
     })
 
+    if (authType === "gcp-iam") registerGcpTokenRefresh(standaloneClient, connectionId)
     return standaloneClient
     
   } catch (err) {
@@ -480,7 +489,7 @@ export async function discoverTopology(
   const { discoveryId, connectionDetails } = payload
   const {
     host, port, username, password, tls: useTLS,
-    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
+    verifyTlsCertificate, caCertPath, authType, awsRegion, awsReplicationGroupId,
   } = connectionDetails
 
   const addresses = [{ host, port: Number(port) }]
@@ -494,7 +503,9 @@ export async function discoverTopology(
           region: awsRegion!,
         },
       }
-      : password ? { username, password } : undefined
+      : authType === "gcp-iam"
+        ? { username: "default", password: await mintGcpAccessToken() }
+        : password ? { username, password } : undefined
 
   let client: GlideClient | undefined
   try {
@@ -502,7 +513,7 @@ export async function discoverTopology(
     // database selection is irrelevant for cluster commands. Skip
     // `databaseId` entirely so Glide does not issue `SELECT` (cluster nodes
     // reject `SELECT` even for db 0).
-    client = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate })
+    client = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate, caCertPath })
     const { discoveredClusterNodes } = await discoverCluster(client, { connectionDetails })
     if (Object.keys(discoveredClusterNodes).length < 1) {
       throw new Error("Unable to discover cluster")
@@ -618,8 +629,12 @@ export async function discoverCluster(
             awsRegion: payload.connectionDetails.awsRegion,
             awsReplicationGroupId: payload.connectionDetails.awsReplicationGroupId,
           }),
+          ...(payload.connectionDetails.authType === "gcp-iam" && {
+            authType: "gcp-iam" as const,
+          }),
           tls: payload.connectionDetails.tls,
           verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
+          caCertPath: payload.connectionDetails.caCertPath,
           replicas: [],
         }
       }
@@ -643,6 +658,7 @@ export async function discoverCluster(
       username?: string,
       tls: boolean,
       verifyTlsCertificate: boolean,
+      caCertPath?: string,
       replicas: { id: string; host: string; port: number }[];
     }>)
 
@@ -755,6 +771,7 @@ export function teardownConnection(
   clients.delete(connectionId)
 
   if (connection && ![...clients.values()].some((c) => c.client === connection.client)) {
+    unregisterGcpTokenRefresh(connection.client)
     try {
       connection.client.close()
     } catch (error) {

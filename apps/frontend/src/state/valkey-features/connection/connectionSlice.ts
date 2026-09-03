@@ -38,7 +38,7 @@ export interface ConnectionDetails {
   // JSON module availability check
   jsonModuleAvailable?: boolean;
   endpointType: EndpointType
-  authType?: "password" | "iam"
+  authType?: "password" | "iam" | "gcp-iam"
   awsRegion?: string
   awsReplicationGroupId?: string
   /**
@@ -88,7 +88,7 @@ export const isAutoResumeEligible = (connection: ConnectionState): boolean => {
   if (userDisconnected) return false
 
   const { password, authType } = connectionDetails
-  if (authType === "iam" || (R.isNotNil(password) && R.isEmpty(password)))
+  if (authType === "iam" || authType === "gcp-iam" || (R.isNotNil(password) && R.isEmpty(password)))
     return status !== DISCONNECTED
   return R.isNil(password)
 }

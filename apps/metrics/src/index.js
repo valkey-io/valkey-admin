@@ -17,6 +17,7 @@ import { sanitizeUrl } from "./utils/helpers.js"
 import { buildPingRequest, buildRegisterRequest, readOrchestratorKey } from "./utils/orchestrator-auth.js"
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 import { createValkeyClient } from "./valkey-client.js"
+import { GcpIAMProvider } from "./utils/gcp-iam-provider.js"
 import { scanBigKeys } from "./analyzers/scan-big-keys.js"
 
 async function main() {
@@ -32,6 +33,19 @@ async function main() {
 
   const client = await createValkeyClient(cfg)
   const ownNodeId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
+
+  // GCP OAuth2 tokens expire ~1h; rotate the connection password before then so
+  // reconnects keep authenticating. AWS IAM refreshes natively inside Glide.
+  const gcpTokenRefresh = process.env.VALKEY_AUTH_TYPE === "gcp-iam"
+    ? setInterval(async () => {
+      try {
+        await client.updateConnectionPassword(await new GcpIAMProvider().getCredentials(), true)
+      } catch (err) {
+        console.error("[gcp-iam] token refresh error:", err.message)
+      }
+    }, 45 * 60 * 1000)
+    : undefined
+  gcpTokenRefresh?.unref?.()
 
   await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
@@ -247,6 +261,7 @@ async function main() {
     try {
       await stopNdjsonCleaner()
       await stopCollectors()
+      if (gcpTokenRefresh) clearInterval(gcpTokenRefresh)
       if (client) {
         client.close()
       }

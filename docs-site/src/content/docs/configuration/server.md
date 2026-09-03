@@ -178,6 +178,10 @@ Verify the TLS server certificate. Compared as the literal string `"true"`. Leav
 
 - **Default:** `false`
 
+### `VALKEY_CA_CERT_PATH`
+
+Filesystem path to a PEM CA certificate used to verify the Valkey server's TLS certificate. Only consulted when `VALKEY_TLS=true` and verification is enabled (`VALKEY_VERIFY_CERT` is not `false`). Glide performs TLS in its Rust core, so a private CA must be supplied this way — Node's trust store and `NODE_EXTRA_CA_CERTS` do not apply. Typical use: mount your server CA (for example a Memorystore for Valkey CA) as a secret and point this at the mounted file.
+
 ### `VALKEY_ENDPOINT_TYPE`
 
 Tells the orchestrator how to interpret `VALKEY_HOST` / `VALKEY_PORT` when discovering cluster topology.
@@ -190,6 +194,7 @@ Tells the orchestrator how to interpret `VALKEY_HOST` / `VALKEY_PORT` when disco
 Selects the credentials provider for the initial connection.
 
 - **`"iam"`** — use AWS ElastiCache IAM authentication. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`.
+- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored.
 - **anything else** — fall back to password authentication using `VALKEY_USERNAME` / `VALKEY_PASSWORD`.
 
 - **Default:** `"password"`

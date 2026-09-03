@@ -68,6 +68,10 @@ For ElastiCache clusters with IAM authentication enabled, provide:
 
 Valkey Admin generates short-lived IAM auth tokens automatically.
 
+### GCP IAM Authentication
+
+For Memorystore for Valkey instances with IAM authentication enabled, select **GCP IAM**. No username or password is required — Valkey Admin mints a short-lived OAuth2 access token from the ambient Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry, including across every cluster node. Connections authenticate as the `default` user, which is the only username Memorystore for Valkey supports. Enable TLS as well, since Memorystore recommends in-transit encryption whenever IAM authentication is used.
+
 ## TLS
 
 Enable TLS for encrypted connections. Optionally verify the server certificate — disable verification only for self-signed certificates in development environments.

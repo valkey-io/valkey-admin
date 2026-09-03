@@ -109,6 +109,16 @@ export function ClusterNodeRow({
           awsReplicationGroupId: primaryConfig.awsReplicationGroupId,
         },
       }))
+    } else if (primaryConfig.authType === "gcp-iam") {
+      // GCP IAM: tokens are minted from ambient credentials, no password needed
+      dispatch(connectPending({
+        connectionId,
+        connectionDetails: {
+          ...baseDetails,
+          username: primaryConfig.username ?? "",
+          authType: "gcp-iam",
+        },
+      }))
     } else if (R.isNotNil(encryptedPassword)) {
       // Password already encrypted from existing cluster connection — do NOT re-encrypt
       dispatch(connectPending({

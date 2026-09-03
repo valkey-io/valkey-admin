@@ -14,7 +14,7 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 
 ## TLS
 
-- **mTLS is not currently supported.** Standard TLS with password authentication or AWS ElastiCache IAM authentication is available.
+- **mTLS is not currently supported.** Standard TLS with password authentication, AWS ElastiCache IAM authentication, or GCP Memorystore for Valkey IAM authentication is available.
 
 ## Managed services
 
