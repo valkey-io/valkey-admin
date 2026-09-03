@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import pkg from "../../../package.json" with { type: "json" }
 
 const glideMocks = vi.hoisted(() => ({
   standaloneCreateClient: vi.fn(),
@@ -80,6 +81,7 @@ describe("valkey client mode selection", () => {
       addresses: [{ host: "localhost", port: 6379 }],
       credentials: { username: "default", password: "secret" },
       useTLS: true,
+      clientInfoTag: `valkey-admin-metrics:${pkg.version}`,
       advancedConfiguration: {
         tlsAdvancedConfiguration: {
           insecure: true,
