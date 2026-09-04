@@ -10,7 +10,7 @@ import { MonitorNotRunningBanner, NodeErrorsBanner } from "./hot-keys-banners"
 import { HotKeysToolbar } from "./hot-keys-toolbar"
 import { HotKeysTable } from "./hot-keys-table"
 
-export type HotKeyEntry = [string, number, number | null, number, string?]
+export type HotKeyEntry = [string, number, number | null, number, string?, number?]
 
 interface HotKeysProps {
   data: HotKeyEntry[] | null
@@ -96,8 +96,11 @@ export function HotKeys({
       {banners}
       <HotKeysHeatmapModal
         data={sorted}
+        failedNodeCount={nodeErrors?.length ?? 0}
         onClose={() => setIsHeatmapOpen(false)}
+        onKeyClick={onKeyClick}
         open={isHeatmapOpen}
+        showSlots={!!isHotSlots && sorted.some(([, , , , , slotId]) => slotId !== undefined)}
       />
       <HotKeysToolbar
         countMax={countMax}

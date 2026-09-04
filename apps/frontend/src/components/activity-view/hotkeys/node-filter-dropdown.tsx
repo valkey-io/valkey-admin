@@ -4,15 +4,20 @@ import { truncateText } from "@common/src/truncate-text"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { Typography } from "../../ui/typography"
+import { cn } from "@/lib/utils"
 
 interface NodeFilterDropdownProps {
   nodes: string[]
   selectedNode: string
   onSelect: (node: string) => void
   align?: "left" | "right"
+  allLabel?: string
+  className?: string
 }
 
-export function NodeFilterDropdown({ nodes, selectedNode, onSelect, align = "left" }: NodeFilterDropdownProps) {
+export function NodeFilterDropdown({
+  nodes, selectedNode, onSelect, align = "left", allLabel = "All Nodes", className,
+}: NodeFilterDropdownProps) {
   const [open, setOpen] = useState(false)
   const [nodeSearch, setNodeSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
@@ -33,20 +38,20 @@ export function NodeFilterDropdown({ nodes, selectedNode, onSelect, align = "lef
   return (
     <div className="relative" ref={ref}>
       <Button
-        className="w-full"
+        className={cn("w-full", className)}
         onClick={() => setOpen((prev) => !prev)}
         type="button"
         variant="outline"
       >
         <ListFilter className="text-primary" size={14} />
         <span className="max-w-32 truncate">
-          {selectedNode === "all" ? "All Nodes" : truncateText(selectedNode, 20)}
+          {selectedNode === "all" ? allLabel : truncateText(selectedNode, 20)}
         </span>
         <ChevronDown className="text-muted-foreground" size={14} />
       </Button>
 
       {open && (
-        <div className={`absolute z-50 ${align === "right" ? "right-0" : "left-0"} top-11 w-64 rounded-md border bg-popover shadow-md p-2`}>
+        <div className={`absolute z-50 ${align === "right" ? "right-0" : "left-0"} top-full mt-1.5 w-64 rounded-md border bg-popover shadow-md p-2`}>
           <div className="relative mb-2">
             <Input
               autoFocus
@@ -64,7 +69,7 @@ export function NodeFilterDropdown({ nodes, selectedNode, onSelect, align = "lef
                 onClick={() => { onSelect("all"); setOpen(false); setNodeSearch("") }}
                 type="button"
               >
-                All Nodes
+                {allLabel}
               </button>
             </li>
             {filtered.length === 0 && (

@@ -152,16 +152,72 @@ describe("keyBrowserSlice", () => {
         getKeyTypeFulfilled({
           connectionId: "conn-1",
           key: "mykey",
-          keyType: "String",
+          name: "mykey",
+          type: "string",
           ttl: -1,
           size: 100,
+          elements: "myvalue",
         }),
       )
 
-      expect(state["conn-1"].keys[0].type).toBe("String")
+      expect(state["conn-1"].keys[0].type).toBe("string")
       expect(state["conn-1"].keys[0].ttl).toBe(-1)
       expect(state["conn-1"].keys[0].size).toBe(100)
+      expect(state["conn-1"].keys[0].elements).toBe("myvalue")
       expect(state["conn-1"].keyTypeLoading["mykey"]).toBeUndefined()
+    })
+
+    it("should add the key when it is not already in the keys array", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          keyTypeLoading: { hotkey: true },
+        },
+      }
+
+      const state = keyBrowserReducer(
+        previousState,
+        getKeyTypeFulfilled({
+          connectionId: "conn-1",
+          key: "hotkey",
+          name: "hotkey",
+          type: "string",
+          ttl: -1,
+          size: 56,
+          elements: "hotvalue",
+        }),
+      )
+
+      expect(state["conn-1"].keys).toEqual([
+        { name: "hotkey", type: "string", ttl: -1, size: 56, elements: "hotvalue" },
+      ])
+      expect(state["conn-1"].keyTypeLoading["hotkey"]).toBeUndefined()
+    })
+
+    it("should store elementsWarning when the value is too large to display", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          keyTypeLoading: { bigkey: true },
+        },
+      }
+
+      const state = keyBrowserReducer(
+        previousState,
+        getKeyTypeFulfilled({
+          connectionId: "conn-1",
+          key: "bigkey",
+          name: "bigkey",
+          type: "list",
+          ttl: -1,
+          size: 99999999,
+          collectionSize: 1000,
+          elementsWarning: "too big",
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elementsWarning).toBe("too big")
+      expect(state["conn-1"].keys[0].elements).toBeUndefined()
     })
 
     it("should update collection size if provided", () => {
@@ -178,7 +234,8 @@ describe("keyBrowserSlice", () => {
         getKeyTypeFulfilled({
           connectionId: "conn-1",
           key: "mylist",
-          keyType: "List",
+          name: "mylist",
+          type: "list",
           ttl: -1,
           size: 50,
           collectionSize: 10,

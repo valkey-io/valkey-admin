@@ -39,7 +39,7 @@ export function HotKeysToolbar({
           variant="outline"
         >
           <ChartPie className="text-primary" />
-          Node Heatmap
+          Heatmap
         </Button>
       )}
 
