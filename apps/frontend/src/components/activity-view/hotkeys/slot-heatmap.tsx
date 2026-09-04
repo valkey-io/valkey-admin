@@ -151,7 +151,10 @@ export function SlotHeatmap({ hotKeys, failedNodeCount, onKeyClick }: SlotHeatma
     )
   }
 
-  const nodes = [...new Set(allGroups.flatMap((group) => group.nodeId ?? []))].sort()
+  const nodes = [
+    ...new Set(allGroups.map((group) => group.nodeId).filter((nodeId) => nodeId !== undefined)),
+  ].sort()
+
   const activeNode = nodes.includes(selectedNode) ? selectedNode : "all"
   const groups = activeNode === "all"
     ? allGroups
