@@ -1,6 +1,6 @@
 import { GlideClient, GlideClusterClient, NodeDiscoveryMode, type ServerCredentials } from "@valkey/valkey-glide"
-import { DEPLOYMENT_TYPE } from "valkey-common"
-import pkg from "../../../package.json" with { type: "json" }
+import { deploymentSuffix } from "valkey-common"
+import { version } from "../../../package.json"
 
 type Address = {
   host: string
@@ -15,18 +15,7 @@ type ClientOptions = {
   databaseId?: number
 }
 
-const deploymentSuffix = () => {
-  switch (process.env.DEPLOYMENT_MODE) {
-    case DEPLOYMENT_TYPE.ELECTRON:
-      return "electron"
-    case DEPLOYMENT_TYPE.K8:
-      return "k8s"
-    default:
-      return "web"
-  }
-}
-
-const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${pkg.version}`
+const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${version}`
 
 const buildSharedOptions = ({
   addresses,
