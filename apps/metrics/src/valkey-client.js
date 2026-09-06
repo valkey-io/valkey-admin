@@ -1,4 +1,6 @@
 import { GlideClient, GlideClusterClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
+import { readFileSync } from "node:fs"
+import { GcpIAMProvider } from "./utils/gcp-iam-provider.js"
 
 const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
 
@@ -30,22 +32,35 @@ export const createValkeyClient = async (cfg = {}) => {
           region: process.env.VALKEY_AWS_REGION,
         },
       }
-      : process.env.VALKEY_PASSWORD ? {
-        username: process.env.VALKEY_USERNAME,
-        password: process.env.VALKEY_PASSWORD,
-      } : undefined
+      : process.env.VALKEY_AUTH_TYPE === "gcp-iam"
+        ? {
+          // "default" is the only supported username for GCP IAM authentication
+          // https://docs.cloud.google.com/memorystore/docs/valkey/manage-iam-auth#error-messages
+          username: "default",
+          password: await new GcpIAMProvider().getCredentials(),
+        }
+        : process.env.VALKEY_PASSWORD ? {
+          username: process.env.VALKEY_USERNAME,
+          password: process.env.VALKEY_PASSWORD,
+        } : undefined
 
   const useTLS = process.env.VALKEY_TLS === "true"
+  // Glide's TLS runs in its Rust core, so a custom CA must be passed explicitly
+  // via `rootCertificates` (Node's trust store / NODE_EXTRA_CA_CERTS do not apply).
+  const caCertPath = process.env.VALKEY_CA_CERT_PATH
+  const tlsAdvancedConfiguration = !useTLS
+    ? undefined
+    : process.env.VALKEY_VERIFY_CERT === "false"
+      ? { insecure: true }
+      : caCertPath
+        ? { rootCertificates: readFileSync(caCertPath) }
+        : undefined
   const sharedOptions = {
     addresses,
     credentials,
     useTLS,
     advancedConfiguration: {
-      ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
-        tlsAdvancedConfiguration: {
-          insecure: true,
-        },
-      }),
+      ...(tlsAdvancedConfiguration && { tlsAdvancedConfiguration }),
       connectionTimeout: 30000,
     },
     requestTimeout: 5000,

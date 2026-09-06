@@ -1,4 +1,5 @@
 import { GlideClient, GlideClusterClient, NodeDiscoveryMode, type ServerCredentials } from "@valkey/valkey-glide"
+import { readFileSync } from "node:fs"
 
 type Address = {
   host: string
@@ -10,6 +11,7 @@ type ClientOptions = {
   credentials?: ServerCredentials
   useTLS: boolean
   verifyTlsCertificate: boolean
+  caCertPath?: string
   databaseId?: number
 }
 
@@ -18,6 +20,7 @@ const buildSharedOptions = ({
   credentials,
   useTLS,
   verifyTlsCertificate,
+  caCertPath,
   databaseId,
 }: ClientOptions) => {
   // Surface any insecure TLS connection: disabling certificate validation exposes the
@@ -30,6 +33,17 @@ const buildSharedOptions = ({
     )
   }
 
+  // Glide's TLS runs in its Rust core, so a private CA (the connection's
+  // `caCertPath`) must be passed via `rootCertificates`; Node's trust store
+  // and NODE_EXTRA_CA_CERTS do not apply.
+  const tlsAdvancedConfiguration = !useTLS
+    ? undefined
+    : verifyTlsCertificate === false
+      ? { insecure: true }
+      : caCertPath
+        ? { rootCertificates: readFileSync(caCertPath) }
+        : undefined
+
   return {
     addresses,
     credentials,
@@ -41,11 +55,7 @@ const buildSharedOptions = ({
     // mandatory for cluster.
     ...(typeof databaseId === "number" && databaseId > 0 && { databaseId }),
     advancedConfiguration: {
-      ...(useTLS && verifyTlsCertificate === false && {
-        tlsAdvancedConfiguration: {
-          insecure: true,
-        },
-      }),
+      ...(tlsAdvancedConfiguration && { tlsAdvancedConfiguration }),
       connectionTimeout: 30000,
     },
     requestTimeout: 5000,

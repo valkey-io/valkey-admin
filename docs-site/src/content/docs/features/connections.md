@@ -53,7 +53,7 @@ All Valkey versions support numbered databases in standalone mode, up to the ser
 
 ## Authentication
 
-Valkey Admin supports two authentication methods:
+Valkey Admin supports three authentication methods:
 
 ### Password Authentication
 
@@ -67,6 +67,10 @@ For ElastiCache clusters with IAM authentication enabled, provide:
 - **Replication Group ID**: The ElastiCache cluster name
 
 Valkey Admin generates short-lived IAM auth tokens automatically.
+
+### GCP IAM Authentication
+
+For Memorystore for Valkey instances with IAM authentication enabled, select **GCP IAM**. No username or password is required — Valkey Admin mints a short-lived OAuth2 access token from the ambient Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry, including across every cluster node. Connections authenticate as the `default` user, which is the only username Memorystore for Valkey supports. TLS **with certificate verification** is required (the token is a bearer credential); supply the instance's server CA via `VALKEY_CA_CERT_PATH`.
 
 ## TLS
 

@@ -168,7 +168,7 @@ export function ConnectionModal({
                     <RadioGroup
                       className="flex gap-4"
                       onValueChange={(value) =>
-                        onConnectionDetailsChange({ ...connectionDetails, authType: value as "password" | "iam" })
+                        onConnectionDetailsChange({ ...connectionDetails, authType: value as "password" | "iam" | "gcp-iam" })
                       }
                       value={connectionDetails.authType ?? "password"}
                     >
@@ -179,6 +179,10 @@ export function ConnectionModal({
                       <div className="flex items-center gap-2">
                         <RadioGroupItem id="auth-iam" value="iam" />
                         <Label htmlFor="auth-iam">AWS IAM</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem id="auth-gcp-iam" value="gcp-iam" />
+                        <Label htmlFor="auth-gcp-iam">GCP IAM</Label>
                       </div>
                     </RadioGroup>
                   </div>
@@ -222,6 +226,12 @@ export function ConnectionModal({
                         />
                       </div>
                     </>
+                  ) : connectionDetails.authType === "gcp-iam" ? (
+                    <p className="text-sm text-muted-foreground">
+                      Uses Application Default Credentials to mint and rotate a short-lived access
+                      token. Authenticates as the <code>default</code> user — no username or
+                      password required.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div>

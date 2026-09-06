@@ -90,6 +90,7 @@ export function ClusterNodeRow({
     port: port.toString(),
     tls: primaryConfig.tls,
     verifyTlsCertificate: primaryConfig.verifyTlsCertificate,
+    caCertPath: primaryConfig.caCertPath,
     endpointType: "node",
     db: clusterDb,
   }
@@ -107,6 +108,16 @@ export function ClusterNodeRow({
           authType: "iam",
           awsRegion: primaryConfig.awsRegion,
           awsReplicationGroupId: primaryConfig.awsReplicationGroupId,
+        },
+      }))
+    } else if (primaryConfig.authType === "gcp-iam") {
+      // GCP IAM: tokens are minted from ambient credentials, no password needed
+      dispatch(connectPending({
+        connectionId,
+        connectionDetails: {
+          ...baseDetails,
+          username: primaryConfig.username ?? "",
+          authType: "gcp-iam",
         },
       }))
     } else if (R.isNotNil(encryptedPassword)) {

@@ -99,11 +99,16 @@ Enable TLS. Compared as the literal string `"true"`.
 
 Verify the TLS server certificate. When TLS is enabled and this is `"false"`, certificate verification is skipped — useful for development against self-signed certs, but not for production.
 
+### `VALKEY_CA_CERT_PATH`
+
+Filesystem path to a PEM CA certificate used to verify the Valkey server's TLS certificate — for both the Glide client and the iovalkey MONITOR stream. Only consulted when `VALKEY_TLS=true` and verification is enabled. Glide performs TLS in its Rust core, so a private CA must be supplied this way rather than via Node's trust store or `NODE_EXTRA_CA_CERTS`.
+
 ### `VALKEY_AUTH_TYPE`
 
 Selects the credentials provider.
 
 - **`"iam"`** — use AWS ElastiCache IAM authentication via `ElastiCacheIAMProvider`. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`.
+- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication via `GcpIAMProvider`. Mints a short-lived OAuth2 access token from Application Default Credentials and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored.
 - **anything else** — password authentication using `VALKEY_USERNAME` / `VALKEY_PASSWORD`.
 
 ### `VALKEY_AWS_REGION`
