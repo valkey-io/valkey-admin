@@ -1,8 +1,7 @@
 import { GlideClient, GlideClusterClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
-import { deploymentSuffix } from "valkey-common"
-import { version } from "../../../package.json"
+import { APP_VERSION ,deploymentSuffix } from "valkey-common"
 
-const clientInfoTag = `valkey-admin-metrics-${deploymentSuffix()}:${version}`
+const clientInfoTag = `valkey-admin-metrics-${deploymentSuffix()}:${APP_VERSION}`
 
 const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
 

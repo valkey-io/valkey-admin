@@ -1,6 +1,5 @@
 import { GlideClient, GlideClusterClient, NodeDiscoveryMode, type ServerCredentials } from "@valkey/valkey-glide"
-import { deploymentSuffix } from "valkey-common"
-import { version } from "../../../package.json"
+import { APP_VERSION, deploymentSuffix } from "valkey-common"
 
 type Address = {
   host: string
@@ -15,7 +14,7 @@ type ClientOptions = {
   databaseId?: number
 }
 
-const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${version}`
+const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${APP_VERSION}`
 
 const buildSharedOptions = ({
   addresses,
