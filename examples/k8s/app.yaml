@@ -1,3 +1,23 @@
+# Shared authentication key for the metrics control plane (/orchestrator/register,
+# /orchestrator/ping). In K8s the metrics collectors are external sidecars, so the
+# orchestrator cannot mint a per-node key at spawn time as it does for Web/Electron.
+# A single shared key is provisioned to BOTH this Deployment and every metrics
+# sidecar (see valkey-statefulset-sidecar-patch.yaml) and used to sign/verify
+# register and ping requests.
+#
+# Generate your own key instead of committing one; e.g.:
+#   kubectl create secret generic valkey-admin-orchestrator-key -n valkey \
+#     --from-literal=ORCHESTRATOR_KEY="$(openssl rand -hex 32)"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: valkey-admin-orchestrator-key
+  namespace: valkey
+type: Opaque
+stringData:
+  # openssl rand -hex 32
+  ORCHESTRATOR_KEY: "replace-me-with-a-32-byte-random-hex-string"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +48,11 @@ spec:
               value: valkey-0.valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT
               value: "6379"
+            - name: ORCHESTRATOR_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: valkey-admin-orchestrator-key
+                  key: ORCHESTRATOR_KEY
           ports:
             - containerPort: 8080
               name: http

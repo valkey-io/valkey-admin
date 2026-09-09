@@ -34,6 +34,11 @@ spec:
                   fieldPath: status.podIP
             - name: METRICS_ADVERTISE_PORT
               value: "3000"
+            - name: ORCHESTRATOR_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: valkey-admin-orchestrator-key
+                  key: ORCHESTRATOR_KEY
           ports:
             - containerPort: 3000
               name: metrics

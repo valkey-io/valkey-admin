@@ -3,6 +3,7 @@ import express from "express"
 import helmet from "helmet"
 import path from "path"
 import http from "http"
+import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import {
   VALKEY,
   CONNECTION_TEARDOWN_DELAY_MS,
@@ -143,7 +144,23 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
-function refreshAllClusterRegistries() {
+async function refreshAllClusterRegistries() {
+  // Re-discover each cluster's topology before broadcasting, so clients receive
+  // the current cluster nodes rather than a snapshot taken once at connect/startup.
+  // Each cluster is refreshed with a live client that belongs to it; a cluster we
+  // hold no client for is left as-is (nothing to rediscover through).
+  const clientByCluster = new Map<string, GlideClient | GlideClusterClient>()
+  for (const { client, clusterId } of clients.values()) {
+    if (clusterId && !clientByCluster.has(clusterId)) clientByCluster.set(clusterId, client)
+  }
+
+  await Promise.all(
+    [...clusterNodesRegistry.keys()]
+      .map((clusterId) => clientByCluster.get(clusterId))
+      .filter((client): client is GlideClient | GlideClusterClient => client != null)
+      .map((client) => updateClusterNodeRegistry(client)),
+  )
+
   const connectionIdsByCluster = new Map<string, string[]>()
   for (const [connectionId, entry] of clients) {
     if (!entry.clusterId) continue
@@ -172,7 +189,7 @@ function refreshAllClusterRegistries() {
 async function refreshAllClusterRegistriesLoop() {
   while (true) {
     try {
-      refreshAllClusterRegistries()
+      await refreshAllClusterRegistries()
     } catch (err) {
       console.warn("Unable to refresh cluster topologies. ", err)
     } finally {
