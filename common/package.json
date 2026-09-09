@@ -13,7 +13,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
+    "build": "node scripts/sync-version.mjs && tsup src/index.ts --format esm --dts --out-dir dist --clean",
     "test": "npx tsx --test src/__tests__/*.test.ts"
   },
   "devDependencies": {

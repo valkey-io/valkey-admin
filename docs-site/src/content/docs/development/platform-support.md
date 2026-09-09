@@ -7,7 +7,9 @@ Valkey Admin is designed to work across multiple platforms with varying levels o
 
 ## Valkey Version Compatibility
 
-Valkey Admin uses [Valkey GLIDE](https://github.com/valkey-io/valkey-glide) 2.4 as its client library and works with all versions of Valkey. Some features require newer versions:
+Valkey Admin uses [Valkey GLIDE](https://github.com/valkey-io/valkey-glide) as its client library and works with all versions of Valkey. Some features require newer Valkey versions:
+
+When inspecting `CLIENT LIST` or `CLIENT INFO`, operators can identify Valkey Admin connections by the reported `lib-name`, for example `GlideJS(valkey-admin-web:1.2.0)` for the server or `GlideJS(valkey-admin-metrics-k8s:1.2.0)` for a Kubernetes metrics collector. The deployment suffix is `electron`, `web`, or `k8s`.
 
 | Feature | Minimum Version | Additional Requirement |
 |---------|----------------|----------------------|

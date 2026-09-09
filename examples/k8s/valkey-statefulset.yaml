@@ -95,6 +95,8 @@ spec:
               value: "6379"
             - name: VALKEY_MODE
               value: cluster
+            - name: DEPLOYMENT_MODE
+              value: K8
             - name: SERVER_HOST
               value: valkey-admin-app
             - name: SERVER_PORT
