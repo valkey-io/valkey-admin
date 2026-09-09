@@ -7,7 +7,7 @@ Valkey Admin is designed to work across multiple platforms with varying levels o
 
 ## Valkey Version Compatibility
 
-Valkey Admin uses [Valkey GLIDE](https://github.com/valkey-io/valkey-glide) as its client library and works with all versions of Valkey. Some features require newer versions:
+Valkey Admin uses [Valkey GLIDE](https://github.com/valkey-io/valkey-glide) as its client library and works with all versions of Valkey. Some features require newer Valkey versions:
 
 | Feature | Minimum Version | Additional Requirement |
 |---------|----------------|----------------------|
