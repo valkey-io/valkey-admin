@@ -1,3 +1,15 @@
+# NOTE: the metrics control plane (/orchestrator/register, /orchestrator/ping)
+# authenticates sidecars with a shared key read from the ORCHESTRATOR_KEY env
+# var below, sourced from the `valkey-admin-orchestrator-key` Secret. Create that
+# Secret with your OWN random value before applying this manifest — it is
+# intentionally NOT defined here so `kubectl apply` can never overwrite a real
+# key with a committed placeholder:
+#
+#   kubectl create secret generic valkey-admin-orchestrator-key -n valkey \
+#     --from-literal=ORCHESTRATOR_KEY="$(openssl rand -hex 32)"
+#
+# The same Secret is referenced by every metrics sidecar
+# (see valkey-statefulset-sidecar-patch.yaml).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +40,11 @@ spec:
               value: valkey-0.valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT
               value: "6379"
+            - name: ORCHESTRATOR_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: valkey-admin-orchestrator-key
+                  key: ORCHESTRATOR_KEY
           ports:
             - containerPort: 8080
               name: http
