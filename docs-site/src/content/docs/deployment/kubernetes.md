@@ -66,8 +66,9 @@ kubectl create secret generic valkey-admin-orchestrator-key -n valkey \
   --from-literal=ORCHESTRATOR_KEY="$(openssl rand -hex 32)"
 ```
 
-`app.yaml` also ships a placeholder Secret for GitOps workflows — replace its value
-rather than committing a real key. Then deploy the app server:
+`app.yaml` intentionally does **not** define this Secret — it only references it —
+so `kubectl apply` can never overwrite your generated key with a committed
+placeholder. Create the Secret first (above), then deploy the app server:
 
 ```bash
 kubectl apply -f examples/k8s/app.yaml
