@@ -145,22 +145,8 @@ const wss = new WebSocketServer({ noServer: true })
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
 async function refreshAllClusterRegistries() {
-  // Re-discover each cluster's topology before broadcasting, so clients receive
-  // the current cluster nodes rather than a snapshot taken once at connect/startup.
-  // Each cluster is refreshed with a live client that belongs to it; a cluster we
-  // hold no client for is left as-is (nothing to rediscover through).
-  const clientByCluster = new Map<string, GlideClient | GlideClusterClient>()
-  for (const { client, clusterId } of clients.values()) {
-    if (clusterId && !clientByCluster.has(clusterId)) clientByCluster.set(clusterId, client)
-  }
-
-  await Promise.all(
-    [...clusterNodesRegistry.keys()]
-      .map((clusterId) => clientByCluster.get(clusterId))
-      .filter((client): client is GlideClient | GlideClusterClient => client != null)
-      .map((client) => updateClusterNodeRegistry(client)),
-  )
-
+  // Group live connections by cluster once; used both to pick a client to
+  // re-discover each cluster's topology and to target the broadcast below.
   const connectionIdsByCluster = new Map<string, string[]>()
   for (const [connectionId, entry] of clients) {
     if (!entry.clusterId) continue
@@ -168,6 +154,19 @@ async function refreshAllClusterRegistries() {
     ids.push(connectionId)
     connectionIdsByCluster.set(entry.clusterId, ids)
   }
+
+  // Re-discover each tracked cluster's topology before broadcasting, so clients
+  // receive the current cluster nodes rather than the connect-time snapshot.
+  // Each cluster is refreshed through one of its own live clients (topology
+  // discovery keys off that client's CLUSTER SLOTS); a cluster with no live
+  // client is left as-is, since there is nothing to rediscover through.
+  await Promise.all(
+    [...clusterNodesRegistry.keys()]
+      .map((clusterId) => connectionIdsByCluster.get(clusterId)?.[0])
+      .map((connectionId) => (connectionId ? clients.get(connectionId)?.client : undefined))
+      .filter((client): client is GlideClient | GlideClusterClient => client != null)
+      .map((client) => updateClusterNodeRegistry(client)),
+  )
 
   for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
     const connectionIds = connectionIdsByCluster.get(clusterId)
