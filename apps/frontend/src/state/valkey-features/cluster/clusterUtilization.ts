@@ -1,6 +1,7 @@
 import { CPU_HIGH_THRESHOLD, CPU_NORMAL_THRESHOLD,
   MEMORY_HIGH_THRESHOLD, MEMORY_NORMAL_THRESHOLD } from "@common/src/constants.ts"
 import * as R from "ramda"
+import type { NodeUtilization } from "./clusterSlice"
 
 export type UtilizationLevel = "low" | "normal" | "high"
 
@@ -32,3 +33,14 @@ export function getUtilizationLevel(
   if (levels.length === 0) return null
   return levels.reduce((worst, level) => (LEVEL_RANK[level] > LEVEL_RANK[worst] ? level : worst))
 }
+
+// Checks if the node has a memory limit set.
+export const hasMemoryLimit = (utilization?: NodeUtilization): boolean =>
+  utilization?.memory_basis === "maxmemory"
+
+// Returns the worst of the two utilization levels, or null if neither is available.
+export const getNodeUtilizationLevel = (utilization?: NodeUtilization): UtilizationLevel | null =>
+  getUtilizationLevel(
+    hasMemoryLimit(utilization) ? utilization?.memory_utilization_percent : null,
+    utilization?.cpu_utilization_percent,
+  )

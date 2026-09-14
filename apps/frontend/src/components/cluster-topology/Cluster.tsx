@@ -16,7 +16,7 @@ import { TableContainer } from "../ui/table-container"
 import { StaticTableHeader } from "../ui/sortable-table-header"
 import { ClusterNodeRow } from "./cluster-node-row"
 import type { RootState } from "@/store.ts"
-import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
+import { getNodeUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
 import {
   selectCluster, selectClusterNodeRows, selectClusterMetrics
 } from "@/state/valkey-features/cluster/clusterSelectors"
@@ -75,8 +75,7 @@ export function Cluster() {
     const matchesSearch = !searchQuery || clusterData.searchableText[row.searchKey]?.includes(searchQuery)
     const matchesRole = roleFilter === "all" || row.role === roleFilter
 
-    const rowUtilization = clusterData.utilization?.[row.dataKey]
-    const level = getUtilizationLevel(rowUtilization?.memory_utilization_percent, rowUtilization?.cpu_utilization_percent)
+    const level = getNodeUtilizationLevel(clusterData.utilization?.[row.dataKey])
     const matchesUtilization = utilizationFilter === "all"
       || (row.role === "primary" && level === utilizationFilter)
 
@@ -110,7 +109,7 @@ export function Cluster() {
       <div className="flex items-center gap-2">
         <SearchInput
           onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
-          placeholder="Search nodes by name, host, or port..."
+          placeholder="Search nodes by host, or port..."
           value={searchQuery}
         />
         <Select
@@ -172,7 +171,6 @@ export function Cluster() {
           filteredRows.map((row) => (
             <ClusterNodeRow
               clusterId={clusterId!}
-              displayName={clusterData.data[row.dataKey]?.server_name || `${row.host}:${row.port}`}
               highlight={highlight}
               host={row.host}
               isGroupEnd={row.isGroupEnd}

@@ -2,7 +2,7 @@ import { createSelector } from "@reduxjs/toolkit"
 import { VALKEY } from "@common/src/constants.ts"
 import { sanitizeUrl } from "@common/src/url-utils.ts"
 import * as R from "ramda"
-import { getUtilizationLevel } from "./clusterUtilization"
+import { getNodeUtilizationLevel, hasMemoryLimit } from "./clusterUtilization"
 import type { NodeRow, ParsedNodeInfo, NodeUtilization, PrimaryNode } from "./clusterSlice"
 import type { RootState } from "@/store.ts"
 
@@ -82,27 +82,28 @@ export const aggregateClusterMetrics = (
     hasUtilization: false,
   }
 
+  let hasUnboundedNode = false
+
   for (const row of nodeRows) {
     const nodeData = data[row.dataKey]
     const nodeUtilization = utilization[row.dataKey]
 
     if (nodeUtilization) metrics.hasUtilization = true
+    if (nodeUtilization && !hasMemoryLimit(nodeUtilization)) hasUnboundedNode = true
 
     metrics.usedMemory += nodeUtilization?.used_memory ?? 0
-    metrics.memoryLimit += nodeUtilization?.memory_limit_bytes ?? 0
+    metrics.memoryLimit += hasMemoryLimit(nodeUtilization) ? nodeUtilization?.memory_limit_bytes ?? 0 : 0
     metrics.opsPerSec += Number(nodeData?.instantaneous_ops_per_sec) || 0
     metrics.hits += Number(nodeData?.keyspace_hits) || 0
     metrics.misses += Number(nodeData?.keyspace_misses) || 0
 
     // Badges render on primaries only, so replicas must not inflate the count.
-    if (row.role === "primary"
-      && getUtilizationLevel(
-        nodeUtilization?.memory_utilization_percent,
-        nodeUtilization?.cpu_utilization_percent,
-      ) === "high") {
+    if (row.role === "primary" && getNodeUtilizationLevel(nodeUtilization) === "high") {
       metrics.flaggedNodes += 1
     }
   }
+
+  if (hasUnboundedNode) metrics.memoryLimit = 0
 
   return metrics
 }
