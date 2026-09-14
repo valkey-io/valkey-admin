@@ -1,4 +1,7 @@
 import { GlideClient, GlideClusterClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
+import { APP_VERSION ,deploymentSuffix } from "valkey-common"
+
+const clientInfoTag = `valkey-admin-metrics-${deploymentSuffix()}:${APP_VERSION}`
 
 const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
 
@@ -40,6 +43,7 @@ export const createValkeyClient = async (cfg = {}) => {
     addresses,
     credentials,
     useTLS,
+    clientInfoTag,
     advancedConfiguration: {
       ...(useTLS && process.env.VALKEY_VERIFY_CERT === "false" && {
         tlsAdvancedConfiguration: {

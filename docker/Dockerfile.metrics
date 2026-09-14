@@ -8,6 +8,7 @@ COPY apps ./apps
 COPY common ./common
 
 RUN npm ci
+RUN npm run build:common
 RUN npm run build:metrics
 
 # -------- Production Runtime --------

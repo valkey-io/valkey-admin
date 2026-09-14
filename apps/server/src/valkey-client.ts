@@ -1,4 +1,5 @@
 import { GlideClient, GlideClusterClient, NodeDiscoveryMode, type ServerCredentials } from "@valkey/valkey-glide"
+import { APP_VERSION, deploymentSuffix } from "valkey-common"
 
 type Address = {
   host: string
@@ -12,6 +13,8 @@ type ClientOptions = {
   verifyTlsCertificate: boolean
   databaseId?: number
 }
+
+const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${APP_VERSION}`
 
 const buildSharedOptions = ({
   addresses,
@@ -34,6 +37,7 @@ const buildSharedOptions = ({
     addresses,
     credentials,
     useTLS,
+    clientInfoTag,
     // Only forward `databaseId` when it's a non-zero integer. Glide issues a
     // `SELECT` on the connection whenever `databaseId` is set, and cluster
     // nodes reject `SELECT` (even `SELECT 0`). DB 0 is the default at the

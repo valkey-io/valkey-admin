@@ -282,3 +282,14 @@ export const DEPLOYMENT_TYPE = {
   WEB: "Web",
   K8: "K8",
 }
+
+export const deploymentSuffix = () => {
+  switch (process.env.DEPLOYMENT_MODE) {
+    case DEPLOYMENT_TYPE.ELECTRON:
+      return "electron"
+    case DEPLOYMENT_TYPE.K8:
+      return "k8s"
+    default:
+      return "web"
+  }
+}
