@@ -134,16 +134,16 @@ export const hotKeysRequested = withDeps<Deps, void>(
       return
     }
 
-    type HotKeyTuple = [string, number, number | null, number, string]
+    type HotKeyTuple = [string, number, number | null, number, string, number?]
     const aggregatedHotKeys = R.pipe(
       R.chain(({ hotKeys, nodeId: nId }: HotKeysResponse) =>
-        (hotKeys as unknown as [string, number, number | null, number][]).map(
-          ([key, count, size, ttl]) => [key, count, size, ttl, nId] as HotKeyTuple,
+        (hotKeys as unknown as [string, number, number | null, number, number?][]).map(
+          ([key, count, size, ttl, slotId]) => [key, count, size, ttl, nId, slotId] as HotKeyTuple,
         ),
       ),
-      R.reduce((acc: Record<string, HotKeyTuple>, [key, count, size, ttl, nId]: HotKeyTuple) => ({
+      R.reduce((acc: Record<string, HotKeyTuple>, [key, count, size, ttl, nId, slotId]: HotKeyTuple) => ({
         ...acc,
-        [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl, nId] as HotKeyTuple,
+        [key]: [key, (acc[key]?.[1] ?? 0) + count, acc[key]?.[2] ?? size, acc[key]?.[3] ?? ttl, nId, acc[key]?.[5] ?? slotId] as HotKeyTuple,
       }), {}),
       R.values,
       R.sort(R.descend(R.nth(1) as (x: HotKeyTuple) => number)),
@@ -152,6 +152,8 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const { checkAt, nodeId } = results[0]
     const monitorRunning = results.every((r) => r.monitorRunning)
     const lastCollectedAt = results.reduce((max, r) => Math.max(max, r.lastCollectedAt ?? 0), 0) || null
-    const aggregatedResponse = { hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } as unknown as HotKeysResponse
+    const aggregatedResponse = {
+      hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt,
+    } as unknown as HotKeysResponse
     sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, aggregatedResponse, nodeErrors)
   })

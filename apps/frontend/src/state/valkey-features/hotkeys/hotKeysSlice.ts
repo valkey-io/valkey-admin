@@ -27,7 +27,7 @@ export const selectHotKeysLastCollectedAt = (targetId: string) => (state: RootSt
 interface HotKeysState {
   // Keyed by `targetId`: `clusterId` (cluster) or db-less `nodeId` (standalone).
   [targetId: string]: {
-    hotKeys: [string, number, number | null, number, string?][]
+    hotKeys: [string, number, number | null, number, string?, number?][]
     checkAt: string | null,
     monitorRunning: boolean,
     nodeId: string | null,
@@ -82,7 +82,7 @@ const hotKeysSlice = createSlice({
       if (!state[targetId]) {
         state[targetId] = {
           hotKeys: [],
-          checkAt: null, 
+          checkAt: null,
           monitorRunning: false,
           nodeId: null,
           status: ERROR,
