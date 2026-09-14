@@ -17,7 +17,7 @@ import { PasswordPromptModal } from "../ui/password-prompt-modal"
 import { formatRate, formatPercent } from "./node-metrics"
 import type { RootState } from "@/store.ts"
 import type { PrimaryNode, ParsedNodeInfo, NodeUtilization, NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
-import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
+import { getNodeUtilizationLevel, hasMemoryLimit, type UtilizationLevel } from "@/state/valkey-features/cluster/clusterUtilization"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
@@ -36,7 +36,6 @@ interface ClusterNodeRowProps {
   host: string
   port: number
   role: NodeRole
-  displayName: string
   // Connection settings live on the primary; replicas inherit them and are not connectable.
   primaryConfig: PrimaryNode
   nodeData?: ParsedNodeInfo
@@ -50,7 +49,6 @@ export function ClusterNodeRow({
   host,
   port,
   role,
-  displayName,
   primaryConfig,
   nodeData,
   utilization,
@@ -137,17 +135,19 @@ export function ClusterNodeRow({
     }))
   }
 
-  // memory_limit_bytes is null only when the node itself reported no limit.
+  const hasLimit = hasMemoryLimit(utilization)
   const memoryLabel = utilization
-    ? `${nodeData?.used_memory_human ?? "—"} / ${utilization.memory_limit_bytes ? formatBytes(utilization.memory_limit_bytes) : "∞"}`
+    ? `${nodeData?.used_memory_human ?? "—"} / ${hasLimit && utilization.memory_limit_bytes ? formatBytes(utilization.memory_limit_bytes) : "∞"}`
     : "—"
   const isHostMemoryBasis = utilization?.memory_basis === "total_system_memory"
-  const utilizationLevel = getUtilizationLevel(utilization?.memory_utilization_percent, utilization?.cpu_utilization_percent)
+  const utilizationLevel = getNodeUtilizationLevel(utilization)
   const isFlagged = role === "primary" && utilizationLevel === "high"
 
-  const memoryTooltip = isHostMemoryBasis
-    ? `${formatPercent(utilization?.memory_utilization_percent)} of host RAM — no maxmemory set`
-    : `${formatPercent(utilization?.memory_utilization_percent)} of configured maxmemory`
+  const memoryTooltip = hasLimit
+    ? `${formatPercent(utilization?.memory_utilization_percent)} of configured maxmemory`
+    : isHostMemoryBasis
+      ? `${formatPercent(utilization?.memory_utilization_percent)} of host RAM — no maxmemory set, not counted`
+      : "no maxmemory set, not counted"
   const utilizationTooltip = `Memory: ${memoryTooltip} · CPU: ${formatPercent(utilization?.cpu_utilization_percent)}`
 
   const hitRatio = nodeData
@@ -175,16 +175,13 @@ export function ClusterNodeRow({
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Typography variant="label">
-                <HighlightSearchMatch query={highlight} text={displayName} />
+              <Typography variant={role === "primary" ? "label" : "bodySm"}  >
+                <HighlightSearchMatch query={highlight} text={`${host}:${port}`} />
               </Typography>
               <Badge className="text-[10px] px-2 py-0" variant={role === "primary" ? "default" : "secondary"}>
                 {role === "primary" ? "PRIMARY" : "REPLICA"}
               </Badge>
             </div>
-            <Typography variant="bodyXs">
-              <HighlightSearchMatch query={highlight} text={`${host}:${port}`} />
-            </Typography>
           </div>
         </div>
       </td>
@@ -193,7 +190,7 @@ export function ClusterNodeRow({
           <TooltipProvider>
             <CustomTooltip content={utilizationTooltip}>
               <Badge
-                className={cn("text-[10px] px-2 py-0", isHostMemoryBasis && "border-dashed")}
+                className={cn("text-[10px] px-2 py-0", !hasLimit && "border-dashed")}
                 variant={UTILIZATION_BADGE[utilizationLevel].variant}
               >
                 {UTILIZATION_BADGE[utilizationLevel].label}
