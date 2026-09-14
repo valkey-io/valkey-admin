@@ -6,6 +6,7 @@ import {
   metricsServerMap,
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
+  updateClusterNodeRegistry,
   clients,
   clusterNodesRegistry,
   __test__,
@@ -269,6 +270,77 @@ describe("metrics-orchestrator", () => {
       // metrics servers are started or stopped.
       assert.strictEqual(findDiff.mock.callCount(), 1)
       assert.strictEqual(updateMetricsServers.mock.callCount(), 0)
+    })
+  })
+
+  describe("topology refresh", () => {
+    afterEach(() => {
+      mock.restoreAll()
+      clusterNodesRegistry.clear()
+      metricsServerMap.clear()
+    })
+
+    it("updateClusterNodeRegistry replaces stale topology with the freshly discovered one", async () => {
+      // Seed a stale registry: cluster-1 knows only node1.
+      clusterNodesRegistry.set("cluster-1", {
+        node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
+      })
+
+      // Discovery now returns an added node (node2) — i.e. the topology changed.
+      mock.method(__test__, "getClusterTopology", async () => ({
+        clusterId: "cluster-1",
+        discoveredClusterNodes: {
+          node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
+          node2: { host: "10.0.0.2", port: 6379, tls: false, verifyTlsCertificate: false },
+        },
+      }))
+
+      await updateClusterNodeRegistry({} as never)
+
+      assert.deepStrictEqual(
+        Object.keys(clusterNodesRegistry.get("cluster-1") ?? {}).sort(),
+        ["node1", "node2"],
+        "registry should reflect the newly discovered topology, not the stale snapshot",
+      )
+    })
+
+    it("reconcile acts on refreshed topology: a node added by discovery is passed to updateMetricsServers", async () => {
+      mock.restoreAll()
+      clients.clear()
+
+      // Start with a registry + metrics map in sync on node1 only.
+      clusterNodesRegistry.set("cluster-1", {
+        node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
+      })
+      metricsServerMap.set("node1", { metricsURI: "http://10.0.0.1:3000", pid: 123, lastSeen: Date.now() })
+
+      // Discovery reveals a new node2 → refresh the registry.
+      mock.method(__test__, "getClusterTopology", async () => ({
+        clusterId: "cluster-1",
+        discoveredClusterNodes: {
+          node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
+          node2: { host: "10.0.0.2", port: 6379, tls: false, verifyTlsCertificate: false },
+        },
+      }))
+      await updateClusterNodeRegistry({} as never)
+
+      // findDiff derives adds/removes from whatever topology the registry now
+      // holds — so reconcile operates on the refreshed set, not the stale one.
+      mock.method(__test__, "findDiff", async (map: MetricsServerMap, nodes: ClusterNodeMap) => ({
+        nodesToAdd: Object.fromEntries(Object.entries(nodes).filter(([id]) => !map.has(id))),
+        nodesToRemove: [] as string[],
+      }))
+      const updateMetricsServers = mock.method(__test__, "updateMetricsServers", async () => {})
+
+      await reconcileClusterMetricsServers(metricsServerMap)
+
+      assert.strictEqual(updateMetricsServers.mock.callCount(), 1, "reconcile should act on the topology change")
+      const [nodesToAdd] = updateMetricsServers.mock.calls[0].arguments as [Record<string, unknown>, string[], string]
+      assert.deepStrictEqual(
+        Object.keys(nodesToAdd),
+        ["node2"],
+        "the node added by the refreshed topology should be reconciled",
+      )
     })
   })
 })

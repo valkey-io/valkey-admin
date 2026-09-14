@@ -3,6 +3,7 @@ import express from "express"
 import helmet from "helmet"
 import path from "path"
 import http from "http"
+import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import {
   VALKEY,
   CONNECTION_TEARDOWN_DELAY_MS,
@@ -143,7 +144,9 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
-function refreshAllClusterRegistries() {
+async function refreshAllClusterRegistries() {
+  // Group live connections by cluster once; used both to pick a client to
+  // re-discover each cluster's topology and to target the broadcast below.
   const connectionIdsByCluster = new Map<string, string[]>()
   for (const [connectionId, entry] of clients) {
     if (!entry.clusterId) continue
@@ -151,6 +154,19 @@ function refreshAllClusterRegistries() {
     ids.push(connectionId)
     connectionIdsByCluster.set(entry.clusterId, ids)
   }
+
+  // Re-discover each tracked cluster's topology before broadcasting, so clients
+  // receive the current cluster nodes rather than the connect-time snapshot.
+  // Each cluster is refreshed through one of its own live clients (topology
+  // discovery keys off that client's CLUSTER SLOTS); a cluster with no live
+  // client is left as-is, since there is nothing to rediscover through.
+  await Promise.all(
+    [...clusterNodesRegistry.keys()]
+      .map((clusterId) => connectionIdsByCluster.get(clusterId)?.[0])
+      .map((connectionId) => (connectionId ? clients.get(connectionId)?.client : undefined))
+      .filter((client): client is GlideClient | GlideClusterClient => client != null)
+      .map((client) => updateClusterNodeRegistry(client)),
+  )
 
   for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
     const connectionIds = connectionIdsByCluster.get(clusterId)
@@ -172,7 +188,7 @@ function refreshAllClusterRegistries() {
 async function refreshAllClusterRegistriesLoop() {
   while (true) {
     try {
-      refreshAllClusterRegistries()
+      await refreshAllClusterRegistries()
     } catch (err) {
       console.warn("Unable to refresh cluster topologies. ", err)
     } finally {

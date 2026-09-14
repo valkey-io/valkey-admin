@@ -79,7 +79,14 @@ const collectorKeys: Map<string, string> = new Map()
  * replayed against another.
  */
 export function resolveCollectorKey(nodeId: string): string | undefined {
-  return collectorKeys.get(nodeId)
+  const spawnedKey = collectorKeys.get(nodeId)
+  if (spawnedKey) return spawnedKey
+  // K8s collectors are external sidecars the orchestrator never spawns, so there
+  // is no per-node minted key. They authenticate with a shared key provisioned to
+  // both the orchestrator and every sidecar via a Kubernetes Secret. Scoped to K8s
+  // so the per-node property is preserved for spawned (Web/Electron) collectors.
+  if (isKubernetes) return process.env[ORCHESTRATOR_AUTH_KEY_ENV]
+  return undefined
 }
 
 /**
@@ -226,6 +233,18 @@ function isPinnedMetricsHost(uri: string): boolean {
 }
 
 /**
+ * True when `nodeId` is part of a discovered cluster topology. In K8s the
+ * orchestrator only tracks topology (it never spawns collectors), so this is
+ * how a sidecar's registration is authorized as belonging to the cluster.
+ */
+function isKnownClusterNode(nodeId: string): boolean {
+  for (const clusterNodes of clusterNodesRegistry.values()) {
+    if (flattenClusterNodeMap(clusterNodes)[nodeId]) return true
+  }
+  return false
+}
+
+/**
  * `POST /orchestrator/register` — a collector advertising where it can be
  * reached.
  *
@@ -269,12 +288,20 @@ function handleRegister(req: Request, res: Response): void {
     return
   }
 
-  const entry = metricsServerMap.get(nodeId)
-  if (!entry) {
-    // Key material without an entry means the spawn did not complete.
+  // Allowed if we already have an entry (orchestrator-spawned) or, in K8s,
+  // the node is part of the discovered cluster (sidecars are external, so
+  // they create their entry on first register).
+  const allowed = metricsServerMap.has(nodeId) || (isKubernetes && isKnownClusterNode(nodeId))
+  if (!allowed) {
     console.warn(`Rejected metrics registration for ${nodeId}: no metrics server entry`)
     res.status(401).send("Unauthorized")
     return
+  }
+
+  let entry = metricsServerMap.get(nodeId)
+  if (!entry) {
+    entry = { metricsURI: "", pid: undefined, lastSeen: Date.now() }
+    metricsServerMap.set(nodeId, entry)
   }
 
   entry.metricsURI = metricsServerUri
@@ -369,7 +396,7 @@ async function getClusterTopology(client: GlideClusterClient | GlideClient | nul
 
 export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient | null, connectionDetails = initialConnectionDetails) {
   try {
-    const { discoveredClusterNodes, clusterId } = await getClusterTopology(client, connectionDetails)
+    const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
     if (clusterId && discoveredClusterNodes) clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
   }
   catch (err) {
