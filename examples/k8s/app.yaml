@@ -24,6 +24,9 @@ spec:
               value: "8080"
             - name: DEPLOYMENT_MODE
               value: "K8"
+            # Bind all interfaces so the Service/pod network can reach the server.
+            - name: SERVER_BIND_HOST
+              value: "0.0.0.0"
             - name: VALKEY_HOST
               value: valkey-0.valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT

@@ -19,6 +19,15 @@ docker run -d --name valkey-admin \
 
 Open `http://<your-instance-ip>:8080` and add a connection to your ElastiCache endpoint through the UI.
 
+:::caution[This publishes an unauthenticated service on a routable interface]
+Web mode has **no authentication**, and `-p 8080:8080` publishes it on all
+interfaces — anyone who can reach `<your-instance-ip>:8080` can access your
+ElastiCache cluster through it. For anything beyond a throwaway test, use the
+**Production Deployment** below (HTTPS + Cognito), keep the port bound to loopback
+(`-p 127.0.0.1:8080:8080`), and restrict access with security groups. Treat
+external exposure as a deliberate decision.
+:::
+
 For IAM authentication, ensure the instance's IAM role has `elasticache:Connect` permission scoped to your replication group and user.
 
 ---

@@ -112,7 +112,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: false
+          provenance: true
+          sbom: true
 
       - name: Update Docker Hub description
         if: env.PUBLISH_DOCKERHUB == 'true'

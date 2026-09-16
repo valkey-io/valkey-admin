@@ -23,6 +23,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV DEPLOYMENT_MODE=Web
+# Bind all interfaces inside the container so published ports (-p) are reachable.
+# The server itself defaults to loopback off-container; this is the explicit
+# container opt-in to external exposure.
+ENV SERVER_BIND_HOST=0.0.0.0
 
 # Copy root workspace files
 COPY package.json package-lock.json ./

@@ -38,6 +38,18 @@ The TCP port the Express + WebSocket server listens on. The same port serves the
 PORT=9090
 ```
 
+### `SERVER_BIND_HOST`
+
+Network interface the server binds to. Defaults to loopback (`127.0.0.1`) so an unauthenticated Web server is not reachable off-host unless you opt in. Web mode has no authentication, so only bind a routable interface when access is otherwise restricted (authenticating proxy, security groups, etc.).
+
+- **Default:** `127.0.0.1` (loopback); `0.0.0.0` when `DEPLOYMENT_MODE=K8`
+- **Read in:** `apps/server/src/index.ts`
+- **Note:** The Docker image sets `SERVER_BIND_HOST=0.0.0.0` so published ports (`-p`) are reachable; bind the published port to loopback (`-p 127.0.0.1:8080:8080`) to keep it local.
+
+```bash
+SERVER_BIND_HOST=0.0.0.0
+```
+
 ## Mode & Orchestrator
 
 ### `DEPLOYMENT_MODE`
