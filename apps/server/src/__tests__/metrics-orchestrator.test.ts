@@ -309,5 +309,35 @@ describe("metrics-orchestrator", () => {
         "registry should reflect the newly discovered topology, not the stale snapshot",
       )
     })
+
+    it("overwrites the existing entry when a known clusterId is passed, even if the derived id changed", async () => {
+      // Existing cluster tracked under "orig-id".
+      clusterNodesRegistry.set("orig-id", {
+        "192-168-1-1-6379": { host: "192.168.1.1", port: 6379, tls: false, verifyTlsCertificate: false },
+      })
+
+      // After a failover, CLUSTER SLOTS now lists a different first primary, so the
+      // derived clusterId would be "new-first-primary" — which would orphan "orig-id".
+      const client = {
+        customCommand: async (args: string[]) =>
+          args[0] === "CLUSTER" && args[1] === "SLOTS"
+            ? [[0, 16383, ["192.168.1.9", 6379, "new-first-primary"]]]
+            : [],
+      } as never
+
+      const sampleNode = Object.values(clusterNodesRegistry.get("orig-id") ?? {})[0]
+      await updateClusterNodeRegistry(client, sampleNode, "orig-id")
+
+      assert.deepStrictEqual(
+        [...clusterNodesRegistry.keys()],
+        ["orig-id"],
+        "the known clusterId should be overwritten in place, leaving no orphaned entry",
+      )
+      assert.deepStrictEqual(
+        Object.keys(clusterNodesRegistry.get("orig-id") ?? {}),
+        ["192-168-1-9-6379"],
+        "the entry should hold the freshly discovered node",
+      )
+    })
   })
 })

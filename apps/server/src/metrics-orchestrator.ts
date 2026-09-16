@@ -386,10 +386,18 @@ async function createClient(connectionDetails: ConnectionDetails) {
   return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, databaseId: db })
 }
 
-export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient, nodeInfo: NodeInfo) {
+export async function updateClusterNodeRegistry(
+  client: GlideClusterClient | GlideClient,
+  nodeInfo: NodeInfo,
+  clusterId?: string,
+) {
   try {
-    const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: nodeInfo })
-    if (clusterId && discoveredClusterNodes) clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
+    const { discoveredClusterNodes, clusterId: discoveredClusterId } = await discoverCluster(client, { connectionDetails: nodeInfo })
+    // Prefer the caller's known clusterId when refreshing an existing cluster: the
+    // discovered id is derived from the first primary in CLUSTER SLOTS, which can
+    // change on failover/resharding and would otherwise orphan the old entry.
+    const key = clusterId ?? discoveredClusterId
+    if (key && discoveredClusterNodes) clusterNodesRegistry.set(key, discoveredClusterNodes)
   }
   catch (err) {
     if (err instanceof ConnectionError) {

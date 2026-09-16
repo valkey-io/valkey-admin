@@ -174,7 +174,7 @@ async function refreshAllClusterRegistries() {
       if (!client || !nodeInfo) return
 
       await Promise.race([
-        updateClusterNodeRegistry(client, nodeInfo),
+        updateClusterNodeRegistry(client, nodeInfo, clusterId),
         delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
           console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
         ),
