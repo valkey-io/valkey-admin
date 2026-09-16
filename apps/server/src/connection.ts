@@ -22,7 +22,8 @@ import {
   reconcileClusterMetricsServers, 
   isKubernetes, 
   forgetCollectorKey,
-  ClusterNodeMap } from "./metrics-orchestrator"
+  ClusterNodeMap,
+  type NodeInfo } from "./metrics-orchestrator"
 import { subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
 import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
@@ -595,7 +596,7 @@ function sendStandaloneConnectFulfilled(ws: WebSocket, payload: StandaloneConnec
 
 export async function discoverCluster(
   client: GlideClient | GlideClusterClient, 
-  payload: { connectionDetails: ConnectionDetails, connectionId?: string;},
+  payload: { connectionDetails: NodeInfo, connectionId?: string;},
 )  {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

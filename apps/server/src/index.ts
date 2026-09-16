@@ -3,7 +3,6 @@ import express from "express"
 import helmet from "helmet"
 import path from "path"
 import http from "http"
-import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import {
   VALKEY,
   CONNECTION_TEARDOWN_DELAY_MS,
@@ -144,6 +143,11 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
+// Upper bound on a single cluster's topology re-discovery. Without it, one hung
+// CLUSTER SLOTS would leave the awaited refresh unsettled and stall the broadcast
+// for every cluster, not just the unresponsive one.
+const TOPOLOGY_REDISCOVERY_TIMEOUT_MS = 10_000
+
 async function refreshAllClusterRegistries() {
   // Group live connections by cluster once; used both to pick a client to
   // re-discover each cluster's topology and to target the broadcast below.
@@ -155,17 +159,27 @@ async function refreshAllClusterRegistries() {
     connectionIdsByCluster.set(entry.clusterId, ids)
   }
 
-  // Re-discover each tracked cluster's topology before broadcasting, so clients
-  // receive the current cluster nodes rather than the connect-time snapshot.
-  // Each cluster is refreshed through one of its own live clients (topology
-  // discovery keys off that client's CLUSTER SLOTS); a cluster with no live
-  // client is left as-is, since there is nothing to rediscover through.
+  // Re-discover each tracked cluster before broadcasting. User-connected clusters
+  // use their own client + node metadata; a preconfigured cluster (K8s / headless
+  // Web) has no entry in `clients`, so it falls back to the initial client so
+  // scaled-in nodes are picked up without a UI session. Time-bounded so one hung
+  // node can't stall the whole loop.
   await Promise.all(
-    [...clusterNodesRegistry.keys()]
-      .map((clusterId) => connectionIdsByCluster.get(clusterId)?.[0])
-      .map((connectionId) => (connectionId ? clients.get(connectionId)?.client : undefined))
-      .filter((client): client is GlideClient | GlideClusterClient => client != null)
-      .map((client) => updateClusterNodeRegistry(client)),
+    [...clusterNodesRegistry.entries()].map(async ([clusterId, clusterNodes]) => {
+      const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
+      const userClient = connectionId ? clients.get(connectionId)?.client : undefined
+
+      const client = userClient ?? (preConfiguredConnection ? await getInitialClient() : undefined)
+      const nodeInfo = userClient ? Object.values(clusterNodes)[0] : initialConnectionDetails
+      if (!client || !nodeInfo) return
+
+      await Promise.race([
+        updateClusterNodeRegistry(client, nodeInfo),
+        delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
+          console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
+        ),
+      ])
+    }),
   )
 
   for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
@@ -200,7 +214,7 @@ async function refreshAllClusterRegistriesLoop() {
 
 async function updateRegistryforK8() {
   const client = await getInitialClient()
-  updateClusterNodeRegistry(client, initialConnectionDetails)
+  await updateClusterNodeRegistry(client, initialConnectionDetails)
 }
 
 // Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,

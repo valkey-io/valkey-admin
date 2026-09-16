@@ -1,3 +1,18 @@
+# Example Valkey cluster StatefulSet with an inline metrics sidecar.
+#
+# PREREQUISITES — the metrics sidecars will crash-loop (and, because StatefulSet
+# rollout is ordered, block the whole rollout at valkey-0) unless both are met:
+#
+#   1. Create the shared orchestrator key Secret first (the sidecar exits with
+#      "Missing ORCHESTRATOR_KEY ... Shutting down" without it):
+#        kubectl create secret generic valkey-admin-orchestrator-key -n valkey \
+#          --from-literal=ORCHESTRATOR_KEY="$(openssl rand -hex 32)"
+#
+#   2. Form the cluster after the pods are up. These nodes start with
+#      --cluster-enabled yes but do NOT self-form, so CLUSTER SLOTS is empty and
+#      the sidecar dies on "Cluster(No topology views found)". Assign slots once:
+#        valkey-cli --cluster create <pod IPs>:6379 --cluster-replicas <n>
+#
 apiVersion: v1
 kind: Service
 metadata:
@@ -105,6 +120,11 @@ spec:
                   fieldPath: status.podIP
             - name: METRICS_ADVERTISE_PORT
               value: "3000"
+            - name: ORCHESTRATOR_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: valkey-admin-orchestrator-key
+                  key: ORCHESTRATOR_KEY
           ports:
             - containerPort: 3000
               name: metrics

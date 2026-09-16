@@ -43,7 +43,7 @@ export type MetricsServerMap = Map<string,
   }
 >
 
-type NodeInfo = {
+export type NodeInfo = {
   host: string;
   port: number | string;
   username?: string;
@@ -386,17 +386,9 @@ async function createClient(connectionDetails: ConnectionDetails) {
   return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, databaseId: db })
 }
 
-async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {
-  if (!client) client = await createClient(node)
-
-  const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
-
-  return { discoveredClusterNodes, clusterId }
-}
-
-export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient | null, connectionDetails = initialConnectionDetails) {
+export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient, nodeInfo: NodeInfo) {
   try {
-    const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, connectionDetails)
+    const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: nodeInfo })
     if (clusterId && discoveredClusterNodes) clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
   }
   catch (err) {
@@ -609,7 +601,7 @@ export async function startPreconfiguredMetricsServers() {
   const client = await getInitialClient()
   if (await belongsToCluster(client)) {
     if (isWebMode) {
-      const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, initialConnectionDetails)
+      const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: initialConnectionDetails })
       if (clusterId && discoveredClusterNodes) {
         clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
         if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
@@ -643,7 +635,6 @@ export function cleanupOrchestratorResources() {
 const internals =  {
   startMetricsServers,
   createClient,
-  getClusterTopology,
   updateClusterNodeRegistry,
   findDiff,
   flattenClusterNodeMap,

@@ -211,6 +211,15 @@ Failed to register with server after 30 attempts. Shutting down.
 If you see this, confirm the `valkey-admin-orchestrator-key` Secret exists in the
 `valkey` namespace and that both pods reference it (`kubectl get pod ... -o yaml |
 grep -A3 ORCHESTRATOR_KEY`).
+
+The key is shared cluster-wide rather than per-node, so it authenticates a sidecar
+as *a* member of the cluster, not as one specific node. Treat it as a
+cluster-scoped credential: restrict read access on the Secret, and rotate it by
+recreating the Secret and restarting the app Deployment and the sidecars. Note that
+in `DEPLOYMENT_MODE=K8` the registered metrics host is not pinned to loopback, so
+any holder of the key can point a node's metrics URI at an arbitrary host that the
+server will then fetch from — keep the key tightly scoped and the namespace's
+network egress constrained accordingly.
 :::
 
 ### Charts Empty in the UI
