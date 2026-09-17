@@ -64,6 +64,11 @@ export const clusterNodesRegistry: Map<string, ClusterNodeMap> = new Map()
 
 export const clusterCredentials: Map<string, string | undefined> = new Map()
 
+let preconfiguredClusterId: string | undefined
+export function setPreconfiguredClusterId(clusterId: string | undefined) {
+  preconfiguredClusterId = clusterId
+}
+
 export const metricsServerMap: MetricsServerMap = new Map()
 
 /**
@@ -397,7 +402,10 @@ export async function updateClusterNodeRegistry(
     // discovered id is derived from the first primary in CLUSTER SLOTS, which can
     // change on failover/resharding and would otherwise orphan the old entry.
     const key = clusterId ?? discoveredClusterId
-    if (key && discoveredClusterNodes) clusterNodesRegistry.set(key, discoveredClusterNodes)
+    if (key && discoveredClusterNodes) {
+      clusterNodesRegistry.set(key, discoveredClusterNodes)
+      return key
+    }
   }
   catch (err) {
     if (err instanceof ConnectionError) {
@@ -405,7 +413,7 @@ export async function updateClusterNodeRegistry(
     }
     console.error(err)
   }
-  return clusterNodesRegistry
+  return undefined
 }
 
 /**
@@ -417,13 +425,17 @@ export async function updateClusterNodeRegistry(
  * be refreshed (no client available).
  */
 export async function resolveClusterRefreshTarget(
+  clusterId: string,
   clusterNodes: ClusterNodeMap,
   userClient: GlideClusterClient | GlideClient | undefined,
 ): Promise<{ client: GlideClusterClient | GlideClient; nodeInfo: NodeInfo } | undefined> {
-  const client = userClient ?? (preConfiguredConnection ? await internals.getInitialClient() : undefined)
-  const nodeInfo = userClient ? Object.values(clusterNodes)[0] : initialConnectionDetails
-  if (!client || !nodeInfo) return undefined
-  return { client, nodeInfo }
+  if (userClient) return { client: userClient, nodeInfo: Object.values(clusterNodes)[0] }
+
+  // Only the preconfigured cluster may be refreshed via the initial client.
+  if (preConfiguredConnection && clusterId === preconfiguredClusterId) {
+    return { client: await internals.getInitialClient(), nodeInfo: initialConnectionDetails }
+  }
+  return undefined
 }
 
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
@@ -630,6 +642,7 @@ export async function startPreconfiguredMetricsServers() {
       const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: initialConnectionDetails })
       if (clusterId && discoveredClusterNodes) {
         clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
+        setPreconfiguredClusterId(clusterId)
         if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
       }
       runReconcileLoop()

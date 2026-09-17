@@ -347,7 +347,7 @@ describe("metrics-orchestrator", () => {
         node1: { host: "10.0.0.1", port: 6379, tls: true, verifyTlsCertificate: false, username: "admin", authType: "iam" as const },
       }
 
-      const target = await resolveClusterRefreshTarget(clusterNodes, userClient)
+      const target = await resolveClusterRefreshTarget("cluster-1", clusterNodes, userClient)
 
       assert.strictEqual(target?.client, userClient, "should refresh with the cluster's own live client")
       // nodeInfo must be a node from THIS cluster (preserving its tls/username/auth),
@@ -359,6 +359,7 @@ describe("metrics-orchestrator", () => {
       // DEPLOYMENT_MODE is unset in this file, so preConfiguredConnection is falsy
       // and there is no initial client to fall back to.
       const target = await resolveClusterRefreshTarget(
+        "cluster-1",
         { node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false } },
         undefined,
       )

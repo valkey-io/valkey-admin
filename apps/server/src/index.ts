@@ -48,7 +48,8 @@ import {
   preConfiguredConnection,
   getInitialClient,
   updateClusterNodeRegistry,
-  resolveClusterRefreshTarget
+  resolveClusterRefreshTarget,
+  setPreconfiguredClusterId
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
 import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
@@ -170,7 +171,7 @@ async function refreshAllClusterRegistries() {
       const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
       const userClient = connectionId ? clients.get(connectionId)?.client : undefined
 
-      const target = await resolveClusterRefreshTarget(clusterNodes, userClient)
+      const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient)
       if (!target) return
 
       await Promise.race([
@@ -214,7 +215,8 @@ async function refreshAllClusterRegistriesLoop() {
 
 async function updateRegistryforK8() {
   const client = await getInitialClient()
-  await updateClusterNodeRegistry(client, initialConnectionDetails)
+  const clusterId = await updateClusterNodeRegistry(client, initialConnectionDetails)
+  setPreconfiguredClusterId(clusterId)
 }
 
 // Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,
