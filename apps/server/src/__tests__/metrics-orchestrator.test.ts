@@ -7,6 +7,7 @@ import {
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
   updateClusterNodeRegistry,
+  resolveClusterRefreshTarget,
   clients,
   clusterNodesRegistry,
   __test__,
@@ -338,6 +339,30 @@ describe("metrics-orchestrator", () => {
         ["192-168-1-9-6379"],
         "the entry should hold the freshly discovered node",
       )
+    })
+
+    it("resolveClusterRefreshTarget uses the user client and carries node metadata forward", async () => {
+      const userClient = { id: "user-client" } as never
+      const clusterNodes = {
+        node1: { host: "10.0.0.1", port: 6379, tls: true, verifyTlsCertificate: false, username: "admin", authType: "iam" as const },
+      }
+
+      const target = await resolveClusterRefreshTarget(clusterNodes, userClient)
+
+      assert.strictEqual(target?.client, userClient, "should refresh with the cluster's own live client")
+      // nodeInfo must be a node from THIS cluster (preserving its tls/username/auth),
+      // not initialConnectionDetails.
+      assert.deepStrictEqual(target?.nodeInfo, clusterNodes.node1, "should carry the cluster's own node metadata forward")
+    })
+
+    it("resolveClusterRefreshTarget skips a cluster with no live client when not preconfigured", async () => {
+      // DEPLOYMENT_MODE is unset in this file, so preConfiguredConnection is falsy
+      // and there is no initial client to fall back to.
+      const target = await resolveClusterRefreshTarget(
+        { node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false } },
+        undefined,
+      )
+      assert.strictEqual(target, undefined, "a cluster with no live client and no preconfigured fallback is skipped")
     })
   })
 })

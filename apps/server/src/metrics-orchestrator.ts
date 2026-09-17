@@ -408,6 +408,24 @@ export async function updateClusterNodeRegistry(
   return clusterNodesRegistry
 }
 
+/**
+ * Decide how to refresh one tracked cluster. A user-connected cluster is refreshed
+ * with its own client and metadata carried forward from an existing node (so a
+ * refresh doesn't revert TLS/auth to server defaults). A preconfigured cluster
+ * (K8s / headless Web) has no live user client, so it falls back to the initial
+ * client with initialConnectionDetails. Returns undefined when the cluster can't
+ * be refreshed (no client available).
+ */
+export async function resolveClusterRefreshTarget(
+  clusterNodes: ClusterNodeMap,
+  userClient: GlideClusterClient | GlideClient | undefined,
+): Promise<{ client: GlideClusterClient | GlideClient; nodeInfo: NodeInfo } | undefined> {
+  const client = userClient ?? (preConfiguredConnection ? await internals.getInitialClient() : undefined)
+  const nodeInfo = userClient ? Object.values(clusterNodes)[0] : initialConnectionDetails
+  if (!client || !nodeInfo) return undefined
+  return { client, nodeInfo }
+}
+
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
   const clusterNodes = isKubernetes ? flattenClusterNodeMap(clusterNodeMap) : clusterNodeMap
   // These are nodes that are in the clusterMap but not metricsMap
@@ -643,6 +661,7 @@ export function cleanupOrchestratorResources() {
 const internals =  {
   startMetricsServers,
   createClient,
+  getInitialClient,
   updateClusterNodeRegistry,
   findDiff,
   flattenClusterNodeMap,

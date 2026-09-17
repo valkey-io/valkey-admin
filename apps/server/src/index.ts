@@ -47,7 +47,8 @@ import {
   isKubernetes,
   preConfiguredConnection,
   getInitialClient,
-  updateClusterNodeRegistry
+  updateClusterNodeRegistry,
+  resolveClusterRefreshTarget
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
 import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
@@ -169,12 +170,11 @@ async function refreshAllClusterRegistries() {
       const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
       const userClient = connectionId ? clients.get(connectionId)?.client : undefined
 
-      const client = userClient ?? (preConfiguredConnection ? await getInitialClient() : undefined)
-      const nodeInfo = userClient ? Object.values(clusterNodes)[0] : initialConnectionDetails
-      if (!client || !nodeInfo) return
+      const target = await resolveClusterRefreshTarget(clusterNodes, userClient)
+      if (!target) return
 
       await Promise.race([
-        updateClusterNodeRegistry(client, nodeInfo, clusterId),
+        updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId),
         delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
           console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
         ),
