@@ -6,6 +6,8 @@ import {
   metricsServerMap,
   stopAllMetricsServers,
   reconcileClusterMetricsServers,
+  updateClusterNodeRegistry,
+  resolveClusterRefreshTarget,
   clients,
   clusterNodesRegistry,
   __test__,
@@ -229,12 +231,6 @@ describe("metrics-orchestrator", () => {
 
       // Mock all side-effectful internal functions
       mock.method(__test__, "createClient", async () => ({}))
-      mock.method(__test__, "getClusterTopology", async () => ({
-        clusterNodes: {
-          node1: { host: "127.0.0.1", port: "6379", tls: false, verifyTlsCertificate: false },
-        },
-        clusterId: "cluster-1",
-      }))
       mock.method(__test__, "updateClusterNodeRegistry", async () => mockClusterNodesRegistry)
       mock.method(__test__, "updateMetricsServers", async () => {})
       mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
@@ -269,6 +265,105 @@ describe("metrics-orchestrator", () => {
       // metrics servers are started or stopped.
       assert.strictEqual(findDiff.mock.callCount(), 1)
       assert.strictEqual(updateMetricsServers.mock.callCount(), 0)
+    })
+  })
+
+  describe("topology refresh", () => {
+    beforeEach(() => {
+      mock.restoreAll()
+      clients.clear()
+      metricsServerMap.clear()
+      clusterNodesRegistry.clear()
+    })
+    afterEach(() => {
+      mock.restoreAll()
+      clients.clear()
+      metricsServerMap.clear()
+      clusterNodesRegistry.clear()
+    })
+
+    it("updateClusterNodeRegistry replaces stale topology with the freshly discovered one", async () => {
+      // Seed a stale registry: cluster "node-1" knows only one node.
+      clusterNodesRegistry.set("node-1", {
+        "192-168-1-1-6379": { host: "192.168.1.1", port: 6379, tls: false, verifyTlsCertificate: false },
+      })
+
+      // A live client for that cluster whose CLUSTER SLOTS now reports three
+      // primaries. (SLOTS parsing itself is covered in connection.test.ts.)
+      const client = {
+        customCommand: async (args: string[]) =>
+          args[0] === "CLUSTER" && args[1] === "SLOTS"
+            ? [
+              [0, 5460, ["192.168.1.1", 6379, "node-1"]],
+              [5461, 10922, ["192.168.1.3", 6379, "node-2"]],
+              [10923, 16383, ["192.168.1.4", 6379, "node-3"]],
+            ]
+            : [],
+      } as never
+
+      const sampleNode = Object.values(clusterNodesRegistry.get("node-1") ?? {})[0]
+      await updateClusterNodeRegistry(client, sampleNode)
+
+      assert.deepStrictEqual(
+        Object.keys(clusterNodesRegistry.get("node-1") ?? {}).sort(),
+        ["192-168-1-1-6379", "192-168-1-3-6379", "192-168-1-4-6379"],
+        "registry should reflect the newly discovered topology, not the stale snapshot",
+      )
+    })
+
+    it("overwrites the existing entry when a known clusterId is passed, even if the derived id changed", async () => {
+      // Existing cluster tracked under "orig-id".
+      clusterNodesRegistry.set("orig-id", {
+        "192-168-1-1-6379": { host: "192.168.1.1", port: 6379, tls: false, verifyTlsCertificate: false },
+      })
+
+      // After a failover, CLUSTER SLOTS now lists a different first primary, so the
+      // derived clusterId would be "new-first-primary" — which would orphan "orig-id".
+      const client = {
+        customCommand: async (args: string[]) =>
+          args[0] === "CLUSTER" && args[1] === "SLOTS"
+            ? [[0, 16383, ["192.168.1.9", 6379, "new-first-primary"]]]
+            : [],
+      } as never
+
+      const sampleNode = Object.values(clusterNodesRegistry.get("orig-id") ?? {})[0]
+      await updateClusterNodeRegistry(client, sampleNode, "orig-id")
+
+      assert.deepStrictEqual(
+        [...clusterNodesRegistry.keys()],
+        ["orig-id"],
+        "the known clusterId should be overwritten in place, leaving no orphaned entry",
+      )
+      assert.deepStrictEqual(
+        Object.keys(clusterNodesRegistry.get("orig-id") ?? {}),
+        ["192-168-1-9-6379"],
+        "the entry should hold the freshly discovered node",
+      )
+    })
+
+    it("resolveClusterRefreshTarget uses the user client and carries node metadata forward", async () => {
+      const userClient = { id: "user-client" } as never
+      const clusterNodes = {
+        node1: { host: "10.0.0.1", port: 6379, tls: true, verifyTlsCertificate: false, username: "admin", authType: "iam" as const },
+      }
+
+      const target = await resolveClusterRefreshTarget("cluster-1", clusterNodes, userClient)
+
+      assert.strictEqual(target?.client, userClient, "should refresh with the cluster's own live client")
+      // nodeInfo must be a node from THIS cluster (preserving its tls/username/auth),
+      // not initialConnectionDetails.
+      assert.deepStrictEqual(target?.nodeInfo, clusterNodes.node1, "should carry the cluster's own node metadata forward")
+    })
+
+    it("resolveClusterRefreshTarget skips a cluster with no live client when not preconfigured", async () => {
+      // DEPLOYMENT_MODE is unset in this file, so preConfiguredConnection is falsy
+      // and there is no initial client to fall back to.
+      const target = await resolveClusterRefreshTarget(
+        "cluster-1",
+        { node1: { host: "10.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false } },
+        undefined,
+      )
+      assert.strictEqual(target, undefined, "a cluster with no live client and no preconfigured fallback is skipped")
     })
   })
 })

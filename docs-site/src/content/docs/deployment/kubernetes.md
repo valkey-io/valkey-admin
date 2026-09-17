@@ -55,6 +55,21 @@ For a non-local deployment, use published images from a container registry and u
 
 ### 3. Deploy the app server
 
+The metrics sidecars authenticate to the orchestrator's `/orchestrator/register`
+and `/orchestrator/ping` endpoints with a shared key. Because sidecars are external
+(the orchestrator does not spawn them in Kubernetes), the same key must be
+provisioned to both the app server and every sidecar via a Secret. Create it first
+with your own random value:
+
+```bash
+kubectl create secret generic valkey-admin-orchestrator-key -n valkey \
+  --from-literal=ORCHESTRATOR_KEY="$(openssl rand -hex 32)"
+```
+
+`app.yaml` intentionally does **not** define this Secret — it only references it —
+so `kubectl apply` can never overwrite your generated key with a committed
+placeholder. Create the Secret first (above), then deploy the app server:
+
 ```bash
 kubectl apply -f examples/k8s/app.yaml
 kubectl rollout status deployment/valkey-admin-app -n valkey
@@ -181,15 +196,30 @@ kubectl logs -n valkey valkey-0 -c metrics
 
 You want to see `Register success` in the metrics sidecar log.
 
-:::caution[Sidecar registration is not yet functional]
-Sidecar registration does not currently succeed in `DEPLOYMENT_MODE=K8`. The orchestrator only tracks collectors it spawned itself, and it does not spawn sidecars, so a sidecar's registration is rejected and the sidecar exits after 30 attempts:
+:::caution[Sidecar registration requires the shared key]
+Registration and ping are authenticated. Each sidecar signs its requests with the
+shared `ORCHESTRATOR_KEY`, and the orchestrator verifies against the same key, so
+the Secret from step 3 must be present on **both** the app Deployment and the
+sidecar. If the key is missing or does not match, the sidecar exits after 30
+attempts:
 
 ```text
 Register failed: 401 Unauthorized
 Failed to register with server after 30 attempts. Shutting down.
 ```
 
-Support  is in progress. Until then the Kubernetes sidecar topology on this page will deploy but will not populate metrics panels. Use the [Docker deployment](/deployment/docker/) for a working metrics path.
+If you see this, confirm the `valkey-admin-orchestrator-key` Secret exists in the
+`valkey` namespace and that both pods reference it (`kubectl get pod ... -o yaml |
+grep -A3 ORCHESTRATOR_KEY`).
+
+The key is shared cluster-wide rather than per-node, so it authenticates a sidecar
+as *a* member of the cluster, not as one specific node. Treat it as a
+cluster-scoped credential: restrict read access on the Secret, and rotate it by
+recreating the Secret and restarting the app Deployment and the sidecars. Note that
+in `DEPLOYMENT_MODE=K8` the registered metrics host is not pinned to loopback, so
+any holder of the key can point a node's metrics URI at an arbitrary host that the
+server will then fetch from — keep the key tightly scoped and the namespace's
+network egress constrained accordingly.
 :::
 
 ### Charts Empty in the UI

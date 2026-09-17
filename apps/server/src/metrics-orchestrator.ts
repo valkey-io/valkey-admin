@@ -43,7 +43,7 @@ export type MetricsServerMap = Map<string,
   }
 >
 
-type NodeInfo = {
+export type NodeInfo = {
   host: string;
   port: number | string;
   username?: string;
@@ -64,6 +64,11 @@ export const clusterNodesRegistry: Map<string, ClusterNodeMap> = new Map()
 
 export const clusterCredentials: Map<string, string | undefined> = new Map()
 
+let preconfiguredClusterId: string | undefined
+export function setPreconfiguredClusterId(clusterId: string | undefined) {
+  preconfiguredClusterId = clusterId
+}
+
 export const metricsServerMap: MetricsServerMap = new Map()
 
 /**
@@ -79,7 +84,14 @@ const collectorKeys: Map<string, string> = new Map()
  * replayed against another.
  */
 export function resolveCollectorKey(nodeId: string): string | undefined {
-  return collectorKeys.get(nodeId)
+  const spawnedKey = collectorKeys.get(nodeId)
+  if (spawnedKey) return spawnedKey
+  // K8s collectors are external sidecars the orchestrator never spawns, so there
+  // is no per-node minted key. They authenticate with a shared key provisioned to
+  // both the orchestrator and every sidecar via a Kubernetes Secret. Scoped to K8s
+  // so the per-node property is preserved for spawned (Web/Electron) collectors.
+  if (isKubernetes) return process.env[ORCHESTRATOR_AUTH_KEY_ENV]
+  return undefined
 }
 
 /**
@@ -226,6 +238,18 @@ function isPinnedMetricsHost(uri: string): boolean {
 }
 
 /**
+ * True when `nodeId` is part of a discovered cluster topology. In K8s the
+ * orchestrator only tracks topology (it never spawns collectors), so this is
+ * how a sidecar's registration is authorized as belonging to the cluster.
+ */
+function isKnownClusterNode(nodeId: string): boolean {
+  for (const clusterNodes of clusterNodesRegistry.values()) {
+    if (flattenClusterNodeMap(clusterNodes)[nodeId]) return true
+  }
+  return false
+}
+
+/**
  * `POST /orchestrator/register` — a collector advertising where it can be
  * reached.
  *
@@ -269,12 +293,20 @@ function handleRegister(req: Request, res: Response): void {
     return
   }
 
-  const entry = metricsServerMap.get(nodeId)
-  if (!entry) {
-    // Key material without an entry means the spawn did not complete.
+  // Allowed if we already have an entry (orchestrator-spawned) or, in K8s,
+  // the node is part of the discovered cluster (sidecars are external, so
+  // they create their entry on first register).
+  const allowed = metricsServerMap.has(nodeId) || (isKubernetes && isKnownClusterNode(nodeId))
+  if (!allowed) {
     console.warn(`Rejected metrics registration for ${nodeId}: no metrics server entry`)
     res.status(401).send("Unauthorized")
     return
+  }
+
+  let entry = metricsServerMap.get(nodeId)
+  if (!entry) {
+    entry = { metricsURI: "", pid: undefined, lastSeen: Date.now() }
+    metricsServerMap.set(nodeId, entry)
   }
 
   entry.metricsURI = metricsServerUri
@@ -359,18 +391,21 @@ async function createClient(connectionDetails: ConnectionDetails) {
   return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, databaseId: db })
 }
 
-async function getClusterTopology(client: GlideClusterClient | GlideClient | null, node: ConnectionDetails) {
-  if (!client) client = await createClient(node)
-
-  const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: node })
-
-  return { discoveredClusterNodes, clusterId }
-}
-
-export async function updateClusterNodeRegistry(client: GlideClusterClient | GlideClient | null, connectionDetails = initialConnectionDetails) {
+export async function updateClusterNodeRegistry(
+  client: GlideClusterClient | GlideClient,
+  nodeInfo: NodeInfo,
+  clusterId?: string,
+) {
   try {
-    const { discoveredClusterNodes, clusterId } = await getClusterTopology(client, connectionDetails)
-    if (clusterId && discoveredClusterNodes) clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
+    const { discoveredClusterNodes, clusterId: discoveredClusterId } = await discoverCluster(client, { connectionDetails: nodeInfo })
+    // Prefer the caller's known clusterId when refreshing an existing cluster: the
+    // discovered id is derived from the first primary in CLUSTER SLOTS, which can
+    // change on failover/resharding and would otherwise orphan the old entry.
+    const key = clusterId ?? discoveredClusterId
+    if (key && discoveredClusterNodes) {
+      clusterNodesRegistry.set(key, discoveredClusterNodes)
+      return key
+    }
   }
   catch (err) {
     if (err instanceof ConnectionError) {
@@ -378,7 +413,29 @@ export async function updateClusterNodeRegistry(client: GlideClusterClient | Gli
     }
     console.error(err)
   }
-  return clusterNodesRegistry
+  return undefined
+}
+
+/**
+ * Decide how to refresh one tracked cluster. A user-connected cluster is refreshed
+ * with its own client and metadata carried forward from an existing node (so a
+ * refresh doesn't revert TLS/auth to server defaults). A preconfigured cluster
+ * (K8s / headless Web) has no live user client, so it falls back to the initial
+ * client with initialConnectionDetails. Returns undefined when the cluster can't
+ * be refreshed (no client available).
+ */
+export async function resolveClusterRefreshTarget(
+  clusterId: string,
+  clusterNodes: ClusterNodeMap,
+  userClient: GlideClusterClient | GlideClient | undefined,
+): Promise<{ client: GlideClusterClient | GlideClient; nodeInfo: NodeInfo } | undefined> {
+  if (userClient) return { client: userClient, nodeInfo: Object.values(clusterNodes)[0] }
+
+  // Only the preconfigured cluster may be refreshed via the initial client.
+  if (preConfiguredConnection && clusterId === preconfiguredClusterId) {
+    return { client: await internals.getInitialClient(), nodeInfo: initialConnectionDetails }
+  }
+  return undefined
 }
 
 async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
@@ -582,9 +639,10 @@ export async function startPreconfiguredMetricsServers() {
   const client = await getInitialClient()
   if (await belongsToCluster(client)) {
     if (isWebMode) {
-      const { discoveredClusterNodes, clusterId } = await internals.getClusterTopology(client, initialConnectionDetails)
+      const { discoveredClusterNodes, clusterId } = await discoverCluster(client, { connectionDetails: initialConnectionDetails })
       if (clusterId && discoveredClusterNodes) {
         clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
+        setPreconfiguredClusterId(clusterId)
         if (!clusterCredentials.has(clusterId)) clusterCredentials.set(clusterId, initialConnectionDetails.password)
       }
       runReconcileLoop()
@@ -616,7 +674,7 @@ export function cleanupOrchestratorResources() {
 const internals =  {
   startMetricsServers,
   createClient,
-  getClusterTopology,
+  getInitialClient,
   updateClusterNodeRegistry,
   findDiff,
   flattenClusterNodeMap,

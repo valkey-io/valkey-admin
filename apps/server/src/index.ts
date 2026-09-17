@@ -47,7 +47,9 @@ import {
   isKubernetes,
   preConfiguredConnection,
   getInitialClient,
-  updateClusterNodeRegistry
+  updateClusterNodeRegistry,
+  resolveClusterRefreshTarget,
+  setPreconfiguredClusterId
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
 import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
@@ -143,7 +145,14 @@ const wss = new WebSocketServer({ noServer: true })
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
-function refreshAllClusterRegistries() {
+// Upper bound on a single cluster's topology re-discovery. Without it, one hung
+// CLUSTER SLOTS would leave the awaited refresh unsettled and stall the broadcast
+// for every cluster, not just the unresponsive one.
+const TOPOLOGY_REDISCOVERY_TIMEOUT_MS = 10_000
+
+async function refreshAllClusterRegistries() {
+  // Group live connections by cluster once; used both to pick a client to
+  // re-discover each cluster's topology and to target the broadcast below.
   const connectionIdsByCluster = new Map<string, string[]>()
   for (const [connectionId, entry] of clients) {
     if (!entry.clusterId) continue
@@ -151,6 +160,28 @@ function refreshAllClusterRegistries() {
     ids.push(connectionId)
     connectionIdsByCluster.set(entry.clusterId, ids)
   }
+
+  // Re-discover each tracked cluster before broadcasting. User-connected clusters
+  // use their own client + node metadata; a preconfigured cluster (K8s / headless
+  // Web) has no entry in `clients`, so it falls back to the initial client so
+  // scaled-in nodes are picked up without a UI session. Time-bounded so one hung
+  // node can't stall the whole loop.
+  await Promise.all(
+    [...clusterNodesRegistry.entries()].map(async ([clusterId, clusterNodes]) => {
+      const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
+      const userClient = connectionId ? clients.get(connectionId)?.client : undefined
+
+      const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient)
+      if (!target) return
+
+      await Promise.race([
+        updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId),
+        delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
+          console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
+        ),
+      ])
+    }),
+  )
 
   for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
     const connectionIds = connectionIdsByCluster.get(clusterId)
@@ -172,7 +203,7 @@ function refreshAllClusterRegistries() {
 async function refreshAllClusterRegistriesLoop() {
   while (true) {
     try {
-      refreshAllClusterRegistries()
+      await refreshAllClusterRegistries()
     } catch (err) {
       console.warn("Unable to refresh cluster topologies. ", err)
     } finally {
@@ -184,7 +215,8 @@ async function refreshAllClusterRegistriesLoop() {
 
 async function updateRegistryforK8() {
   const client = await getInitialClient()
-  updateClusterNodeRegistry(client, initialConnectionDetails)
+  const clusterId = await updateClusterNodeRegistry(client, initialConnectionDetails)
+  setPreconfiguredClusterId(clusterId)
 }
 
 // Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,
