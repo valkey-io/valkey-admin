@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useSelector } from "react-redux"
 import { HousePlug } from "lucide-react"
 import { CONNECTED, CONNECTING, MAX_CONNECTIONS, RECONNECTING } from "@common/src/constants.ts"
+import { toast } from "sonner"
 import ConnectionForm from "../ui/connection-form.tsx"
 import EditForm from "../ui/edit-form.tsx"
 import { PasswordPromptModal } from "../ui/password-prompt-modal.tsx"
@@ -17,7 +18,7 @@ import { selectConnections } from "@/state/valkey-features/connection/connection
 import { ConnectionEntry } from "@/components/connection/ConnectionEntry.tsx"
 import { ClusterConnectionGroup } from "@/components/connection/ClusterConnectionGroup.tsx"
 import { useAppDispatch } from "@/hooks/hooks.ts"
-import { secureStorage } from "@/utils/secureStorage.ts"
+import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage.ts"
 
 const matchesSearch = (q: string, connection: ConnectionState) =>
   connection.searchableText.includes(q)
@@ -49,10 +50,12 @@ export function Connection() {
     if (!passwordPromptConnectionId) return
     const connection = connections[passwordPromptConnectionId]
     if (!connection) return
-    const encryptedPassword = await secureStorage.encryptIfAvailable(password)
+    const result = await secureStorage.encryptForStorage(password)
+    if (!result.ok) toast.warning(PASSWORD_NOT_STORED_WARNING)
     dispatch(connectPending({
       connectionId: passwordPromptConnectionId,
-      connectionDetails: { ...connection.connectionDetails, password: encryptedPassword },
+      connectionDetails: { ...connection.connectionDetails, password: result.ok ? result.value : password },
+      isPasswordEncrypted: result.ok,
       preservedHistory: connection.connectionHistory,
     }))
   }

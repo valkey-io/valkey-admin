@@ -4,11 +4,12 @@ import { useNavigate, useParams } from "react-router"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants"
 import { Loader2, Database, AlertCircle } from "lucide-react"
 import * as R from "ramda"
+import { toast } from "sonner"
 import RetryProgress from "./ui/retry-progress"
 import { PasswordPromptModal } from "./ui/password-prompt-modal"
 import type { RootState } from "@/store"
 import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
-import { secureStorage } from "@/utils/secureStorage"
+import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage"
 
 export function ValkeyReconnect() {
   const dispatch = useDispatch()
@@ -51,10 +52,12 @@ export function ValkeyReconnect() {
 
   const handlePasswordSubmit = async (password: string) => {
     if (!connection) return
-    const encryptedPassword = await secureStorage.encryptIfAvailable(password)
+    const result = await secureStorage.encryptForStorage(password)
+    if (!result.ok) toast.warning(PASSWORD_NOT_STORED_WARNING)
     dispatch(connectPending({
       connectionId: id!,
-      connectionDetails: { ...connection.connectionDetails, password: encryptedPassword },
+      connectionDetails: { ...connection.connectionDetails, password: result.ok ? result.value : password },
+      isPasswordEncrypted: result.ok,
     }))
   }
 

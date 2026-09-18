@@ -22,6 +22,43 @@ describe("connectionSlice", () => {
   })
 
   describe("connectPending", () => {
+    it("preserves isPasswordEncrypted=false across re-dispatches that omit the flag (retry/resume)", () => {
+      const details = {
+        host: "localhost", port: "6379", username: "admin", password: "plaintext",
+        tls: false, verifyTlsCertificate: false, alias: "Test",
+      }
+      // Initial connect marks the password as unencrypted (no OS keystore).
+      let state = connectionReducer(
+        initialState,
+        connectPending({ connectionId: "conn-1", connectionDetails: details, isPasswordEncrypted: false }),
+      )
+      expect(state.connections["conn-1"].isPasswordEncrypted).toBe(false)
+
+      // A retry re-dispatch carries the same details but no flag — the marking must survive,
+      // otherwise the persistence strip would be bypassed and plaintext could reach disk.
+      state = connectionReducer(
+        state,
+        connectPending({ connectionId: "conn-1", connectionDetails: details, isRetry: true }),
+      )
+      expect(state.connections["conn-1"].isPasswordEncrypted).toBe(false)
+    })
+
+    it("lets a new explicit flag override the preserved one (password re-entered with keystore available)", () => {
+      const details = {
+        host: "localhost", port: "6379", username: "admin", password: "ciphertext",
+        tls: false, verifyTlsCertificate: false, alias: "Test",
+      }
+      let state = connectionReducer(
+        initialState,
+        connectPending({ connectionId: "conn-1", connectionDetails: details, isPasswordEncrypted: false }),
+      )
+      state = connectionReducer(
+        state,
+        connectPending({ connectionId: "conn-1", connectionDetails: details, isPasswordEncrypted: true }),
+      )
+      expect(state.connections["conn-1"].isPasswordEncrypted).toBe(true)
+    })
+
     it("should create connection with CONNECTING status and store details with no password", () => {
       const state = connectionReducer(
         initialState,
