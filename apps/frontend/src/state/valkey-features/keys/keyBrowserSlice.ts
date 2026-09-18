@@ -6,6 +6,9 @@ interface KeyInfo {
   ttl?: number;
   size?: number;
   collectionSize?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements?: any;
+  elementsWarning?: string;
 }
 
 interface KeyBrowserState {
@@ -19,14 +22,17 @@ interface KeyBrowserState {
   };
 }
 
-export const defaultConnectionState = {
+// Called per connection so each gets its own nested objects, not frozen shared ones.
+export const createConnectionState = (): KeyBrowserState[string] => ({
   keys: [],
   cursor: "0",
   loading: false,
   error: null,
   keyTypeLoading: {},
   totalKeys: 0,
-}
+})
+
+export const defaultConnectionState = createConnectionState()
 
 const initialState: KeyBrowserState = {}
 
@@ -44,7 +50,7 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
       state[connectionId].loading = true
       state[connectionId].error = null
@@ -85,40 +91,29 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId, key } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
       state[connectionId].keyTypeLoading[key] = true
     },
     getKeyTypeFulfilled: (
       state,
-      action: PayloadAction<{
-        connectionId: string;
-        key: string;
-        keyType: string;
-        ttl: number;
-        size: number;
-        collectionSize?: number;
-      }>,
+      action: PayloadAction<
+        {
+          connectionId: string;
+          key: string;
+        } & Omit<KeyInfo, "name"> & { name?: string }
+      >,
     ) => {
-      const { connectionId, key, keyType, ttl, size, collectionSize } =
-        action.payload
+      const { connectionId, key, name, ...keyInfo } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
-      const existingKey = state[connectionId].keys.find(
-        (k) => k.name === key,
-      )
-      if (existingKey) {
-        existingKey.type = keyType
-        existingKey.ttl = ttl
-        if (size !== undefined) existingKey.size = size
-        if (collectionSize !== undefined)
-          existingKey.collectionSize = collectionSize
+      const updatedKey: KeyInfo = { name: name ?? key, ...keyInfo }
+      const index = state[connectionId].keys.findIndex((k) => k.name === key)
+      if (index === -1) {
+        state[connectionId].keys.push(updatedKey)
       } else {
-        state[connectionId].keys.push({
-          name: key, type: keyType, ttl, size,
-          ...(collectionSize !== undefined ? { collectionSize } : {}),
-        })
+        state[connectionId].keys[index] = updatedKey
       }
       delete state[connectionId].keyTypeLoading[key]
     },
@@ -141,7 +136,7 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId, key } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
       state[connectionId].keyTypeLoading[key] = true
     },
@@ -194,7 +189,7 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
       state[connectionId].loading = true
       state[connectionId].error = null
@@ -247,7 +242,7 @@ const keyBrowserSlice = createSlice({
     ) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
+        state[connectionId] = createConnectionState()
       }
       state[connectionId].loading = true
       state[connectionId].error = null
