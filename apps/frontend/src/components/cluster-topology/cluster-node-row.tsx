@@ -8,6 +8,7 @@ import { buildConnectionId } from "@common/src/connection-id.ts"
 import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
 import { formatBytes } from "@common/src/bytes-conversion.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
+import { toast } from "sonner"
 import { Badge } from "../ui/badge"
 import { CustomTooltip } from "../ui/tooltip"
 import { Button } from "../ui/button"
@@ -23,7 +24,7 @@ import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectIsAtConnectionLimit, selectEncryptedPassword, selectClusterDb
 } from "@/state/valkey-features/connection/connectionSelectors"
-import { secureStorage } from "@/utils/secureStorage.ts"
+import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
 
 const UTILIZATION_BADGE: Record<UtilizationLevel, { label: string, variant: "secondary" | "success" | "destructive" }> = {
@@ -126,14 +127,16 @@ export function ClusterNodeRow({
   }
 
   const handlePasswordSubmit = async (password: string) => {
-    const encryptedPw = await secureStorage.encryptIfAvailable(password)
+    const result = await secureStorage.encryptForStorage(password)
+    if (!result.ok) toast.warning(PASSWORD_NOT_STORED_WARNING)
     dispatch(connectPending({
       connectionId,
       connectionDetails: {
         ...baseDetails,
         username: primaryConfig.username ?? "",
-        password: encryptedPw,
+        password: result.ok ? result.value : password,
       },
+      isPasswordEncrypted: result.ok,
     }))
   }
 

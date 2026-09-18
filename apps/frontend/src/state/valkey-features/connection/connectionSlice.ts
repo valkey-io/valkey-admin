@@ -72,6 +72,7 @@ export interface ConnectionState {
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
   userDisconnected?: boolean;
+  isPasswordEncrypted?: boolean;
   // Set when a connect is automatic (refresh resume / socket-drop reconnect)
   autoConnect?: boolean;
 }
@@ -138,6 +139,7 @@ const connectionSlice = createSlice({
         isRetry?: boolean;
         isResume?: boolean;
         isEdit?: boolean;
+        isPasswordEncrypted?: boolean;
         autoConnect?: boolean;
         preservedHistory?: ConnectionHistoryEntry[];
       }>,
@@ -147,6 +149,7 @@ const connectionSlice = createSlice({
         connectionDetails,
         isRetry = false,
         isEdit = false,
+        isPasswordEncrypted,
         autoConnect = false,
         preservedHistory,
       } = action.payload
@@ -166,6 +169,7 @@ const connectionSlice = createSlice({
         },
         searchableText: buildSearchableText(connectionId, connectionDetails),
         wasEdit: isEdit,
+        isPasswordEncrypted,
         autoConnect,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
