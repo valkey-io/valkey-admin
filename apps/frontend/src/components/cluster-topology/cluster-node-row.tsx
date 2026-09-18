@@ -22,7 +22,7 @@ import { getUtilizationLevel, type UtilizationLevel } from "@/state/valkey-featu
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
-  selectIsAtConnectionLimit, selectEncryptedPassword, selectClusterDb
+  selectIsAtConnectionLimit, selectClusterPassword, selectClusterDb
 } from "@/state/valkey-features/connection/connectionSelectors"
 import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage.ts"
 import { cn } from "@/lib/utils"
@@ -80,9 +80,9 @@ export function ClusterNodeRow({
 
   const isDisabled = useSelector(selectIsAtConnectionLimit)
 
-  // Look up encrypted password from an existing connection in the same cluster.
-  // Available when secureStorage was active during the original connection.
-  const encryptedPassword = useSelector(selectEncryptedPassword(clusterId))
+  // Look up a stored password from an existing connection in the same cluster,
+  // together with its isPasswordEncrypted marking.
+  const clusterPassword = useSelector(selectClusterPassword(clusterId))
 
   const [showPasswordModal, setShowPasswordModal] = useState(false)
 
@@ -110,15 +110,17 @@ export function ClusterNodeRow({
           awsReplicationGroupId: primaryConfig.awsReplicationGroupId,
         },
       }))
-    } else if (R.isNotNil(encryptedPassword)) {
-      // Password already encrypted from existing cluster connection — do NOT re-encrypt
+    } else if (R.isNotNil(clusterPassword)) {
+      // Reuse the sibling connection's stored password, carrying its
+      // isPasswordEncrypted marking so an unencrypted one is still never persisted.
       dispatch(connectPending({
         connectionId,
         connectionDetails: {
           ...baseDetails,
           username: primaryConfig.username ?? "",
-          password: encryptedPassword,
+          password: clusterPassword.password,
         },
+        isPasswordEncrypted: clusterPassword.isPasswordEncrypted,
       }))
     } else {
       // No stored password — prompt for password
