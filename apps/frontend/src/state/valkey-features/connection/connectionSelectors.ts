@@ -23,7 +23,9 @@ export const selectClusterPassword = (clusterId: string) => (state: RootState) =
     (c) => c.connectionDetails?.clusterId === clusterId && R.isNotNil(c.connectionDetails?.password),
   )
   if (!source) return undefined
-  return { password: source.connectionDetails.password, isPasswordEncrypted: source.isPasswordEncrypted }
+  // Conservative default: an absent marker (e.g. a connection restored from
+  // localStorage) is treated as unencrypted so reuse can never persist plaintext.
+  return { password: source.connectionDetails.password, isPasswordEncrypted: source.isPasswordEncrypted ?? false }
 }
 
 export const selectClusterDb = (clusterId: string) => (state: RootState) =>

@@ -147,7 +147,9 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       dispatch(deleteConnection({ connectionId, silent: true }))
 
       // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
-      let isPasswordEncrypted: boolean | undefined
+      // and carries the source connection's marking (the connect below targets a new
+      // connectionId, so the reducer can't inherit it).
+      let isPasswordEncrypted = passwordChanged ? undefined : fullConnection?.isPasswordEncrypted
       let detailsToDispatch = trimmed
       if (passwordChanged && connectionDetails.password) {
         const result = await secureStorage.encryptForStorage(connectionDetails.password)
