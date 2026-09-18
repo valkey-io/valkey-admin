@@ -169,7 +169,9 @@ const connectionSlice = createSlice({
         },
         searchableText: buildSearchableText(connectionId, connectionDetails),
         wasEdit: isEdit,
-        isPasswordEncrypted,
+        // Re-dispatches (retry/resume/auto-reconnect) omit the flag but carry the
+        // same in-memory password, so keep the existing marking.
+        isPasswordEncrypted: isPasswordEncrypted ?? existingConnection?.isPasswordEncrypted,
         autoConnect,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,

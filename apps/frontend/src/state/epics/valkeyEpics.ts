@@ -115,6 +115,7 @@ export const connectionEpic = (store: Store) =>
             status: NOT_CONNECTED,
             connectionHistory: connection?.connectionHistory ?? [],
             searchableText: connection?.searchableText ?? "",
+            isPasswordEncrypted: connection?.isPasswordEncrypted,
           }
 
           currentConnections[payload.connectionId] = connectionToSave
@@ -434,6 +435,7 @@ export const updateConnectionDetailsEpic = (store: Store) =>
           currentConnections[connectionId].connectionDetails = connection.connectionDetails
           currentConnections[connectionId].connectionHistory = connection.connectionHistory || []
           currentConnections[connectionId].searchableText = connection.searchableText ?? ""
+          currentConnections[connectionId].isPasswordEncrypted = connection.isPasswordEncrypted
           persistConnections(currentConnections)
         }
       } catch (e) {
