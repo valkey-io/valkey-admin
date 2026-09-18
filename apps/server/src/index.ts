@@ -34,7 +34,6 @@ import { memoryUsageRequested } from "./actions/memoryUsage"
 import { monitorRequested } from "./actions/monitorAction"
 import { unsubscribeAll, getWatcherCount } from "./node-watchers"
 import { teardownConnection } from "./connection"
-import { isElectron } from "./metrics-orchestrator"
 import { Handler, ReduxAction, safeSend, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
@@ -219,10 +218,12 @@ async function updateRegistryforK8() {
   setPreconfiguredClusterId(clusterId)
 }
 
-// Electron: bind to localhost only — Origin headers are forgeable by non-browser clients,
-// so network-level isolation is the only reliable gate for a desktop app.
-server.listen(port, isElectron ? "127.0.0.1" : undefined, () => {
-  console.log(`Server running at http://localhost:${port}`)
+// Default to loopback so an unauthenticated Web server isn't reachable off-host;
+// containers (Docker/K8s) set SERVER_BIND_HOST=0.0.0.0 explicitly.
+const bindHost =
+  process.env.SERVER_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1")
+server.listen(port, bindHost, () => {
+  console.log(`Server running at http://${bindHost}:${port}`)
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }

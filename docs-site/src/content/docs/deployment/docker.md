@@ -42,6 +42,18 @@ docker compose up -d
 
 Open `http://localhost:8080` and add a connection to your Valkey instance through the UI.
 
+:::caution[Publishing `8080` exposes an unauthenticated service]
+Valkey Admin Web mode has **no authentication** — anyone who can reach the published
+port can use it to access your Valkey instances. `-p 8080:8080` (and the compose
+`ports: "8080:8080"`) publishes it on **all** host interfaces.
+
+- Keep it local: bind the published port to loopback with `-p 127.0.0.1:8080:8080`
+  (or `ports: "127.0.0.1:8080:8080"`).
+- Only publish on a routable interface if you have placed an authenticating proxy
+  in front of it or otherwise restricted access. Treat external exposure as a
+  deliberate decision.
+:::
+
 ## With Pre-configured Connection
 
 To auto-start metrics collection on startup, provide connection details as environment variables. This works for both **cluster** and **standalone** Valkey instances — Valkey Admin detects the topology automatically:
