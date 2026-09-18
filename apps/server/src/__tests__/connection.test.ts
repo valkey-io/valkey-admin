@@ -418,12 +418,12 @@ describe("connectToValkey", () => {
         [{ key: "name", value: "json" }, { key: "ver", value: 10002 }],
       ]),
     }
-    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any), true)
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), true)
   })
 
   it("should return false when JSON module is not present", async () => {
     const mockClient = { customCommand: mock.fn(async () => { throw Error }) }
-    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any), false)
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), false)
   })
 
   type ReplaceCase = {

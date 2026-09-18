@@ -238,7 +238,7 @@ async function connectToValkeyLocked(
       const existingStandalone = existingConnection.client as GlideClient
       const [keyEvictionPolicy, jsonModuleAvailable, existingDatabasesCount] = await Promise.all([
         getKeyEvictionPolicy(existingStandalone),
-        checkJsonModuleAvailability(existingStandalone),
+        checkJsonModuleAvailability(existingStandalone, connectionId),
         getDatabasesCount(existingStandalone),
       ])
       sendStandaloneConnectFulfilled(ws, {
@@ -421,7 +421,7 @@ async function connectToValkeyLocked(
 
     const [keyEvictionPolicy, jsonModuleAvailable] = await Promise.all([
       getKeyEvictionPolicy(standaloneClient),
-      checkJsonModuleAvailability(standaloneClient),
+      checkJsonModuleAvailability(standaloneClient, connectionId),
     ])
     sendStandaloneConnectFulfilled(ws, {
       connectionId,
@@ -561,7 +561,7 @@ async function commitClusterConnection(
   const [clusterSlotStatsEnabled, keyEvictionPolicy, jsonModuleAvailable, databasesCount] = await Promise.all([
     getClusterSlotStatsEnabled(clusterClient),
     getKeyEvictionPolicy(clusterClient),
-    checkJsonModuleAvailability(clusterClient),
+    checkJsonModuleAvailability(clusterClient, connectionId),
     getDatabasesCount(clusterClient, ["cluster-databases", "databases"]),
   ])
 

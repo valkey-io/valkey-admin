@@ -1,14 +1,27 @@
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 
-export async function checkJsonModuleAvailability(
-  client: GlideClient | GlideClusterClient,
-): Promise<boolean> {
+// Probe JSON commands directly for compatibility with services like ElastiCache,
+// where JSON may be available even though MODULE commands are unsupported.
+async function checkJsonModule(client: GlideClient | GlideClusterClient): Promise<boolean> {
   try {
-    // Elasticache restricts MODULE command
-    await client.customCommand(["JSON.TYPE", "nonexistent_key"])
-    return true
+    const reply = await client.customCommand(["COMMAND", "INFO", "JSON.TYPE"])
+    return Array.isArray(reply) && reply[0] != null
   } catch {
-    return false
+    try {
+      await client.customCommand(["JSON.TYPE", "nonexistent_key"])
+      return true
+    } catch {
+      return false
+    }
   }
 }
 
+export async function checkJsonModuleAvailability(
+  client: GlideClient | GlideClusterClient,
+  connectionId: string,
+): Promise<boolean> {
+  const available = await checkJsonModule(client)
+
+  console.log(`JSON module ${available ? "available" : "not available"} for ${connectionId}`)
+  return available
+}
