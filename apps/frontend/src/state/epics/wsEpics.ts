@@ -29,7 +29,8 @@ let socket$: WebSocketSubject<PayloadAction> | null = null
 const getWebsocketURL = () => {
   // If it's an Electron deployment
   if (window.location.protocol === "file:") {
-    return "ws://localhost:8080"
+    const token = window.valkeyAdminRuntime?.wsToken
+    return token ? `ws://localhost:8080?token=${encodeURIComponent(token)}` : "ws://localhost:8080"
   }
   
   const protocol = window.location.protocol === "https:" ? "wss" : "ws"
