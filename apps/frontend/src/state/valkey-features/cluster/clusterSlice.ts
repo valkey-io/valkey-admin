@@ -16,7 +16,7 @@ export interface PrimaryNode {
   //TODO: Add handling and UI for uploading cert
   caCertPath?: string
   replicas: ReplicaNode[];
-  authType?: "password" | "iam";
+  authType?: "password" | "iam" | "gcp-iam";
   awsRegion?: string;
   awsReplicationGroupId?: string;
 }

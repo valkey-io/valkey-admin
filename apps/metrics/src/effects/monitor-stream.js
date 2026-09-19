@@ -1,25 +1,43 @@
 import { Subject, timer, race, firstValueFrom, defer, of } from "rxjs"
 import { exhaustMap, catchError, map } from "rxjs"
 import Valkey from "iovalkey"
+import { readFileSync } from "node:fs"
+import { mintGcpAccessToken } from "valkey-common"
 import { ElastiCacheIAMProvider } from "../utils/elasticache-iam-provider.js"
 
 function getConnectionOptions() {
   const host = process.env.VALKEY_HOST
   const port = Number(process.env.VALKEY_PORT)
-  const username = process.env.VALKEY_USERNAME
+  // GCP IAM authenticates as the fixed "default" user; any other username is rejected.
+  const username = process.env.VALKEY_AUTH_TYPE === "gcp-iam"
+    ? "default"
+    : process.env.VALKEY_USERNAME
   const verifyTlsCertificate = process.env.VALKEY_VERIFY_CERT
   let tls = undefined
   if (process.env.VALKEY_TLS === "true") {
-    tls = verifyTlsCertificate === "false" ? { rejectUnauthorized: false } : {}
+    if (verifyTlsCertificate === "false") {
+      tls = { rejectUnauthorized: false }
+    } else if (process.env.VALKEY_CA_CERT_PATH) {
+      tls = { ca: readFileSync(process.env.VALKEY_CA_CERT_PATH) }
+    } else {
+      tls = {}
+    }
   }
   return { host, port, username, tls }
 }
 
 async function getPassword() {
   const username = process.env.VALKEY_USERNAME
-  return process.env.VALKEY_AUTH_TYPE === "iam"
-    ? await new ElastiCacheIAMProvider(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION).getCredentials()
-    : process.env.VALKEY_PASSWORD
+  if (process.env.VALKEY_AUTH_TYPE === "iam") {
+    return await new ElastiCacheIAMProvider(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION).getCredentials()
+  }
+  if (process.env.VALKEY_AUTH_TYPE === "gcp-iam") {
+    return await mintGcpAccessToken(
+      process.env.VALKEY_TLS === "true",
+      process.env.VALKEY_VERIFY_CERT !== "false",
+    )
+  }
+  return process.env.VALKEY_PASSWORD
 }
 
 /**

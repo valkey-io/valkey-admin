@@ -57,8 +57,8 @@ export const connectionEpic = (store: Store) =>
       select(connectPending),
       filter(() => !selectIsAtConnectionLimit(store.getState())),
       mergeMap(async (action) => {
-        const { password } = action.payload.connectionDetails
-        if (R.isNil(password) || action.payload.connectionDetails.authType === "iam") return action
+        const { password, authType } = action.payload.connectionDetails
+        if (R.isNil(password) || authType === "iam" || authType === "gcp-iam") return action
         
         // Password is dispatched as plaintext if secureStorage is unavailable
         const decryptedPassword = password.length > 0 && secureStorage.isAvailable() ? await secureStorage.decrypt(password) : password
@@ -283,7 +283,8 @@ export const autoReconnectEpic = (store: Store) =>
         .filter(([, connection]) => connection.status === DISCONNECTED)
         .filter(([, connection]) =>
           R.isNotNil(connection.connectionDetails.password) ||
-          connection.connectionDetails.authType === "iam")
+          connection.connectionDetails.authType === "iam" ||
+          connection.connectionDetails.authType === "gcp-iam")
 
       if (disconnectedConnections.length > 0) {
         console.log(`Auto-reconnecting ${disconnectedConnections.length} connection(s)`)
@@ -316,7 +317,7 @@ export const autoResumeEpic = (store: Store) =>
         .filter(([, connection]) => isAutoResumeEligible(connection))
         .forEach(([connectionId, connection]) => {
           const { password, authType } = connection.connectionDetails
-          if (authType === "iam" || (R.isNotNil(password) && R.isEmpty(password))) {
+          if (authType === "iam" || authType === "gcp-iam" || (R.isNotNil(password) && R.isEmpty(password))) {
             if (connection.status !== DISCONNECTED) {
               store.dispatch(connectPending({
                 connectionId,
