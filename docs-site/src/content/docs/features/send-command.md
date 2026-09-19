@@ -53,6 +53,9 @@ Some commands are restricted to prevent accidental server disruption.
 | `SLAVEOF` | Changes replication topology |
 | `REPLICAOF` | Changes replication topology |
 | `CLUSTER RESET` | Resets cluster state and may cause data loss |
+| `SELECT` (cluster connections only) | Changes the selected database on the shared cluster client and may affect other operations |
+
+For cluster connections, select the database when creating the connection. Running `SELECT` in Send Command requires confirmation, including when rerunning it from history. Confirming still executes the command; cancelling leaves it unexecuted. Standalone connections do not require this confirmation.
 
 ## Features
 

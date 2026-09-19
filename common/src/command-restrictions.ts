@@ -1,6 +1,7 @@
 export type CommandRestriction = {
   pattern: string[]
   reason: string
+  clusterOnly?: boolean
 }
 
 /**
@@ -70,6 +71,11 @@ export const CONFIRM_COMMANDS: CommandRestriction[] = [
   { pattern: ["SLAVEOF"], reason: "SLAVEOF changes replication topology." },
   { pattern: ["REPLICAOF"], reason: "REPLICAOF changes replication topology." },
   { pattern: ["CLUSTER", "RESET"], reason: "CLUSTER RESET resets the cluster state and may cause data loss." },
+  {
+    pattern: ["SELECT"],
+    reason: "SELECT changes the selected database on the shared cluster client and may affect other operations.",
+    clusterOnly: true,
+  },
 ]
 
 export function matchesRestriction(parsedArgs: string[], restriction: CommandRestriction): boolean {
@@ -84,6 +90,20 @@ export function findBlockedCommand(parsedArgs: string[]): CommandRestriction | u
   return BLOCKED_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
 }
 
-export function findConfirmCommand(parsedArgs: string[]): CommandRestriction | undefined {
-  return CONFIRM_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
+/**
+ * Returns the first confirmation rule matching the parsed command and connection context.
+ * Cluster-only rules apply only when options.isCluster is true; omitted context
+ * preserves standalone behavior. Returns undefined when no confirmation is required.
+ */
+export function findConfirmCommand(
+  parsedArgs: string[],
+  options?: { isCluster?: boolean },
+): CommandRestriction | undefined {
+  return CONFIRM_COMMANDS.find((restriction) => {
+    if (restriction.clusterOnly && !options?.isCluster) {
+      return false
+    }
+
+    return matchesRestriction(parsedArgs, restriction)
+  })
 }
