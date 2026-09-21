@@ -1,5 +1,8 @@
 type EncryptResult = { ok: true; value: string } | { ok: false }
 
+// Electron-only: shown when the bridge exists but the OS has no secure store
+// (gate on secureStorage.isAvailable()). Web has no secure store by design and
+// never persists real passwords, so it must not warn.
 export const PASSWORD_NOT_STORED_WARNING =
   "This system has no secure credential store, so the password can't be saved and will be requested " +
   "on the next connection. Install or unlock your system keyring (e.g. gnome-keyring or KWallet) to " +
