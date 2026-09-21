@@ -155,7 +155,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
         const result = await secureStorage.encryptForStorage(connectionDetails.password)
         isPasswordEncrypted = result.ok
         detailsToDispatch = { ...trimmed, password: result.ok ? result.value : connectionDetails.password }
-        if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING)
+        if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
       }
 
       dispatch(

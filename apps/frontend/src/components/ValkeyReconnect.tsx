@@ -53,7 +53,7 @@ export function ValkeyReconnect() {
   const handlePasswordSubmit = async (password: string) => {
     if (!connection) return
     const result = await secureStorage.encryptForStorage(password)
-    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING)
+    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
     dispatch(connectPending({
       connectionId: id!,
       connectionDetails: { ...connection.connectionDetails, password: result.ok ? result.value : password },

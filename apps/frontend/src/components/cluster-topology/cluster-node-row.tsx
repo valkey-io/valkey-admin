@@ -130,7 +130,7 @@ export function ClusterNodeRow({
 
   const handlePasswordSubmit = async (password: string) => {
     const result = await secureStorage.encryptForStorage(password)
-    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING)
+    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
     dispatch(connectPending({
       connectionId,
       connectionDetails: {

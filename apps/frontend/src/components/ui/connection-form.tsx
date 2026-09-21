@@ -96,7 +96,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
       // On failure keep the plaintext so this session can connect; it will not be
       // persisted (see the persistence layer), and the user is warned.
       detailsToDispatch = { ...trimmed, password: result.ok ? result.value : connectionDetails.password }
-      if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING)
+      if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
     }
 
     if (trimmed.endpointType === "cluster-endpoint") {

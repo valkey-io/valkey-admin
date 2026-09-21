@@ -51,7 +51,7 @@ export function Connection() {
     const connection = connections[passwordPromptConnectionId]
     if (!connection) return
     const result = await secureStorage.encryptForStorage(password)
-    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING)
+    if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
     dispatch(connectPending({
       connectionId: passwordPromptConnectionId,
       connectionDetails: { ...connection.connectionDetails, password: result.ok ? result.value : password },
