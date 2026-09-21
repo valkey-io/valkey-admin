@@ -3,58 +3,68 @@ import { secureStorage } from "./secureStorage"
 
 // Tests for the renderer-side secureStorage wrapper (secureStorage.ts).
 // This wrapper delegates to window.secureStorage (exposed via contextBridge)
-// and gracefully falls back when running outside Electron.
+// and gracefully fails closed when running outside Electron.
 describe("secureStorage wrapper", () => {
   beforeEach(() => {
     delete (window as Record<string, unknown>).secureStorage
   })
 
   // Outside Electron (e.g. in tests or a browser), window.secureStorage is
-  // undefined. The wrapper should return empty string to prevent unencrypted persistence.
+  // undefined. Persistence encryption must fail closed so no cleartext is stored.
   describe("when window.secureStorage is not available", () => {
-    it("encrypt returns empty string", async () => {
-      expect(await secureStorage.encrypt("password")).toBe("")
+    it("encryptForStorage fails closed for a real password", async () => {
+      expect(await secureStorage.encryptForStorage("password")).toEqual({ ok: false })
+    })
+
+    it("encryptForStorage reports ok for empty input (nothing to protect)", async () => {
+      expect(await secureStorage.encryptForStorage("")).toEqual({ ok: true, value: "" })
     })
 
     it("decrypt returns empty string", async () => {
       expect(await secureStorage.decrypt("encrypted")).toBe("")
     })
 
-    it("encrypt returns empty string for empty input", async () => {
-      expect(await secureStorage.encrypt("")).toBe("")
+    it("isEncryptionAvailable is false", async () => {
+      expect(await secureStorage.isEncryptionAvailable()).toBe(false)
     })
 
-    it("decrypt returns empty string for empty input", async () => {
-      expect(await secureStorage.decrypt("")).toBe("")
+    it("isElectron is false", () => {
+      expect(secureStorage.isElectron()).toBe(false)
     })
   })
 
   describe("when window.secureStorage is available", () => {
     let mockEncrypt: ReturnType<typeof vi.fn>
     let mockDecrypt: ReturnType<typeof vi.fn>
+    let mockIsEncryptionAvailable: ReturnType<typeof vi.fn>
 
     beforeEach(() => {
       mockEncrypt = vi.fn()
       mockDecrypt = vi.fn()
+      mockIsEncryptionAvailable = vi.fn()
       Object.defineProperty(window, "secureStorage", {
-        value: { encrypt: mockEncrypt, decrypt: mockDecrypt },
+        value: { encrypt: mockEncrypt, decrypt: mockDecrypt, isEncryptionAvailable: mockIsEncryptionAvailable },
         writable: true,
         configurable: true,
       })
     })
 
-    it("encrypt delegates to window.secureStorage.encrypt", async () => {
-      mockEncrypt.mockResolvedValue("base64encrypted")
-      const result = await secureStorage.encrypt("mypassword")
+    it("encryptForStorage returns the structured success result from the bridge", async () => {
+      mockEncrypt.mockResolvedValue({ ok: true, value: "base64encrypted" })
+      const result = await secureStorage.encryptForStorage("mypassword")
       expect(mockEncrypt).toHaveBeenCalledWith("mypassword")
-      expect(result).toBe("base64encrypted")
+      expect(result).toEqual({ ok: true, value: "base64encrypted" })
     })
 
-    // Empty passwords should short-circuit without invoking the IPC channel
-    it("encrypt returns empty string for empty input", async () => {
-      const result = await secureStorage.encrypt("")
+    it("encryptForStorage surfaces a failure (encryption unavailable) from the bridge", async () => {
+      mockEncrypt.mockResolvedValue({ ok: false })
+      expect(await secureStorage.encryptForStorage("mypassword")).toEqual({ ok: false })
+    })
+
+    it("encryptForStorage short-circuits empty input without invoking the bridge", async () => {
+      const result = await secureStorage.encryptForStorage("")
       expect(mockEncrypt).not.toHaveBeenCalled()
-      expect(result).toBe("")
+      expect(result).toEqual({ ok: true, value: "" })
     })
 
     it("decrypt delegates to window.secureStorage.decrypt", async () => {
@@ -68,6 +78,13 @@ describe("secureStorage wrapper", () => {
       const result = await secureStorage.decrypt("")
       expect(mockDecrypt).not.toHaveBeenCalled()
       expect(result).toBe("")
+    })
+
+    it("isEncryptionAvailable reflects the real OS backend", async () => {
+      mockIsEncryptionAvailable.mockResolvedValue(true)
+      expect(await secureStorage.isEncryptionAvailable()).toBe(true)
+      mockIsEncryptionAvailable.mockResolvedValue(false)
+      expect(await secureStorage.isEncryptionAvailable()).toBe(false)
     })
   })
 })

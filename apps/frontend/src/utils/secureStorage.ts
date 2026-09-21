@@ -1,7 +1,19 @@
+type EncryptResult = { ok: true; value: string } | { ok: false }
+
+// Electron-only: shown when the bridge exists but the OS has no secure store
+// (gate on secureStorage.isElectron()). Web has no secure store by design and
+// never persists real passwords, so it must not warn.
+export const PASSWORD_NOT_STORED_WARNING =
+  "This system has no secure credential store, so the password can't be saved and will be requested " +
+  "on the next connection. Install or unlock your system keyring to enable saved passwords."
+
 export const secureStorage = {
-  encrypt: async (unencrypted: string): Promise<string> => {
-    if (!unencrypted || !window.secureStorage) return ""
-    return await window.secureStorage.encrypt(unencrypted)
+  // Encrypt for PERSISTENCE. Reports whether real encryption happened so the
+  // caller can refuse to persist an unprotected secret.
+  encryptForStorage: async (password: string): Promise<EncryptResult> => {
+    if (!password) return { ok: true, value: "" }
+    if (!window.secureStorage) return { ok: false }
+    return await window.secureStorage.encrypt(password)
   },
 
   decrypt: async (encrypted: string): Promise<string> => {
@@ -9,14 +21,14 @@ export const secureStorage = {
     return await window.secureStorage.decrypt(encrypted)
   },
 
-  encryptIfAvailable: async (password: string): Promise<string> => {
-    if (password.length > 0 && secureStorage.isAvailable()) {
-      return await secureStorage.encrypt(password)
-    }
-    return password
+  // True only when the OS actually has a secure store (not merely that we are in
+  // Electron). Reflects safeStorage.isEncryptionAvailable() in the main process.
+  isEncryptionAvailable: async (): Promise<boolean> => {
+    if (!window.secureStorage?.isEncryptionAvailable) return false
+    return await window.secureStorage.isEncryptionAvailable()
   },
 
-  isAvailable: (): boolean => {
+  isElectron: (): boolean => {
     return window.secureStorage ? true : false
   },
 }
@@ -24,8 +36,9 @@ export const secureStorage = {
 declare global {
   interface Window {
     secureStorage?: {
-      encrypt: (password: string) => Promise<string>
+      encrypt: (password: string) => Promise<EncryptResult>
       decrypt: (encrypted: string) => Promise<string>
+      isEncryptionAvailable: () => Promise<boolean>
     }
   }
 }

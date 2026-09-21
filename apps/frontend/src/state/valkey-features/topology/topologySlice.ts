@@ -12,6 +12,7 @@ export type DiscoveryStatus = "pending" | "fulfilled" | "node_connecting" | "rej
 export interface DiscoveryState {
   status: DiscoveryStatus
   connectionDetails: ConnectionDetails
+  isPasswordEncrypted?: boolean
   clusterNodes?: Record<string, DiscoveredNode>
   errorMessage?: string
   nodeConnectionId?: string
@@ -31,12 +32,13 @@ const topologySlice = createSlice({
   reducers: {
     discoveryEndpointPending: (
       state,
-      action: PayloadAction<{ discoveryId: string; connectionDetails: ConnectionDetails }>,
+      action: PayloadAction<{ discoveryId: string; connectionDetails: ConnectionDetails; isPasswordEncrypted?: boolean }>,
     ) => {
-      const { discoveryId, connectionDetails } = action.payload
+      const { discoveryId, connectionDetails, isPasswordEncrypted } = action.payload
       state.discoveries[discoveryId] = {
         status: "pending",
         connectionDetails,
+        isPasswordEncrypted,
       }
     },
     discoveryEndpointFulfilled: (

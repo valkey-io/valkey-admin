@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
+import { toast } from "sonner"
 import { ConnectionModal } from "./connection-modal.tsx"
 import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
 import { connectPending, type ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
@@ -10,7 +11,7 @@ import {
   discoveryEndpointPending,
   clearEndpointDiscovery
 } from "@/state/valkey-features/topology/topologySlice.ts"
-import { secureStorage } from "@/utils/secureStorage.ts"
+import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage.ts"
 
 interface ConnectionFormProps {
   onClose: () => void
@@ -87,22 +88,29 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
       awsReplicationGroupId: connectionDetails.awsReplicationGroupId?.trim(),
     }
 
-    const detailsToDispatch = connectionDetails.password
-      ? { ...trimmed, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
-      : trimmed
+    let isPasswordEncrypted: boolean | undefined
+    let detailsToDispatch = trimmed
+    if (connectionDetails.password) {
+      const result = await secureStorage.encryptForStorage(connectionDetails.password)
+      isPasswordEncrypted = result.ok
+      // On failure keep the plaintext so this session can connect; it will not be
+      // persisted (see the persistence layer), and the user is warned.
+      detailsToDispatch = { ...trimmed, password: result.ok ? result.value : connectionDetails.password }
+      if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
+    }
 
     if (trimmed.endpointType === "cluster-endpoint") {
       const newDiscoveryId = `discovery-${buildConnectionId(trimmed.host, trimmed.port, 0)}`
       setDiscoveryId(newDiscoveryId)
       setConnectionId(null)
-      dispatch(discoveryEndpointPending({ discoveryId: newDiscoveryId, connectionDetails: detailsToDispatch }))
+      dispatch(discoveryEndpointPending({ discoveryId: newDiscoveryId, connectionDetails: detailsToDispatch, isPasswordEncrypted }))
       return
     }
 
     const newConnectionId = buildConnectionId(trimmed.host, trimmed.port, trimmed.db)
     setConnectionId(newConnectionId)
     setDiscoveryId(null)
-    dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch }))
+    dispatch(connectPending({ connectionId: newConnectionId, connectionDetails: detailsToDispatch, isPasswordEncrypted }))
   }
 
   return (

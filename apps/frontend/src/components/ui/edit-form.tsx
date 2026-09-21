@@ -2,6 +2,7 @@ import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
 import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
 import { CONNECTED } from "@common/src/constants"
+import { toast } from "sonner"
 import { ConnectionModal } from "./connection-modal.tsx"
 import {
   updateConnectionDetails,
@@ -16,7 +17,7 @@ import {
   selectIsAtConnectionLimit
 } from "@/state/valkey-features/connection/connectionSelectors"
 import { useAppDispatch } from "@/hooks/hooks"
-import { secureStorage } from "@/utils/secureStorage.ts"
+import { secureStorage, PASSWORD_NOT_STORED_WARNING } from "@/utils/secureStorage.ts"
 
 interface EditFormProps {
   onClose: () => void
@@ -146,15 +147,23 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       dispatch(deleteConnection({ connectionId, silent: true }))
 
       // Encrypt password only if user typed a new one; otherwise it's already encrypted from Redux
-      const detailsToDispatch = passwordChanged && connectionDetails.password
-        ? { ...trimmed, password: await secureStorage.encryptIfAvailable(connectionDetails.password) }
-        : trimmed
+      // and carries the source connection's marking (the connect below targets a new
+      // connectionId, so the reducer can't inherit it).
+      let isPasswordEncrypted = passwordChanged ? undefined : fullConnection?.isPasswordEncrypted
+      let detailsToDispatch = trimmed
+      if (passwordChanged && connectionDetails.password) {
+        const result = await secureStorage.encryptForStorage(connectionDetails.password)
+        isPasswordEncrypted = result.ok
+        detailsToDispatch = { ...trimmed, password: result.ok ? result.value : connectionDetails.password }
+        if (!result.ok && secureStorage.isElectron()) toast.warning(PASSWORD_NOT_STORED_WARNING, { duration: 10_000 })
+      }
 
       dispatch(
         connectPending({
           connectionId: newConnectionId,
           connectionDetails: detailsToDispatch,
           isEdit: true,
+          isPasswordEncrypted,
           preservedHistory: connectionHistory,
         }),
       )

@@ -72,6 +72,7 @@ export interface ConnectionState {
   connectionHistory?: ConnectionHistoryEntry[];
   wasEdit?: boolean;
   userDisconnected?: boolean;
+  isPasswordEncrypted?: boolean;
   // Set when a connect is automatic (refresh resume / socket-drop reconnect)
   autoConnect?: boolean;
 }
@@ -138,6 +139,7 @@ const connectionSlice = createSlice({
         isRetry?: boolean;
         isResume?: boolean;
         isEdit?: boolean;
+        isPasswordEncrypted?: boolean;
         autoConnect?: boolean;
         preservedHistory?: ConnectionHistoryEntry[];
       }>,
@@ -147,6 +149,7 @@ const connectionSlice = createSlice({
         connectionDetails,
         isRetry = false,
         isEdit = false,
+        isPasswordEncrypted,
         autoConnect = false,
         preservedHistory,
       } = action.payload
@@ -158,7 +161,7 @@ const connectionSlice = createSlice({
         connectionDetails: {
           ...connectionDetails,
           // Preserve "" (no-password connections) but strip real passwords if secure storage is unavailable
-          password: (R.isNotNil(connectionDetails.password) && secureStorage.isAvailable()) || R.isEmpty(connectionDetails.password)
+          password: (R.isNotNil(connectionDetails.password) && secureStorage.isElectron()) || R.isEmpty(connectionDetails.password)
             ? connectionDetails.password
             : undefined,
           clusterSlotStatsEnabled: false,
@@ -166,6 +169,9 @@ const connectionSlice = createSlice({
         },
         searchableText: buildSearchableText(connectionId, connectionDetails),
         wasEdit: isEdit,
+        // Re-dispatches (retry/resume/auto-reconnect) omit the flag but carry the
+        // same in-memory password, so keep the existing marking.
+        isPasswordEncrypted: isPasswordEncrypted ?? existingConnection?.isPasswordEncrypted,
         autoConnect,
         ...(isRetry && existingConnection?.reconnect && {
           reconnect: existingConnection.reconnect,
