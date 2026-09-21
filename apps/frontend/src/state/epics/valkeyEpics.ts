@@ -79,7 +79,7 @@ export const connectionEpic = (store: Store) =>
         if (R.isNil(password) || action.payload.connectionDetails.authType === "iam") return action
         
         // Password is dispatched as plaintext if secureStorage is unavailable
-        const decryptedPassword = password.length > 0 && secureStorage.isAvailable() ? await secureStorage.decrypt(password) : password
+        const decryptedPassword = password.length > 0 && secureStorage.isElectron() ? await secureStorage.decrypt(password) : password
         
         return R.assocPath(
           ["payload", "connectionDetails", "password"],

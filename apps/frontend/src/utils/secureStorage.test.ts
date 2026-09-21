@@ -28,8 +28,8 @@ describe("secureStorage wrapper", () => {
       expect(await secureStorage.isEncryptionAvailable()).toBe(false)
     })
 
-    it("isAvailable is false", () => {
-      expect(secureStorage.isAvailable()).toBe(false)
+    it("isElectron is false", () => {
+      expect(secureStorage.isElectron()).toBe(false)
     })
   })
 

@@ -1,7 +1,7 @@
 type EncryptResult = { ok: true; value: string } | { ok: false }
 
 // Electron-only: shown when the bridge exists but the OS has no secure store
-// (gate on secureStorage.isAvailable()). Web has no secure store by design and
+// (gate on secureStorage.isElectron()). Web has no secure store by design and
 // never persists real passwords, so it must not warn.
 export const PASSWORD_NOT_STORED_WARNING =
   "This system has no secure credential store, so the password can't be saved and will be requested " +
@@ -29,7 +29,7 @@ export const secureStorage = {
     return await window.secureStorage.isEncryptionAvailable()
   },
 
-  isAvailable: (): boolean => {
+  isElectron: (): boolean => {
     return window.secureStorage ? true : false
   },
 }

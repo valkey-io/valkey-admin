@@ -161,7 +161,7 @@ const connectionSlice = createSlice({
         connectionDetails: {
           ...connectionDetails,
           // Preserve "" (no-password connections) but strip real passwords if secure storage is unavailable
-          password: (R.isNotNil(connectionDetails.password) && secureStorage.isAvailable()) || R.isEmpty(connectionDetails.password)
+          password: (R.isNotNil(connectionDetails.password) && secureStorage.isElectron()) || R.isEmpty(connectionDetails.password)
             ? connectionDetails.password
             : undefined,
           clusterSlotStatsEnabled: false,
