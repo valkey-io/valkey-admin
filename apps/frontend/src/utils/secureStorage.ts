@@ -5,8 +5,7 @@ type EncryptResult = { ok: true; value: string } | { ok: false }
 // never persists real passwords, so it must not warn.
 export const PASSWORD_NOT_STORED_WARNING =
   "This system has no secure credential store, so the password can't be saved and will be requested " +
-  "on the next connection. Install or unlock your system keyring (e.g. gnome-keyring or KWallet) to " +
-  "enable saved passwords."
+  "on the next connection. Install or unlock your system keyring to enable saved passwords."
 
 export const secureStorage = {
   // Encrypt for PERSISTENCE. Reports whether real encryption happened so the
