@@ -47,28 +47,49 @@ describe("valkey client mode selection", () => {
     expect(glideMocks.clusterCreateClient).not.toHaveBeenCalled()
   })
 
-  it("uses cluster mode from config", async () => {
+  it("uses a node-local client even when config asks for cluster mode", async () => {
     const { createValkeyClient } = await import("./valkey-client.js")
 
     const client = await createValkeyClient({ valkey: { mode: "cluster" } })
 
-    expect(client).toEqual({ kind: "cluster" })
-    expect(glideMocks.clusterCreateClient).toHaveBeenCalledOnce()
-    expect(glideMocks.standaloneCreateClient).not.toHaveBeenCalled()
+    expect(client).toEqual({ kind: "standalone" })
+    expect(glideMocks.standaloneCreateClient).toHaveBeenCalledOnce()
+    expect(glideMocks.clusterCreateClient).not.toHaveBeenCalled()
   })
 
-  it("lets VALKEY_MODE override config", async () => {
+  it("uses a node-local client even when VALKEY_MODE asks for cluster mode", async () => {
     process.env.VALKEY_MODE = "cluster"
     const { createValkeyClient } = await import("./valkey-client.js")
 
     await createValkeyClient({ valkey: { mode: "standalone" } })
 
-    expect(glideMocks.clusterCreateClient).toHaveBeenCalledOnce()
-    expect(glideMocks.standaloneCreateClient).not.toHaveBeenCalled()
+    expect(glideMocks.standaloneCreateClient).toHaveBeenCalledOnce()
+    expect(glideMocks.clusterCreateClient).not.toHaveBeenCalled()
   })
 
-  it("passes tls and credentials to cluster mode", async () => {
+  it("warns once when a non-standalone mode is configured", async () => {
     process.env.VALKEY_MODE = "cluster"
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const { createValkeyClient } = await import("./valkey-client.js")
+
+    await createValkeyClient({})
+
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warn.mock.calls[0][0]).toContain("Ignoring VALKEY_MODE")
+    warn.mockRestore()
+  })
+
+  it("does not warn when no mode is configured", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const { createValkeyClient } = await import("./valkey-client.js")
+
+    await createValkeyClient({})
+
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it("passes tls and credentials through", async () => {
     process.env.VALKEY_TLS = "true"
     process.env.VALKEY_VERIFY_CERT = "false"
     process.env.VALKEY_USERNAME = "default"
@@ -77,7 +98,7 @@ describe("valkey client mode selection", () => {
 
     await createValkeyClient({})
 
-    expect(glideMocks.clusterCreateClient).toHaveBeenCalledWith({
+    expect(glideMocks.standaloneCreateClient).toHaveBeenCalledWith({
       addresses: [{ host: "localhost", port: 6379 }],
       credentials: { username: "default", password: "secret" },
       useTLS: true,
@@ -89,14 +110,8 @@ describe("valkey client mode selection", () => {
         connectionTimeout: 30000,
       },
       requestTimeout: 5000,
-      clientName: "valkey_admin_metrics_cluster_client",
+      clientName: "valkey_admin_metrics_standalone_client",
+      nodeDiscoveryMode: 1,
     })
-  })
-
-  it("rejects unsupported mode values", async () => {
-    process.env.VALKEY_MODE = "sentinel"
-    const { createValkeyClient } = await import("./valkey-client.js")
-
-    await expect(createValkeyClient({})).rejects.toThrow("Unsupported VALKEY_MODE: sentinel")
   })
 })

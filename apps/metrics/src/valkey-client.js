@@ -1,19 +1,18 @@
-import { GlideClient, GlideClusterClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
+import { GlideClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
 import { APP_VERSION ,deploymentSuffix } from "valkey-common"
 
 const clientInfoTag = `valkey-admin-metrics-${deploymentSuffix()}:${APP_VERSION}`
 
-const SUPPORTED_VALKEY_MODES = new Set(["standalone", "cluster"])
-
-export const getValkeyMode = (cfg = {}) => {
-  const configuredMode = process.env.VALKEY_MODE ?? cfg?.valkey?.mode ?? "standalone"
-  const normalizedMode = String(configuredMode).trim().toLowerCase()
-
-  if (!SUPPORTED_VALKEY_MODES.has(normalizedMode)) {
-    throw new Error(`Unsupported VALKEY_MODE: ${configuredMode}`)
+// A collector samples exactly one node, so its client is always node-local. A
+// cluster-wide client would route keyless commands (SCAN, CLUSTER SLOT-STATS) to
+// an arbitrary node, which breaks per-node sampling.
+const warnIfModeConfigured = (cfg = {}) => {
+  const configuredMode = process.env.VALKEY_MODE ?? cfg?.valkey?.mode
+  if (configuredMode && String(configuredMode).trim().toLowerCase() !== "standalone") {
+    console.warn(
+      `Ignoring VALKEY_MODE="${configuredMode}": the metrics collector always uses a node-local client.`,
+    )
   }
-
-  return normalizedMode
 }
 
 export const createValkeyClient = async (cfg = {}) => {
@@ -55,15 +54,10 @@ export const createValkeyClient = async (cfg = {}) => {
     requestTimeout: 5000,
   }
 
-  const mode = getValkeyMode(cfg)
-  return mode === "cluster"
-    ? GlideClusterClient.createClient({
-      ...sharedOptions,
-      clientName: "valkey_admin_metrics_cluster_client",
-    })
-    : GlideClient.createClient({
-      ...sharedOptions,
-      clientName: "valkey_admin_metrics_standalone_client",
-      nodeDiscoveryMode: NodeDiscoveryMode.Static,
-    })
+  warnIfModeConfigured(cfg)
+  return GlideClient.createClient({
+    ...sharedOptions,
+    clientName: "valkey_admin_metrics_standalone_client",
+    nodeDiscoveryMode: NodeDiscoveryMode.Static,
+  })
 }

@@ -72,15 +72,6 @@ Host of the Valkey node this metrics process will sample. Required.
 
 Port of the Valkey node. Required.
 
-### `VALKEY_MODE`
-
-Connection topology used by the Valkey client.
-
-- **`"standalone"`** — single-node client (default)
-- **`"cluster"`** — cluster client
-
-If unset, falls back to `valkey.mode` from `config.yml`, then to `"standalone"`.
-
 ### `VALKEY_USERNAME`
 
 Username for password or IAM authentication.
