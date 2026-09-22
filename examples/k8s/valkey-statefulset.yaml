@@ -19,6 +19,9 @@ metadata:
   name: valkey-headless
 spec:
   clusterIP: None
+  # Cluster formation and the app's readiness wait must resolve pods before
+  # they are ready, and a sidecar restart must not withdraw a healthy node.
+  publishNotReadyAddresses: true
   selector:
     app: valkey
   ports:
