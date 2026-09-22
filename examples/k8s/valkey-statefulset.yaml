@@ -108,8 +108,6 @@ spec:
               value: $(POD_NAME).valkey-headless.$(POD_NAMESPACE).svc.cluster.local
             - name: VALKEY_PORT
               value: "6379"
-            - name: VALKEY_MODE
-              value: cluster
             - name: DEPLOYMENT_MODE
               value: K8
             - name: SERVER_HOST
