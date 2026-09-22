@@ -40,7 +40,7 @@ spec:
             - name: SERVER_BIND_HOST
               value: "0.0.0.0"
             - name: VALKEY_HOST
-              value: valkey-0.valkey-headless.valkey.svc.cluster.local
+              value: valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT
               value: "6379"
             - name: ORCHESTRATOR_KEY

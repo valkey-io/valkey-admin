@@ -77,6 +77,25 @@ kubectl rollout status deployment/valkey-admin-app -n valkey
 
 This deploys the frontend + backend server on port `8080` in cluster-orchestrator mode for sidecar registration.
 
+:::caution[Point `VALKEY_HOST` at your own Valkey service]
+`app.yaml` sets `VALKEY_HOST` to `valkey-headless.valkey.svc.cluster.local`, which
+matches the sample StatefulSet in `examples/k8s/valkey-statefulset.yaml`. A
+Helm-installed Valkey usually names its Service after the release (for example
+`my-release-valkey-headless`), so update the value to match yours:
+
+```bash
+kubectl get svc -n valkey
+```
+
+Use the headless Service — the one with `CLUSTER-IP: None` — as
+`<service>.<namespace>.svc.cluster.local`. Prefer the Service name over a single
+pod name (`valkey-0.valkey-headless...`): a headless Service resolves to every
+ready pod, so discovery still works when one pod is unavailable.
+
+If the name doesn't resolve, the app cannot discover the cluster and will restart
+([#527](https://github.com/valkey-io/valkey-admin/issues/527)).
+:::
+
 ### 4. Apply the metrics config
 
 ```bash
