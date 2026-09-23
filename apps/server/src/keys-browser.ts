@@ -301,11 +301,18 @@ async function getPaginatedJsonInfo(
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
 
 function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
-  const bytes = Buffer.from(raw as Buffer | string)
+  if (typeof raw === "string") return { value: raw, isBinary: false }
+  if (typeof raw === "number" || typeof raw === "bigint" || typeof raw === "boolean") {
+    return { value: String(raw), isBinary: false }
+  }
+  if (raw instanceof Error) throw raw
+  if (!Buffer.isBuffer(raw)) {
+    throw new TypeError(`Expected a string or Buffer reply, got ${typeof raw}`)
+  }
   try {
-    return { value: utf8Decoder.decode(bytes), isBinary: false }
+    return { value: utf8Decoder.decode(raw), isBinary: false }
   } catch {
-    const escaped = bytes.reduce((s, byte) =>
+    const escaped = raw.reduce((s, byte) =>
       s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
     )
     return { value: escaped, isBinary: true }
