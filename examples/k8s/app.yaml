@@ -25,6 +25,26 @@ spec:
       labels:
         app: valkey-admin-app
     spec:
+      # Boot cluster discovery runs once and exits on failure, so wait for the
+      # cluster to report ready instead of crash-looping. See issue #527.
+      initContainers:
+        - name: wait-for-valkey-cluster
+          image: valkey/valkey:latest
+          command:
+            - sh
+            - -c
+            - |
+              until [ "$(valkey-cli -h "$VALKEY_HOST" -p "$VALKEY_PORT" cluster info 2>/dev/null \
+                | tr -d '\r' | awk -F: '/^cluster_state:/{print $2}')" = "ok" ]; do
+                echo "waiting for $VALKEY_HOST:$VALKEY_PORT to report cluster_state:ok"
+                sleep 3
+              done
+              echo "cluster is ready"
+          env:
+            - name: VALKEY_HOST
+              value: valkey-headless.valkey.svc.cluster.local
+            - name: VALKEY_PORT
+              value: "6379"
       containers:
         - name: app
           image: valkey-admin-app:test
@@ -40,7 +60,7 @@ spec:
             - name: SERVER_BIND_HOST
               value: "0.0.0.0"
             - name: VALKEY_HOST
-              value: valkey-0.valkey-headless.valkey.svc.cluster.local
+              value: valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT
               value: "6379"
             - name: ORCHESTRATOR_KEY
