@@ -300,7 +300,7 @@ async function getPaginatedJsonInfo(
 // text apart from binary: binary is escaped for display and flagged so edits can be blocked.
 const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
 
-function decodeStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
+function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
   const bytes = Buffer.from(raw as Buffer | string)
   try {
     return { value: utf8Decoder.decode(bytes), isBinary: false }
@@ -324,7 +324,7 @@ async function getFullKeyInfo(
     ])
     if (raw == null) return keyInfo
 
-    const { value, isBinary } = decodeStringValue(raw)
+    const { value, isBinary } = decodeToStringValue(raw)
     return {
       ...keyInfo,
       ...(commands.sizeCmd ? { collectionSize: collectionSize as number } : {}),
@@ -948,7 +948,7 @@ async function updateStringKey(
   ttl?: number,
 ) {
   const current = await client.customCommand(["GET", key], { decoder: Decoder.Bytes })
-  if (current != null && decodeStringValue(current).isBinary) {
+  if (current != null && decodeToStringValue(current).isBinary) {
     throw new Error("This key holds binary data and cannot be edited as text.")
   }
 
