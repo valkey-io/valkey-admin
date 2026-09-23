@@ -418,12 +418,29 @@ describe("connectToValkey", () => {
         [{ key: "name", value: "json" }, { key: "ver", value: 10002 }],
       ]),
     }
-    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any), true)
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), true)
   })
 
   it("should return false when JSON module is not present", async () => {
     const mockClient = { customCommand: mock.fn(async () => { throw Error }) }
-    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any), false)
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), false)
+  })
+
+  it("should return false without probing JSON.TYPE when COMMAND INFO replies [null]", async () => {
+    const mockClient = { customCommand: mock.fn(async () => [null]) }
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), false)
+    assert.strictEqual(mockClient.customCommand.mock.callCount(), 1)
+  })
+
+  it("should fall back to JSON.TYPE when COMMAND INFO is not permitted", async () => {
+    const mockClient = {
+      customCommand: mock.fn(async (args: string[]) => {
+        if (args[0] === "COMMAND") throw new Error("NOPERM")
+        return null
+      }),
+    }
+    assert.strictEqual(await checkJsonModuleAvailability(mockClient as any, "test-conn-id"), true)
+    assert.deepStrictEqual(mockClient.customCommand.mock.calls[1].arguments[0], ["JSON.TYPE", "nonexistent_key"])
   })
 
   type ReplaceCase = {

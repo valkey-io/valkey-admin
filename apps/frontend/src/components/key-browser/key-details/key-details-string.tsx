@@ -14,6 +14,7 @@ interface KeyDetailsStringProps {
     ttl: number;
     size: number;
     elements: string;
+    isBinary?: boolean;
   };
   connectionId: string;
   readOnly: boolean;
@@ -58,6 +59,8 @@ export default function KeyDetailsString(
             </th>
             <th className="">
               <EditActionButtons
+                disabled={selectedKeyInfo.isBinary}
+                disabledTooltip="Binary values can't be edited as text"
                 isEditable={isEditable}
                 onEdit={handleEdit}
                 onSave={handleSave}

@@ -28,6 +28,7 @@ interface EnrichedKeyInfo {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements?: any; // this can be array, object, or string depending on the key type.
   elementsWarning?: string; // alternative for elements when they cannot be displayed.
+  isBinary?: boolean;
 }
 
 async function getScanKeyInfo(
@@ -295,47 +296,50 @@ async function getPaginatedJsonInfo(
   }
 }
 
+// Valkey strings are binary-safe, so a value may not be valid UTF-8. Strict decoding tells
+// text apart from binary: binary is escaped for display and flagged so edits can be blocked.
+const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
+
+function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
+  if (typeof raw === "string") return { value: raw, isBinary: false }
+  if (typeof raw === "number" || typeof raw === "bigint" || typeof raw === "boolean") {
+    return { value: String(raw), isBinary: false }
+  }
+  if (raw instanceof Error) throw raw
+  if (!Buffer.isBuffer(raw)) {
+    throw new TypeError(`Expected a string or Buffer reply, got ${typeof raw}`)
+  }
+  try {
+    return { value: utf8Decoder.decode(raw), isBinary: false }
+  } catch {
+    const escaped = raw.reduce((s, byte) =>
+      s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
+    )
+    return { value: escaped, isBinary: true }
+  }
+}
+
 async function getFullKeyInfo(
   client: GlideClient | GlideClusterClient,
   keyInfo: EnrichedKeyInfo,
   commands: { sizeCmd: string; elementsCmd: string[] },
-): Promise<EnrichedKeyInfo>{
+): Promise<EnrichedKeyInfo> {
   try {
-    const promises = [client.customCommand(commands.elementsCmd)]
+    const [raw, collectionSize] = await Promise.all([
+      client.customCommand(commands.elementsCmd, { decoder: Decoder.Bytes }),
+      commands.sizeCmd ? client.customCommand([commands.sizeCmd, keyInfo.name]) : undefined,
+    ])
+    if (raw == null) return keyInfo
 
-    if (commands.sizeCmd) {
-      promises.push(client.customCommand([commands.sizeCmd, keyInfo.name]))
-    }
-
-    const results = await Promise.all(promises)
-
-    if (commands.sizeCmd) {
-      return {
-        ...keyInfo,
-        collectionSize: results[1] as number,
-        elements: results[0],
-      }
-    } else {
-      // in case of string with no collectionSize
-      return {
-        ...keyInfo,
-        elements: results[0],
-      }
+    const { value, isBinary } = decodeToStringValue(raw)
+    return {
+      ...keyInfo,
+      ...(commands.sizeCmd ? { collectionSize: collectionSize as number } : {}),
+      elements: value,
+      ...(isBinary ? { isBinary } : {}),
     }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
-    // Valkey client uses String decoder, which throws this error when it encounters non-UTF-8 bytes
-    if (err instanceof Error && err.message.includes("Decoding error")) {
-      try {
-        const raw = await client.customCommand(commands.elementsCmd, { decoder: Decoder.Bytes }) as Buffer
-        const hex = Buffer.from(raw).reduce((s, byte) =>
-          s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
-        )
-        return { ...keyInfo, elements: hex }
-      } catch {
-        return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
-      }
-    }
     return keyInfo
   }
 }
@@ -722,10 +726,10 @@ async function addStringKey(
   value: string,
   ttl?: number,
 ) {
-  if (ttl && ttl > 0) {
-    await client.customCommand(["SETEX", key, ttl.toString(), value])
-  } else {
-    await client.customCommand(["SET", key, value])
+  const expiry = ttl && ttl > 0 ? ["EX", ttl.toString()] : []
+  const reply = await client.customCommand(["SET", key, value, "NX", ...expiry])
+  if (reply === null) {
+    throw new Error(`Key "${key}" already exists`)
   }
 }
 
@@ -819,7 +823,10 @@ async function addJsonKey(
   value: string,
   ttl?: number,
 ) {
-  await client.customCommand(["JSON.SET", key, "$", value])
+  const reply = await client.customCommand(["JSON.SET", key, "$", value, "NX"])
+  if (reply === null) {
+    throw new Error(`Key "${key}" already exists`)
+  }
 
   if (ttl && ttl > 0) {
     await client.customCommand(["EXPIRE", key, ttl.toString()])
@@ -947,6 +954,11 @@ async function updateStringKey(
   value: string,
   ttl?: number,
 ) {
+  const current = await client.customCommand(["GET", key], { decoder: Decoder.Bytes })
+  if (current != null && decodeToStringValue(current).isBinary) {
+    throw new Error("This key holds binary data and cannot be edited as text.")
+  }
+
   if (ttl && ttl > 0) {
     await client.customCommand(["SETEX", key, ttl.toString(), value])
   } else {
