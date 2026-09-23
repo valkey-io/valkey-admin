@@ -1,5 +1,4 @@
 import { GlideClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
-import { APP_VERSION ,deploymentSuffix } from "valkey-common"
 import { readFileSync } from "node:fs"
 import { APP_VERSION ,deploymentSuffix, mintGcpAccessToken } from "valkey-common"
 
