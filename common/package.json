@@ -16,6 +16,9 @@
     "build": "node scripts/sync-version.mjs && tsup src/index.ts --format esm --dts --out-dir dist --clean",
     "test": "npx tsx --test src/__tests__/*.test.ts"
   },
+  "dependencies": {
+    "google-auth-library": "^11.0.2"
+  },
   "devDependencies": {
     "@types/node": "^24.2.1",
     "tsup": "^8.5.1",

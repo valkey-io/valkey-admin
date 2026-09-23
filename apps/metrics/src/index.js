@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import express from "express"
 import { ORCHESTRATOR_AUTH_KEY_ENV, buildUrl } from "valkey-common"
+import { registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "valkey-common"
 import { getConfig } from "./config.js"
 import * as Streamer from "./effects/ndjson-streamer.js"
 import { setupCollectors, stopCollectors } from "./init-collectors.js"
@@ -32,6 +33,17 @@ async function main() {
 
   const client = await createValkeyClient(cfg)
   const ownNodeId = sanitizeUrl(`${process.env.VALKEY_HOST}-${process.env.VALKEY_PORT}`)
+
+  // GCP OAuth2 tokens expire ~1h; rotate the connection password before then so
+  // reconnects keep authenticating. AWS IAM refreshes natively inside Glide.
+  if (process.env.VALKEY_AUTH_TYPE === "gcp-iam") {
+    registerGcpTokenRefresh(
+      client,
+      "metrics",
+      process.env.VALKEY_TLS === "true",
+      process.env.VALKEY_VERIFY_CERT !== "false",
+    )
+  }
 
   await setupNdjsonCleaner(cfg)
   await setupCollectors(client, cfg)
@@ -247,6 +259,7 @@ async function main() {
     try {
       await stopNdjsonCleaner()
       await stopCollectors()
+      unregisterGcpTokenRefresh(client)
       if (client) {
         client.close()
       }

@@ -220,10 +220,9 @@ const keyBrowserSlice = createSlice({
         error: string;
       }>,
     ) => {
-      const { connectionId, error } = action.payload
+      const { connectionId } = action.payload
       if (state[connectionId]) {
         state[connectionId].loading = false
-        state[connectionId].error = error
       }
     },
     updateKeyRequested: (

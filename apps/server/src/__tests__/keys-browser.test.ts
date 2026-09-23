@@ -81,7 +81,22 @@ describe("getKeyInfo", () => {
       const result = await getKeyInfo(mockClient as any, "mykey")
 
       assert.strictEqual(result.elements, "\\x80\\x00\\x80\\x88")
+      assert.strictEqual(result.isBinary, true)
       assert.strictEqual(result.elementsWarning, undefined)
+    })
+
+    it("should treat valid multi-byte UTF-8 as text, not binary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "string",
+        TTL: -1,
+        MEMORY: 20,
+        GET: Buffer.from("café résumé"),
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mykey")
+
+      assert.strictEqual(result.elements, "café résumé")
+      assert.strictEqual(result.isBinary, undefined)
     })
 
   })
@@ -332,7 +347,7 @@ describe("addKey", () => {
         (call: any) => call.arguments[0][0] === "SET",
       )
       assert.strictEqual(setCalls.length, 1)
-      assert.deepStrictEqual(setCalls[0].arguments, [["SET", "mykey", "myvalue"]])
+      assert.deepStrictEqual(setCalls[0].arguments, [["SET", "mykey", "myvalue", "NX"]])
 
       const sentMessage = JSON.parse(messages[0])
       assert.strictEqual(sentMessage.type, VALKEY.KEYS.addKeyFulfilled)
@@ -342,7 +357,7 @@ describe("addKey", () => {
     it("should add a string key with TTL", async () => {
       const mockClient = {
         customCommand: mock.fn(async (cmd: string[]) => {
-          if (cmd[0] === "SETEX") return "OK"
+          if (cmd[0] === "SET") return "OK"
           if (cmd[0] === "TYPE") return "string"
           if (cmd[0] === "TTL") return 3600
           if (cmd[0] === "MEMORY") return 50
@@ -361,13 +376,31 @@ describe("addKey", () => {
 
       await addKey(mockClient as any, mockWs, payload)
 
-      const setexCalls = mockClient.customCommand.mock.calls.filter(
-        (call: any) => call.arguments[0][0] === "SETEX",
+      const setCalls = mockClient.customCommand.mock.calls.filter(
+        (call: any) => call.arguments[0][0] === "SET",
       )
-      assert.strictEqual(setexCalls.length, 1)
-      assert.deepStrictEqual(setexCalls[0].arguments, [["SETEX", "mykey", "3600", "myvalue"]])
+      assert.strictEqual(setCalls.length, 1)
+      assert.deepStrictEqual(setCalls[0].arguments, [["SET", "mykey", "myvalue", "NX", "EX", "3600"]])
     })
   })
+
+  for (const keyType of ["string", "json"]) {
+    it(`should fail without overwriting when a ${keyType} key already exists`, async () => {
+      const mockClient = { customCommand: mock.fn(async (cmd: string[]) => (cmd.includes("NX") ? null : "OK")) }
+
+      await addKey(mockClient as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mykey",
+        keyType,
+        value: "{\"a\":1}",
+        ttl: 3600,
+      })
+
+      const failed = getMessageOfType(messages, VALKEY.KEYS.addKeyFailed)
+      assert.strictEqual(failed.payload.error, "Key \"mykey\" already exists")
+      assert.strictEqual(mockClient.customCommand.mock.callCount(), 1)
+    })
+  }
 
   describe("hash keys", () => {
     it("should add a hash key", async () => {
@@ -822,6 +855,30 @@ describe("updateKey", () => {
         (call: any) => call.arguments[0][0] === "SET",
       )
       assert.strictEqual(setCalls.length, 0)
+    })
+
+    it("refuses to overwrite a binary value and issues no write", async () => {
+      const mockClient = {
+        customCommand: mock.fn(async (cmd: string[]) =>
+          cmd[0] === "GET" ? Buffer.from([0xff, 0xfe, 0x00, 0x01]) : null,
+        ),
+      }
+      const { mockWs: ws, messages } = createMockWs()
+
+      await updateKey(mockClient as any, ws as any, {
+        connectionId: "conn-123",
+        key: "mykey",
+        keyType: "string",
+        value: "text",
+        ttl: 3600,
+      })
+
+      const failed = getMessageOfType(messages, VALKEY.KEYS.updateKeyFailed)
+      assert.strictEqual(failed.payload.error, "This key holds binary data and cannot be edited as text.")
+      const writes = mockClient.customCommand.mock.calls.filter(
+        (call: any) => ["SET", "SETEX"].includes(call.arguments[0][0]),
+      )
+      assert.strictEqual(writes.length, 0)
     })
   })
 })
