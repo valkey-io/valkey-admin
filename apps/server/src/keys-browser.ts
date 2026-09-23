@@ -719,10 +719,10 @@ async function addStringKey(
   value: string,
   ttl?: number,
 ) {
-  if (ttl && ttl > 0) {
-    await client.customCommand(["SETEX", key, ttl.toString(), value])
-  } else {
-    await client.customCommand(["SET", key, value])
+  const expiry = ttl && ttl > 0 ? ["EX", ttl.toString()] : []
+  const reply = await client.customCommand(["SET", key, value, "NX", ...expiry])
+  if (reply === null) {
+    throw new Error(`Key "${key}" already exists`)
   }
 }
 
@@ -816,7 +816,10 @@ async function addJsonKey(
   value: string,
   ttl?: number,
 ) {
-  await client.customCommand(["JSON.SET", key, "$", value])
+  const reply = await client.customCommand(["JSON.SET", key, "$", value, "NX"])
+  if (reply === null) {
+    throw new Error(`Key "${key}" already exists`)
+  }
 
   if (ttl && ttl > 0) {
     await client.customCommand(["EXPIRE", key, ttl.toString()])

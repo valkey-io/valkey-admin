@@ -348,7 +348,7 @@ describe("keyBrowserSlice", () => {
   })
 
   describe("addKeyFailed", () => {
-    it("should set loading to false and store error", () => {
+    it("should set loading to false without storing the error in the key list banner", () => {
       const previousState = {
         "conn-1": {
           ...defaultConnectionState,
@@ -365,7 +365,7 @@ describe("keyBrowserSlice", () => {
       )
 
       expect(state["conn-1"].loading).toBe(false)
-      expect(state["conn-1"].error).toBe("Key already exists")
+      expect(state["conn-1"].error).toBeNull()
     })
   })
 
