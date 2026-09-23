@@ -1,5 +1,5 @@
 export function convertTTL(ttl: number) {
-  if (ttl === -1) return "Infinity" 
+  if (ttl === -1) return "No expiry" 
   if (ttl === -2) return "None" 
   if (ttl <= 0) return "None" 
   
