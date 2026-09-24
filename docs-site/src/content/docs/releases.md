@@ -13,6 +13,8 @@ Release Date: September 2026
 
 **Cluster Topology Utilization View**: The Cluster Topology page now shows load as well as layout. Summary cards show total nodes, cluster memory (used / limit), total ops/sec, cluster hit ratio, and flagged nodes. The node table groups replicas under their primary and shows each primary's memory against `maxmemory` (or host RAM when `maxmemory` is unset), main-thread CPU, ops/sec, hit ratio, and connected clients. Each primary gets a Low, Normal, or High badge, and High primaries (memory ≥ 90% or CPU ≥ 85%) are highlighted. You can filter nodes by role or utilization level, and the view refreshes every 5 seconds while open. ([#486](https://github.com/valkey-io/valkey-admin/pull/486))
 
+![New Cluster Topology view](../../assets/releases/v1.2.0/cluster_topology_utilization.png)
+
 **Safer Defaults**: The web server, and the metrics collectors it spawns, now listen on loopback unless you opt in. Collectors must authenticate to register, and TLS connections configured through environment variables verify certificates. The desktop app protects its local connection with a per-launch token. Some of these change behavior on upgrade, so review Changed Defaults and Upgrade Notes below. ([#490](https://github.com/valkey-io/valkey-admin/pull/490), [#494](https://github.com/valkey-io/valkey-admin/pull/494), [#504](https://github.com/valkey-io/valkey-admin/pull/504), [#516](https://github.com/valkey-io/valkey-admin/pull/516), [#521](https://github.com/valkey-io/valkey-admin/pull/521))
 
 ### Changed Defaults
@@ -41,8 +43,12 @@ Review these before upgrading. See the [server](/configuration/server/) and [met
 - Adding a String or JSON key that already exists fails with an error instead of overwriting it ([#520](https://github.com/valkey-io/valkey-admin/pull/520))
 - Binary string values are detected and can't be edited as text ([#520](https://github.com/valkey-io/valkey-admin/pull/520))
 - Big Keys has a Scan button, Hot Keys has a Start Monitor button in its toolbar, and cluster connections have an Open button ([#481](https://github.com/valkey-io/valkey-admin/pull/481))
+![Additional buttons screenshot](../../assets/releases/v1.2.0/big_keys_scan_button.png)
+![Start Monitor Button](../../assets/releases/v1.2.0/start_monitor_button.png)
+
 - Connection port is validated (1–65535) with an inline error ([#489](https://github.com/valkey-io/valkey-admin/pull/489))
 - Unknown routes show a Not Found page instead of a blank screen ([#487](https://github.com/valkey-io/valkey-admin/pull/487))
+![Page Not Found screen with a Go to Connections button](../../assets/releases/v1.2.0/not_found_page.png)
 - A TTL of `-1` shows "No expiry", and hit ratio shows "-" when there have been no hits or misses ([#531](https://github.com/valkey-io/valkey-admin/pull/531))
 - The WebSocket URL includes the page path, so it connects through reverse proxies that serve Valkey Admin under a path prefix ([#471](https://github.com/valkey-io/valkey-admin/pull/471))
 - Upgraded Valkey GLIDE to 2.5.2. Valkey Admin connections report a `lib-name` such as `GlideJS(valkey-admin-web:1.2.0)` in `CLIENT LIST` ([#506](https://github.com/valkey-io/valkey-admin/pull/506))
@@ -60,9 +66,6 @@ Review these before upgrading. See the [server](/configuration/server/) and [met
 - Update nanoid, express, body-parser, and qs ([#493](https://github.com/valkey-io/valkey-admin/pull/493), [#526](https://github.com/valkey-io/valkey-admin/pull/526))
 - Attach provenance and SBOM attestations to Docker images ([#521](https://github.com/valkey-io/valkey-admin/pull/521))
 - Pin GitHub Actions to commit SHAs, and replace the labeler's `pull_request_target` trigger with a `pull_request` + `workflow_run` split ([#491](https://github.com/valkey-io/valkey-admin/pull/491), [#492](https://github.com/valkey-io/valkey-admin/pull/492))
-
-### Bug Fixes
-
 - Fix Kubernetes metrics sidecars being rejected at registration (regressed in v1.1.0) ([#512](https://github.com/valkey-io/valkey-admin/pull/512))
 - Fix Cluster Topology not picking up topology changes. The server now re-discovers each cluster every 30 seconds (`TOPOLOGY_REFRESH_INTERVAL`) ([#512](https://github.com/valkey-io/valkey-admin/pull/512))
 - Fix hot keys being attributed to the wrong node on Kubernetes ([#528](https://github.com/valkey-io/valkey-admin/pull/528))
