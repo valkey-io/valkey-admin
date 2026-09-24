@@ -86,7 +86,7 @@ export const connectPending = withDeps<Deps, void>(
 )
 
 export const resetConnection = withDeps<Deps, void>(
-  async ({ ws, connectionId, clients, action }) => {
+  async ({ ws, connectionId, clients, action, clusterNodesRegistry }) => {
     const entry = clients.get(connectionId)
 
     if (!entry) {
@@ -98,7 +98,7 @@ export const resetConnection = withDeps<Deps, void>(
     const { clusterId } = action.payload as unknown as { clusterId: string }
 
     if (client instanceof GlideClusterClient) {
-      await setClusterDashboardData(clusterId, client, ws, connectionId)
+      await setClusterDashboardData(clusterId, client, ws, connectionId, clusterNodesRegistry)
     }
   },
 )

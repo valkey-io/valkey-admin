@@ -1,9 +1,18 @@
+import * as R from "ramda"
 import { GlideClusterClient, ConnectionError, ClosingError, TimeoutError } from "@valkey/valkey-glide"
 import WebSocket from "ws"
 import { VALKEY, METRICS_SERVER_NOT_READY, buildUrl } from "valkey-common"
 import { type ParsedClusterInfo, parseClusterInfo } from "./utils"
 import { computeClusterUtilization, type NodeUtilization } from "./node-utilization"
 import { fetchWithTimeout } from "./actions/utils"
+import { discoverCluster } from "./connection"
+import { type ConnectionDetails } from "./actions/connection"
+import {
+  isWebMode,
+  metricsServerMap,
+  reconcileClusterMetricsServers,
+  type ClusterNodeMap
+} from "./metrics-orchestrator"
 
 type DashboardInfo = {
   info: Record<string, string>
@@ -84,14 +93,56 @@ const safeComputeClusterUtilization = (
   }
 }
 
+// discoverCluster only reads the auth and TLS fields, copying them onto every rediscovered node;
+// host, port, endpointType and db are placeholders required by ConnectionDetails.
+const toDiscoveryDetails = (node: ClusterNodeMap[string]): ConnectionDetails => ({
+  host: node.host,
+  port: String(node.port),
+  username: node.username,
+  tls: node.tls,
+  verifyTlsCertificate: node.verifyTlsCertificate,
+  authType: node.authType,
+  awsRegion: node.awsRegion,
+  awsReplicationGroupId: node.awsReplicationGroupId,
+  endpointType: "cluster-endpoint",
+  db: 0,
+})
+
+const refreshClusterNodes = async (
+  clusterId: string,
+  client: GlideClusterClient,
+  clusterNodesRegistry: Map<string, ClusterNodeMap>,
+): Promise<ClusterNodeMap | undefined> => {
+  const current = clusterNodesRegistry.get(clusterId)
+  const template = current && Object.values(current)[0]
+  if (!template) return current
+
+  try {
+    const { discoveredClusterNodes } = await discoverCluster(client, {
+      connectionDetails: toDiscoveryDetails(template),
+    })
+    if (!R.equals<ClusterNodeMap | undefined>(discoveredClusterNodes, current)) {
+      clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
+      if (isWebMode) reconcileClusterMetricsServers(metricsServerMap)
+    }
+    return discoveredClusterNodes
+  } catch {
+    return current
+  }
+}
+
 export async function setClusterDashboardData(
   clusterId: string,
   client: GlideClusterClient,
   ws: WebSocket,
   connectionId: string,
+  clusterNodesRegistry: Map<string, ClusterNodeMap>,
 ) {
   try {
-    const rawInfo = await client.info()
+    const [rawInfo, clusterNodes] = await Promise.all([
+      client.info(),
+      refreshClusterNodes(clusterId, client, clusterNodesRegistry),
+    ])
     const clusterInfo = parseClusterInfo(rawInfo)
 
     ws.send(
@@ -101,6 +152,7 @@ export async function setClusterDashboardData(
           clusterId,
           info: clusterInfo,
           utilization: safeComputeClusterUtilization(clusterInfo),
+          clusterNodes,
         },
       }),
     )

@@ -1,4 +1,4 @@
-import { createAction, createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice, current } from "@reduxjs/toolkit"
 import * as R from "ramda"
 
 export interface ReplicaNode {
@@ -34,7 +34,6 @@ export interface NodeRow {
 }
 
 export interface ParsedNodeInfo {
-  server_name: string | null;
   uptime_in_days: string | null;
   tcp_port: string | null;
   used_memory_human: string | null;
@@ -109,12 +108,15 @@ const clusterSlice = createSlice({
       delete state.clusters[action.payload.clusterId]
     },
     setClusterData: (state, action) => {
-      const { clusterId, info, utilization } = action.payload
+      const { clusterId, info, utilization, clusterNodes } = action.payload
 
       if (!state.clusters[clusterId]) return
 
+      if (clusterNodes && !R.equals(current(state.clusters[clusterId].clusterNodes), clusterNodes)) {
+        state.clusters[clusterId].clusterNodes = clusterNodes
+      }
+
       const parseNodeInfo = R.applySpec({
-        server_name: R.path(["Server", "server_name"]),
         uptime_in_days: R.path(["Server", "uptime_in_days"]),
         tcp_port: R.path(["Server", "tcp_port"]),
         used_memory_human: R.path(["Memory", "used_memory_human"]),
@@ -140,22 +142,18 @@ const clusterSlice = createSlice({
       // Precompute searchable text for both primaries and replicas
       const searchableText: Record<string, string> = {}
       for (const [primaryKey, primary] of Object.entries(state.clusters[clusterId].clusterNodes)) {
-        const primaryData = result[primaryKey]
         searchableText[primaryKey] = [
           primaryKey,
           primary.host,
           primary.port.toString(),
-          primaryData?.server_name || "",
         ].join(" ").toLowerCase()
 
         for (const replica of primary.replicas) {
           const replicaKey = `${replica.host}:${replica.port}`
-          const replicaData = result[replicaKey]
           searchableText[replicaKey] = [
             replicaKey,
             replica.host,
             replica.port.toString(),
-            replicaData?.server_name || "",
           ].join(" ").toLowerCase()
         }
       }
