@@ -1,13 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Label } from "recharts"
-import { useEffect } from "react"
 import { useParams } from "react-router"
 import { useSelector } from "react-redux"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
 import { Typography } from "./typography"
 import { selectKeys } from "@/state/valkey-features/keys/keyBrowserSelectors"
-import { useAppDispatch } from "@/hooks/hooks"
-import { getKeysRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 
 interface KeyInfo {
   name: string;
@@ -35,15 +32,9 @@ interface TooltipProps {
   }>;
 }
 
+/** Displays the loaded Key Browser sample without resetting its filters or scan. */
 export default function DonutChart() {
   const { id } = useParams()
-  const dispatch = useAppDispatch()
-
-  useEffect(() => {
-    if (id) {
-      dispatch(getKeysRequested({ connectionId: id }))
-    }
-  }, [id, dispatch])
 
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
@@ -129,4 +120,3 @@ export default function DonutChart() {
     </div>
   )
 }
-

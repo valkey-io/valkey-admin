@@ -14,6 +14,8 @@ Full documentation lives at **[valkey-admin.valkey.io](https://valkey-admin.valk
 
 ## Compatibility
 
+Key Browser loads keys incrementally on scroll or **Load more**, with search and type filtering before metadata enrichment. Keys are sorted across loaded results only. Refresh starts a new scan; scans are not snapshots of a changing database. If a saved cluster primary is replaced, **Restart scan** starts over with the current primaries. See the [Key Browser documentation](https://valkey-admin.valkey.io/features/key-browser/) for continuation and resource limits.
+
 Valkey Admin works with all supported Valkey versions. Some features are version-gated:
 
 - **Command Logs** (slow commands, large requests/replies) require Valkey 8.1+.

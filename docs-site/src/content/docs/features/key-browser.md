@@ -16,7 +16,15 @@ Navigate through your keyspace with an intuitive interface that supports filteri
 ### Browsing Keys
 
 - **Tree View**: Navigate keys organized by namespace separators (`:`)
-- **Pagination**: Handle large keyspaces efficiently
+- **Pagination**: Scroll near the bottom or select **Load more** to fetch the next batch of up to 200 keys. Browsing is no longer capped at 1,000 keys.
+- **Ordering**: Keys are sorted across loaded results, not across the entire database. Loading more can insert keys earlier in the tree.
+- **Search and types**: Pattern and type filters run during scanning, before fetching key metadata. Changing a filter or refreshing starts a new scan.
+
+Each request performs bounded scan work. A sparse search may return no keys while more scan work remains; select **Load more** to continue. The loaded count is distinct from the database-wide **Total Keys** count. Memory and distribution statistics describe loaded keys only.
+
+Opening the Key Distribution Chart uses those already-loaded results; it does not reset search, type filters, or scan progress.
+
+Scans are not snapshots: concurrent additions and deletions can change results. Refresh to begin a new scan after external changes. Continuations expire after 30 minutes and are scoped to the current browser connection; refresh after expiry or reconnection.
 
 ### Search and Filter
 
@@ -84,6 +92,12 @@ Click any key to view detailed information:
 ## Switching Databases
 
 Each `(host, port, db)` triple maps to its own client connection on the server, so the Key Browser is always scoped to the database you connected to. Switching to a different `db` opens a new client side-by-side with the existing one rather than issuing `SELECT` against an existing client, so operations like `KEYS`, `SET`, and `DEL` against one database never affect keys in another database on the same node. For cluster connections this only applies when the Valkey server is at version `9.0.0` or higher; earlier cluster servers always operate on `db` `0` and a non-zero `db` is rejected at connect time.
+
+## Pagination Protocol
+
+The `keyBrowser/getKeysRequested` websocket action accepts `connectionId`, optional `pattern` and `keyType`, an opaque `cursor` from the previous response, and a `requestId` echoed in success/failure replies. Omit the cursor to start over. `getKeysFulfilled` includes `keys`, database-wide `totalKeys`, and `cursor`; only cursor `"0"` means the scan is finished. Clients must deduplicate keys and discard replies for superseded request IDs. A request returns at most 200 keys and performs at most eight continuation SCAN calls after initial node discovery. The legacy `count` field is accepted but the server controls scan batch size.
+
+Continuation tokens are bound to the websocket, Valkey client and query. The server retains at most 32 tokens per websocket for 30 minutes; invalid or expired tokens produce `getKeysFailed` with `restartRequired: true` and offer **Restart scan**. Before resuming a cluster scan, an additional SCAN probe with COUNT 1 to all current primaries checks that saved primary addresses are still present without advancing the saved scan. A missing primary offers **Restart scan**; ordinary command failures retain the continuation for **Retry**.
 
 ## Next Steps
 

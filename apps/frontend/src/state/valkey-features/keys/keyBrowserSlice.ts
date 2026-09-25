@@ -1,4 +1,5 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import { createSlice, nanoid, type PayloadAction } from "@reduxjs/toolkit"
+import type { KeyPageRequest } from "@common/src/key-browser"
 
 interface KeyInfo {
   name: string;
@@ -16,6 +17,11 @@ interface KeyBrowserState {
     error: string | null;
     keyTypeLoading: { [key: string]: boolean };
     totalKeys: number;
+    pageLoading: boolean;
+    restartRequired: boolean;
+    requestId?: string;
+    pattern?: string;
+    keyType?: string;
   };
 }
 
@@ -26,6 +32,10 @@ export const defaultConnectionState = {
   error: null,
   keyTypeLoading: {},
   totalKeys: 0,
+  pageLoading: false,
+  restartRequired: false,
+  pattern: undefined as string | undefined,
+  keyType: undefined as string | undefined,
 }
 
 const initialState: KeyBrowserState = {}
@@ -34,20 +44,33 @@ const keyBrowserSlice = createSlice({
   name: "keyBrowser",
   initialState,
   reducers: {
-    getKeysRequested: (
-      state,
-      action: PayloadAction<{
-        connectionId: string;
-        pattern?: string;
-        count?: number;
-      }>,
-    ) => {
-      const { connectionId } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = { ...defaultConnectionState }
-      }
-      state[connectionId].loading = true
-      state[connectionId].error = null
+    loadMoreKeys: (state, action: PayloadAction<{ connectionId: string }>) => {
+      const entry = state[action.payload.connectionId]
+      if (entry && !entry.pageLoading) entry.error = null
+    },
+    getKeysRequested: {
+      prepare: (payload: KeyPageRequest) => ({ payload: { ...payload, requestId: nanoid() } }),
+      reducer: (
+        state,
+        action: PayloadAction<KeyPageRequest>,
+      ) => {
+        const { connectionId } = action.payload
+        if (!state[connectionId]) {
+          state[connectionId] = { ...defaultConnectionState }
+        }
+        const entry = state[connectionId]
+        entry.requestId = action.payload.requestId
+        entry.pattern = action.payload.pattern
+        entry.keyType = action.payload.keyType
+        entry.pageLoading = true
+        entry.restartRequired = false
+        entry.loading = !action.payload.cursor || action.payload.cursor === "0"
+        if (entry.loading) {
+          entry.keys = []
+          entry.cursor = "0"
+        }
+        state[connectionId].error = null
+      },
     },
     getKeysFulfilled: (
       state,
@@ -56,12 +79,16 @@ const keyBrowserSlice = createSlice({
         keys: KeyInfo[];
         cursor: string;
         totalKeys: number;
+        requestId?: string;
       }>,
     ) => {
       const { connectionId, keys, cursor, totalKeys } = action.payload
       if (state[connectionId]) {
+        if (action.payload.requestId && action.payload.requestId !== state[connectionId].requestId) return
         state[connectionId].loading = false
-        state[connectionId].keys = keys
+        state[connectionId].pageLoading = false
+        state[connectionId].keys = [...new Map([...state[connectionId].keys, ...keys].map((key) => [key.name, key])).values()]
+          .sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
         state[connectionId].cursor = cursor
         state[connectionId].totalKeys = totalKeys
       }
@@ -71,12 +98,17 @@ const keyBrowserSlice = createSlice({
       action: PayloadAction<{
         connectionId: string;
         error: string;
+        requestId?: string;
+        restartRequired?: boolean;
       }>,
     ) => {
       const { connectionId, error } = action.payload
       if (state[connectionId]) {
+        if (action.payload.requestId && action.payload.requestId !== state[connectionId].requestId) return
         state[connectionId].loading = false
+        state[connectionId].pageLoading = false
         state[connectionId].error = error
+        state[connectionId].restartRequired = action.payload.restartRequired ?? false
       }
     },
     getKeyTypeRequested: (
@@ -210,7 +242,8 @@ const keyBrowserSlice = createSlice({
       const { connectionId, key } = action.payload
       if (state[connectionId]) {
         state[connectionId].loading = false
-        state[connectionId].keys.push(key)
+        state[connectionId].keys = [...new Map([...state[connectionId].keys, key].map((item) => [item.name, item])).values()]
+          .sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
       }
     },
     addKeyFailed: (
@@ -289,6 +322,7 @@ const keyBrowserSlice = createSlice({
 
 export default keyBrowserSlice.reducer
 export const {
+  loadMoreKeys,
   getKeysRequested,
   getKeysFulfilled,
   getKeysFailed,

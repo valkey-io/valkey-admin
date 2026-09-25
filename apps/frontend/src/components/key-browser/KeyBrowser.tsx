@@ -33,10 +33,12 @@ import {
   selectKeys,
   selectLoading,
   selectError,
+  selectKeyBrowserState,
   selectTotalKeys
 } from "@/state/valkey-features/keys/keyBrowserSelectors"
 import {
   getKeysRequested,
+  loadMoreKeys,
   getKeyTypeRequested
 } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
@@ -51,6 +53,7 @@ interface KeyInfo {
   elements?: any;
 }
 
+/** Renders filtered, incrementally loaded keys and dispatches browsing intents. */
 export function KeyBrowser() {
   const { id, clusterId } = useParams()
   const dispatch = useAppDispatch()
@@ -77,6 +80,7 @@ export function KeyBrowser() {
       dispatch(getKeysRequested({
         connectionId: id,
         pattern: toScanPattern(searchPattern),
+        keyType: selectedType === "all" ? undefined : selectedType,
       }))
     }
   }
@@ -87,6 +91,7 @@ export function KeyBrowser() {
       dispatch(getKeysRequested({
         connectionId: id,
         pattern: "*",
+        keyType: selectedType === "all" ? undefined : selectedType,
       }))
     }
   }
@@ -99,6 +104,8 @@ export function KeyBrowser() {
   const loading = useSelector(selectLoading(id!))
   const error = useSelector(selectError(id!))
   const totalKeys = useSelector(selectTotalKeys(id!))
+  const page = useSelector(selectKeyBrowserState(id!))
+  const hasMore = Boolean(page.cursor && page.cursor !== "0")
 
   useEffect(() => {
     if (id) {
@@ -107,7 +114,9 @@ export function KeyBrowser() {
   }, [id, dispatch])
 
   const handleRefresh = () => {
-    dispatch(getKeysRequested({ connectionId: id! }))
+    dispatch(getKeysRequested({
+      connectionId: id!, pattern: toScanPattern(searchPattern), keyType: selectedType === "all" ? undefined : selectedType,
+    }))
   }
 
   const handleKeyClick = (keyName: string) => {
@@ -122,15 +131,11 @@ export function KeyBrowser() {
 
   // Get selected key info from the keys data
   const selectedKeyInfo = selectedKey
-    ? keys.find((k) => k.name === selectedKey)
+    ? keys.find((k) => k.name === selectedKey) ?? null
     : null
 
   // Calculate total memory usage
   const totalMemoryUsage = calculateTotalMemoryUsage(keys)
-
-  const filteredKeys = selectedType === "all"
-    ? keys
-    : keys.filter((key) => key.type.toLowerCase() === selectedType.toLowerCase())
 
   return (
     <RouteContainer title="Key Browser">
@@ -184,7 +189,13 @@ export function KeyBrowser() {
           className="w-48"
           disabled={loading}
           icon={<ListFilter size={16} />}
-          onChange={(e) => setSelectedType(e.target.value)}
+          onChange={(e) => {
+            const keyType = e.target.value
+            setSelectedType(keyType)
+            dispatch(getKeysRequested({
+              connectionId: id!, pattern: toScanPattern(searchPattern), keyType: keyType === "all" ? undefined : keyType,
+            }))
+          }}
           value={selectedType}
         >
           {keyTypes.map((type) => (
@@ -223,7 +234,7 @@ export function KeyBrowser() {
         </Button>
 
         <Button
-          aria-label="Edit connection settings"
+          aria-label="Refresh keys"
           disabled={loading}
           onClick={handleRefresh}
           size="icon"
@@ -252,13 +263,18 @@ export function KeyBrowser() {
           left={
             <Panel
               emptyState={selectedType === "all" ? "No keys found" : `No ${selectedType} keys found`}
-              isEmpty={filteredKeys.length === 0 && !loading}
+              isEmpty={keys.length === 0 && !loading && !hasMore && !error}
               loading={loading}
             >
               <KeyTree
-                keys={filteredKeys}
+                error={error}
+                hasMore={hasMore}
+                keys={keys}
                 loading={loading}
                 onKeyClick={handleKeyClick}
+                onLoadMore={() => dispatch(loadMoreKeys({ connectionId: id! }))}
+                pageLoading={page.pageLoading}
+                restartRequired={page.restartRequired}
                 selectedKey={selectedKey}
               />
             </Panel>

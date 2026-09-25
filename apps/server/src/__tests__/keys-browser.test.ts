@@ -674,6 +674,7 @@ describe("getKeys", () => {
       const mockClient = {
         customCommand: mock.fn(async (cmd: string[]) => {
           if (cmd[0] === "SCAN") return ["0", ["key1", "key2"]]
+          if (cmd[0] === "DBSIZE") return 2
           if (cmd[0] === "TYPE") return "string"
           if (cmd[0] === "TTL") return -1
           if (cmd[0] === "MEMORY") return 50

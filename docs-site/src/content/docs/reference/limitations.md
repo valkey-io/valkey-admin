@@ -23,4 +23,4 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 ## Architecture
 
 - **Metrics servers are per-primary only.** Each primary node gets its own metrics collector; replica nodes are not independently monitored.
-- **Key browser sample size.** The key browser scans up to approximately 1,000 keys across the cluster. Keys beyond this limit are not listed but can still be found using the search function, which uses SCAN with a MATCH pattern (the same mechanism, just filtered).
+- **Key browser scanning.** Keys load incrementally in batches of up to 200, with bounded scan work per request. Search and type filters apply before metadata enrichment. Sorting covers loaded results only, not undiscovered keys. SCAN is not a snapshot, so concurrent changes may require a refresh. Sparse searches may require additional **Load more** requests even when a batch is empty. Continuations expire after 30 minutes or a browser reconnection; refresh to restart. Loaded keys accumulate in browser memory, so very large result sets can still affect browser performance.

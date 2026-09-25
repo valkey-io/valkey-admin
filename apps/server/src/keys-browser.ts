@@ -3,7 +3,6 @@ import {
   GlideClient, 
   GlideClusterClient, 
   Batch, ClusterBatch, 
-  RouteOption, 
   ConnectionError, 
   TimeoutError, 
   ClosingError, 
@@ -13,7 +12,8 @@ import {
 import pLimit from "p-limit"
 import { VALKEY, VALKEY_CLIENT } from "valkey-common"
 import { formatBytes } from "valkey-common"
-import { buildScanCommandArgs } from "./valkey-client-commands"
+import { type KeyPageRequest } from "valkey-common"
+import { KeyScanExpiredError, scanKeyPage } from "./key-pages"
 
 // Largest value the Key Browser renders before showing a size warning; override via env.
 const keyValueSizeLimitBytes =
@@ -451,111 +451,18 @@ export async function getKeyInfo(
   }
 }
 
-async function scanStandalone(
-  client: GlideClient,
-  payload: {
-    connectionId: string;
-    pattern?: string;
-    count?: number;
-  }, 
-): Promise<Set<string>> {
-  const allKeys = new Set<string>()
-    
-  let cursor = "0"
-  do {
-    const scanResult = (await client.customCommand(
-      buildScanCommandArgs({ cursor, pattern: payload.pattern, count: payload.count }),
-    )) as [string, string[]]
-
-    const [newCursor, keys] = scanResult
-
-    cursor = newCursor
-    keys.forEach((key) => {allKeys.add(key)})
-  } while (allKeys.size < 1000 && cursor !== "0")
-
-  return allKeys
-}
-
-type ClusterScanResult = {
-  key: string
-  value:[string, string[]]
-}
-
-async function scanCluster(
-  client: GlideClusterClient,
-  payload: {
-    connectionId: string;
-    pattern?: string;
-    count?: number;
-    limit?: number; 
-  },
-): Promise<Set<string>> {
-
-  const routeOption: RouteOption = { route: "allPrimaries" }
-  const allKeys = new Set<string>()
-  const limit = payload.limit ?? 1000
-
-  // Run initial SCAN 0 on all primaries
-  const scanClusterResult = await client.customCommand(
-    buildScanCommandArgs({
-      cursor: "0",
-      pattern: payload.pattern,
-      count: payload.count,
-    }),
-    routeOption,
-  ) as ClusterScanResult[]
-
-  await Promise.all(
-    scanClusterResult.map(async ({ key: nodeAddress, value }) => {
-      let cursor = value[0]
-      const keys = value[1]
-
-      keys.forEach((k) => {
-        if (allKeys.size < limit) allKeys.add(k)
-      })
-
-      const [host, portStr] = nodeAddress.split(/:(?=[^:]+$)/) // split on last ":"
-      const nodeRouteOption: RouteOption = {
-        route: {
-          type: "routeByAddress",
-          host,
-          port: Number(portStr),
-        },
-      }
-      while (cursor !== "0" && allKeys.size < limit) {
-        const [nextCursor, newKeys] = await client.customCommand(
-          buildScanCommandArgs({
-            cursor,
-            pattern: payload.pattern,
-            count: payload.count,
-          }),
-          nodeRouteOption,
-        ) as [string, string[]]
-
-        cursor = nextCursor
-        newKeys.forEach((k) => { if (allKeys.size < limit) allKeys.add(k) })
-      }
-    }),
-  )
-
-  return allKeys
-}
-
 const limit = pLimit(10) 
+/** Enriches one bounded scan page and replies with its continuation and request ID. */
 export async function getKeys(
   client: GlideClient | GlideClusterClient,
   ws: WebSocket,
-  payload: {
-    connectionId: string;
-    pattern?: string;
-    count?: number;
-  },
+  payload: KeyPageRequest,
 ) {
   const { connectionId } = payload
   try {
     const totalKeys = await client.customCommand(["DBSIZE"])
-    const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
-    const keyList = [...allKeys]
+    const page = await scanKeyPage(client, ws, payload)
+    const keyList = page.keys
 
     const metadata = await fetchKeyMetadataBatch(client, keyList)
 
@@ -576,7 +483,10 @@ export async function getKeys(
         payload: {
           connectionId: connectionId,
           keys: enrichedKeys,
-          totalKeys,
+          totalKeys: typeof totalKeys === "number" ? totalKeys
+            : (totalKeys as { value: number }[]).reduce((sum, node) => sum + Number(node.value), 0),
+          cursor: page.cursor,
+          requestId: payload.requestId,
         },
       }),
     )
@@ -589,6 +499,8 @@ export async function getKeys(
         payload: {
           connectionId: connectionId,
           error: err instanceof Error ? err.message : String(err),
+          requestId: payload.requestId,
+          restartRequired: err instanceof KeyScanExpiredError,
         },
       }),
     )

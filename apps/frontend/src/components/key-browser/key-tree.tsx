@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { ChevronRight, ChevronDown, Key, Database, Hourglass } from "lucide-react"
+import { ChevronRight, ChevronDown, Key, Database, Hourglass, ArrowDown, LoaderCircle } from "lucide-react"
 import { convertTTL } from "@common/src/ttl-conversion"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { keyTreeBuilder, countKeys } from "@common/src/key-tree-builder"
 import { CustomTooltip } from "../ui/tooltip"
 import { Typography } from "../ui/typography"
+import { Button } from "../ui/button"
 
 interface KeyInfo {
   name: string
@@ -25,6 +26,11 @@ interface TreeNode {
 }
 
 interface KeyTreeProps {
+  hasMore?: boolean
+  restartRequired?: boolean
+  pageLoading?: boolean
+  error?: string | null
+  onLoadMore?: () => void
   keys: KeyInfo[]
   selectedKey: string | null
   onKeyClick: (keyName: string) => void
@@ -167,16 +173,24 @@ function TreeNodeItem({ node, level, selectedKey, onKeyClick, loading }: TreeNod
   )
 }
 
-export function KeyTree({ keys, selectedKey, onKeyClick, loading }: KeyTreeProps) {
+/** Renders loaded keys by namespace with scroll and explicit pagination controls. */
+export function KeyTree({
+  keys, selectedKey, onKeyClick, loading, hasMore, pageLoading, error, restartRequired, onLoadMore,
+}: KeyTreeProps) {
   const tree = keyTreeBuilder(keys)
 
   return (
     <div
       aria-label="Key tree list"
       className="h-full overflow-y-auto space-y-2 p-2"
+      onScroll={(event) => {
+        const element = event.currentTarget
+        if (hasMore && !pageLoading && !error && element.scrollHeight - element.scrollTop - element.clientHeight < 100) onLoadMore?.()
+      }}
       role="region"
       tabIndex={0}
     >
+      <Typography variant="bodySm">{keys.length} keys loaded</Typography>
       {Array.from(tree.children.values()).map((node) => (
         <TreeNodeItem
           key={node.fullPath}
@@ -187,6 +201,14 @@ export function KeyTree({ keys, selectedKey, onKeyClick, loading }: KeyTreeProps
           selectedKey={selectedKey}
         />
       ))}
+      <div aria-live="polite" className="flex items-center justify-center min-h-10">
+        {hasMore ? (
+          <Button disabled={pageLoading} onClick={onLoadMore} variant="outline">
+            {pageLoading ? <LoaderCircle className="animate-spin" size={16} /> : <ArrowDown size={16} />}
+            {pageLoading ? "Loading" : restartRequired ? "Restart scan" : error ? "Retry" : "Load more"}
+          </Button>
+        ) : !loading && <Typography variant="bodySm">End of results</Typography>}
+      </div>
     </div>
   )
 }
