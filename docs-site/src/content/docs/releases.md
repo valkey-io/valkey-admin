@@ -53,7 +53,7 @@ Review these before upgrading. See the [server](/configuration/server/) and [met
 - The WebSocket URL includes the page path, so it connects through reverse proxies that serve Valkey Admin under a path prefix ([#471](https://github.com/valkey-io/valkey-admin/pull/471))
 - Upgraded Valkey GLIDE to 2.5.2. Valkey Admin connections report a `lib-name` such as `GlideJS(valkey-admin-web:1.2.0)` in `CLIENT LIST` ([#506](https://github.com/valkey-io/valkey-admin/pull/506))
 
-### Security
+### Fixes
 
 - Require a per-launch token for the desktop app's WebSocket handshake, so web pages can't connect to its local backend ([#516](https://github.com/valkey-io/valkey-admin/pull/516))
 - Never store a cleartext password when no OS keystore is available ([#522](https://github.com/valkey-io/valkey-admin/pull/522))
