@@ -456,6 +456,40 @@ describe("connectToValkey", () => {
     }
   })
 
+  it("falls back to VALKEY_CA_CERT_PATH when the payload has no caCertPath", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const caPath = path.join(os.tmpdir(), `valkey-ca-env-${process.pid}-${Date.now()}.pem`)
+    fs.writeFileSync(caPath, "-----BEGIN CERTIFICATE-----\nenvca\n-----END CERTIFICATE-----\n")
+    const priorCaCertPath = process.env.VALKEY_CA_CERT_PATH
+    process.env.VALKEY_CA_CERT_PATH = caPath
+
+    // The UI has no CA field, so a UI-initiated payload carries no caCertPath.
+    const tlsPayload = {
+      ...DEFAULT_PAYLOAD,
+      connectionDetails: {
+        ...DEFAULT_PAYLOAD.connectionDetails,
+        tls: true,
+        verifyTlsCertificate: true,
+        caCertPath: undefined,
+      },
+    }
+
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        await connectToValkey(ctx(), mockWs, tlsPayload)
+        const config = (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]
+        const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
+        assert.ok(Buffer.isBuffer(ca))
+        assert.match(ca.toString(), /envca/)
+      })
+    } finally {
+      if (priorCaCertPath === undefined) delete process.env.VALKEY_CA_CERT_PATH
+      else process.env.VALKEY_CA_CERT_PATH = priorCaCertPath
+      fs.rmSync(caPath, { force: true })
+    }
+  })
+
   it("should handle connection errors", async () => {
     const error = new Error("Connection failed")
     const originalCreateClient = GlideClient.createClient
