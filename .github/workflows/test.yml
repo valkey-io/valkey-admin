@@ -25,6 +25,8 @@ jobs:
       run: npm ci
     - name: Test Server
       run: npm test --workspace=apps/server
+    - name: Test Common
+      run: npm test --workspace=common
     - name: Test Frontend
       run: npm test --workspace=apps/frontend
     - name: Test Metrics

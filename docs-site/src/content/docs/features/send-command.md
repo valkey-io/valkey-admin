@@ -34,10 +34,15 @@ As you type, Valkey Admin suggests matching commands from a built-in list of 396
 
 Some commands are restricted to prevent accidental server disruption.
 
-**Blocked commands** — cannot be executed at all:
+**Blocked commands** — cannot be executed through Send Command on standalone or cluster connections:
 
 | Command | Reason |
 |---------|--------|
+| `SELECT` | Changes the selected database on the shared connection |
+| `AUTH` | Changes authentication on the shared connection |
+| `HELLO` | Can change the protocol, authentication, and name of the shared connection |
+| `RESET` | Resets the shared connection's state |
+| `QUIT` | Closes the shared connection |
 | `SHUTDOWN` | Stops the server and cannot be undone remotely |
 | `DEBUG` | Can cause crashes or data corruption |
 | `FLUSHALL` | Deletes all keys in all databases |

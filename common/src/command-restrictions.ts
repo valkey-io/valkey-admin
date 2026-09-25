@@ -54,8 +54,13 @@ export const parseCommandArgs = (command: string): string[] => {
   return args
 }
 
-// these commands are blocked and cannot be executed because they can cause server problems
+// Block server-destructive commands and changes to the shared connection's state.
 export const BLOCKED_COMMANDS: CommandRestriction[] = [
+  { pattern: ["SELECT"], reason: "SELECT changes the selected database on the shared connection." },
+  { pattern: ["AUTH"], reason: "AUTH changes authentication on the shared connection." },
+  { pattern: ["HELLO"], reason: "HELLO can change the protocol, authentication, and name of the shared connection." },
+  { pattern: ["RESET"], reason: "RESET resets the shared connection's state." },
+  { pattern: ["QUIT"], reason: "QUIT closes the shared connection." },
   { pattern: ["SHUTDOWN"], reason: "SHUTDOWN stops the server and cannot be undone remotely." },
   { pattern: ["DEBUG"], reason: "DEBUG can cause crashes or data corruption." },
   { pattern: ["FLUSHALL"], reason: "FLUSHALL deletes all keys in all databases. This cannot be undone." },
@@ -72,6 +77,10 @@ export const CONFIRM_COMMANDS: CommandRestriction[] = [
   { pattern: ["CLUSTER", "RESET"], reason: "CLUSTER RESET resets the cluster state and may cause data loss." },
 ]
 
+/**
+ * Matches the leading command/subcommand tokens against an uppercase restriction
+ * pattern, ignoring input case and allowing trailing command arguments.
+ */
 export function matchesRestriction(parsedArgs: string[], restriction: CommandRestriction): boolean {
   const parts = parsedArgs.map((p) => p.toUpperCase())
   return (
@@ -80,10 +89,17 @@ export function matchesRestriction(parsedArgs: string[], restriction: CommandRes
   )
 }
 
+/**
+ * Returns the first blocking rule for a parsed command on any connection type,
+ * or undefined when no block applies. Shared by the UI and backend enforcement.
+ */
 export function findBlockedCommand(parsedArgs: string[]): CommandRestriction | undefined {
   return BLOCKED_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
 }
 
+/**
+ * Returns the first matching confirmation rule, or undefined if none applies.
+ */
 export function findConfirmCommand(parsedArgs: string[]): CommandRestriction | undefined {
   return CONFIRM_COMMANDS.find((r) => matchesRestriction(parsedArgs, r))
 }

@@ -14,13 +14,14 @@
   "files": ["dist"],
   "scripts": {
     "build": "node scripts/sync-version.mjs && tsup src/index.ts --format esm --dts --out-dir dist --clean",
-    "test": "npx tsx --test src/__tests__/*.test.ts"
+    "test": "tsx --test src/__tests__/*.test.ts"
   },
   "dependencies": {
     "google-auth-library": "^11.0.2"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
+    "tsx": "^4.23.15",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3"
   }
