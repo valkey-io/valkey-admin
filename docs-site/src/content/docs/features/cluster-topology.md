@@ -29,10 +29,10 @@ Nodes are displayed in a table. Each primary row is followed by rows for its rep
 
 ### Node Display
 
-Each node shows its **name**, a `PRIMARY` or `REPLICA` **role badge**, and its **address** (e.g. `192.168.18.6:7001`). Primary rows also show:
+Each node shows its **address** (e.g. `192.168.18.6:7001`) and a `PRIMARY` or `REPLICA` **role badge**. Primary rows also show:
 
 - **Utilization**: `Low`, `Normal` or `High`, based on the higher of memory and CPU usage. Hover the badge for details. See [Utilization Levels](#utilization-levels).
-- **Memory**: Memory used out of the node's limit (e.g. `70.81M / 100 MB`)
+- **Memory**: Memory used out of the node's `maxmemory` limit (e.g. `70.81M / 100 MB`), or `∞` when no limit is set
 - **CPU**: CPU usage
 - **Ops/Sec**: Operations per second
 - **Hit Ratio**: Share of key lookups that found the key
@@ -48,19 +48,19 @@ Memory and CPU are each assigned a level, and the badge shows the higher of the 
 | **Normal** | 70% to below 90% | 60% to below 85% |
 | **High** | 90% or more | 85% or more |
 
-- **Memory** is `used_memory` as a share of `maxmemory`. If `maxmemory` is not set, the share is measured against the host's total RAM (`total_system_memory`) and the badge has a dashed border.
+- **Memory** is `used_memory` as a share of `maxmemory`. If `maxmemory` is not set, memory is not counted: the level is based on CPU alone, the badge has a dashed border, and the node's memory limit shows as `∞`. If any node has no `maxmemory`, the **Cluster Memory** card's limit also shows `∞`.
 - **CPU** is the main thread's CPU time as a share of one core, measured between two consecutive samples. When you first open the page, CPU may show `—` until the next refresh.
 - If neither value is available, no badge is shown.
 
 Memory has higher thresholds than CPU because a cache is expected to run close to its memory limit, while sustained high CPU on the main thread means the node is close to saturation.
 
+### Searching and Filtering
+
+Use the search bar to filter nodes by host or port. Narrow the list further with the **role** and **utilization** filters. The count of matching nodes is shown next to the filters.
+
 ## Refresh Interval
 
 The page refreshes node metrics, utilization levels, and the cluster statistics every 5 seconds while it is open. Refreshing stops when you leave the page.
-
-### Searching and Filtering
-
-Use the search bar to filter nodes by name, host, or port. Narrow the list further with the **role** and **utilization** filters. The count of matching nodes is shown next to the filters.
 
 ## Node Actions
 
