@@ -31,12 +31,32 @@ Nodes are displayed in a table. Each primary row is followed by rows for its rep
 
 Each node shows its **name**, a `PRIMARY` or `REPLICA` **role badge**, and its **address** (e.g. `192.168.18.6:7001`). Primary rows also show:
 
-- **Utilization**: `Low`, `Normal` or `High`, based on the higher of memory and CPU usage. Hover the badge for details.
+- **Utilization**: `Low`, `Normal` or `High`, based on the higher of memory and CPU usage. Hover the badge for details. See [Utilization Levels](#utilization-levels).
 - **Memory**: Memory used out of the node's limit (e.g. `70.81M / 100 MB`)
 - **CPU**: CPU usage
 - **Ops/Sec**: Operations per second
 - **Hit Ratio**: Share of key lookups that found the key
 - **Conns**: Number of connected clients
+
+### Utilization Levels
+
+Memory and CPU are each assigned a level, and the badge shows the higher of the two. For example, a node at 30% memory and 90% CPU shows **High**.
+
+| Level | Memory | CPU |
+|---|---|---|
+| **Low** | Below 70% | Below 60% |
+| **Normal** | 70% to below 90% | 60% to below 85% |
+| **High** | 90% or more | 85% or more |
+
+- **Memory** is `used_memory` as a share of `maxmemory`. If `maxmemory` is not set, the share is measured against the host's total RAM (`total_system_memory`) and the badge has a dashed border.
+- **CPU** is the main thread's CPU time as a share of one core, measured between two consecutive samples. When you first open the page, CPU may show `—` until the next refresh.
+- If neither value is available, no badge is shown.
+
+Memory has higher thresholds than CPU because a cache is expected to run close to its memory limit, while sustained high CPU on the main thread means the node is close to saturation.
+
+## Refresh Interval
+
+The page refreshes node metrics, utilization levels, and the cluster statistics every 5 seconds while it is open. Refreshing stops when you leave the page.
 
 ### Searching and Filtering
 
