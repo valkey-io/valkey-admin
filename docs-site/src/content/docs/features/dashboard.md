@@ -38,10 +38,12 @@ Use the search bar to filter metrics by name across all groups.
 
 ## Real-Time Usage Metrics
 
-The dashboard shows CPU and memory usage metrics at configurable intervals:
+The dashboard shows CPU and memory usage metrics over a selectable time range:
 
-- **Default**: 1 hour
-- **Configurable**: Adjust to see usage over 6H and 12H
+- **Default**: Last 1 hour
+- **Configurable**: Open a chart and set **Last [number] [Hours / Days]**, from 1 to 720 hours or 1 to 30 days
+
+How far back a chart can go depends on how much history the metrics process keeps. When less data exists than the selected range, a *Data available since …* note appears under the range picker. See [Keeping more history](/configuration/metrics/#keeping-more-history).
 
 ### Metrics and Anomaly Detection
 

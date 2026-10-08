@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, toNodeId, buildUrl, parseTimeRange } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 interface MemoryMetric {
@@ -13,8 +13,6 @@ interface MemoryMetric {
 type MemoryUsageResponse = {
   [key: string]: MemoryMetric
 }
-
-type TimeRange = "1h" | "6h" | "12h"
 
 const sendMemoryUsageFulfilled = (
   ws: WebSocket,
@@ -70,12 +68,12 @@ export const memoryUsageRequested = withDeps<Deps, void>(
       }
 
       try {
-        const hoursInMs = {
-          "1h": 1 * 60 * 60 * 1000,
-          "6h": 6 * 60 * 60 * 1000,
-          "12h": 12 * 60 * 60 * 1000,
+        const rangeMs = parseTimeRange(timeRange)?.ms
+        if (rangeMs === undefined) {
+          sendMemoryUsageError(ws, connectionId, new Error(`Invalid time range: ${timeRange}`))
+          return
         }
-        const since = Date.now() - hoursInMs[timeRange as TimeRange]
+        const since = Date.now() - rangeMs
 
         const url = buildUrl(metricsServerURI, "/memory", { since, maxPoints: 60 })
 

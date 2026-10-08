@@ -1,13 +1,11 @@
 import { type WebSocket } from "ws"
-import { VALKEY, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, toNodeId, buildUrl, parseTimeRange } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 type CpuUsageResponse = Array<{
   timestamp: number
   value: number
 }>
-
-type TimeRange = "1h" | "6h" | "12h"
 
 const sendCpuUsageFulfilled = (
   ws: WebSocket,
@@ -64,12 +62,12 @@ export const cpuUsageRequested = withDeps<Deps, void>(
       }
 
       try {
-        const hoursInMs = {
-          "1h": 1 * 60 * 60 * 1000,
-          "6h": 6 * 60 * 60 * 1000,
-          "12h": 12 * 60 * 60 * 1000,
+        const rangeMs = parseTimeRange(timeRange)?.ms
+        if (rangeMs === undefined) {
+          sendCpuUsageError(ws, connectionId, new Error(`Invalid time range: ${timeRange}`))
+          return
         }
-        const since = Date.now() - hoursInMs[timeRange as TimeRange]
+        const since = Date.now() - rangeMs
 
         const url = buildUrl(metricsServerURI, "/cpu", { since, maxPoints: 120 })
 

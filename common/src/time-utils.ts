@@ -7,6 +7,37 @@ const fmt = new Intl.DateTimeFormat("en-GB", {
 
 export const formatTimestamp = (ts: number): string => fmt.format(new Date(ts))
 
+// Chart axis/tooltip labels: include the date when a chart spans multiple days so points from different days are distinguishable.
+export const chartTimestampFormatter = (withDate: boolean) => (ts: unknown): string => {
+  if (!ts) return ""
+  const date = new Date(Number(ts))
+  return withDate
+    ? date.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleTimeString()
+}
+
+export type TimeRangeUnit = "h" | "d"
+
+export const TIME_RANGE_LIMITS: Record<TimeRangeUnit, { min: number; max: number }> = {
+  h: { min: 1, max: 720 },
+  d: { min: 1, max: 30 },
+}
+
+const TIME_RANGE_UNIT_MS: Record<TimeRangeUnit, number> = {
+  h: 3_600_000,
+  d: 86_400_000,
+}
+
+// Time ranges travel between UI and server as compact strings like "6h" or "30d".
+export const parseTimeRange = (value: string): { amount: number; unit: TimeRangeUnit; ms: number } | null => {
+  const match = /^(\d+)([hd])$/.exec(value)
+  if (!match) return null
+  const amount = Number(match[1])
+  const unit = match[2] as TimeRangeUnit
+  const { min, max } = TIME_RANGE_LIMITS[unit]
+  return amount >= min && amount <= max ? { amount, unit, ms: amount * TIME_RANGE_UNIT_MS[unit] } : null
+}
+
 // returns time ago in appropriate units like "24s" or "8m 24s" or "8h 24m"
 export const timeAgo = (timestamp: number): string => {
   const now = Date.now()

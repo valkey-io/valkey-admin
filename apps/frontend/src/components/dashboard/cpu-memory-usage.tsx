@@ -4,14 +4,14 @@ import { useParams } from "react-router"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { Search, Maximize2 } from "lucide-react"
 import AreaChartComponent from "../ui/area-chart"
-import { ButtonGroup } from "../ui/button-group"
 import { ChartTile } from "../ui/chart-tile"
 import { ChartModal } from "../ui/chart-modal"
 import { Input } from "../ui/input"
+import { TimeRangePicker } from "../ui/time-range-picker"
 import { Typography } from "../ui/typography"
-import { cpuUsageRequested, selectCpuUsage } from "@/state/valkey-features/cpu/cpuSlice.ts"
+import { cpuUsageRequested, selectCpuUsage, selectCpuUsageLoading } from "@/state/valkey-features/cpu/cpuSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
-import { memoryUsageRequested, selectMemoryUsage } from "@/state/valkey-features/memory/memorySlice"
+import { memoryUsageRequested, selectMemoryUsage, selectMemoryUsageLoading } from "@/state/valkey-features/memory/memorySlice"
 
 type ChartType = "cpu" | { type: "memory"; key: string }
 
@@ -20,6 +20,8 @@ export default function CpuMemoryUsage() {
   const dispatch = useAppDispatch()
   const cpuUsageData = useSelector(selectCpuUsage(id ?? ""))
   const memoryUsageData = useSelector(selectMemoryUsage(id ?? ""))
+  const cpuUsageLoading = useSelector(selectCpuUsageLoading(id ?? ""))
+  const memoryUsageLoading = useSelector(selectMemoryUsageLoading(id ?? ""))
   const [cpuTimeRange, setCpuTimeRange] = useState("1h")
   const [memoryTimeRange, setMemoryTimeRange] = useState("1h")
   const [openChart, setOpenChart] = useState<ChartType | null>(null)
@@ -99,6 +101,10 @@ export default function CpuMemoryUsage() {
     }
   })
 
+  const openMemorySeries = openChart && typeof openChart === "object"
+    ? memoryMetrics.find(([key]) => key === openChart.key)?.[1]?.series || []
+    : []
+
   const hasNoData = (!cpuUsageData || cpuUsageData.length === 0) && memoryMetrics.length === 0
 
   return (
@@ -158,13 +164,9 @@ export default function CpuMemoryUsage() {
       {openChart === "cpu" && (
         <ChartModal
           action={
-            <ButtonGroup
+            <TimeRangePicker
+              data={cpuUsageLoading ? undefined : cpuUsageData}
               onChange={setCpuTimeRange}
-              options={[
-                { value: "1h", label: "1H" },
-                { value: "6h", label: "6H" },
-                { value: "12h", label: "12H" },
-              ]}
               value={cpuTimeRange}
             />
           }
@@ -177,6 +179,7 @@ export default function CpuMemoryUsage() {
             color="var(--chart-1)"
             data={cpuUsageData}
             label="CPU Usage"
+            loading={cpuUsageLoading}
             unit=" (%)"
           />
         </ChartModal>
@@ -186,13 +189,9 @@ export default function CpuMemoryUsage() {
       {openChart && typeof openChart === "object" && openChart.type === "memory" && (
         <ChartModal
           action={
-            <ButtonGroup
+            <TimeRangePicker
+              data={memoryUsageLoading ? undefined : openMemorySeries}
               onChange={setMemoryTimeRange}
-              options={[
-                { value: "1h", label: "1H" },
-                { value: "6h", label: "6H" },
-                { value: "12h", label: "12H" },
-              ]}
               value={memoryTimeRange}
             />
           }
@@ -205,10 +204,9 @@ export default function CpuMemoryUsage() {
           title={formatMetricName(openChart.key)}
         >
           <AreaChartComponent
-            data={
-              memoryMetrics.find(([key]) => key === openChart.key)?.[1]?.series || []
-            }
+            data={openMemorySeries}
             label={formatMetricName(openChart.key)}
+            loading={memoryUsageLoading}
             unit={formatMetricUnit(openChart.key)}
             valueFormatter={getValueFormatter(openChart.key)}
           />
