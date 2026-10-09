@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
-import {
-  TIME_RANGE_LIMITS,
-  chartTimestampFormatter,
-  parseTimeRange,
-  type TimeRangeUnit
-} from "@common/src/time-utils"
+import { TIME_RANGE_LIMITS, parseTimeRange, type TimeRangeUnit } from "@common/src/time-utils"
 import { NumberInput } from "./number-input"
 import { Select } from "./select"
 import { Typography } from "./typography"
+import { chartTimestampFormatter } from "@/utils/chartTimestampFormatter"
 
 // loading time for range picker to commit changes after user stops typing
 const COMMIT_DELAY_MS = 600

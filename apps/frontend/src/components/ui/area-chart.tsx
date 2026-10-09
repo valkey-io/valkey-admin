@@ -1,9 +1,9 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { MILLISECONDS_IN_A_DAY } from "@common/src/constants"
-import { chartTimestampFormatter } from "@common/src/time-utils"
 import { LoadingState } from "./loading-state"
 import { Typography } from "./typography"
 import { cn } from "@/lib/utils"
+import { chartTimestampFormatter } from "@/utils/chartTimestampFormatter"
 
 interface AreaChartComponentProps {
   data: Array<{ timestamp: number; value: number }>;
