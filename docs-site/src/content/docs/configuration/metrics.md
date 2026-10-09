@@ -49,6 +49,19 @@ Names must match `^[a-z0-9_]+$`; the metrics process refuses to start on anythin
 
 The `Default` column shows the **fallback defaults applied by the YAML merge**. `apps/metrics/config.yml` overrides these with lower values per epic (3–15 MB, 5 days). See the file itself for the full per-epic configuration.
 
+### Keeping more history
+
+The dashboard's CPU and memory charts can show up to 30 days, but only as far back as the `memory` and `cpu` epics keep data. With the shipped values, the disk budget fills before the 5-day limit, so each node keeps about a day of history.
+
+To keep more, raise **both** `data_retention_days` and `data_retention_mb` on the `memory` and `cpu` epics, since files are removed by whichever limit is reached first. The disk budget is enforced in files of up to 10 MB, and each day starts a new file, so at the default `poll_ms` of `5000` allow about 20 MB per day for `memory` and 10 MB per day for `cpu`, plus 20 MB of headroom:
+
+| Days kept | `memory` `data_retention_mb` | `cpu` `data_retention_mb` |
+|-----------|------------------------------|---------------------------|
+| 7 | `160` | `90` |
+| 30 | `620` | `320` |
+
+Restart the metrics process for the new values to take effect.
+
 ### Monitor-only fields
 
 These apply only to the epic named `monitor` and control the `MONITOR`-based hot keys sampling cycle:

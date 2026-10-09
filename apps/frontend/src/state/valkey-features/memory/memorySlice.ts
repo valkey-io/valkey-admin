@@ -9,6 +9,11 @@ export const selectMemoryUsage =
     (state: RootState) =>
       R.path([VALKEY.MEMORY.name, connectionId, "data"], state)
 
+export const selectMemoryUsageLoading =
+  (connectionId: string) =>
+    (state: RootState) =>
+      R.pathOr(false, [VALKEY.MEMORY.name, connectionId, "loading"], state)
+
 interface MemoryMetric {
   description: string
   series: Array<{

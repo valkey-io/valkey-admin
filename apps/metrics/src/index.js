@@ -57,7 +57,7 @@ async function main() {
   app.get("/memory", async (req, res) => {
     try {
       const { maxPoints, since, until } = parseQuery(memoryQuerySchema)(req.query)
-      const series = await Streamer.memory(memoryFold({ maxPoints, since, until }))
+      const series = await Streamer.memory({ ...memoryFold({ maxPoints, since, until }), since, until })
       res.json(series)
     } catch (e) {
       console.error(e)
@@ -68,7 +68,7 @@ async function main() {
   app.get("/cpu", async (req, res) => {
     try {
       const { maxPoints, tolerance, since, until } = parseQuery(cpuQuerySchema)(req.query)
-      const series = await Streamer.cpu(cpuFold({ maxPoints, tolerance, since, until }))
+      const series = await Streamer.cpu({ ...cpuFold({ maxPoints, tolerance, since, until }), since, until })
       res.json(series)
     } catch (e) {
       res.status(500).json({ error: e.message })

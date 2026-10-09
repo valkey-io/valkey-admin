@@ -247,6 +247,7 @@ export const KEY_TYPES = {
   JSON: "JSON",
 }
 
+export const MILLISECONDS_IN_AN_HOUR = 3_600_000
 export const MILLISECONDS_IN_A_DAY = 86_400_000
 
 export const METRICS_EVICTION_POLICY = {

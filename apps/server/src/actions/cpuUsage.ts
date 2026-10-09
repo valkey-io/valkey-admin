@@ -1,13 +1,11 @@
 import { type WebSocket } from "ws"
-import { VALKEY, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, toNodeId, buildUrl, MILLISECONDS_IN_AN_HOUR } from "valkey-common"
 import { withDeps, Deps, fetchWithTimeout } from "./utils"
 
 type CpuUsageResponse = Array<{
   timestamp: number
   value: number
 }>
-
-type TimeRange = "1h" | "6h" | "12h"
 
 const sendCpuUsageFulfilled = (
   ws: WebSocket,
@@ -45,12 +43,12 @@ const sendCpuUsageError = (
 type RequestPayload = {
   connectionId: string,
   clusterId: string,
-  timeRange?: string
+  timeRange?: number
 }
 
 export const cpuUsageRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
-    const { connectionId, clusterId, timeRange = "12h" } = action.payload as unknown as RequestPayload
+    const { connectionId, clusterId, timeRange = 12 * MILLISECONDS_IN_AN_HOUR } = action.payload as unknown as RequestPayload
     const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {
@@ -64,12 +62,7 @@ export const cpuUsageRequested = withDeps<Deps, void>(
       }
 
       try {
-        const hoursInMs = {
-          "1h": 1 * 60 * 60 * 1000,
-          "6h": 6 * 60 * 60 * 1000,
-          "12h": 12 * 60 * 60 * 1000,
-        }
-        const since = Date.now() - hoursInMs[timeRange as TimeRange]
+        const since = Date.now() - timeRange
 
         const url = buildUrl(metricsServerURI, "/cpu", { since, maxPoints: 120 })
 

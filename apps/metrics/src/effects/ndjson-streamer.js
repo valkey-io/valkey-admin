@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import readline from "node:readline"
 import path from "node:path"
+import { MILLISECONDS_IN_A_DAY } from "valkey-common"
 import { getConfig } from "../config.js"
 import { EPIC_KINDS } from "../utils/constants.js"
 import { dayStr, parseSeq } from "../utils/helpers.js"
@@ -28,6 +29,14 @@ const filePathsFor = async (prefix, dates) => {
     .map(({ filePath }) => filePath)
 }
 
+// Return an array of Date objects for each day in the range [from, to], inclusive of both endpoints
+const daysInRange = (from, to) => {
+  const dates = []
+  for (let ts = from; ts < to; ts += MILLISECONDS_IN_A_DAY) dates.push(new Date(ts))
+  dates.push(new Date(to))
+  return dates
+}
+
 // streamNdjson is a transducer-inspired streaming fold, which means you can apply filter, map, reduce to the stream
 // without creating intermediate arrays, so it's faster and more memory-efficient than chaining these functions.
 // I.e. if you need to apply transformations to the stream you're reading — supply corresponding functions as arguments
@@ -46,13 +55,14 @@ export async function streamNdjson(
     mapFn,
     reducer = (acc, curr) => { acc.push(curr); return acc },
     seed = [],
+    since,
+    until,
   } = {},
 ) {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
+  const to = until ?? Date.now()
+  const from = since ?? to - MILLISECONDS_IN_A_DAY
 
-  const files = await filePathsFor(prefix, [yesterday, today])
+  const files = await filePathsFor(prefix, daysInRange(from, to))
 
   let acc = seed
   let count = 0

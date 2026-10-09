@@ -9,6 +9,11 @@ export const selectCpuUsage =
     (state: RootState) =>
       R.path([VALKEY.CPU.name, connectionId, "data"], state)
 
+export const selectCpuUsageLoading =
+  (connectionId: string) =>
+    (state: RootState) =>
+      R.pathOr(false, [VALKEY.CPU.name, connectionId, "loading"], state)
+
 interface CpuDataPoint {
   timestamp: number
   value: number
