@@ -88,7 +88,10 @@ export const isAllowedWebSocketOrigin = (req: IncomingMessage) => {
     return originLooksLocal && hasValidElectronToken(req)
   }
 
-  try { // for Web deployment — only same origin is allowed
+  // When an allowlist is set, only the operator's listed origins can connect.
+  if (configuredOrigins.size > 0) return false
+
+  try { // Web mode with no allowlist: same origin only
     const parsedOrigin = new URL(normalizedOrigin)
     return isSameOrigin(parsedOrigin, req)
   } catch {

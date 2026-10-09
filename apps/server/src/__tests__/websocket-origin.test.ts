@@ -12,10 +12,15 @@ describe("isAllowedWebSocketOrigin", () => {
   const originalAllowedOrigins = process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
   const originalWsToken = process.env.ELECTRON_WS_TOKEN
 
+  const restoreEnv = (name: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+
   afterEach(() => {
-    process.env.DEPLOYMENT_MODE = originalDeploymentMode
-    process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS = originalAllowedOrigins
-    process.env.ELECTRON_WS_TOKEN = originalWsToken
+    restoreEnv("DEPLOYMENT_MODE", originalDeploymentMode)
+    restoreEnv("VALKEY_ADMIN_ALLOWED_WS_ORIGINS", originalAllowedOrigins)
+    restoreEnv("ELECTRON_WS_TOKEN", originalWsToken)
   })
 
   it("rejects requests without an origin header", () => {
@@ -114,6 +119,44 @@ describe("isAllowedWebSocketOrigin", () => {
     )
     assert.strictEqual(
       isAllowedWebSocketOrigin(makeRequest({ origin: "https://other.example", host: "admin.example.com" })),
+      true,
+    )
+  })
+
+  it("rejects same-host origins in web mode when an allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS = "https://admin.example.com"
+
+    // Not on the allowlist, even though Origin matches Host.
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "http://evil.example:8080", host: "evil.example:8080" })),
+      false,
+    )
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "https://admin.example.com", host: "admin.example.com" })),
+      true,
+    )
+  })
+
+  it("keeps same-origin matching in web mode when no allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "http://localhost:8080", host: "localhost:8080" })),
+      true,
+    )
+  })
+
+  it("keeps Electron loopback origins working when an allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.ELECTRON
+    process.env.ELECTRON_WS_TOKEN = "secret-token"
+    process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS = "https://trusted.example"
+
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(
+        makeRequest({ origin: "http://localhost:5173", host: "localhost:8080", url: "/?token=secret-token" }),
+      ),
       true,
     )
   })

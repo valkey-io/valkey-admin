@@ -142,9 +142,9 @@ Requests to `/orchestrator/*` are rate limited separately from the UI, defaultin
 
 ### `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`
 
-Comma-separated list of additional trusted origins allowed to open a WebSocket connection to the server. Origin validation is enforced in **all** deployment modes — connections with no `Origin` header are always rejected. This variable adds extra origins that should be trusted beyond the mode-specific defaults.
+Comma-separated list of trusted origins allowed to open a WebSocket connection to the server. Origin validation is enforced in **all** deployment modes — connections with no `Origin` header are always rejected.
 
-- **Web mode:** allows same-origin (compares `Origin` against `Host` header) plus any configured origins.
+- **Web mode:** when unset, allows same-origin (compares `Origin` against the `Host` header). When set, **only** the listed origins are allowed, so include the origin users load the UI from.
 - **Electron mode:** allows `file://`, `null` (packaged Electron renderers), and loopback origins (`localhost`, `127.0.0.1`, `::1`) plus any configured origins. Other remote origins are rejected.
 
 ```bash
