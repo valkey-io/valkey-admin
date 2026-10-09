@@ -16,7 +16,7 @@ The workflow described in this document is:
 - `app.yaml`: `valkey-admin-app` deployment and service
 - `metrics-configmap.yaml`: sidecar config mounted into `/app/config/config.yml`
 - `valkey-statefulset-sidecar-patch.yaml`: patch for an existing Valkey StatefulSet
-- `valkey-statefulset.yaml`: sample standalone StatefulSet for repo-managed K8s experiments
+- `valkey-statefulset.yaml`: sample standalone StatefulSet for repo-managed K8s experiments. For local testing only, not production-ready: Valkey runs with no password and protected-mode off.
 
 ## Local Development Workflow
 

@@ -1,5 +1,8 @@
 # Example Valkey cluster StatefulSet with an inline metrics sidecar.
 #
+# FOR LOCAL TESTING ONLY, NOT PRODUCTION-READY: Valkey runs with no password and
+# protected-mode off, so any pod that can reach it has full access.
+#
 # PREREQUISITES — the metrics sidecars will crash-loop (and, because StatefulSet
 # rollout is ordered, block the whole rollout at valkey-0) unless both are met:
 #

@@ -20,7 +20,7 @@ The workflow below uses Minikube for local development, but the manifests and si
 | `examples/k8s/app.yaml` | `valkey-admin-app` deployment and service |
 | `examples/k8s/metrics-configmap.yaml` | Sidecar config mounted at `/app/config/config.yml` |
 | `examples/k8s/valkey-statefulset-sidecar-patch.yaml` | Patch to add the metrics sidecar to an existing Valkey StatefulSet |
-| `examples/k8s/valkey-statefulset.yaml` | Sample standalone StatefulSet for testing |
+| `examples/k8s/valkey-statefulset.yaml` | Sample StatefulSet for local testing only. Not production-ready: Valkey runs with no password and protected-mode off. |
 
 ## Deployment Steps
 
@@ -273,6 +273,6 @@ curl -s 'http://localhost:3000/commandlog?type=slow'
 ## Notes
 
 - The example workflow in this document is aimed at local Minikube development.
-- `examples/k8s/valkey-statefulset.yaml` is available as a repo-managed sample, but the main development path described here assumes a Helm-installed Valkey StatefulSet.
+- `examples/k8s/valkey-statefulset.yaml` is available as a repo-managed sample, but the main development path described here assumes a Helm-installed Valkey StatefulSet. The sample is for local testing only and is not production-ready: it runs Valkey with no password and protected-mode off.
 - The Helm-based development path here is based on [valkey-io/valkey-helm PR #116](https://github.com/valkey-io/valkey-helm/pull/116).
 - For broader Kubernetes use, replace the local image workflow with registry-backed images and adapt the same manifests or patches to your cluster conventions.
