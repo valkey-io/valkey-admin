@@ -12,6 +12,7 @@ import { Typography } from "../ui/typography"
 import { cpuUsageRequested, selectCpuUsage, selectCpuUsageLoading } from "@/state/valkey-features/cpu/cpuSlice.ts"
 import { useAppDispatch } from "@/hooks/hooks"
 import { memoryUsageRequested, selectMemoryUsage, selectMemoryUsageLoading } from "@/state/valkey-features/memory/memorySlice"
+import { timeRangeToMs, type TimeRange } from "@/utils/timeRange"
 
 type ChartType = "cpu" | { type: "memory"; key: string }
 
@@ -22,22 +23,22 @@ export default function CpuMemoryUsage() {
   const memoryUsageData = useSelector(selectMemoryUsage(id ?? ""))
   const cpuUsageLoading = useSelector(selectCpuUsageLoading(id ?? ""))
   const memoryUsageLoading = useSelector(selectMemoryUsageLoading(id ?? ""))
-  const [cpuTimeRange, setCpuTimeRange] = useState("1h")
-  const [memoryTimeRange, setMemoryTimeRange] = useState("1h")
+  const [cpuTimeRange, setCpuTimeRange] = useState<TimeRange>({ amount: 1, unit: "h" })
+  const [memoryTimeRange, setMemoryTimeRange] = useState<TimeRange>({ amount: 1, unit: "h" })
   const [openChart, setOpenChart] = useState<ChartType | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   // for cpu
   useEffect(() => {
     if (id) {
-      dispatch(cpuUsageRequested({ connectionId: id, clusterId, timeRange: cpuTimeRange }))
+      dispatch(cpuUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(cpuTimeRange) }))
     }
   }, [id, clusterId, dispatch, cpuTimeRange])
 
   // for memory
   useEffect(() => {
     if (id) {
-      dispatch(memoryUsageRequested({ connectionId: id, clusterId, timeRange: memoryTimeRange }))
+      dispatch(memoryUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(memoryTimeRange) }))
     }
   }, [id, clusterId, dispatch, memoryTimeRange])
 

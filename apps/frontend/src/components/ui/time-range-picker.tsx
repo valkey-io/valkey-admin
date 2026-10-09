@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
-import { TIME_RANGE_LIMITS, parseTimeRange, type TimeRangeUnit } from "@common/src/time-utils"
 import { NumberInput } from "./number-input"
 import { Select } from "./select"
 import { Typography } from "./typography"
 import { chartTimestampFormatter } from "@/utils/chartTimestampFormatter"
+import { TIME_RANGE_LIMITS, timeRangeToMs, type TimeRange, type TimeRangeUnit } from "@/utils/timeRange"
 
 // loading time for range picker to commit changes after user stops typing
 const COMMIT_DELAY_MS = 600
-// default time range
-const DEFAULT_RANGE: { amount: number; unit: TimeRangeUnit } = { amount: 1, unit: "h" }
 // Show "Data available since" only when data covers under 90% of the range; the margin absorbs normal collection lag.
 const MIN_COVERAGE_RATIO = 0.9
 const formatWithDate = chartTimestampFormatter(true)
@@ -19,8 +17,8 @@ const UNIT_OPTIONS: Array<{ value: TimeRangeUnit; label: string }> = [
 ]
 
 interface TimeRangePickerProps {
-  value: string
-  onChange: (value: string) => void
+  value: TimeRange
+  onChange: (value: TimeRange) => void
   data?: Array<{ timestamp: number }>
 }
 
@@ -29,16 +27,15 @@ const clampAmount = (amount: number, unit: TimeRangeUnit): number =>
   Math.min(TIME_RANGE_LIMITS[unit].max, Math.max(TIME_RANGE_LIMITS[unit].min, Math.round(amount)))
 
 // Returns when the data starts, or null if it covers enough of the selected range.
-const dataStartIfIncomplete = (data: Array<{ timestamp: number }> | undefined, value: string): number | null => {
-  const rangeMs = parseTimeRange(value)?.ms
-  if (!data || data.length < 2 || rangeMs === undefined) return null
+const dataStartIfIncomplete = (data: Array<{ timestamp: number }> | undefined, rangeMs: number): number | null => {
+  if (!data || data.length < 2) return null
   const start = data[0].timestamp
   return data[data.length - 1].timestamp - start < rangeMs * MIN_COVERAGE_RATIO ? start : null
 }
 
 export function TimeRangePicker({ value, onChange, data }: TimeRangePickerProps) {
-  const { amount, unit } = parseTimeRange(value) ?? DEFAULT_RANGE
-  const availableSince = dataStartIfIncomplete(data, value)
+  const { amount, unit } = value
+  const availableSince = dataStartIfIncomplete(data, timeRangeToMs(value))
   const [draftAmount, setDraftAmount] = useState<number | null>(amount)
 
   useEffect(() => {
@@ -48,9 +45,8 @@ export function TimeRangePicker({ value, onChange, data }: TimeRangePickerProps)
   const commit = useCallback((nextAmount: number | null, nextUnit: TimeRangeUnit) => {
     const clamped = clampAmount(nextAmount ?? amount, nextUnit)
     setDraftAmount(clamped)
-    const nextValue = `${clamped}${nextUnit}`
-    if (nextValue !== value) onChange(nextValue)
-  }, [amount, value, onChange])
+    if (clamped !== amount || nextUnit !== unit) onChange({ amount: clamped, unit: nextUnit })
+  }, [amount, unit, onChange])
 
   useEffect(() => {
     if (draftAmount === null || draftAmount === amount) return

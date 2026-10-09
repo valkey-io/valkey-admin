@@ -1,5 +1,3 @@
-import { MILLISECONDS_IN_AN_HOUR, MILLISECONDS_IN_A_DAY } from "./constants"
-
 const fmt = new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
   minute: "2-digit",
@@ -8,23 +6,6 @@ const fmt = new Intl.DateTimeFormat("en-GB", {
 })
 
 export const formatTimestamp = (ts: number): string => fmt.format(new Date(ts))
-
-export type TimeRangeUnit = "h" | "d"
-
-export const TIME_RANGE_LIMITS: Record<TimeRangeUnit, { min: number; max: number }> = {
-  h: { min: 1, max: 720 },
-  d: { min: 1, max: 30 },
-}
-
-// Time ranges travel between UI and server as compact strings like "6h" or "30d".
-export const parseTimeRange = (value: string): { amount: number; unit: TimeRangeUnit; ms: number } | null => {
-  const match = /^(\d+)([hd])$/.exec(value)
-  if (!match) return null
-  const amount = Number(match[1])
-  const unit = match[2] as TimeRangeUnit
-  const { min, max } = TIME_RANGE_LIMITS[unit]
-  return amount >= min && amount <= max ? { amount, unit, ms: amount * (unit === "h" ? MILLISECONDS_IN_AN_HOUR : MILLISECONDS_IN_A_DAY) } : null
-}
 
 // returns time ago in appropriate units like "24s" or "8m 24s" or "8h 24m"
 export const timeAgo = (timestamp: number): string => {

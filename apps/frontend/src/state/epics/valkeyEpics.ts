@@ -4,7 +4,7 @@ import { ignoreElements, tap, delay, switchMap, mergeMap, exhaustMap, groupBy, t
 import * as R from "ramda"
 import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
   METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS, SESSION_STORAGE,
-  CLUSTER_DATA_POLL_INTERVAL_MS, VALKEY } from "@common/src/constants.ts"
+  CLUSTER_DATA_POLL_INTERVAL_MS, MILLISECONDS_IN_AN_HOUR, VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
@@ -729,8 +729,8 @@ export const metricsReadinessRetryEpic = (store: Store) =>
                 filter((a) => a.payload.connectionId === connectionId),
                 tap(() => {
                   const clusterId = selectConnectionDetails(connectionId)(store.getState())?.clusterId
-                  store.dispatch(cpuUsageRequested({ connectionId, clusterId, timeRange: "1h" }))
-                  store.dispatch(memoryUsageRequested({ connectionId, clusterId, timeRange: "1h" }))
+                  store.dispatch(cpuUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR }))
+                  store.dispatch(memoryUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR }))
                 }),
               ),
             ),
