@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit"
 import { VALKEY } from "@common/src/constants.ts"
 import { rxjsMiddleware } from "./state/middleware/rxjsMiddleware/rxjsMiddleware"
 import { registerEpics } from "./state/epics/rootEpic"
+import { purgeUnencryptedPasswords } from "./state/purgeUnencryptedPasswords"
 import wsConnectionReducer from "@/state/wsconnection/wsConnectionSlice"
 import valkeyConnectionReducer from "@/state/valkey-features/connection/connectionSlice.ts"
 import clusterReducer from "@/state/valkey-features/cluster/clusterSlice"
@@ -43,6 +44,7 @@ export const store = configureStore({
 })
 
 registerEpics(store)
+void purgeUnencryptedPasswords(store)
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
