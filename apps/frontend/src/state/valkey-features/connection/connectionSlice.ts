@@ -94,6 +94,12 @@ export const isAutoResumeEligible = (connection: ConnectionState): boolean => {
   return R.isNil(password)
 }
 
+// Drops a saved password that isn't known to be encrypted, so it re-prompts on next use.
+export const stripUnencryptedPassword = (connection: ConnectionState): ConnectionState =>
+  connection.isPasswordEncrypted === true || !connection.connectionDetails?.password
+    ? connection
+    : { ...connection, connectionDetails: { ...connection.connectionDetails, password: undefined } }
+
 const buildSearchableText = (connectionId: string, details: ConnectionDetails) =>
   [connectionId, details.host, details.port, details.username, details.alias]
     .filter(Boolean)
@@ -298,6 +304,9 @@ const connectionSlice = createSlice({
     deleteConnection: (state, { payload: { connectionId } }) => {
       return R.dissocPath(["connections", connectionId], state)
     },
+    stripUnencryptedPasswords: (state) => {
+      state.connections = R.map(stripUnencryptedPassword, state.connections as ValkeyConnectionsState)
+    },
   },
 })
 
@@ -315,4 +324,5 @@ export const {
   closeConnectionFailed,
   startRetry,
   stopRetry,
+  stripUnencryptedPasswords,
 } = connectionSlice.actions
