@@ -66,6 +66,7 @@ Some commands are restricted to prevent accidental server disruption.
 Commands are highlighted for better readability:
 - **Search**: Search command response 
 - **Copy**: Copy command response
+- **Round-trip time**: Displays the command execution duration measured as the round-trip time from the server to Valkey (including network and wait time). This differs from the slow log, which reports execution time inside Valkey.
 - **Values**: White
 - **Keys**: Gray
 
@@ -76,6 +77,7 @@ Navigate through previously executed commands:
 - **Copy**: Copy command
 - **Run**: Run the command again
 - **Compare**: Compare the results two commands
+- **Duration**: Shows each past command's round-trip time
 
 ## Next Steps
 

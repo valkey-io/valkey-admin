@@ -4,6 +4,7 @@ import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
+import { formatExecutionTime } from "@common/src/time-utils"
 import { findBlockedCommand, findConfirmCommand, parseCommandArgs } from "@common/src/command-restrictions"
 import type { JSONObject } from "@common/src/json-utils.ts"
 import { matchCommands, type MatchResult, type ValkeyCommand } from "@/components/send-command/valkey-command-matching"
@@ -51,7 +52,7 @@ export function SendCommand() {
   const clusterAlias = useSelector(selectClusterAlias(id!))
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const historyLimit = useSelector(selectCommandHistoryLimit)
-  const { error, response } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
+  const { error, response, durationMs } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const dispatchCommand = (command: string) => {
     dispatch(sendRequested({ command, connectionId: id }))
@@ -158,7 +159,9 @@ export function SendCommand() {
       <div className="flex-1 overflow-auto w-full flex flex-row gap-4">
         {/* response | diff */}
         <div className="flex flex-col flex-2">
-          <Typography className="mb-2" variant="bodySm">{compareWith ? "Diff" : "Response"}</Typography>
+          <div className="mb-2 flex items-center justify-between">
+            <Typography variant="bodySm">{compareWith ? "Diff" : "Response"}</Typography>
+          </div>
           <div className="mb-2 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" size={18} />
             <Input
@@ -173,6 +176,7 @@ export function SendCommand() {
                 {
                   compareWith === null ?
                     <Response
+                      durationMs={durationMs}
                       filter={keysFilter}
                       response={response || error as JSONObject}
                     /> :
@@ -217,7 +221,7 @@ export function SendCommand() {
                   .slice(0, historyLimit)
                   .map((c, i) => ({ ...c, i })) // moving index inside objects because filter will ruin the sequence
                   .filter(({ command }) => command.toLowerCase().includes(normalisedHistoryFilter))
-                  .map(({ command, timestamp, i }) =>
+                  .map(({ command, timestamp, durationMs: cmdDuration, i }) =>
                     <div
                       className={cn(
                         "flex flex-row text-sm items-center py-1 px-2 rounded",
@@ -251,7 +255,18 @@ export function SendCommand() {
                           </Typography>
                         </TooltipContent>
                       </Tooltip>
-                      <div className="flex flex-row justify-self-end ml-auto">
+                      <div className="flex flex-row items-center justify-self-end ml-auto shrink-0">
+                        {cmdDuration != null && (
+                          <span
+                            className={cn(
+                              "text-xs opacity-70 mr-1 select-none",
+                              i === commandIndex && "text-white opacity-85",
+                            )}
+                            title={`Round-trip time: ${formatExecutionTime(cmdDuration)}`}
+                          >
+                            {formatExecutionTime(cmdDuration)}
+                          </span>
+                        )}
                         <Tooltip delayDuration={1000}>
                           <TooltipTrigger>
                             <CopyIcon

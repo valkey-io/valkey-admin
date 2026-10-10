@@ -1,11 +1,14 @@
 import * as R from "ramda"
 import React from "react"
+import { Timer } from "lucide-react"
 import { toast } from "sonner"
 import { toJson, toKeyPaths, type JSONObject } from "@common/src/json-utils.ts"
+import { formatExecutionTime } from "@common/src/time-utils"
 import { cn, copyToClipboard } from "@/lib/utils.ts"
 import { CopyToClipboard, KeyFilterable, KV, spacing } from "@/components/send-command/CommandElements.tsx"
+import { TooltipIcon } from "@/components/ui/tooltip-icon.tsx"
 
-const Response = ({ filter, response }: { filter: string, response: JSONObject }) => {
+const Response = ({ filter, response, durationMs }: { filter: string, response: JSONObject, durationMs?: number }) => {
   const normalisedFilter = filter.toLowerCase()
   const filtered =
     R.pipe(
@@ -54,7 +57,19 @@ const Response = ({ filter, response }: { filter: string, response: JSONObject }
           )
         })}
       </div>
-      <CopyToClipboard onClick={onCopy} />
+      <div className="sticky top-1 justify-self-end flex items-center gap-2 -mb-6 ml-2 shrink-0">
+        {durationMs != null && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground font-mono select-none">
+            <Timer className="size-3.5" />
+            <span>{formatExecutionTime(durationMs)}</span>
+            <TooltipIcon
+              description="Round-trip time from the server to Valkey, including network and wait time."
+              size={13}
+            />
+          </span>
+        )}
+        <CopyToClipboard className="static top-auto -mb-0" onClick={onCopy} />
+      </div>
     </div>
   )
 }

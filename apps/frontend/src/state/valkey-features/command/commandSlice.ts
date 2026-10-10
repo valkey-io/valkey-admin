@@ -4,7 +4,7 @@ import { PERSISTED_COMMANDS_LIMIT, SESSION_STORAGE, VALKEY } from "@common/src/c
 import type { JSONObject } from "@common/src/json-utils.ts"
 import { deleteConnection } from "@/state/valkey-features/connection/connectionSlice.ts"
 
-type CmdMeta = { command: string, connectionId: string }
+type CmdMeta = { command: string, connectionId: string, durationMs?: number }
 
 export interface CommandMetadata {
   command: string
@@ -12,6 +12,7 @@ export interface CommandMetadata {
   response: JSONObject | null
   isFulfilled: boolean
   timestamp: number
+  durationMs?: number
 }
 
 interface ConnectionCommands {
@@ -38,12 +39,18 @@ interface PersistedCommandState {
 const clampLimit = (n: number): number =>
   Math.max(Math.round(n), 1)
 
-const withMetadata = (command: string, response: JSONObject, isFulfilled = true): CommandMetadata => ({
+const withMetadata = (
+  command: string,
+  response: JSONObject,
+  isFulfilled = true,
+  durationMs?: number,
+): CommandMetadata => ({
   command,
   error: isFulfilled ? null : response,
   response: isFulfilled ? response : null,
   isFulfilled,
   timestamp: Date.now(),
+  ...(durationMs !== undefined ? { durationMs } : {}),
 })
 
 const restoredState = (): CommandState => {
@@ -78,8 +85,8 @@ const commandSlice = createSlice({
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     sendFulfilled: (state: CommandState, action: PayloadAction<string, string, CmdMeta>) => {
-      const { meta: { command, connectionId } } = action
-      const cmd = withMetadata(command, action.payload, true)
+      const { meta: { command, connectionId, durationMs } } = action
+      const cmd = withMetadata(command, action.payload, true, durationMs)
       const prev = state.connections[connectionId]?.commands ?? []
       return {
         ...state,
@@ -95,8 +102,8 @@ const commandSlice = createSlice({
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     sendFailed: (state: CommandState, action: PayloadAction<string, string, CmdMeta>) => {
-      const { meta: { command, connectionId } } = action
-      const cmd = withMetadata(command, action.payload, false)
+      const { meta: { command, connectionId, durationMs } } = action
+      const cmd = withMetadata(command, action.payload, false, durationMs)
       const prev = state.connections[connectionId]?.commands ?? []
 
       return {

@@ -37,6 +37,8 @@ describe("sendValkeyRunCommand", () => {
     assert.strictEqual(sentMessage.payload, "myvalue")
     assert.strictEqual(sentMessage.meta.connectionId, "conn-123")
     assert.strictEqual(sentMessage.meta.command, "GET mykey")
+    assert.strictEqual(typeof sentMessage.meta.durationMs, "number")
+    assert.strictEqual(sentMessage.meta.durationMs >= 0, true)
   })
 
   it("should parse string responses with colons", async () => {
@@ -112,6 +114,8 @@ describe("sendValkeyRunCommand", () => {
 
     const failMessage = JSON.parse(messages[0])
     assert.strictEqual(failMessage.type, VALKEY.COMMAND.sendFailed)
+    assert.strictEqual(typeof failMessage.meta.durationMs, "number")
+    assert.strictEqual(failMessage.meta.durationMs >= 0, true)
 
     const rejectMessage = JSON.parse(messages[1])
     assert.strictEqual(rejectMessage.type, VALKEY.CONNECTION.connectRejected)
@@ -135,6 +139,11 @@ describe("sendValkeyRunCommand", () => {
     await sendValkeyRunCommand(mockClient as any, mockWs as any, payload)
 
     assert.strictEqual(mockWs.send.mock.calls.length, 2)
+    const failMessage = JSON.parse(messages[0])
+    assert.strictEqual(failMessage.type, VALKEY.COMMAND.sendFailed)
+    assert.strictEqual(typeof failMessage.meta.durationMs, "number")
+    assert.strictEqual(failMessage.meta.durationMs >= 0, true)
+
     const rejectMessage = JSON.parse(messages[1])
     assert.strictEqual(rejectMessage.type, VALKEY.CONNECTION.connectRejected)
   })
@@ -155,6 +164,11 @@ describe("sendValkeyRunCommand", () => {
     await sendValkeyRunCommand(mockClient as any, mockWs as any, payload)
 
     assert.strictEqual(mockWs.send.mock.calls.length, 2)
+    const failMessage = JSON.parse(messages[0])
+    assert.strictEqual(failMessage.type, VALKEY.COMMAND.sendFailed)
+    assert.strictEqual(typeof failMessage.meta.durationMs, "number")
+    assert.strictEqual(failMessage.meta.durationMs >= 0, true)
+
     const rejectMessage = JSON.parse(messages[1])
     assert.strictEqual(rejectMessage.type, VALKEY.CONNECTION.connectRejected)
   })
@@ -177,6 +191,8 @@ describe("sendValkeyRunCommand", () => {
     assert.strictEqual(mockWs.send.mock.calls.length, 1)
     const sentMessage = JSON.parse(messages[0])
     assert.strictEqual(sentMessage.type, VALKEY.COMMAND.sendFailed)
+    assert.strictEqual(typeof sentMessage.meta.durationMs, "number")
+    assert.strictEqual(sentMessage.meta.durationMs >= 0, true)
   })
 
   it("should split command string into array correctly", async () => {
