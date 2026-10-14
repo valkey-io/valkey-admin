@@ -9,6 +9,7 @@ import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
+import { BinaryBadge } from "./binary-badge"
 
 interface ElementInfo {
   key: string;
@@ -24,6 +25,7 @@ interface KeyDetailsHashProps {
     size: number;
     collectionSize?: number;
     elements: ElementInfo[];
+    binaryIndexes?: number[];
   };
   connectionId: string;
   readOnly:boolean;
@@ -35,6 +37,9 @@ interface NewField {
   value: string;
 }
 
+/**
+ * Shows and edits a hash's fields; fields with binary data are badged and read-only.
+ */
 export default function KeyDetailsHash(
   { selectedKey, selectedKeyInfo, connectionId, readOnly = false }: KeyDetailsHashProps,
 ) {
@@ -44,6 +49,8 @@ export default function KeyDetailsHash(
   const [deletedHashFields, setDeletedHashFields] = useState<Set<string>>(new Set())
   const [pendingDeleteField, setPendingDeleteField] = useState<string | null>(null)
   const [newFields, setNewFields] = useState<NewField[]>([])
+  const binaryIndexes = new Set(selectedKeyInfo.binaryIndexes)
+  const allBinary = selectedKeyInfo.elements.length > 0 && binaryIndexes.size === selectedKeyInfo.elements.length
 
   const handleEdit = () => {
     if (isEditable) {
@@ -55,8 +62,9 @@ export default function KeyDetailsHash(
     } else {
       // Start editing
       const initialHashValue: { [key: string]: string } = {}
-      selectedKeyInfo.elements.forEach((element: ElementInfo) => {
-        initialHashValue[element.key] = element.value
+      // Binary fields are left out so saving never writes their escaped text back as a new field
+      selectedKeyInfo.elements.forEach((element: ElementInfo, index: number) => {
+        if (!binaryIndexes.has(index)) initialHashValue[element.key] = element.value
       })
       setEditedHashValue(initialHashValue)
       setDeletedHashFields(new Set())
@@ -150,6 +158,8 @@ export default function KeyDetailsHash(
           <Typography className="col-span-2 text-left" variant="label">Value</Typography>
           <div className="flex justify-end gap-1">
             <EditActionButtons
+              disabled={allBinary}
+              disabledTooltip="Binary fields can't be edited as text"
               isEditable={isEditable}
               onEdit={handleEdit}
               onSave={handleSave}
@@ -158,12 +168,18 @@ export default function KeyDetailsHash(
           </div>
         </div>
         {selectedKeyInfo.elements
-          .filter((element: ElementInfo) => !deletedHashFields.has(element.key))
-          .map((element: ElementInfo, index: number) => (
+          .map((element: ElementInfo, index: number) => ({ element, index }))
+          .filter(({ element }) => !deletedHashFields.has(element.key))
+          .map(({ element, index }) => (
             <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
               <Typography variant="code">{element.key}</Typography>
               <div className="col-span-3">
-                {isEditable ? (
+                {binaryIndexes.has(index) ? (
+                  <div className="flex gap-2">
+                    <Typography variant="code">{element.value}</Typography>
+                    <BinaryBadge />
+                  </div>
+                ) : isEditable ? (
                   <div className="flex gap-2 relative">
                     <Input
                       aria-label="Edit hash field value"

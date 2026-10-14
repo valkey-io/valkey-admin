@@ -14,14 +14,17 @@ describe("integration / key browser", async () => {
   const connectionDetails = defaultConnectionDetails()
   const connectionId = buildConnectionId(connectionDetails.host, connectionDetails.port, 0)
   const testKey = `it:${randomUUID()}:roundtrip`
+  const binaryHashKey = `it:${randomUUID()}:binary-hash`
 
   after(async () => {
-    // delete the test key if still present.
+    // delete the test keys if still present.
     if (ws && connectionId) {
-      ws.send({
-        type: VALKEY.KEYS.deleteKeyRequested,
-        payload: { connectionId, key: testKey },
-      })
+      for (const key of [testKey, binaryHashKey]) {
+        ws.send({
+          type: VALKEY.KEYS.deleteKeyRequested,
+          payload: { connectionId, key },
+        })
+      }
     }
     await ws.close()
   })
@@ -71,5 +74,35 @@ describe("integration / key browser", async () => {
     const delMsg = await ws.waitFor(VALKEY.KEYS.deleteKeyFulfilled, 10000)
     assert.equal(delMsg.payload?.key, testKey)
     assert.equal(delMsg.payload?.deleted, true, "deleted should be true for an existing key")
+  })
+
+  it("shows text fields of a hash that also holds binary fields", async () => {
+    // WebSocket payloads are text, so the non-UTF-8 bytes are written from Lua.
+    ws.send({
+      type: VALKEY.COMMAND.sendRequested,
+      payload: {
+        connectionId,
+        command: `EVAL "return redis.call('HSET', KEYS[1], 'name', 'alice', string.char(128, 129), 'x', 'blob', string.char(255))" 1 ${binaryHashKey}`,
+      },
+    })
+    await ws.waitFor(VALKEY.COMMAND.sendFulfilled, 10000)
+
+    ws.send({
+      type: VALKEY.KEYS.getKeyTypeRequested,
+      payload: { connectionId, key: binaryHashKey },
+    })
+    const keyMsg = await ws.waitFor(VALKEY.KEYS.getKeyTypeFulfilled, 10000)
+    const elements = keyMsg.payload?.elements as { key: string; value: string }[]
+
+    assert.equal(keyMsg.payload?.elementsWarning, undefined)
+    assert.equal(keyMsg.payload?.collectionSize, 3)
+    const byField = new Map(elements.map(({ key, value }, index) => [key, { value, index }]))
+    assert.equal(byField.get("name")?.value, "alice")
+    assert.equal(byField.get("\\x80\\x81")?.value, "x")
+    assert.equal(byField.get("blob")?.value, "\\xff")
+    assert.deepEqual(
+      [...(keyMsg.payload?.binaryIndexes ?? [])].sort(),
+      [byField.get("\\x80\\x81")?.index, byField.get("blob")?.index].sort(),
+    )
   })
 })

@@ -9,6 +9,8 @@ interface KeyInfo {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements?: any;
   elementsWarning?: string;
+  isBinary?: boolean;
+  binaryIndexes?: number[];
 }
 
 interface KeyBrowserState {

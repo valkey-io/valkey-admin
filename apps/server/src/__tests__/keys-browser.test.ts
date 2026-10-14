@@ -187,14 +187,123 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.name, "mystream")
       assert.strictEqual(result.type, "stream")
       assert.strictEqual(result.collectionSize, 2)
-      assert.ok(Array.isArray(result.elements))
-      // Stream entries are nested arrays: [[id, [field, value, ...]], ...]
-      const elements = result.elements as string[][]
-      assert.strictEqual(elements.length, 2)
-      assert.ok(Array.isArray(elements[0]))
-      assert.ok(Array.isArray(elements[1]))
+      // Plain RESP entries are normalized to the GLIDE shape: { key: id, value: [[field, value], ...] }
+      assert.deepStrictEqual(result.elements, [
+        { key: "1234567890-0", value: [["field1", "value1"], ["field2", "value2"]] },
+        { key: "1234567891-0", value: [["field3", "value3"]] },
+      ])
     })
 
+  })
+
+  describe("binary collection elements", () => {
+    it("should escape binary hash fields and values while keeping text fields", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 200,
+        HLEN: 3,
+        HSCAN: [Buffer.from("0"), [
+          Buffer.from("name"), Buffer.from("alice"),
+          Buffer.from([0x80, 0x81]), Buffer.from("v"),
+          Buffer.from("blob"), Buffer.from([0xff, 0x00]),
+        ]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myhash")
+
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, [
+        { key: "name", value: "alice" },
+        { key: "\\x80\\x81", value: "v" },
+        { key: "blob", value: "\\xff\\x00" },
+      ])
+      assert.deepStrictEqual(result.binaryIndexes, [1, 2])
+    })
+
+    it("should omit binaryIndexes and dedupe repeated SCAN fields for text-only hashes", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 200,
+        HLEN: 1,
+        HSCAN: [Buffer.from("0"), [Buffer.from("f"), Buffer.from("v"), Buffer.from("f"), Buffer.from("v")]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myhash")
+
+      assert.deepStrictEqual(result.elements, [{ key: "f", value: "v" }])
+      assert.strictEqual(result.binaryIndexes, undefined)
+    })
+
+    it("should escape binary set members", async () => {
+      const mockClient = createMockClient({
+        TYPE: "set",
+        TTL: -1,
+        MEMORY: 100,
+        SCARD: 2,
+        SSCAN: [Buffer.from("0"), [Buffer.from("apple"), Buffer.from([0xc3, 0x28])]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myset")
+
+      assert.deepStrictEqual(result.elements, ["apple", "\\xc3("])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary list elements", async () => {
+      const mockClient = createMockClient({
+        TYPE: "list",
+        TTL: -1,
+        MEMORY: 100,
+        LLEN: 3,
+        LRANGE: [Buffer.from("one"), Buffer.from([0x80, 0x00]), Buffer.from("two")],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mylist")
+
+      assert.deepStrictEqual(result.elements, ["one", "\\x80\\x00", "two"])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary zset members and read scores from numbers or bytes", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 100,
+        ZCARD: 2,
+        ZRANGE: [
+          { key: Buffer.from("a"), value: 1 },
+          { key: Buffer.from([0xfe, 0xff]), value: Buffer.from("2.5") },
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myzset")
+
+      assert.deepStrictEqual(result.elements, [{ key: "a", value: 1 }, { key: "\\xfe\\xff", value: "2.5" }])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary stream values and flag the entry", async () => {
+      const mockClient = createMockClient({
+        TYPE: "stream",
+        TTL: -1,
+        MEMORY: 100,
+        XLEN: 2,
+        XRANGE: [
+          { key: Buffer.from("1-0"), value: [[Buffer.from("name"), Buffer.from("bob")]] },
+          { key: Buffer.from("2-0"), value: [[Buffer.from("payload"), Buffer.from([0x89, 0x50])]] },
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mystream")
+
+      assert.deepStrictEqual(result.elements, [
+        { key: "1-0", value: [["name", "bob"]] },
+        { key: "2-0", value: [["payload", "\\x89P"]] },
+      ])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
   })
 
   describe("json keys", () => {

@@ -61,6 +61,15 @@ Display entries with their scores, paginated for large collections.
 
 All collection types (hash, list, set, sorted set) use pagination to handle large data structures efficiently. Only a page of elements is loaded at a time, preventing the browser from blocking on keys with millions of members.
 
+#### Binary Data
+
+Valkey values are binary-safe, so a string value, hash field or value, list element, set member, sorted set member, or stream field or value may not be valid UTF-8. The Key Browser shows these escaped, with printable ASCII as-is and every other byte as `\xNN` (for example `\x80\x81field`):
+
+- **Strings**: the value is escaped and the edit button is disabled.
+- **Collections**: only the binary elements are escaped and marked with a **binary** badge. They are read-only, while text elements in the same key stay editable. A hash row counts as binary if its field or its value is binary. A stream entry is marked if any of its fields or values is binary.
+
+To change binary data, use a client that can send raw bytes, such as `valkey-cli`.
+
 ### Editing Keys
 
 - **Update Value**: Modify existing key values

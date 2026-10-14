@@ -9,6 +9,7 @@ import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
+import { BinaryBadge } from "./binary-badge"
 
 interface KeyDetailsSetProps {
   selectedKey: string;
@@ -19,6 +20,7 @@ interface KeyDetailsSetProps {
     size: number;
     collectionSize?: number;
     elements: string[];
+    binaryIndexes?: number[];
   };
   connectionId: string;
   readOnly: boolean;
@@ -29,6 +31,9 @@ interface NewItem {
   value: string;
 }
 
+/**
+ * Shows and edits a set's members; binary members are badged and read-only.
+ */
 export default function KeyDetailsSet(
   { selectedKey, selectedKeyInfo, connectionId, readOnly = false }: KeyDetailsSetProps,
 ) {
@@ -38,6 +43,8 @@ export default function KeyDetailsSet(
   const [deletedValues, setDeletedValues] = useState<Set<string>>(new Set())
   const [pendingDeleteValue, setPendingDeleteValue] = useState<string | null>(null)
   const [newItems, setNewItems] = useState<NewItem[]>([])
+  const binaryIndexes = new Set(selectedKeyInfo.binaryIndexes)
+  const allBinary = selectedKeyInfo.elements.length > 0 && binaryIndexes.size === selectedKeyInfo.elements.length
 
   const handleEdit = () => {
     if (isEditable) {
@@ -135,6 +142,8 @@ export default function KeyDetailsSet(
           <Typography className="col-span-2 text-left" variant="label">Value</Typography>
           <div className="flex justify-end gap-1">
             <EditActionButtons
+              disabled={allBinary}
+              disabledTooltip="Binary members can't be edited as text"
               isEditable={isEditable}
               onEdit={handleEdit}
               onSave={handleSave}
@@ -149,7 +158,12 @@ export default function KeyDetailsSet(
             <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
               <Typography variant="bodySm">{index}</Typography>
               <div className="col-span-3">
-                {isEditable ? (
+                {binaryIndexes.has(index) ? (
+                  <div className="flex gap-2">
+                    <Typography variant="code">{element}</Typography>
+                    <BinaryBadge />
+                  </div>
+                ) : isEditable ? (
                   <div className="flex gap-2 relative">
                     <Input
                       aria-label="Edit set value"
