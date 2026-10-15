@@ -1,5 +1,5 @@
 import { AlertTriangle, Loader2, X } from "lucide-react"
-import { type FormEvent } from "react"
+import { type FormEvent, useRef } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { MAX_CONNECTIONS } from "@common/src/constants.ts"
 import { Alert, AlertDescription } from "./alert.tsx"
@@ -48,6 +48,7 @@ export function ConnectionModal({
   dbError,
   dbHint,
 }: ConnectionModalProps) {
+  const autoSwitchedRef = useRef(false)
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open}>
@@ -92,9 +93,10 @@ export function ConnectionModal({
                     <Label>Endpoint Type</Label>
                     <RadioGroup
                       className="flex gap-4"
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        autoSwitchedRef.current = false
                         onConnectionDetailsChange({ ...connectionDetails, endpointType: value as ConnectionDetails["endpointType"] })
-                      }
+                      }}
                       value={connectionDetails.endpointType}
                     >
                       <div className="flex items-center gap-2">
@@ -131,10 +133,21 @@ export function ConnectionModal({
                         id="host"
                         onChange={(e) => {
                           const host = e.target.value
+                          const hasCfg = host.includes("cfg")
+                          let nextEndpointType = connectionDetails.endpointType
+
+                          if (hasCfg && connectionDetails.endpointType !== "cluster-endpoint") {
+                            autoSwitchedRef.current = true
+                            nextEndpointType = "cluster-endpoint"
+                          } else if (!hasCfg && autoSwitchedRef.current && connectionDetails.endpointType === "cluster-endpoint") {
+                            autoSwitchedRef.current = false
+                            nextEndpointType = "node"
+                          }
+
                           onConnectionDetailsChange({
                             ...connectionDetails,
                             host,
-                            endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
+                            endpointType: nextEndpointType,
                           })
                         }}
                         placeholder="localhost"
