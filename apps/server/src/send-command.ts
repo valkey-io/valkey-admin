@@ -9,16 +9,26 @@ export const isRequestError = (x: unknown): x is Error | string =>
 
 export { parseCommandArgs }
 
+export interface CommandRoute {
+  host: string
+  port?: number
+}
+
 export async function sendValkeyRunCommand(
   client: GlideClient | GlideClusterClient,
   ws: WebSocket,
-  payload: { command: string; connectionId: string },
+  payload: { command: string; connectionId: string; route?: CommandRoute },
 ) {
   let startTime: number | undefined
   try {
     const commandArgs = parseCommandArgs(payload.command)
     startTime = performance.now()
-    const response = await client.customCommand(commandArgs)
+    const options = payload.route
+      ? { route: { type: "routeByAddress" as const, host: payload.route.host, port: payload.route.port } }
+      : undefined
+    const response = options
+      ? await client.customCommand(commandArgs, options)
+      : await client.customCommand(commandArgs)
     const durationMs = performance.now() - startTime
     const isError = isRequestError(response)
 
