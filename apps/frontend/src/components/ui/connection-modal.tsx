@@ -134,9 +134,10 @@ export function ConnectionModal({
                         onChange={(e) => {
                           const host = e.target.value
                           const hasCfg = host.includes("cfg")
+                          const prevHasCfg = connectionDetails.host.includes("cfg")
                           let nextEndpointType = connectionDetails.endpointType
 
-                          if (hasCfg && connectionDetails.endpointType !== "cluster-endpoint") {
+                          if (hasCfg && !prevHasCfg && connectionDetails.endpointType !== "cluster-endpoint") {
                             autoSwitchedRef.current = true
                             nextEndpointType = "cluster-endpoint"
                           } else if (!hasCfg && autoSwitchedRef.current && connectionDetails.endpointType === "cluster-endpoint") {

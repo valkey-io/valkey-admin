@@ -104,4 +104,21 @@ describe("ConnectionForm", () => {
     expect(screen.getByLabelText("Discovery")).toBeChecked()
     expect(screen.getByLabelText("Node")).not.toBeChecked()
   })
+
+  it("preserves explicit Node selection when editing a host that already contains 'cfg'", () => {
+    renderForm()
+
+    const hostInput = screen.getByLabelText("Host")
+    fireEvent.change(hostInput, { target: { value: "clustercfg.example.com" } })
+    expect(screen.getByLabelText("Discovery")).toBeChecked()
+
+    // Manually select Node
+    fireEvent.click(screen.getByLabelText("Node"))
+    expect(screen.getByLabelText("Node")).toBeChecked()
+
+    // Edit host to another host that also contains 'cfg'
+    fireEvent.change(hostInput, { target: { value: "clustercfg.example.org" } })
+    expect(screen.getByLabelText("Node")).toBeChecked()
+    expect(screen.getByLabelText("Discovery")).not.toBeChecked()
+  })
 })
