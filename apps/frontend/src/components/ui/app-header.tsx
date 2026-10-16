@@ -6,8 +6,11 @@ import { CONNECTED } from "@common/src/constants.ts"
 import { buildConnectionId } from "@common/src/connection-id.ts"
 import { Badge } from "./badge"
 import { Input } from "./input"
+import { Select } from "./select"
 import { Typography } from "./typography"
 import type { RootState } from "@/store.ts"
+import { useAppDispatch } from "@/hooks/hooks"
+import { connectPending } from "@/state/valkey-features/connection/connectionSlice"
 import { selectConnectionDetails, selectClusterDb } from "@/state/valkey-features/connection/connectionSelectors.ts"
 import { selectCluster } from "@/state/valkey-features/cluster/clusterSelectors"
 import { cn } from "@/lib/utils.ts"
@@ -23,9 +26,14 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState("")
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { id, clusterId } = useParams<{ id: string; clusterId: string }>()
-  const { host, port, username, alias } = useSelector(selectConnectionDetails(id!))
+  const connectionDetailsObj = useSelector(selectConnectionDetails(id ?? ""))
+  const host = connectionDetailsObj?.host ?? ""
+  const port = connectionDetailsObj?.port ?? ""
+  const username = connectionDetailsObj?.username ?? ""
+  const alias = connectionDetailsObj?.alias ?? ""
   const clusterData = useSelector(selectCluster(clusterId!))
   // The app reuses one shared cluster client per cluster (single databaseId), so
   // every node connection uses the same db. Connections are stored under
@@ -76,6 +84,34 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
     }
   }, [isOpen])
 
+  const currentDetails = useSelector(selectConnectionDetails(id!))
+  const databasesCount = currentDetails?.databasesCount ?? 16
+  const currentDb = currentDetails?.db ?? 0
+
+  const handleDbChange = (newDbStr: string) => {
+    const newDb = parseInt(newDbStr, 10)
+    if (isNaN(newDb) || newDb === currentDb || !currentDetails) return
+
+    const newConnectionId = buildConnectionId(currentDetails.host, currentDetails.port, newDb)
+    const targetPath = pathname.replace(`/${id}/`, `/${newConnectionId}/`)
+
+    if (!allConnections?.[newConnectionId] || allConnections[newConnectionId].status !== CONNECTED) {
+      const activeConn = id ? allConnections?.[id] : undefined
+      dispatch(
+        connectPending({
+          connectionId: newConnectionId,
+          connectionDetails: {
+            ...currentDetails,
+            db: newDb,
+          },
+          isPasswordEncrypted: activeConn?.isPasswordEncrypted,
+        }),
+      )
+    }
+
+    navigate(targetPath)
+  }
+
   return (
     <>
       {id && !clusterId ? (
@@ -89,9 +125,25 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
             <Typography variant="bodyXs">{description}</Typography>
           </div>
 
-          <Badge variant="default">
-            {alias ? alias : `${username}@${host}:${port}`}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isConnected && (
+              <Select
+                aria-label="Switch Database"
+                className="h-8 text-xs font-mono py-1 pr-7 pl-2"
+                onChange={(e) => handleDbChange(e.target.value)}
+                value={currentDb.toString()}
+              >
+                {Array.from({ length: databasesCount }, (_, i) => (
+                  <option key={i} value={i.toString()}>
+                    db {i}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <Badge variant="default">
+              {alias ? alias : `${username}@${host}:${port}`}
+            </Badge>
+          </div>
         </div>
       ) : (
         <div className={cn("flex h-10 mb-4 gap-2 items-center justify-between relative", className)}>
