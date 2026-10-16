@@ -19,10 +19,11 @@ interface BigKeysProps {
   status?: string
   nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
+  onKeyClick?: (keyName: string) => void
 }
 
 export function BigKeys({
-  data, errorMessage, status, nodeErrors, isCluster,
+  data, errorMessage, status, nodeErrors, isCluster, onKeyClick,
 }: BigKeysProps) {
   const [sortKey, setSortKey] = useState<BigKeysSortKey>("sizeBytes")
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
@@ -88,7 +89,9 @@ export function BigKeys({
       {isCluster && (
         <BigKeysDistributionModal
           data={allKeys}
+          failedNodeCount={nodeErrors?.length ?? 0}
           onClose={() => setIsDistributionOpen(false)}
+          onKeyClick={onKeyClick}
           open={isDistributionOpen}
         />
       )}
