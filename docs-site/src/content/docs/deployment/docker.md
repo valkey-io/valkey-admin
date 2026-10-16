@@ -109,9 +109,11 @@ See the [Metrics Configuration](/configuration/metrics/) page for available opti
 
 In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
 
-## Configuration Reference
-
 See the [Configuration](/configuration/server/) section for all available environment variables.
+
+## Password Persistence
+
+In Docker (Web) mode, passwords are not saved across sessions for security reasons, as browsers do not provide a secure encrypted credential store. You will need to enter the connection password when reconnecting. In desktop mode (macOS and Linux), passwords are encrypted using the operating system's native keychain.
 
 ## Next Steps
 
