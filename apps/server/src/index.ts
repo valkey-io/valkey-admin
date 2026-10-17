@@ -46,6 +46,7 @@ import {
   isKubernetes,
   preConfiguredConnection,
   getInitialClient,
+  resetInitialClient,
   updateClusterNodeRegistry,
   resolveClusterRefreshTarget,
   setPreconfiguredClusterId
@@ -213,9 +214,28 @@ async function refreshAllClusterRegistriesLoop() {
 }
 
 async function updateRegistryforK8() {
-  const client = await getInitialClient()
-  const clusterId = await updateClusterNodeRegistry(client, initialConnectionDetails)
-  setPreconfiguredClusterId(clusterId)
+  let attempt = 0
+  const maxDelay = 30000
+  while (true) {
+    try {
+      attempt++
+      const client = await getInitialClient()
+      const clusterId = await updateClusterNodeRegistry(client, initialConnectionDetails)
+      if (clusterId) {
+        setPreconfiguredClusterId(clusterId)
+        console.log(`[K8s Discovery] Discovered and registered cluster: ${clusterId}`)
+        return
+      }
+      throw new Error("Cluster discovery returned no clusterId")
+    } catch (err) {
+      resetInitialClient()
+      const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), maxDelay)
+      console.warn(
+        `[K8s Discovery] Failed to discover cluster on attempt ${attempt}: ${err instanceof Error ? err.message : String(err)}. Retrying in ${delayMs}ms...`,
+      )
+      await delay(delayMs)
+    }
+  }
 }
 
 // Default to loopback so an unauthenticated Web server isn't reachable off-host;

@@ -374,6 +374,17 @@ export function createMetricsOrchestratorRouter() {
 
 let initialClient: GlideClient | null = null
 
+export function resetInitialClient() {
+  if (initialClient) {
+    try {
+      initialClient.close()
+    } catch {
+      // ignore close errors during reset
+    }
+    initialClient = null
+  }
+}
+
 export async function getInitialClient() {
   if (!initialClient) {
     initialClient = await createClient(initialConnectionDetails)
@@ -697,6 +708,7 @@ const internals =  {
   startMetricsServers,
   createClient,
   getInitialClient,
+  resetInitialClient,
   updateClusterNodeRegistry,
   findDiff,
   flattenClusterNodeMap,

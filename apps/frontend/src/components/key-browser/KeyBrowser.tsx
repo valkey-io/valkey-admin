@@ -9,7 +9,8 @@ import {
   KeyRound,
   RefreshCw,
   ListFilter,
-  ChartPie
+  ChartPie,
+  Info
 } from "lucide-react"
 import { truncateText } from "@common/src/truncate-text"
 import { toScanPattern } from "@common/src/scan-pattern"
@@ -28,12 +29,14 @@ import { TooltipIcon } from "../ui/tooltip-icon"
 import { Typography } from "../ui/typography"
 import { SplitPanel } from "../ui/split-panel"
 import { Panel } from "../ui/panel"
+import { Alert, AlertDescription } from "../ui/alert"
 import { useAppDispatch } from "@/hooks/hooks"
 import {
   selectKeys,
   selectLoading,
   selectError,
-  selectTotalKeys
+  selectTotalKeys,
+  selectIsCapped
 } from "@/state/valkey-features/keys/keyBrowserSelectors"
 import {
   getKeysRequested,
@@ -99,6 +102,7 @@ export function KeyBrowser() {
   const loading = useSelector(selectLoading(id!))
   const error = useSelector(selectError(id!))
   const totalKeys = useSelector(selectTotalKeys(id!))
+  const isCapped = useSelector(selectIsCapped(id!))
 
   useEffect(() => {
     if (id) {
@@ -247,6 +251,16 @@ export function KeyBrowser() {
       </ChartModal>
 
       {/* Key Viewer */}
+      {isCapped && (
+        <Alert className="mb-2" variant="warning">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Showing initial {keys.length} keys out of {totalKeys.toLocaleString()} total keys.
+            Use search above to find specific keys not shown in this preview list.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <TooltipProvider>
         <SplitPanel
           left={
