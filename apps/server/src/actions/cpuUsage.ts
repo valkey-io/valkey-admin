@@ -9,14 +9,14 @@ type CpuUsageResponse = Array<{
 
 const sendCpuUsageFulfilled = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   parsedResponse: CpuUsageResponse,
 ) => {
   ws.send(
     JSON.stringify({
       type: VALKEY.CPU.cpuUsageFulfilled,
       payload: {
-        connectionId,
+        nodeId,
         parsedResponse,
       },
     }),
@@ -25,7 +25,7 @@ const sendCpuUsageFulfilled = (
 
 const sendCpuUsageError = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   error: unknown,
 ) => {
   console.error(error)
@@ -33,7 +33,7 @@ const sendCpuUsageError = (
     JSON.stringify({
       type: VALKEY.CPU.cpuUsageError,
       payload: {
-        connectionId,
+        nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
     }),
@@ -54,10 +54,11 @@ export const cpuUsageRequested = withDeps<Deps, void>(
     const promises = connectionIds.map(async (connectionId: string) => {
       // metricsServerMap is keyed by metrics-node-id.
       // Idempotent on the cluster-fan-out path where ids already lack `-db`.
-      const metricsServerURI = metricsServerMap.get(toNodeId(connectionId))?.metricsURI
+      const nodeId = toNodeId(connectionId)
+      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
 
       if (!metricsServerURI) {
-        sendCpuUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        sendCpuUsageError(ws, nodeId, new Error("Metrics server URI not found"))
         return
       }
 
@@ -69,9 +70,9 @@ export const cpuUsageRequested = withDeps<Deps, void>(
         const response = await fetchWithTimeout(url)
         const parsedResponse: CpuUsageResponse = await response.json() as CpuUsageResponse
 
-        sendCpuUsageFulfilled(ws, connectionId, parsedResponse)
+        sendCpuUsageFulfilled(ws, nodeId, parsedResponse)
       } catch (error) {
-        sendCpuUsageError(ws, connectionId, error)
+        sendCpuUsageError(ws, nodeId, error)
       }
     })
     await Promise.all(promises)

@@ -16,14 +16,14 @@ type MemoryUsageResponse = {
 
 const sendMemoryUsageFulfilled = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   parsedResponse: MemoryUsageResponse,
 ) => {
   ws.send(
     JSON.stringify({
       type: VALKEY.MEMORY.memoryUsageFulfilled,
       payload: {
-        connectionId,
+        nodeId,
         parsedResponse,
       },
     }),
@@ -32,7 +32,7 @@ const sendMemoryUsageFulfilled = (
 
 const sendMemoryUsageError = (
   ws: WebSocket,
-  connectionId: string,
+  nodeId: string,
   error: unknown,
 ) => {
   console.error(error)
@@ -40,7 +40,7 @@ const sendMemoryUsageError = (
     JSON.stringify({
       type: VALKEY.MEMORY.memoryUsageError,
       payload: {
-        connectionId,
+        nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
     }),
@@ -60,10 +60,11 @@ export const memoryUsageRequested = withDeps<Deps, void>(
     const promises = connectionIds.map(async (connectionId: string) => {
       // metricsServerMap is keyed by metrics-node-id.
       // Idempotent on the cluster-fan-out path where ids already lack `-db`.
-      const metricsServerURI = metricsServerMap.get(toNodeId(connectionId))?.metricsURI
+      const nodeId = toNodeId(connectionId)
+      const metricsServerURI = metricsServerMap.get(nodeId)?.metricsURI
 
       if (!metricsServerURI) {
-        sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        sendMemoryUsageError(ws, nodeId, new Error("Metrics server URI not found"))
         return
       }
 
@@ -75,9 +76,9 @@ export const memoryUsageRequested = withDeps<Deps, void>(
         const response = await fetchWithTimeout(url)
         const parsedResponse: MemoryUsageResponse = await response.json() as MemoryUsageResponse
 
-        sendMemoryUsageFulfilled(ws, connectionId, parsedResponse)
+        sendMemoryUsageFulfilled(ws, nodeId, parsedResponse)
       } catch (error) {
-        sendMemoryUsageError(ws, connectionId, error)
+        sendMemoryUsageError(ws, nodeId, error)
       }
     })
     await Promise.all(promises)
