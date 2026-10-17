@@ -1,9 +1,9 @@
 import * as R from "ramda"
 import { useState } from "react"
-import { LayoutDashboard, Terminal, PowerIcon, Loader2, Server } from "lucide-react"
+import { LayoutDashboard, Terminal, Server } from "lucide-react"
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
-import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
+import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { buildConnectionId } from "@common/src/connection-id.ts"
 import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
 import { formatBytes } from "@common/src/bytes-conversion.ts"
@@ -94,8 +94,23 @@ export function ClusterNodeRow({
     db: clusterDb,
   }
 
-  const handleNodeConnect = () => {
-    if (isConnected || isConnecting) return
+  const [pendingTargetRoute, setPendingTargetRoute] = useState<string | null>(null)
+
+  const handleNodeConnect = (targetRoute?: string) => {
+    if (isConnected) {
+      if (targetRoute) navigate(targetRoute)
+      return
+    }
+
+    if (isConnecting) {
+      if (targetRoute) navigate(targetRoute)
+      return
+    }
+
+    if (isDisabled) {
+      if (targetRoute) navigate(targetRoute)
+      return
+    }
 
     if (primaryConfig.authType === "iam") {
       // IAM: all fields available from cluster state, no password needed
@@ -109,6 +124,7 @@ export function ClusterNodeRow({
           awsReplicationGroupId: primaryConfig.awsReplicationGroupId,
         },
       }))
+      if (targetRoute) navigate(targetRoute)
     } else if (primaryConfig.authType === "gcp-iam") {
       // GCP IAM: tokens are minted from ambient credentials, no password needed
       dispatch(connectPending({
@@ -119,6 +135,7 @@ export function ClusterNodeRow({
           authType: "gcp-iam",
         },
       }))
+      if (targetRoute) navigate(targetRoute)
     } else if (R.isNotNil(clusterPassword)) {
       // Reuse the sibling connection's stored password, carrying its
       // isPasswordEncrypted marking so an unencrypted one is still never persisted.
@@ -131,8 +148,12 @@ export function ClusterNodeRow({
         },
         isPasswordEncrypted: clusterPassword.isPasswordEncrypted,
       }))
+      if (targetRoute) navigate(targetRoute)
     } else {
-      // No stored password — prompt for password
+      // No stored password — keep the user on the current view to enter the password
+      if (targetRoute) {
+        setPendingTargetRoute(targetRoute)
+      }
       setShowPasswordModal(true)
     }
   }
@@ -149,6 +170,11 @@ export function ClusterNodeRow({
       },
       isPasswordEncrypted: result.ok,
     }))
+    if (pendingTargetRoute) {
+      const route = pendingTargetRoute
+      setPendingTargetRoute(null)
+      navigate(route)
+    }
   }
 
   const hasLimit = hasMemoryLimit(utilization)
@@ -170,11 +196,24 @@ export function ClusterNodeRow({
     ? calculateHitRatio(Number(nodeData.keyspace_hits) || 0, Number(nodeData.keyspace_misses) || 0)
     : "—"
 
-  const powerIconTooltip = isConnected   ? "Connected"
-    : isConnecting ? "Connecting..."
-      : isError      ? "Connection failed — click to retry"
-        : isDisabled   ? `Max connections of ${MAX_CONNECTIONS} reached`
-          :                "Not Connected"
+  const isResponsive = Boolean(nodeData && (nodeData.role || nodeData.uptime_in_days || nodeData.used_memory))
+  const isDegraded = isResponsive && utilizationLevel === "high"
+
+  const healthStatus: "healthy" | "degraded" | "unreachable" = isError
+    ? "unreachable"
+    : !isResponsive
+      ? "unreachable"
+      : isDegraded
+        ? "degraded"
+        : "healthy"
+
+  const healthTooltip = isError
+    ? "Node Unreachable · Connection error"
+    : healthStatus === "healthy"
+      ? `Node Healthy · Responsive (${nodeData?.uptime_in_days ?? 0}d uptime)`
+      : healthStatus === "degraded"
+        ? "Node Degraded · High resource utilization"
+        : "Node Unreachable · No metrics received"
 
   return (
     <tr
@@ -246,32 +285,30 @@ export function ClusterNodeRow({
         {role === "primary" && (
           <TooltipProvider>
             <div className="flex items-center justify-center gap-2">
-              <CustomTooltip content={powerIconTooltip}>
-                {isConnecting ? (
-                  <Loader2
-                    className="animate-spin text-gray-500"
-                    size={21}
-                  />
-                ) : (
-                  <PowerIcon
+              <CustomTooltip content={healthTooltip}>
+                <div
+                  aria-label={healthTooltip}
+                  className="flex items-center justify-center h-8 w-8 cursor-default"
+                  role="status"
+                >
+                  <span
                     className={cn(
-                      "rounded-full p-0.5 border-2",
-                      isConnected && "text-green-500 border-green-500",
-                      isError && "text-red-500 cursor-pointer border-red-500",
-                      !isConnected && !isError && isDisabled && "text-gray-300 border-gray-300 cursor-not-allowed",
-                      !isConnected && !isError && !isDisabled && "text-gray-400 border-gray-400 cursor-pointer",
+                      "h-3 w-3 rounded-full transition-colors duration-200 shadow-sm",
+                      healthStatus === "healthy" && "bg-green-500 shadow-green-500/50",
+                      healthStatus === "degraded" && "bg-amber-500 shadow-amber-500/50",
+                      healthStatus === "unreachable" && "bg-red-500 shadow-red-500/50",
                     )}
-                    onClick={isDisabled ? undefined : handleNodeConnect}
-                    size={21}
                   />
-                )}
+                </div>
               </CustomTooltip>
               <CustomTooltip content="Dashboard">
                 <Button
                   aria-label="Dashboard"
                   className="h-8 w-8 p-0"
-                  disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/dashboard`)}
+                  onClick={() => {
+                    const targetRoute = `/${clusterId}/${connectionId}/dashboard`
+                    handleNodeConnect(targetRoute)
+                  }}
                   size="sm"
                   variant="ghost"
                 >
@@ -282,8 +319,10 @@ export function ClusterNodeRow({
                 <Button
                   aria-label="Command"
                   className="h-8 w-8 p-0"
-                  disabled={!isConnected}
-                  onClick={() => navigate(`/${clusterId}/${connectionId}/sendcommand`)}
+                  onClick={() => {
+                    const targetRoute = `/${clusterId}/${connectionId}/sendcommand`
+                    handleNodeConnect(targetRoute)
+                  }}
                   size="sm"
                   variant="ghost"
                 >
