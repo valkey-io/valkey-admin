@@ -947,38 +947,84 @@ export async function addKey(
 }
 
 // functions for updatin/editing different key types
-// Note : the update and add functions are quite similar MAYBE can be refactored later
+/**
+ * Updates a string key using WATCH for optimistic concurrency control.
+ * If the key changes between GET and the transactional commit, the transaction aborts.
+ */
 async function updateStringKey(
   client: GlideClient | GlideClusterClient,
   key: string,
   value: string,
   ttl?: number,
 ) {
-  const current = await client.customCommand(["GET", key], { decoder: Decoder.Bytes })
-  if (current != null && decodeToStringValue(current).isBinary) {
-    throw new Error("This key holds binary data and cannot be edited as text.")
-  }
+  await client.watch([key])
+  try {
+    const current = await client.customCommand(["GET", key], { decoder: Decoder.Bytes })
+    if (current != null && decodeToStringValue(current).isBinary) {
+      await client.unwatch()
+      throw new Error("This key holds binary data and cannot be edited as text.")
+    }
 
-  if (ttl && ttl > 0) {
-    await client.customCommand(["SETEX", key, ttl.toString(), value])
-  } else {
-    await client.customCommand(["SET", key, value, "KEEPTTL"])
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["SETEX", key, ttl.toString(), value])
+    } else {
+      batch.customCommand(["SET", key, value, "KEEPTTL"])
+    }
+
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
+    }
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors if connection closed or already unwatched
+    }
+    throw err
   }
 }
 
+/**
+ * Updates a JSON key using WATCH for optimistic concurrency control.
+ */
 async function updateJsonKey(
   client: GlideClient | GlideClusterClient,
   key: string,
   value: string,
   ttl?: number,
 ) {
-  await client.customCommand(["JSON.SET", key, "$", value])
+  await client.watch([key])
+  try {
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
 
-  if (ttl && ttl > 0) {
-    await client.customCommand(["EXPIRE", key, ttl.toString()])
+    batch.customCommand(["JSON.SET", key, "$", value])
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
+    }
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors
+    }
+    throw err
   }
 }
 
+/**
+ * Updates a Hash key using WATCH for optimistic concurrency control.
+ */
 async function updateHashKey(
   client: GlideClient | GlideClusterClient,
   key: string,
@@ -988,26 +1034,48 @@ async function updateHashKey(
 ) {
   console.debug("delete hash fields:::", deletedHashFields)
   console.debug("update hash fields:::", fields)
-  // first delete fields if any
-  if (deletedHashFields && deletedHashFields.length > 0) {
-    const hdelCommand = ["HDEL", key, ...deletedHashFields]
-    await client.customCommand(hdelCommand)
-  }
 
-  // then update fields
-  if (fields && fields.length > 0) {
-    const hsetCommand = ["HSET", key]
-    fields.forEach(({ field, value }) => {
-      hsetCommand.push(field, value)
-    })
-    await client.customCommand(hsetCommand)
-  }
+  await client.watch([key])
+  try {
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
 
-  if (ttl && ttl > 0) {
-    await client.customCommand(["EXPIRE", key, ttl.toString()])
+    // first delete fields if any
+    if (deletedHashFields && deletedHashFields.length > 0) {
+      const hdelCommand = ["HDEL", key, ...deletedHashFields]
+      batch.customCommand(hdelCommand)
+    }
+
+    // then update fields
+    if (fields && fields.length > 0) {
+      const hsetCommand = ["HSET", key]
+      fields.forEach(({ field, value }) => {
+        hsetCommand.push(field, value)
+      })
+      batch.customCommand(hsetCommand)
+    }
+
+    if (ttl && ttl > 0) {
+      batch.customCommand(["EXPIRE", key, ttl.toString()])
+    }
+
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
+    }
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors
+    }
+    throw err
   }
 }
 
+/**
+ * Updates a List key using WATCH for optimistic concurrency control.
+ */
 async function updateListKey(
   client: GlideClient | GlideClusterClient,
   key: string,
@@ -1016,9 +1084,10 @@ async function updateListKey(
   deletedListItems?: { index: number; value: string }[],
   newListItems?: string[],
 ) {
-
-  if (client instanceof GlideClient) {
-    const batch = new Batch(true)
+  await client.watch([key])
+  try {
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
 
     // first delete items (sorted by index descending to avoid index shifting issues)
     if (deletedListItems && deletedListItems.length > 0) {
@@ -1044,38 +1113,23 @@ async function updateListKey(
       batch.customCommand(["EXPIRE", key, ttl.toString()])
     }
 
-    await client.exec(batch, true)
-  } else if (client instanceof GlideClusterClient) {
-    const batch = new ClusterBatch(true)
-
-    if (deletedListItems && deletedListItems.length > 0) {
-      const sortedDeletes = [...deletedListItems].sort((a, b) => b.index - a.index)
-      sortedDeletes.forEach(({ value }) => {
-        batch.customCommand(["LREM", key, "1", value])
-      })
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
     }
-
-    if (updates && updates.length > 0) {
-      updates.forEach(({ index, value }) =>
-        batch.customCommand(["LSET", key, index.toString(), value]),
-      )
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors
     }
-
-    // then add new items to the end of the list
-    if (newListItems && newListItems.length > 0) {
-      batch.customCommand(["RPUSH", key, ...newListItems])
-    }
-
-    if (ttl && ttl > 0) {
-      batch.customCommand(["EXPIRE", key, ttl.toString()])
-    }
-
-    await client.exec(batch, true)
-  } else {
-    throw new Error("Unsupported client type")
+    throw err
   }
 }
 
+/**
+ * Updates a Set key using WATCH for optimistic concurrency control.
+ */
 async function updateSetKey(
   client: GlideClient | GlideClusterClient,
   key: string,
@@ -1084,8 +1138,10 @@ async function updateSetKey(
   deletedSetItems?: string[],
   newSetItems?: string[],
 ) {
-  if (client instanceof GlideClient) {
-    const batch = new Batch(true)
+  await client.watch([key])
+  try {
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
 
     // first delete items if any
     if (deletedSetItems && deletedSetItems.length > 0) {
@@ -1111,47 +1167,33 @@ async function updateSetKey(
       batch.customCommand(["EXPIRE", key, ttl.toString()])
     }
 
-    await client.exec(batch, true)
-  }
-  else if (client instanceof GlideClusterClient) {
-    const batch = new ClusterBatch(true)
-
-    if (deletedSetItems && deletedSetItems.length > 0) {
-      deletedSetItems.forEach((value) => {
-        batch.customCommand(["SREM", key, value])
-      })
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
     }
-
-    if (updates && updates.length > 0) {
-      for (const { oldValue, newValue } of updates) {
-        batch.customCommand(["SREM", key, oldValue])
-        batch.customCommand(["SADD", key, newValue])
-      }
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors
     }
-
-    // then add new items
-    if (newSetItems && newSetItems.length > 0) {
-      batch.customCommand(["SADD", key, ...newSetItems])
-    }
-
-    if (ttl && ttl > 0) {
-      batch.customCommand(["EXPIRE", key, ttl.toString()])
-    }
-
-    await client.exec(batch, true)
-  } else {
-    throw new Error("Unsupported client type")
+    throw err
   }
 }
 
+/**
+ * Updates a Sorted Set key using WATCH for optimistic concurrency control.
+ */
 async function updateZSetKey(
   client: GlideClient | GlideClusterClient,
   key: string,
   updates: { member: string; score: number }[],
   ttl?: number,
 ) {
-  if (client instanceof GlideClient) {
-    const batch = new Batch(true)
+  await client.watch([key])
+  try {
+    const BatchClass = client instanceof GlideClusterClient ? ClusterBatch : Batch
+    const batch = new BatchClass(true)
 
     for (const { member, score } of updates) {
       batch.customCommand(["ZADD", key, score.toString(), member])
@@ -1161,21 +1203,17 @@ async function updateZSetKey(
       batch.customCommand(["EXPIRE", key, ttl.toString()])
     }
 
-    await client.exec(batch, true)
-  } else if (client instanceof GlideClusterClient) {
-    const batch = new ClusterBatch(true)
-
-    for (const { member, score } of updates) {
-      batch.customCommand(["ZADD", key, score.toString(), member])
+    const result = await client.exec(batch, true)
+    if (result === null) {
+      throw new Error("Key was modified by another client during edit (optimistic lock conflict).")
     }
-
-    if (ttl && ttl > 0) {
-      batch.customCommand(["EXPIRE", key, ttl.toString()])
+  } catch (err) {
+    try {
+      await client.unwatch()
+    } catch {
+      // Ignore unwatch errors
     }
-
-    await client.exec(batch, true)
-  } else {
-    throw new Error("Unsupported client type")
+    throw err
   }
 }
 
