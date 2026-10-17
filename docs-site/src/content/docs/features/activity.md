@@ -100,6 +100,15 @@ Each result shows:
 Access frequency requires an LFU eviction policy (`allkeys-lfu` or `volatile-lfu`). Without it, frequency shows `0`. The value is logarithmic — a key accessed millions of times may show ~70.
 :::
 
+### Cluster Slot Heatmap
+
+In cluster mode, the **Heatmap** button visualizes which hash slots hold the detected big keys to identify memory skew across shards:
+
+- **Slot Tiles**: Displays each slot holding big keys, colored by key count. Hovering reveals the slot ID, key count, total memory footprint, and owning node.
+- **Slot Details**: Clicking any slot tile lists its keys with size, type, and TTL, allowing one-click navigation to inspect the key in Key Browser.
+- **Filtering**: Use the node dropdown or interactive legend bands to filter slots by node or key concentration.
+- **Hash Tag Resolution**: Automatically resolves cluster hash tags (e.g. `{tenant}:profile`) to their target hash slot (0–16383).
+
 ---
 
 ## Command Logs

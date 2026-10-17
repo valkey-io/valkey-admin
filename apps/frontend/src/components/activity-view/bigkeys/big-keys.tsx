@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AlertCircle, ChartColumnIncreasing, KeyRound } from "lucide-react"
+import { AlertCircle, ChartColumnIncreasing, Grid2x2, KeyRound } from "lucide-react"
 import * as R from "ramda"
 import { EmptyState } from "../../ui/empty-state"
 import { LoadingState } from "../../ui/loading-state"
@@ -10,6 +10,7 @@ import { NodeErrorsBanner } from "../hotkeys/hot-keys-banners"
 import { NodeFilterDropdown } from "../hotkeys/node-filter-dropdown"
 import { BigKeysTable, type BigKeysSortKey } from "./big-keys-table"
 import { BigKeysDistributionModal } from "./big-keys-distribution"
+import { BigKeysSlotHeatmapModal } from "./big-keys-slot-heatmap"
 import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
 import { Button } from "@/components/ui/button"
 
@@ -19,16 +20,18 @@ interface BigKeysProps {
   status?: string
   nodeErrors?: { nodeId: string; error: string }[]
   isCluster?: boolean
+  onKeyClick?: (keyName: string) => void
 }
 
 export function BigKeys({
-  data, errorMessage, status, nodeErrors, isCluster,
+  data, errorMessage, status, nodeErrors, isCluster, onKeyClick,
 }: BigKeysProps) {
   const [sortKey, setSortKey] = useState<BigKeysSortKey>("sizeBytes")
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedNode, setSelectedNode] = useState("all")
   const [isDistributionOpen, setIsDistributionOpen] = useState(false)
+  const [isHeatmapOpen, setIsHeatmapOpen] = useState(false)
 
   const handleSort = (key: BigKeysSortKey) => {
     if (key === sortKey) {
@@ -86,23 +89,43 @@ export function BigKeys({
     <div className="flex flex-col h-full overflow-hidden">
       {banner}
       {isCluster && (
-        <BigKeysDistributionModal
-          data={allKeys}
-          onClose={() => setIsDistributionOpen(false)}
-          open={isDistributionOpen}
-        />
+        <>
+          <BigKeysDistributionModal
+            data={allKeys}
+            onClose={() => setIsDistributionOpen(false)}
+            open={isDistributionOpen}
+          />
+          <BigKeysSlotHeatmapModal
+            data={allKeys}
+            failedNodeCount={nodeErrors?.length ?? 0}
+            onClose={() => setIsHeatmapOpen(false)}
+            onKeyClick={onKeyClick}
+            open={isHeatmapOpen}
+          />
+        </>
       )}
       <div className="flex items-center gap-2 w-full bg-accent p-2">
         {isCluster && (
-          <Button
-            className="font-normal shrink-0"
-            onClick={() => setIsDistributionOpen(true)}
-            type="button"
-            variant="outline"
-          >
-            <ChartColumnIncreasing className="text-primary" />
-            Bigkeys distribution
-          </Button>
+          <>
+            <Button
+              className="font-normal shrink-0"
+              onClick={() => setIsDistributionOpen(true)}
+              type="button"
+              variant="outline"
+            >
+              <ChartColumnIncreasing className="text-primary" />
+              Bigkeys distribution
+            </Button>
+            <Button
+              className="font-normal shrink-0"
+              onClick={() => setIsHeatmapOpen(true)}
+              type="button"
+              variant="outline"
+            >
+              <Grid2x2 className="text-primary" />
+              Heatmap
+            </Button>
+          </>
         )}
         <SearchInput
           onChange={(e) => setSearchQuery(e.target.value)}
