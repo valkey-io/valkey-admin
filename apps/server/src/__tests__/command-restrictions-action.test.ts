@@ -37,4 +37,62 @@ describe("Send Command connection-state restrictions", () => {
       })
     }
   }
+
+  describe("read-only mode enforcement", () => {
+    it("rejects write commands when readOnly is true", async () => {
+      const client = Object.create(GlideClient.prototype) as GlideClient
+      let calls = 0
+      client.customCommand = async () => { calls++; return "OK" }
+      const messages: string[] = []
+      const connectionId = "test-connection"
+      const deps: Deps = {
+        ws: { send: (message: string) => messages.push(message) } as unknown as WebSocket,
+        connectionId,
+        clients: new Map([[connectionId, { client }]]),
+        metricsServerMap: new Map(),
+        connectedNodesByCluster: new Map(),
+        clusterNodesRegistry: new Map(),
+      }
+
+      await sendRequested(deps)({
+        type: VALKEY.COMMAND.sendRequested,
+        payload: { connectionId, command: "SET foo bar", readOnly: true },
+        meta: undefined,
+      })
+
+      assert.equal(calls, 0)
+      assert.equal(messages.length, 1)
+      const reply = JSON.parse(messages[0])
+      assert.equal(reply.type, VALKEY.COMMAND.sendFailed)
+      assert.match(reply.payload, /cannot be executed while Read-Only mode is enabled/)
+    })
+
+    it("allows read commands when readOnly is true", async () => {
+      const client = Object.create(GlideClient.prototype) as GlideClient
+      let calls = 0
+      client.customCommand = async () => { calls++; return "bar" }
+      const messages: string[] = []
+      const connectionId = "test-connection"
+      const deps: Deps = {
+        ws: { send: (message: string) => messages.push(message) } as unknown as WebSocket,
+        connectionId,
+        clients: new Map([[connectionId, { client }]]),
+        metricsServerMap: new Map(),
+        connectedNodesByCluster: new Map(),
+        clusterNodesRegistry: new Map(),
+      }
+
+      await sendRequested(deps)({
+        type: VALKEY.COMMAND.sendRequested,
+        payload: { connectionId, command: "GET foo", readOnly: true },
+        meta: undefined,
+      })
+
+      assert.equal(calls, 1)
+      assert.equal(messages.length, 1)
+      const reply = JSON.parse(messages[0])
+      assert.equal(reply.type, VALKEY.COMMAND.sendFulfilled)
+      assert.equal(reply.payload, "bar")
+    })
+  })
 })
