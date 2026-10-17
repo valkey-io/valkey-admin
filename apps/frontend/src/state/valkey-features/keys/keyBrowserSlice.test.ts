@@ -80,6 +80,42 @@ describe("keyBrowserSlice", () => {
       expect(state["conn-1"].keys).toEqual(keys)
       expect(state["conn-1"].cursor).toBe("123")
       expect(state["conn-1"].totalKeys).toBe(100)
+      expect(state["conn-1"].isCapped).toBe(false)
+    })
+
+    it("should set isCapped when explicitly provided or when keys are capped at 1000", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          loading: true,
+        },
+      }
+
+      const stateExplicit = keyBrowserReducer(
+        previousState,
+        getKeysFulfilled({
+          connectionId: "conn-1",
+          keys: [{ name: "key1", type: "String" }],
+          cursor: "0",
+          totalKeys: 2500,
+          isCapped: true,
+        }),
+      )
+
+      expect(stateExplicit["conn-1"].isCapped).toBe(true)
+
+      const keys1000 = Array.from({ length: 1000 }, (_, i) => ({ name: `key${i}`, type: "String" }))
+      const stateInferred = keyBrowserReducer(
+        previousState,
+        getKeysFulfilled({
+          connectionId: "conn-1",
+          keys: keys1000,
+          cursor: "0",
+          totalKeys: 5000,
+        }),
+      )
+
+      expect(stateInferred["conn-1"].isCapped).toBe(true)
     })
   })
 

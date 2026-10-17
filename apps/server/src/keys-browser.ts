@@ -457,9 +457,11 @@ async function scanStandalone(
     connectionId: string;
     pattern?: string;
     count?: number;
+    limit?: number;
   }, 
-): Promise<Set<string>> {
+): Promise<{ keys: Set<string>; hasMore: boolean }> {
   const allKeys = new Set<string>()
+  const limit = payload.limit ?? 1000
     
   let cursor = "0"
   do {
@@ -471,9 +473,9 @@ async function scanStandalone(
 
     cursor = newCursor
     keys.forEach((key) => {allKeys.add(key)})
-  } while (allKeys.size < 1000 && cursor !== "0")
+  } while (allKeys.size < limit && cursor !== "0")
 
-  return allKeys
+  return { keys: allKeys, hasMore: cursor !== "0" }
 }
 
 type ClusterScanResult = {
@@ -489,11 +491,12 @@ async function scanCluster(
     count?: number;
     limit?: number; 
   },
-): Promise<Set<string>> {
+): Promise<{ keys: Set<string>; hasMore: boolean }> {
 
   const routeOption: RouteOption = { route: "allPrimaries" }
   const allKeys = new Set<string>()
   const limit = payload.limit ?? 1000
+  let clusterHasMore = false
 
   // Run initial SCAN 0 on all primaries
   const scanClusterResult = await client.customCommand(
@@ -535,10 +538,13 @@ async function scanCluster(
         cursor = nextCursor
         newKeys.forEach((k) => { if (allKeys.size < limit) allKeys.add(k) })
       }
+      if (cursor !== "0") {
+        clusterHasMore = true
+      }
     }),
   )
 
-  return allKeys
+  return { keys: allKeys, hasMore: clusterHasMore }
 }
 
 const limit = pLimit(10) 
@@ -554,8 +560,8 @@ export async function getKeys(
   const { connectionId } = payload
   try {
     const totalKeys = await client.customCommand(["DBSIZE"])
-    const allKeys = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
-    const keyList = [...allKeys]
+    const scanResult = client instanceof GlideClusterClient ? await scanCluster(client, payload) : await scanStandalone(client, payload)
+    const keyList = [...scanResult.keys]
 
     const metadata = await fetchKeyMetadataBatch(client, keyList)
 
@@ -570,6 +576,8 @@ export async function getKeys(
       ),
     )
 
+    const isCapped = scanResult.hasMore || (typeof totalKeys === "number" && totalKeys > keyList.length)
+
     ws.send(
       JSON.stringify({
         type: VALKEY.KEYS.getKeysFulfilled,
@@ -577,6 +585,7 @@ export async function getKeys(
           connectionId: connectionId,
           keys: enrichedKeys,
           totalKeys,
+          isCapped,
         },
       }),
     )
