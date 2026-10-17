@@ -134,7 +134,6 @@ export function ConnectionModal({
                           onConnectionDetailsChange({
                             ...connectionDetails,
                             host,
-                            endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
                           })
                         }}
                         placeholder="localhost"
