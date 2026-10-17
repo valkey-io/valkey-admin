@@ -31,6 +31,8 @@ interface BaseKeyInfo {
 interface ElementInfo {
   key: string;
   value: string;
+  isKeyBinary?: boolean;
+  isValueBinary?: boolean;
 }
 
 interface ZSetElement {
@@ -123,6 +125,11 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
                 {selectedKeyInfo.collectionSize !== undefined && (
                   <InfoChip showBorder={!readOnly} tooltip="Collection size">
                     {selectedKeyInfo.collectionSize.toLocaleString()}
+                  </InfoChip>
+                )}
+                {selectedKeyInfo.isBinary && (
+                  <InfoChip showBorder={!readOnly} tooltip="Contains binary data">
+                    binary
                   </InfoChip>
                 )}
                 {readOnly && (
