@@ -102,13 +102,13 @@ describe("getKeyInfo", () => {
   })
 
   describe("hash keys", () => {
-    it("should get hash key info", async () => {
+    it("should get hash key info with pagination metadata", async () => {
       const mockClient = createMockClient({
         TYPE: "hash",
         TTL: -1,
         MEMORY: 200,
         HLEN: 3,
-        HSCAN: ["0", ["field1", "value1", "field2", "value2"]],
+        HSCAN: ["42", ["field1", "value1", "field2", "value2"]],
       })
 
       const result = await getKeyInfo(mockClient as any, "myhash")
@@ -118,6 +118,8 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.ttl, -1)
       assert.strictEqual(result.size, 200)
       assert.strictEqual(result.collectionSize, 3)
+      assert.strictEqual(result.cursor, "42")
+      assert.strictEqual(result.hasMoreElements, true)
       assert.deepStrictEqual(result.elements, [
         { key: "field1", value: "value1" }, 
         { key: "field2", value: "value2" },
@@ -127,12 +129,12 @@ describe("getKeyInfo", () => {
   })
 
   describe("list keys", () => {
-    it("should get list key info with readable elements", async () => {
+    it("should get list key info with readable elements and pagination metadata", async () => {
       const mockClient = createMockClient({
         TYPE: "list",
         TTL: 0,
         MEMORY: 150,
-        LLEN: 2,
+        LLEN: 200,
         LRANGE: ["item1", "item2"],
       })
 
@@ -140,7 +142,9 @@ describe("getKeyInfo", () => {
 
       assert.strictEqual(result.name, "mylist")
       assert.strictEqual(result.type, "list")
-      assert.strictEqual(result.collectionSize, 2)
+      assert.strictEqual(result.collectionSize, 200)
+      assert.strictEqual(result.offset, 2)
+      assert.strictEqual(result.hasMoreElements, true)
       assert.ok(Array.isArray(result.elements))
       assert.deepStrictEqual(result.elements, ["item1", "item2"])
     })
@@ -148,12 +152,12 @@ describe("getKeyInfo", () => {
   })
 
   describe("zset keys", () => {
-    it("should get zset key info with readable members", async () => {
+    it("should get zset key info with readable members and pagination metadata", async () => {
       const mockClient = createMockClient({
         TYPE: "zset",
         TTL: -1,
         MEMORY: 200,
-        ZCARD: 2,
+        ZCARD: 150,
         ZRANGE: [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }],
       })
 
@@ -161,7 +165,9 @@ describe("getKeyInfo", () => {
 
       assert.strictEqual(result.name, "myzset")
       assert.strictEqual(result.type, "zset")
-      assert.strictEqual(result.collectionSize, 2)
+      assert.strictEqual(result.collectionSize, 150)
+      assert.strictEqual(result.offset, 2)
+      assert.strictEqual(result.hasMoreElements, true)
       assert.ok(Array.isArray(result.elements))
       // RESP3 ZRANGE with WITHSCORES returns [{key: member, value: score}, ...]
       assert.deepStrictEqual(result.elements, [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }])

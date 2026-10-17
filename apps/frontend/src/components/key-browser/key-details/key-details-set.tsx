@@ -1,13 +1,13 @@
 import { useState } from "react"
-import { Trash, Plus, X } from "lucide-react"
+import { Trash, Plus, X, Loader2 } from "lucide-react"
 import { CustomTooltip } from "../../ui/tooltip"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
 import { Typography } from "../../ui/typography"
-import { useAppDispatch } from "@/hooks/hooks"
-import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
+import { getKeyElementsRequested, updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
 
 interface KeyDetailsSetProps {
@@ -19,6 +19,8 @@ interface KeyDetailsSetProps {
     size: number;
     collectionSize?: number;
     elements: string[];
+    cursor?: string;
+    hasMoreElements?: boolean;
   };
   connectionId: string;
   readOnly: boolean;
@@ -33,11 +35,27 @@ export default function KeyDetailsSet(
   { selectedKey, selectedKeyInfo, connectionId, readOnly = false }: KeyDetailsSetProps,
 ) {
   const dispatch = useAppDispatch()
+  const elementsLoading = useAppSelector(
+    (state) => state.keyBrowser?.[connectionId]?.elementsLoading?.[selectedKey] || false,
+  )
   const [isEditable, setIsEditable] = useState(false)
   const [editedSetValues, setEditedSetValues] = useState<string[]>([])
   const [deletedValues, setDeletedValues] = useState<Set<string>>(new Set())
   const [pendingDeleteValue, setPendingDeleteValue] = useState<string | null>(null)
   const [newItems, setNewItems] = useState<NewItem[]>([])
+
+  const handleLoadMore = () => {
+    if (elementsLoading) return
+    dispatch(
+      getKeyElementsRequested({
+        connectionId,
+        key: selectedKey,
+        keyType: "set",
+        cursor: selectedKeyInfo.cursor ?? "0",
+        count: 100,
+      }),
+    )
+  }
 
   const handleEdit = () => {
     if (isEditable) {
@@ -213,6 +231,37 @@ export default function KeyDetailsSet(
               variant={"secondary"}
             >
               <Plus className="mr-2" /> Add
+            </Button>
+          </div>
+        )}
+        {!isEditable &&
+          (selectedKeyInfo.hasMoreElements !== undefined
+            ? selectedKeyInfo.hasMoreElements
+            : (selectedKeyInfo.cursor && selectedKeyInfo.cursor !== "0") ||
+              (selectedKeyInfo.collectionSize !== undefined &&
+                selectedKeyInfo.elements.length < selectedKeyInfo.collectionSize)) && (
+          <div className="flex flex-col items-center justify-center py-4 gap-2 border-t border-border">
+            <Typography variant="bodySm">
+              Showing {selectedKeyInfo.elements.length}
+              {selectedKeyInfo.collectionSize !== undefined
+                ? ` of ${selectedKeyInfo.collectionSize.toLocaleString()}`
+                : ""}{" "}
+              elements
+            </Typography>
+            <Button
+              aria-label="Load more elements"
+              disabled={elementsLoading}
+              onClick={handleLoadMore}
+              size="sm"
+              variant="outline"
+            >
+              {elementsLoading ? (
+                <>
+                  <Loader2 className="mr-2 animate-spin" size={14} /> Loading...
+                </>
+              ) : (
+                "Load more"
+              )}
             </Button>
           </div>
         )}

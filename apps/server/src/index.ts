@@ -23,6 +23,7 @@ import {
   deleteKeyRequested,
   getKeysRequested,
   getKeyTypeRequested,
+  getKeyElementsRequested,
   updateKeyRequested
 } from "./actions/keys"
 import { hotKeysRequested } from "./actions/hotkeys"
@@ -296,6 +297,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
     [VALKEY.STATS.setData]: setData,
     [VALKEY.KEYS.getKeysRequested]: getKeysRequested,
     [VALKEY.KEYS.getKeyTypeRequested]: getKeyTypeRequested,
+    [VALKEY.KEYS.getKeyElementsRequested]: getKeyElementsRequested,
     [VALKEY.KEYS.deleteKeyRequested]: deleteKeyRequested,
     [VALKEY.KEYS.addKeyRequested]: addKeyRequested,
     [VALKEY.KEYS.updateKeyRequested]: updateKeyRequested,
