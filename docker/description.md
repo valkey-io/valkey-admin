@@ -106,6 +106,9 @@ Here are all the relevant environment variables for configuration
 | `HOT_KEYS_COUNT` | Maximum hot keys returned per query | `50` |
 | `COMMAND_LOGS_COUNT` | Maximum command log entries returned per query | `100` |
 | `KEY_VALUE_SIZE_LIMIT_BYTES` | Max value size (bytes) shown in the Key Browser before a size warning | `2048` |
+| `KEY_RAW_VALUE_MAX_BYTES` | Max string value size (bytes) sent to the browser for decompression | `16777216` |
+| `DECOMPRESS_MAX_OUTPUT_BYTES` | Decompressed output (bytes) after which decoding stops | `10485760` |
+| `DECOMPRESS_PREVIEW_MAX_BYTES` | Max decompressed output (bytes) the Key Browser renders | `1048576` |
 | `CONFIG_PATH` | Path to custom metrics config.yml | — |
 
 ### Custom metrics configuration

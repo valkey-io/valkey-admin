@@ -82,6 +82,9 @@ For cluster connections, Valkey Admin discovers all primary nodes and spawns met
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `KEY_VALUE_SIZE_LIMIT_BYTES` | `2048` | Maximum value size (bytes) the Key Browser will render. Values larger than this show a size warning instead of their contents. |
+| `KEY_RAW_VALUE_MAX_BYTES` | `16777216` | Largest string value (bytes) sent to the browser for decompression. |
+| `DECOMPRESS_MAX_OUTPUT_BYTES` | `10485760` | Decompressed output (bytes) after which decoding stops and the result is marked as truncated. |
+| `DECOMPRESS_PREVIEW_MAX_BYTES` | `1048576` | Largest part of a decompressed value (bytes) the Key Browser renders. |
 
 See the [Server Configuration](/configuration/server/) page for all available environment variables.
 

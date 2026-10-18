@@ -1,5 +1,5 @@
 import { VALKEY } from "valkey-common"
-import { addKey, deleteKey, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser"
+import { addKey, deleteKey, getKeyInfoSingle, getKeyRawValue, getKeys, updateKey } from "../keys-browser"
 import { type Deps, withDeps } from "./utils"
 
 type GetKeysPayload = {
@@ -136,6 +136,33 @@ export const updateKeyRequested = withDeps<Deps, void>(
           payload: {
             connectionId,
             key,
+            error: "Invalid connection Id",
+          },
+        }),
+      )
+    }
+  },
+)
+
+interface RawValuePayload extends KeyPayload {
+  requestId: string;
+}
+
+export const rawValueRequested = withDeps<Deps, void>(
+  async ({ ws, clients, connectionId, action }) => {
+    const payload = action.payload as unknown as RawValuePayload
+    const connection = clients.get(connectionId)
+
+    if (connection) {
+      await getKeyRawValue(connection.client, ws, payload)
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.KEY_DECOMPRESSION.rawValueFailed,
+          payload: {
+            connectionId,
+            key: payload.key,
+            requestId: payload.requestId,
             error: "Invalid connection Id",
           },
         }),

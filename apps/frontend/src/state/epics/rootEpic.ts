@@ -21,6 +21,7 @@ import {
   clusterDataPollingEpic
 } from "./valkeyEpics"
 import { keyBrowserEpic } from "./keyBrowserEpic"
+import { keyDecompressionEpic } from "./keyDecompressionEpic"
 import type { Store } from "@reduxjs/toolkit"
 
 export const registerEpics = (store: Store) => {
@@ -40,6 +41,7 @@ export const registerEpics = (store: Store) => {
     getCommandLogsEpic(),
     updateConfigEpic(),
     keyBrowserEpic(),
+    keyDecompressionEpic(store),
     getCpuUsageEpic(),
     getMemoryUsageEpic(),
     monitorEpic(),

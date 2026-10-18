@@ -3,7 +3,8 @@ import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
-import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle, updateKey } from "../keys-browser"
+import { gzipSync } from "node:zlib"
+import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle, getKeyRawValue, updateKey } from "../keys-browser"
 
 // Test helper functions
 function createMockWs() {
@@ -97,6 +98,37 @@ describe("getKeyInfo", () => {
 
       assert.strictEqual(result.elements, "café résumé")
       assert.strictEqual(result.isBinary, undefined)
+    })
+
+    it("hints at the compression codec from the value's leading bytes", async () => {
+      const mockClient = createMockClient({ TYPE: "string", TTL: -1, MEMORY: 100, GET: gzipSync("hello") })
+
+      const result = await getKeyInfo(mockClient as any, "mykey")
+
+      assert.strictEqual(result.compressionHint, "gzip")
+      assert.strictEqual(result.isBinary, true)
+    })
+
+    it("leaves the hint out for values without a signature", async () => {
+      const mockClient = createMockClient({ TYPE: "string", TTL: -1, MEMORY: 100, GET: Buffer.from("xylophone") })
+
+      const result = await getKeyInfo(mockClient as any, "mykey")
+
+      assert.strictEqual("compressionHint" in result, false)
+    })
+
+    it("probes only the first bytes of a value over the display limit for the hint", async () => {
+      const mockClient = createMockClient({
+        TYPE: "string", TTL: -1, MEMORY: 1024 * 1024, GETRANGE: Buffer.from([0x28, 0xb5, 0x2f, 0xfd, 0x00]),
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mykey")
+
+      assert.strictEqual(result.compressionHint, "zstd")
+      assert.ok(result.elementsWarning)
+      const commands = mockClient.customCommand.mock.calls.map((call) => call.arguments[0])
+      assert.deepStrictEqual(commands.find((cmd) => cmd[0] === "GETRANGE"), ["GETRANGE", "mykey", "0", "15"])
+      assert.strictEqual(commands.some((cmd) => cmd[0] === "GET"), false)
     })
 
   })
@@ -880,5 +912,66 @@ describe("updateKey", () => {
       )
       assert.strictEqual(writes.length, 0)
     })
+  })
+})
+
+describe("getKeyRawValue", () => {
+  const payload = { connectionId: "conn-1", key: "mykey", requestId: "req-1" }
+
+  it("sends the exact bytes as base64 with the decompression limits", async () => {
+    const bytes = Buffer.from([0x1f, 0x8b, 0x08, 0x00, 0xff, 0x5c, 0x78])
+    const mockClient = createMockClient({ TYPE: "string", STRLEN: bytes.length, GET: bytes })
+    const { mockWs, messages } = createMockWs()
+
+    await getKeyRawValue(mockClient as any, mockWs as any, payload)
+
+    const message = getMessageOfType(messages, VALKEY.KEY_DECOMPRESSION.rawValueFulfilled)
+    assert.deepStrictEqual(Buffer.from(message.payload.base64, "base64"), bytes)
+    assert.strictEqual(message.payload.byteLength, bytes.length)
+    assert.strictEqual(message.payload.requestId, "req-1")
+    assert.strictEqual(message.payload.maxOutputBytes, 10 * 1024 * 1024)
+    assert.strictEqual(message.payload.previewMaxBytes, 1024 * 1024)
+    const getCall = mockClient.customCommand.mock.calls.find((call) => call.arguments[0][0] === "GET")
+    assert.notStrictEqual((getCall?.arguments as any)[1]?.decoder, undefined)
+  })
+
+  it("refuses values over the limit without fetching them", async () => {
+    const mockClient = createMockClient({ TYPE: "string", STRLEN: 500 * 1024 * 1024 })
+    const { mockWs, messages } = createMockWs()
+
+    await getKeyRawValue(mockClient as any, mockWs as any, payload)
+
+    const message = getMessageOfType(messages, VALKEY.KEY_DECOMPRESSION.rawValueFailed)
+    assert.match(message.payload.error, /500 MB.*16 MB limit/)
+    assert.strictEqual(mockClient.customCommand.mock.calls.some((call) => call.arguments[0][0] === "GET"), false)
+  })
+
+  it("refuses keys that aren't strings", async () => {
+    const mockClient = createMockClient({ TYPE: "hash" })
+    const { mockWs, messages } = createMockWs()
+
+    await getKeyRawValue(mockClient as any, mockWs as any, payload)
+
+    const message = getMessageOfType(messages, VALKEY.KEY_DECOMPRESSION.rawValueFailed)
+    assert.strictEqual(message.payload.error, "Only string values can be decompressed; this key is a hash.")
+  })
+
+  it("reports a key deleted before the read", async () => {
+    const mockClient = createMockClient({ TYPE: "none" })
+    const { mockWs, messages } = createMockWs()
+
+    await getKeyRawValue(mockClient as any, mockWs as any, payload)
+
+    assert.strictEqual(getMessageOfType(messages, VALKEY.KEY_DECOMPRESSION.rawValueFailed).payload.error, "The key no longer exists.")
+  })
+
+  it("reports connection errors and asks the client to reconnect", async () => {
+    const mockClient = { customCommand: mock.fn(async () => { throw new ConnectionError("down") }) }
+    const { mockWs, messages } = createMockWs()
+
+    await getKeyRawValue(mockClient as any, mockWs as any, payload)
+
+    assert.ok(getMessageOfType(messages, VALKEY.KEY_DECOMPRESSION.rawValueFailed))
+    assert.ok(getMessageOfType(messages, VALKEY.CONNECTION.connectRejected))
   })
 })

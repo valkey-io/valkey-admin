@@ -13,6 +13,9 @@ import KeyDetailsSet from "./key-details-set"
 import KeyDetailsZSet from "./key-details-zset"
 import KeyDetailsStream from "./key-details-stream"
 import KeyDetailsJson from "./key-details-json"
+import KeyDecompression from "./key-decompression"
+import { CompressionHintBadge } from "./compression-hint-badge"
+import type { CompressionCodec } from "@common/src/compression"
 import { useAppDispatch } from "@/hooks/hooks"
 import { deleteKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { CustomTooltip } from "@/components/ui/tooltip"
@@ -26,6 +29,7 @@ interface BaseKeyInfo {
   collectionSize?: number;
   elementsWarning?: string;
   isBinary?: boolean;
+  compressionHint?: CompressionCodec;
 }
 
 interface ElementInfo {
@@ -159,11 +163,26 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
             </div>
 
             {selectedKeyInfo.elementsWarning ? (
-              <Alert variant="warning">
-                <TriangleAlert className="w-4 h-4" />
-                <AlertDescription>{selectedKeyInfo.elementsWarning}
-                </AlertDescription>
-              </Alert>
+              <>
+                <Alert variant="warning">
+                  <TriangleAlert className="w-4 h-4" />
+                  <AlertDescription>{selectedKeyInfo.elementsWarning}
+                  </AlertDescription>
+                </Alert>
+                {selectedKeyInfo.type === "string" && (
+                  <div className="flex flex-col gap-2 pt-4">
+                    <div className="px-4">
+                      <CompressionHintBadge codec={selectedKeyInfo.compressionHint} />
+                    </div>
+                    <KeyDecompression
+                      actionLabel="Load and decompress"
+                      connectionId={connectionId}
+                      key={selectedKeyInfo.name}
+                      keyName={selectedKeyInfo.name}
+                    />
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 {/* show different key types */}

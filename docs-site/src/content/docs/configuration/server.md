@@ -268,6 +268,27 @@ Maximum value size (in bytes) the Key Browser will render. Keys larger than this
 - **Default:** `2048`
 - **Read in:** `apps/server/src/keys-browser.ts`
 
+### `KEY_RAW_VALUE_MAX_BYTES`
+
+Largest string value (in bytes) the server will send to the browser for [decompression](/features/key-browser/#decompressing-values). The server checks the length with `STRLEN` before reading the value, so a larger value is refused without being transferred.
+
+- **Default:** `16777216` (16 MiB)
+- **Read in:** `apps/server/src/keys-browser.ts`
+
+### `DECOMPRESS_MAX_OUTPUT_BYTES`
+
+Amount of output after which decompression stops and the result is marked as truncated. Each **Continue** decodes this much more. Decoding runs in the browser; the server only passes the limit along.
+
+- **Default:** `10485760` (10 MiB)
+- **Read in:** `apps/server/src/keys-browser.ts`
+
+### `DECOMPRESS_PREVIEW_MAX_BYTES`
+
+Largest part of a decompressed value the Key Browser renders. Output larger than this shows only its beginning, as plain text or a hex dump; JSON is pretty-printed only when the whole output fits.
+
+- **Default:** `1048576` (1 MiB)
+- **Read in:** `apps/server/src/keys-browser.ts`
+
 ## Electron Packaging
 
 This variable is set automatically when the server runs as part of the Electron desktop app. It tells the server where to find bundled assets that live outside the workspace `node_modules` layout. You generally do not need to touch it by hand.
