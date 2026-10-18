@@ -157,7 +157,7 @@ export function ClusterNodeRow({
     : "—"
   const isHostMemoryBasis = utilization?.memory_basis === "total_system_memory"
   const utilizationLevel = getNodeUtilizationLevel(utilization)
-  const isFlagged = role === "primary" && utilizationLevel === "high"
+  const isFlagged = utilizationLevel === "high"
 
   const memoryTooltip = hasLimit
     ? `${formatPercent(utilization?.memory_utilization_percent)} of configured maxmemory`
@@ -202,7 +202,7 @@ export function ClusterNodeRow({
         </div>
       </td>
       <td className="px-4 py-3 w-[10%] text-center">
-        {role === "primary" && utilizationLevel && (
+        {utilizationLevel && (
           <TooltipProvider>
             <CustomTooltip content={utilizationTooltip}>
               <Badge
@@ -216,31 +216,25 @@ export function ClusterNodeRow({
         )}
       </td>
       <td className="px-2 py-3 w-[10%]">
-        {role === "primary" && (
-          <Typography variant="bodyXs">
-            {memoryLabel}
-          </Typography>
-        )}
+        <Typography variant="bodyXs">
+          {memoryLabel}
+        </Typography>
       </td>
       <td className="px-4 py-3 w-[8%] text-center">
-        {role === "primary" && (
-          <Typography variant="bodyXs">
-            {formatPercent(utilization?.cpu_utilization_percent)}
-          </Typography>
-        )}
+        <Typography variant="bodyXs">
+          {formatPercent(utilization?.cpu_utilization_percent)}
+        </Typography>
       </td>
       <td className="px-4 py-3 w-[10%] text-center">
-        {role === "primary" && (
-          <Typography variant="bodyXs">
-            {nodeData?.instantaneous_ops_per_sec ? formatRate(Number(nodeData.instantaneous_ops_per_sec)) : "—"}
-          </Typography>
-        )}
+        <Typography variant="bodyXs">
+          {nodeData?.instantaneous_ops_per_sec ? formatRate(Number(nodeData.instantaneous_ops_per_sec)) : "—"}
+        </Typography>
       </td>
       <td className="px-4 py-3 w-[10%] text-center">
-        {role === "primary" && <Typography variant="bodyXs">{hitRatio}</Typography>}
+        <Typography variant="bodyXs">{hitRatio}</Typography>
       </td>
       <td className="px-4 py-3 w-[8%] text-center">
-        {role === "primary" && <Typography variant="bodyXs">{nodeData?.connected_clients ?? "—"}</Typography>}
+        <Typography variant="bodyXs">{nodeData?.connected_clients ?? "—"}</Typography>
       </td>
       <td className="px-4 py-3 w-[14%]">
         {role === "primary" && (

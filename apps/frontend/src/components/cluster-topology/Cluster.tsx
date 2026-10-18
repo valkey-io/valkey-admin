@@ -77,8 +77,7 @@ export function Cluster() {
     const matchesRole = roleFilter === "all" || row.role === roleFilter
 
     const level = getNodeUtilizationLevel(clusterData.utilization?.[row.dataKey])
-    const matchesUtilization = utilizationFilter === "all"
-      || (row.role === "primary" && level === utilizationFilter)
+    const matchesUtilization = utilizationFilter === "all" || level === utilizationFilter
 
     return matchesSearch && matchesRole && matchesUtilization
   })

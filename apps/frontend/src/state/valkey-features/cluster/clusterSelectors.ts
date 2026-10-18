@@ -97,8 +97,8 @@ export const aggregateClusterMetrics = (
     metrics.hits += Number(nodeData?.keyspace_hits) || 0
     metrics.misses += Number(nodeData?.keyspace_misses) || 0
 
-    // Badges render on primaries only, so replicas must not inflate the count.
-    if (row.role === "primary" && getNodeUtilizationLevel(nodeUtilization) === "high") {
+    // Count high utilization nodes across the cluster.
+    if (getNodeUtilizationLevel(nodeUtilization) === "high") {
       metrics.flaggedNodes += 1
     }
   }

@@ -19,7 +19,7 @@ At the top of the page, five summary cards display key cluster metrics:
 - **Cluster Memory**: Memory used across the cluster, out of the total memory limit
 - **Total Ops/Sec**: Operations per second across the cluster
 - **Cluster Hit Ratio**: Share of key lookups that found the key
-- **Nodes Flagged**: Number of primaries with **High** utilization
+- **Nodes Flagged**: Number of primaries and replicas with **High** utilization
 
 ## Node List
 
@@ -29,7 +29,7 @@ Nodes are displayed in a table. Each primary row is followed by rows for its rep
 
 ### Node Display
 
-Each node shows its **address** (e.g. `192.168.18.6:7001`) and a `PRIMARY` or `REPLICA` **role badge**. Primary rows also show:
+Each node shows its **address** (e.g. `192.168.18.6:7001`) and a `PRIMARY` or `REPLICA` **role badge**. Both primary and replica rows also show:
 
 - **Utilization**: `Low`, `Normal` or `High`, based on the higher of memory and CPU usage. Hover the badge for details. See [Utilization Levels](#utilization-levels).
 - **Memory**: Memory used out of the node's `maxmemory` limit (e.g. `70.81M / 100 MB`), or `∞` when no limit is set
