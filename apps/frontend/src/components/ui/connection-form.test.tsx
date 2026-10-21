@@ -53,4 +53,23 @@ describe("ConnectionForm", () => {
       connectionId: buildConnectionId("localhost", "6380", 0),
     })
   })
+
+  it("does not force-switch endpoint type to Discovery when host contains 'cfg'", async () => {
+    renderForm()
+
+    fireEvent.change(screen.getByLabelText("Host"), { target: { value: "clustercfg.example.com" } })
+    fireEvent.change(screen.getByLabelText("Database"), { target: { value: "7" } })
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }))
+
+    await screen.findByRole("button", { name: /Connect/ })
+
+    const pending = dispatched.find((a) => a.type.endsWith("connectPending"))
+    expect(pending?.payload).toMatchObject({
+      connectionId: buildConnectionId("clustercfg.example.com", "6379", 7),
+      connectionDetails: expect.objectContaining({
+        endpointType: "node",
+        db: 7,
+      }),
+    })
+  })
 })
