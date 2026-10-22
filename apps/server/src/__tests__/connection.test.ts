@@ -276,10 +276,12 @@ describe("connectToValkey", () => {
         connectToValkey(ctx(), mockWs, payload),
       ])
 
+      // The second connector reuses the first one's client, but only after a
+      // short-lived client proved its credentials (AUTH-gated reuse): 1 client + 1 probe.
       assert.strictEqual(
         (GlideClient.createClient as any).mock.calls.length,
-        1,
-        "expected exactly one standalone client creation",
+        2,
+        "expected one standalone client and one AUTH probe",
       )
       assert.strictEqual(a, standalone)
       assert.strictEqual(b, standalone)
@@ -745,6 +747,73 @@ describe("connectToValkey", () => {
         .find((m) => m.type === VALKEY.CONNECTION.standaloneConnectFulfilled)
       assert.ok(fulfilled)
       assert.strictEqual(fulfilled.payload.connectionDetails.databasesCount, 64)
+    })
+  })
+
+  describe("AUTH-gated reuse", () => {
+    const wrongPass = () => new Error("WRONGPASS: invalid username-password pair or user is disabled.")
+
+    it("authenticates the presented credentials before it reuses an existing client", async () => {
+      const existing = buildStandaloneMock()
+      const probe = buildStandaloneMock()
+      clients.set("conn-R", { client: existing })
+      authorizeConnection(testSessionId, "conn-R")
+
+      await withMockedClients(probe, null, async () => {
+        const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-R" })
+
+        const calls = (GlideClient.createClient as any).mock.calls
+        assert.strictEqual(calls.length, 1, "reuse must open exactly one probe client")
+        assert.deepStrictEqual(calls[0].arguments[0].credentials, {
+          username: DEFAULT_PAYLOAD.connectionDetails.username,
+          password: DEFAULT_PAYLOAD.connectionDetails.password,
+        })
+        assert.strictEqual(probe.close.mock.calls.length, 1, "the probe client must be closed")
+        assert.strictEqual(result, existing)
+        assert.strictEqual(clients.get("conn-R")?.client, existing)
+      })
+    })
+
+    it("rejects a wrong password and leaves the existing client open", async () => {
+      const existing = buildStandaloneMock()
+      clients.set("conn-R", { client: existing })
+      authorizeConnection(testSessionId, "conn-R")
+      const original = GlideClient.createClient
+      GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
+      try {
+        const result = await connectToValkey(ctx(), mockWs, {
+          ...DEFAULT_PAYLOAD,
+          connectionId: "conn-R",
+          connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, password: "wrong" },
+        })
+        assert.strictEqual(result, undefined)
+        const sent = messages.map((m) => JSON.parse(m))
+        assert.strictEqual(sent.at(-1).type, VALKEY.CONNECTION.connectRejected)
+        assert.strictEqual(existing.close.mock.calls.length, 0, "the existing client must stay open")
+        assert.strictEqual(clients.get("conn-R")?.client, existing)
+      } finally {
+        GlideClient.createClient = original
+      }
+    })
+
+    it("does not close the existing client when a retry fails to authenticate", async () => {
+      const existing = buildStandaloneMock()
+      clients.set("conn-R", { client: existing })
+      authorizeConnection(testSessionId, "conn-R")
+      const original = GlideClient.createClient
+      GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
+      try {
+        await connectToValkey(ctx(), mockWs, {
+          ...DEFAULT_PAYLOAD,
+          connectionId: "conn-R",
+          connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, password: "wrong" },
+          isRetry: true,
+        })
+        assert.strictEqual(existing.close.mock.calls.length, 0, "a failed retry must not close the client")
+        assert.strictEqual(clients.get("conn-R")?.client, existing)
+      } finally {
+        GlideClient.createClient = original
+      }
     })
   })
 
