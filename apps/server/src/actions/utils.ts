@@ -1,6 +1,8 @@
 import { type GlideClient, type GlideClusterClient } from "@valkey/valkey-glide"
 import { FETCH_TIMEOUT_MS } from "valkey-common"
 import { ClusterNodeMap, MetricsServerMap } from "../metrics-orchestrator"
+import type { OwnerState } from "../owner"
+import type { SocketBinding } from "../socket-binding"
 import type WebSocket from "ws"
 
 export type Deps = {
@@ -10,7 +12,11 @@ export type Deps = {
   metricsServerMap: MetricsServerMap,
   connectedNodesByCluster: Map<string, string[]>,
   clusterNodesRegistry: Map<string, ClusterNodeMap>,
-  sessionId?: string,
+  /** Owner identity the action runs as. The maps above are this owner's. */
+  ownerKey: string,
+  ownerState: OwnerState,
+  /** What the requesting socket may act on. */
+  binding: SocketBinding,
 }
 
 export type ReduxAction = {

@@ -3,6 +3,8 @@ import assert from "node:assert/strict"
 import { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
 import { sendRequested } from "../actions/command"
+import { createOwnerState } from "../owner"
+import { createSocketBinding } from "../socket-binding"
 import type { Deps } from "../actions/utils"
 import type WebSocket from "ws"
 
@@ -22,6 +24,9 @@ describe("Send Command connection-state restrictions", () => {
           metricsServerMap: new Map(),
           connectedNodesByCluster: new Map(),
           clusterNodesRegistry: new Map(),
+          ownerKey: "password~default",
+          ownerState: createOwnerState("password~default"),
+          binding: createSocketBinding(),
         }
         await sendRequested(deps)({
           type: VALKEY.COMMAND.sendRequested,

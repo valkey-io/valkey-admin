@@ -19,8 +19,6 @@ import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
 import { _reset as resetNodeWatchers } from "../node-watchers"
-import { ensureSession, authorizeConnection, _resetSessions } from "../session"
-import type { IncomingMessage } from "http"
 
 const DEFAULT_PAYLOAD = {
   connectionDetails: {
@@ -34,7 +32,6 @@ const DEFAULT_PAYLOAD = {
     db: 0,
   } as ConnectionDetails,
   connectionId: "",
-  sessionId: "test-session",
 }
 
 const SLOTS_RESPONSE = [
@@ -114,6 +111,9 @@ const buildClusterMock = (overrides: { delayMs?: number, clusterDatabases?: stri
   }
 }
 
+// Configs of AUTH probe clients opened inside `withMockedClients`.
+const authProbeCalls: any[] = []
+
 async function withMockedClients<T>(
   standalone: unknown | (() => unknown),
   cluster: unknown | null,
@@ -124,19 +124,32 @@ async function withMockedClients<T>(
   const originalCreateClusterClient = GlideClusterClient.createClient
 
   const standaloneFactory = typeof standalone === "function"
-    ? standalone as () => unknown
+    ? standalone as (config?: unknown) => unknown
     : () => standalone
 
-  GlideClient.createClient = mock.fn(async () => {
+  // Every connect first opens a short-lived AUTH probe client
+  // (`valkey_admin_auth_probe`). Probe calls are answered by a separate mock and
+  // recorded in `authProbeCalls`, so `GlideClient.createClient` counts only the
+  // working clients, as before the probe existed.
+  const realCreate = mock.fn(async (config?: unknown) => {
     if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
-    return standaloneFactory() as any
+    return standaloneFactory(config) as any
   })
+  const dispatch = async (config: any) => {
+    if (config?.clientName === "valkey_admin_auth_probe") {
+      authProbeCalls.push(config)
+      return { close: mock.fn() } as any
+    }
+    return realCreate(config)
+  }
+  GlideClient.createClient = Object.assign(dispatch, { mock: realCreate.mock }) as any
   if (cluster !== null) {
     GlideClusterClient.createClient = mock.fn(async () => {
       if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
       return cluster as any
     })
   }
+  authProbeCalls.length = 0
   try {
     return await fn()
   } finally {
@@ -151,7 +164,6 @@ describe("connectToValkey", () => {
   let clients: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
   let metricsServerMap: MetricsServerMap
-  let testSessionId: string
   beforeEach(() => {
     messages = []
     mockWs = {
@@ -160,11 +172,6 @@ describe("connectToValkey", () => {
     clients = new Map()
     connectedNodesByCluster = new Map()
     metricsServerMap = new Map()
-    // Seed a real session and point the default payload at it so that reuse tests,
-    // which now require the session to own the reused connection, can authorize it.
-    _resetSessions()
-    testSessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
-    DEFAULT_PAYLOAD.sessionId = testSessionId
     // metricsServerMap is keyed by metrics-node-id; the empty Connection_Identifier
     // strips to the empty string, which matches the empty connectionId used by
     // the default payload in these tests.
@@ -267,22 +274,18 @@ describe("connectToValkey", () => {
 
     await withMockedClients(standalone, null, async () => {
       const payload = { ...DEFAULT_PAYLOAD, connectionId: "conn-shared" }
-      // The session owns the connection it is (re)connecting to; the handler authorizes
-      // it on connect. Simulate that here so the concurrent duplicate reuses rather than
-      // creating a second client.
-      authorizeConnection(testSessionId, "conn-shared")
       const [a, b] = await Promise.all([
         connectToValkey(ctx(), mockWs, payload),
         connectToValkey(ctx(), mockWs, payload),
       ])
 
-      // The second connector reuses the first one's client, but only after a
-      // short-lived client proved its credentials (AUTH-gated reuse): 1 client + 1 probe.
       assert.strictEqual(
         (GlideClient.createClient as any).mock.calls.length,
-        2,
-        "expected one standalone client and one AUTH probe",
+        1,
+        "expected exactly one standalone client creation",
       )
+      // Both connectors proved their credentials (AUTH-gated reuse).
+      assert.strictEqual(authProbeCalls.length, 2)
       assert.strictEqual(a, standalone)
       assert.strictEqual(b, standalone)
       assert.strictEqual(clients.get("conn-shared")?.client, standalone)
@@ -298,10 +301,6 @@ describe("connectToValkey", () => {
       const first = await connectToValkey(ctx(), mockWs, payload)
       assert.strictEqual(first, cluster)
       assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 1)
-
-      // The handler authorizes the connection after a successful connect; simulate that
-      // here (this test bypasses the handler) so the session owns the connection it reuses.
-      authorizeConnection(testSessionId, "conn-Z")
 
       messages.length = 0
 
@@ -517,7 +516,6 @@ describe("connectToValkey", () => {
   it("should use correct client configuration", async () => {
     const standalone = buildStandaloneMock()
     const altPayload = {
-      sessionId: "test-session",
       connectionDetails: {
         host: "192.168.1.1",
         port: "7000",
@@ -636,7 +634,6 @@ describe("connectToValkey", () => {
 
       await withMockedClients(newStandalone, newCluster, async () => {
         await connectToValkey(ctx(), mockWs, {
-          sessionId: "test-session",
           connectionId,
           connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, ...tc.overrides },
           isRetry: true,
@@ -659,7 +656,6 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: undefined }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 15)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 15 },
       })
@@ -687,7 +683,6 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: undefined }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 16)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 16 },
       })
@@ -715,7 +710,6 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ databases: "32" }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 31)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 31 },
       })
@@ -751,24 +745,41 @@ describe("connectToValkey", () => {
   })
 
   describe("AUTH-gated reuse", () => {
+    it("gives two owners on one connectionId two clients and keeps both", async () => {
+      const aliceClient = buildStandaloneMock()
+      const bobClient = buildStandaloneMock()
+      const clientsFor = [aliceClient, bobClient]
+      const alice = { ...ctx(), clients: new Map() }
+      const bob = { ...ctx(), clients: new Map() }
+      await withMockedClients(() => clientsFor.shift(), null, async () => {
+        await connectToValkey(alice, mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-O" })
+        await connectToValkey(bob, mockWs, {
+          ...DEFAULT_PAYLOAD,
+          connectionId: "conn-O",
+          connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, username: "bob", password: "bobpw" },
+        })
+      })
+      assert.strictEqual(alice.clients.get("conn-O")?.client, aliceClient)
+      assert.strictEqual(bob.clients.get("conn-O")?.client, bobClient)
+      assert.strictEqual(aliceClient.close.mock.calls.length, 0)
+      assert.strictEqual(bobClient.close.mock.calls.length, 0)
+    })
     const wrongPass = () => new Error("WRONGPASS: invalid username-password pair or user is disabled.")
 
     it("authenticates the presented credentials before it reuses an existing client", async () => {
       const existing = buildStandaloneMock()
       const probe = buildStandaloneMock()
       clients.set("conn-R", { client: existing })
-      authorizeConnection(testSessionId, "conn-R")
 
       await withMockedClients(probe, null, async () => {
         const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-R" })
 
-        const calls = (GlideClient.createClient as any).mock.calls
-        assert.strictEqual(calls.length, 1, "reuse must open exactly one probe client")
-        assert.deepStrictEqual(calls[0].arguments[0].credentials, {
+        assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0, "reuse opens no working client")
+        assert.strictEqual(authProbeCalls.length, 1, "reuse must open exactly one probe client")
+        assert.deepStrictEqual(authProbeCalls[0].credentials, {
           username: DEFAULT_PAYLOAD.connectionDetails.username,
           password: DEFAULT_PAYLOAD.connectionDetails.password,
         })
-        assert.strictEqual(probe.close.mock.calls.length, 1, "the probe client must be closed")
         assert.strictEqual(result, existing)
         assert.strictEqual(clients.get("conn-R")?.client, existing)
       })
@@ -777,7 +788,6 @@ describe("connectToValkey", () => {
     it("rejects a wrong password and leaves the existing client open", async () => {
       const existing = buildStandaloneMock()
       clients.set("conn-R", { client: existing })
-      authorizeConnection(testSessionId, "conn-R")
       const original = GlideClient.createClient
       GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
       try {
@@ -799,7 +809,6 @@ describe("connectToValkey", () => {
     it("does not close the existing client when a retry fails to authenticate", async () => {
       const existing = buildStandaloneMock()
       clients.set("conn-R", { client: existing })
-      authorizeConnection(testSessionId, "conn-R")
       const original = GlideClient.createClient
       GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
       try {
@@ -821,7 +830,6 @@ describe("connectToValkey", () => {
     await withMockedClients(buildStandaloneMock({ configGetError: true }), null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 20)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 20 },
       })
@@ -859,7 +867,6 @@ describe("connectToValkey", () => {
     await withMockedClients(standaloneFactory, null, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 5)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 5 },
       })
@@ -888,7 +895,6 @@ describe("connectToValkey", () => {
     await withMockedClients(standalone, cluster, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 8)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 8 },
       })
@@ -921,7 +927,6 @@ describe("connectToValkey", () => {
     await withMockedClients(standalone, cluster, async () => {
       const connectionId = buildConnectionId("127.0.0.1", "6379", 2)
       await connectToValkey(ctx(), mockWs, {
-        sessionId: "test-session",
         connectionId,
         connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 2 },
       })
@@ -981,7 +986,6 @@ describe("connectToValkey", () => {
       await withMockedClients(standalone, cluster, async () => {
         const connectionId = buildConnectionId("127.0.0.1", "6379", 1)
         await connectToValkey(ctx(), mockWs, {
-          sessionId: "test-session",
           connectionId,
           connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, db: 1 },
         })
@@ -1058,11 +1062,8 @@ describe("resolveHostnameOrIpAddress", () => {
 })
 
 describe("getExistingConnection", () => {
-  let unitSessionId: string
   beforeEach(() => {
     mock.restoreAll()
-    _resetSessions()
-    unitSessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
   })
 
   it("returns the existing connection when host:port resolves to one already in clients", async () => {
@@ -1073,12 +1074,9 @@ describe("getExistingConnection", () => {
     const existingClient = {} as any
     const clients = new Map()
     clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: existingClient })
-    // Session must own the matched id for reuse to be returned.
-    authorizeConnection(unitSessionId, buildConnectionId("10.0.0.1", "6379", 0))
 
     const result = await getExistingConnection(
       {
-        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -1100,7 +1098,6 @@ describe("getExistingConnection", () => {
 
     const result = await getExistingConnection(
       {
-        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -1122,7 +1119,6 @@ describe("getExistingConnection", () => {
 
     const result = await getExistingConnection(
       {
-        sessionId: unitSessionId,
         connectionId: "abc123",
         isRetry: true,
         connectionDetails: {
@@ -1143,12 +1139,9 @@ describe("getExistingConnection", () => {
     const directClient = {} as any
     const clients = new Map()
     clients.set("abc123", { client: directClient })
-    // Session must own the matched id for reuse to be returned.
-    authorizeConnection(unitSessionId, "abc123")
 
     const result = await getExistingConnection(
       {
-        sessionId: unitSessionId,
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
@@ -1161,33 +1154,28 @@ describe("getExistingConnection", () => {
     assert.strictEqual(result.client, directClient)
   })
 
-  it("does NOT return another session's client when this session is not authorized", async () => {
-    // Credential-blind reuse regression: a different session must not inherit a client
-    // it never authenticated. The match exists but this session does not own it.
+  it("never sees another owner's client, because each owner has its own map", async () => {
+    // Owner scoping replaces the old session check: a connect looks up only the
+    // clients of the identity it authenticates as.
     mock.method(dns, "lookup", async () => [
       { address: "10.0.0.1", family: 4 },
     ])
 
-    const victimClient = {} as any
-    const clients = new Map()
-    const matchedId = buildConnectionId("10.0.0.1", "6379", 0)
-    clients.set(matchedId, { client: victimClient })
-    // Authorize the id for a DIFFERENT session (the victim), not ours.
-    const victimSession = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
-    authorizeConnection(victimSession, matchedId)
+    const otherOwnerClients = new Map()
+    otherOwnerClients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
+    const ownClients = new Map()
 
     const result = await getExistingConnection(
       {
-        sessionId: unitSessionId, // our session — never authorized for matchedId
         connectionId: "abc123",
         connectionDetails: {
           host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
         } as any,
       },
-      clients,
+      ownClients,
     )
 
-    assert.strictEqual(result, undefined, "must not hand back a client this session does not own")
+    assert.strictEqual(result, undefined)
   })
 })
 
@@ -1278,7 +1266,7 @@ describe("closeMetricsServer", () => {
     metricsServerMap.set(expectedNodeId, { metricsURI: "http://localhost:9999", pid: 123, lastSeen: Date.now() })
     const clients: Map<string, any> = new Map()
 
-    await closeMetricsServer(connectionId, metricsServerMap, clients)
+    await closeMetricsServer(connectionId, { metricsServerMap, clients, collectorKeys: new Map() })
 
     const parsed = JSON.parse(capturedBody!)
     assert.strictEqual(parsed.connectionId, expectedNodeId,
@@ -1300,7 +1288,7 @@ describe("closeMetricsServer", () => {
     const clients: Map<string, any> = new Map()
     clients.set("127-0-0-1-7000-db1", { client: {} })
 
-    await closeMetricsServer(connectionId, metricsServerMap, clients)
+    await closeMetricsServer(connectionId, { metricsServerMap, clients, collectorKeys: new Map() })
 
     assert.strictEqual((globalThis.fetch as any).mock.calls.length, 0,
       "should not call close when other connections still reference the node")

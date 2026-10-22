@@ -48,7 +48,8 @@ const CPU_SECTION = "CPU"
 
 const cpuSamples: Map<string, CpuSample> = new Map()
 
-// Drop retained samples so a reconnecting node re-baselines.
+// Drop retained samples so a reconnecting node re-baselines. Keys are
+// `<scope>|<nodeId>` when the caller scoped them by owner identity.
 export const clearCpuSamples = (nodeId?: string): void => {
   if (nodeId === undefined) cpuSamples.clear()
   else cpuSamples.delete(nodeId)
@@ -175,10 +176,14 @@ export const computeNodeUtilization = (
   nodeId: string,
   sections: InfoSections,
   now: number = Date.now(),
+  scope?: string,
 ): NodeUtilization => {
+  // Baselines are kept per owner identity, so two users polling the same node
+  // never share CPU samples.
+  const sampleKey = scope === undefined ? nodeId : `${scope}|${nodeId}`
   const memory = calculateMemoryUtilization(sections[MEMORY_SECTION] ?? {})
   const nextSample = readCpuSample(sections[CPU_SECTION] ?? {}, now)
-  const previousSample = cpuSamples.get(nodeId) ?? null
+  const previousSample = cpuSamples.get(sampleKey) ?? null
 
   const cpu =
     nextSample === null
@@ -191,7 +196,7 @@ export const computeNodeUtilization = (
     nextSample !== null &&
     nextSample.ts - previousSample.ts < MIN_CPU_SAMPLE_MS
 
-  if (nextSample !== null && !isTooSoon) cpuSamples.set(nodeId, nextSample)
+  if (nextSample !== null && !isTooSoon) cpuSamples.set(sampleKey, nextSample)
 
   return {
     nodeId,
@@ -209,8 +214,9 @@ export const computeNodeUtilization = (
 export const computeClusterUtilization = (
   clusterInfo: ParsedClusterInfo,
   now: number = Date.now(),
+  scope?: string,
 ): Record<string, NodeUtilization> =>
   R.mapObjIndexed(
-    (sections, nodeId) => computeNodeUtilization(nodeId, sections, now),
+    (sections, nodeId) => computeNodeUtilization(nodeId, sections, now, scope),
     clusterInfo,
   )

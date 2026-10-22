@@ -9,10 +9,10 @@ import { discoverCluster } from "./connection"
 import { type ConnectionDetails } from "./actions/connection"
 import {
   isWebMode,
-  metricsServerMap,
   reconcileClusterMetricsServers,
   type ClusterNodeMap
 } from "./metrics-orchestrator"
+import type { OwnerState } from "./owner"
 
 type DashboardInfo = {
   info: Record<string, string>
@@ -84,9 +84,10 @@ export async function setDashboardData(
 // Never let utilization math break the dashboard payload.
 const safeComputeClusterUtilization = (
   clusterInfo: ParsedClusterInfo,
+  scope: string,
 ): Record<string, NodeUtilization> => {
   try {
-    return computeClusterUtilization(clusterInfo)
+    return computeClusterUtilization(clusterInfo, Date.now(), scope)
   } catch (error) {
     console.error("Unable to compute cluster utilization:", error)
     return {}
@@ -116,8 +117,9 @@ type ClusterNodesRefresh = {
 const refreshClusterNodes = async (
   clusterId: string,
   client: GlideClusterClient,
-  clusterNodesRegistry: Map<string, ClusterNodeMap>,
+  state: OwnerState,
 ): Promise<ClusterNodesRefresh> => {
+  const { clusterNodesRegistry } = state
   const current = clusterNodesRegistry.get(clusterId)
   const template = current && Object.values(current)[0]
   if (!template) return { clusterNodes: undefined, topologyError: "No stored topology for this cluster" }
@@ -129,7 +131,7 @@ const refreshClusterNodes = async (
     if (!R.equals<ClusterNodeMap | undefined>(discoveredClusterNodes, current)) {
       clusterNodesRegistry.set(clusterId, discoveredClusterNodes)
       if (isWebMode) {
-        reconcileClusterMetricsServers(metricsServerMap).catch((err) =>
+        reconcileClusterMetricsServers(state).catch((err) =>
           console.error(`Metrics server reconcile failed for cluster ${clusterId}:`, err),
         )
       }
@@ -149,12 +151,12 @@ export async function setClusterDashboardData(
   client: GlideClusterClient,
   ws: WebSocket,
   connectionId: string,
-  clusterNodesRegistry: Map<string, ClusterNodeMap>,
+  state: OwnerState,
 ) {
   try {
     const [rawInfo, { clusterNodes, topologyError }] = await Promise.all([
       client.info(),
-      refreshClusterNodes(clusterId, client, clusterNodesRegistry),
+      refreshClusterNodes(clusterId, client, state),
     ])
     const clusterInfo = parseClusterInfo(rawInfo)
 
@@ -164,7 +166,7 @@ export async function setClusterDashboardData(
         payload: {
           clusterId,
           info: clusterInfo,
-          utilization: safeComputeClusterUtilization(clusterInfo),
+          utilization: safeComputeClusterUtilization(clusterInfo, state.ownerKey),
           clusterNodes,
           topologyError,
         },

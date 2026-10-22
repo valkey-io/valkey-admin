@@ -5,9 +5,6 @@ import path from "path"
 import http from "http"
 import {
   VALKEY,
-  CONNECTION_TEARDOWN_DELAY_MS,
-  isNodeId,
-  toNodeId,
   ORCHESTRATOR_RATE_LIMIT_MAX_ENV,
   resolveOrchestratorRateLimitMax
 } from "valkey-common"
@@ -32,17 +29,13 @@ import { updateConfig, enableClusterSlotStats, abortConfigSessionsForSocket } fr
 import { cpuUsageRequested } from "./actions/cpuUsage"
 import { memoryUsageRequested } from "./actions/memoryUsage"
 import { monitorRequested } from "./actions/monitorAction"
-import { unsubscribeAll, getWatcherCount } from "./node-watchers"
-import { teardownConnection } from "./connection"
+import { unsubscribeAll } from "./node-watchers"
 import { Handler, ReduxAction, safeSend, unknownHandler, type WsActionMessage } from "./actions/utils"
 import {
   createMetricsOrchestratorRouter,
   startPreconfiguredMetricsServers,
-  metricsServerMap,
-  clusterNodesRegistry,
   initialConnectionDetails,
   cleanupOrchestratorResources,
-  clients,
   isKubernetes,
   preConfiguredConnection,
   getInitialClient,
@@ -51,16 +44,20 @@ import {
   setPreconfiguredClusterId
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
-import { ensureSession, hasAuthorizedSession, isConnectionAuthorized, setSessionExpiryListener } from "./session"
+import { allOwnerStates, getOwnerState } from "./owner"
+import {
+  connectedNodesFor,
+  createSocketBinding,
+  resolveAction,
+  scheduleRelease,
+  type SocketBinding
+} from "./socket-binding"
 import type { Request, Response } from "express"
-import type { IncomingMessage } from "http"
 
 interface AliveWebSocket extends WebSocket {
   isAlive: boolean
-  sessionId?: string
+  binding: SocketBinding
 }
-
-type SessionRequest = IncomingMessage & { sessionSetCookie?: string }
 
 interface MetricsServerMessage {
   type: string
@@ -150,53 +147,58 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 const TOPOLOGY_REDISCOVERY_TIMEOUT_MS = 10_000
 
 async function refreshAllClusterRegistries() {
-  // Group live connections by cluster once; used both to pick a client to
-  // re-discover each cluster's topology and to target the broadcast below.
-  const connectionIdsByCluster = new Map<string, string[]>()
-  for (const [connectionId, entry] of clients) {
-    if (!entry.clusterId) continue
-    const ids = connectionIdsByCluster.get(entry.clusterId) ?? []
-    ids.push(connectionId)
-    connectionIdsByCluster.set(entry.clusterId, ids)
-  }
-
-  // Re-discover each tracked cluster before broadcasting. User-connected clusters
-  // use their own client + node metadata; a preconfigured cluster (K8s / headless
-  // Web) has no entry in `clients`, so it falls back to the initial client so
-  // scaled-in nodes are picked up without a UI session. Time-bounded so one hung
-  // node can't stall the whole loop.
-  await Promise.all(
-    [...clusterNodesRegistry.entries()].map(async ([clusterId, clusterNodes]) => {
-      const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
-      const userClient = connectionId ? clients.get(connectionId)?.client : undefined
-
-      const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient)
-      if (!target) return
-
-      await Promise.race([
-        updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId),
-        delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
-          console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
-        ),
-      ])
-    }),
-  )
-
-  for (const [clusterId, clusterNodes] of clusterNodesRegistry) {
-    const connectionIds = connectionIdsByCluster.get(clusterId)
-    if (!connectionIds) continue
-  
-    const message = JSON.stringify({
-      type: VALKEY.CLUSTER.updateClusterInfo,
-      payload: { clusterId, clusterNodes },
-    })
-  
-    for (const ws of wss.clients) {
-      const { sessionId } = ws as AliveWebSocket
-      if (!connectionIds.some((id) => isConnectionAuthorized(sessionId, id))) continue
-      safeSend(ws, message)
+  // Each owner identity has its own clients and topology, so refresh and
+  // broadcast per owner. A socket receives a cluster's update only when it
+  // bound one of that owner's connections to the cluster.
+  await Promise.all(allOwnerStates().map(async (state) => {
+    // Group live connections by cluster once; used both to pick a client to
+    // re-discover each cluster's topology and to target the broadcast below.
+    const connectionIdsByCluster = new Map<string, string[]>()
+    for (const [connectionId, entry] of state.clients) {
+      if (!entry.clusterId) continue
+      const ids = connectionIdsByCluster.get(entry.clusterId) ?? []
+      ids.push(connectionId)
+      connectionIdsByCluster.set(entry.clusterId, ids)
     }
-  }
+
+    // Re-discover each tracked cluster before broadcasting. User-connected clusters
+    // use their own client + node metadata; a preconfigured cluster (K8s / headless
+    // Web) has no entry in `clients`, so it falls back to the initial client so
+    // scaled-in nodes are picked up without a UI session. Time-bounded so one hung
+    // node can't stall the whole loop.
+    await Promise.all(
+      [...state.clusterNodesRegistry.entries()].map(async ([clusterId, clusterNodes]) => {
+        const connectionId = connectionIdsByCluster.get(clusterId)?.[0]
+        const userClient = connectionId ? state.clients.get(connectionId)?.client : undefined
+
+        const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient, state.clusterNodesRegistry)
+        if (!target) return
+
+        await Promise.race([
+          updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId, state.clusterNodesRegistry),
+          delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
+            console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
+          ),
+        ])
+      }),
+    )
+
+    for (const [clusterId, clusterNodes] of state.clusterNodesRegistry) {
+      const connectionIds = connectionIdsByCluster.get(clusterId)
+      if (!connectionIds) continue
+
+      const message = JSON.stringify({
+        type: VALKEY.CLUSTER.updateClusterInfo,
+        payload: { clusterId, clusterNodes },
+      })
+
+      for (const ws of wss.clients) {
+        const { binding } = ws as AliveWebSocket
+        if (!connectionIds.some((id) => binding?.connections.get(id) === state.ownerKey)) continue
+        safeSend(ws, message)
+      }
+    }
+  }))
 }
 
 async function refreshAllClusterRegistriesLoop() {
@@ -246,34 +248,14 @@ const interval = setInterval(() => {
   })
 }, 30000)
 
-wss.on("headers", (headers, req: SessionRequest) => {
-  if (req.sessionSetCookie) headers.push(`Set-Cookie: ${req.sessionSetCookie}`)
-})
-
-// when a session expires, check if any of its connections are still authorized by other sessions, and if not, tear them down
-setSessionExpiryListener((connectionIds) => {
-  for (const connectionId of connectionIds) {
-    if (getWatcherCount(connectionId) === 0) {
-      teardownConnection(
-        { clients, clusterNodesRegistry, metricsServerMap },
-        connectionId,
-      )
-    }
-  }
-})
-
-server.on("upgrade", (req: SessionRequest, socket, head) => {
+server.on("upgrade", (req, socket, head) => {
   if (!isAllowedWebSocketOrigin(req)) {
     socket.write("HTTP/1.1 403 Forbidden\r\n\r\n")
     socket.destroy()
     return
   }
 
-  const { sessionId, setCookie } = ensureSession(req)
-  req.sessionSetCookie = setCookie
-
   wss.handleUpgrade(req, socket, head, (ws) => {
-    ;(ws as AliveWebSocket).sessionId = sessionId
     wss.emit("connection", ws, req)
   })
 })
@@ -282,8 +264,9 @@ wss.on("connection", (ws: AliveWebSocket) => {
   console.log("Client connected.")
   ws.isAlive = true
   ws.on("pong", () => {ws.isAlive = true})
-  // This is a simplified cluster node map that stores clusterIds and their corresponding nodeIds
-  const connectedNodesByCluster: Map<string, string[]> = new Map()
+  // The Valkey connections this socket opened, each with the owner identity it
+  // authenticated as. It also holds the per-owner cluster bookkeeping.
+  ws.binding = createSocketBinding()
 
   const handlers: Record<string, Handler> = {
     [VALKEY.CONNECTION.connectPending]: connectPending,
@@ -349,53 +332,25 @@ wss.on("connection", (ws: AliveWebSocket) => {
     try {
       const handler = handlers[action.type] ?? unknownHandler
 
-      // Enforce session ownership: reject actions targeting a connection this session doesn't own.
-      // Connection-establishing actions are exempt (authorization happens after successful connect).
-      const exempt = action.type === VALKEY.CONNECTION.connectPending
-        || action.type === VALKEY.TOPOLOGY.discoveryEndpointPending
-
-      if (!exempt) {
-        const targetClusterId = action.payload?.clusterId
-
-        if (connectionId && !isConnectionAuthorized(ws.sessionId, connectionId)) {
-          console.warn(`Rejected: session does not own connection ${connectionId}`)
-          return
-        }
-
-        // clusterId only legitimate if it's the cluster of the connection the session proved it owns
-        if (targetClusterId) {
-          if (!connectionId) {
-            console.warn(`Rejected: session does not have connectionId for clusterId ${targetClusterId}`)
-            return
-          }
-
-          let connectionIdClient = clients.get(connectionId)
-          if (!connectionIdClient?.clusterId && isNodeId(connectionId)) { // connectionId is a nodeId (which is not stored in clients)
-            for (const id of clients.keys()) {
-              if (toNodeId(id) !== connectionId) continue
-              const entry = clients.get(id)
-              if (entry?.clusterId) {
-                connectionIdClient = entry
-                break
-              }
-            }
-          }
-  
-          if (connectionIdClient?.clusterId !== targetClusterId) {
-            console.warn(`Rejected: connection ${connectionId} is not part of cluster ${targetClusterId}`)
-            return
-          }
-        }
+      // A socket may act only on connections it opened with credentials that
+      // Valkey accepted. Connects resolve to the owner named by their details.
+      const resolved = resolveAction(ws.binding, action)
+      if (!resolved.ok) {
+        console.warn(`Rejected ${action.type}: ${resolved.reason}`)
+        return
       }
-      
+      const { ownerKey, state } = resolved
+
       await handler(
         { ws,
-          clients,
+          clients: state.clients,
           connectionId: connectionId!,
-          metricsServerMap,
-          connectedNodesByCluster,
-          clusterNodesRegistry,
-          sessionId: ws.sessionId })(action as ReduxAction)
+          metricsServerMap: state.metricsServerMap,
+          connectedNodesByCluster: connectedNodesFor(ws.binding, ownerKey),
+          clusterNodesRegistry: state.clusterNodesRegistry,
+          ownerKey,
+          ownerState: state,
+          binding: ws.binding })(action as ReduxAction)
     } catch (error) {
       console.error(`Error handling action ${action.type}:`, error)
     }
@@ -405,29 +360,15 @@ wss.on("connection", (ws: AliveWebSocket) => {
   })
   ws.on("close", (code, reason) => {
     abortConfigSessionsForSocket(ws)
-    const removedIds = unsubscribeAll(ws)
+    unsubscribeAll(ws)
     console.log("Client disconnected. Reason:", code, reason.toString())
 
-    const scheduled = new Set(removedIds)
-    for (const connectionId of removedIds) {
-      setTimeout(() => {
-        if (getWatcherCount(connectionId) === 0 && !hasAuthorizedSession(connectionId)) {
-          teardownConnection(
-            { clients, clusterNodesRegistry, metricsServerMap },
-            connectionId,
-          )
-        }
-      }, CONNECTION_TEARDOWN_DELAY_MS)
+    // Release every connection this socket bound. Each one is torn down after
+    // the teardown delay unless another socket of the same owner watches it.
+    for (const [connectionId, ownerKey] of ws.binding.connections) {
+      scheduleRelease(getOwnerState(ownerKey), connectionId)
     }
-
-    for (const [id] of clients) {
-      if (!scheduled.has(id) && getWatcherCount(id) === 0 && !hasAuthorizedSession(id)) {
-        teardownConnection(
-          { clients, clusterNodesRegistry, metricsServerMap },
-          id,
-        )
-      }
-    }
+    ws.binding = createSocketBinding()
   })
 })
 
@@ -462,12 +403,14 @@ function shutdown() {
     }
   })
 
-  // Step 3: Close all Valkey clients (releases connections on the Valkey side)
-  for (const [, { client }] of clients) {
-    try {
-      client.close()
-    } catch (err) {
-      console.error("Error closing Valkey client:", err)
+  // Step 3: Close every owner's Valkey clients (releases connections on the Valkey side)
+  for (const state of allOwnerStates()) {
+    for (const [, { client }] of state.clients) {
+      try {
+        client.close()
+      } catch (err) {
+        console.error("Error closing Valkey client:", err)
+      }
     }
   }
 }

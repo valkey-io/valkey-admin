@@ -24,13 +24,42 @@ services:
   valkey-standalone:
     image: valkey/valkey:latest
     platform: ${DOCKER_PLATFORM:-linux/amd64}
-    command: >
-      valkey-server
-      --port 6379
-      --bind 0.0.0.0
-      --appendonly no
-      --protected-mode no
-      --ignore-warnings ARM64-COW-BUG
+    # Exec form passes each ACL rule as its own argument, unchanged.
+    command:
+      - valkey-server
+      - --port
+      - "6379"
+      - --bind
+      - 0.0.0.0
+      - --appendonly
+      - "no"
+      - --protected-mode
+      - "no"
+      - --ignore-warnings
+      - ARM64-COW-BUG
+      - --user
+      - "default"
+      - "on"
+      - "nopass"
+      - "~*"
+      - "&*"
+      - "+@all"
+      - --user
+      - "appuser"
+      - "on"
+      - ">admin"
+      - "~*"
+      - "&*"
+      - "+@all"
+      - --user
+      - "restricted"
+      - "on"
+      - ">restricted"
+      - "~*"
+      - "&*"
+      - "+@all"
+      - "-acl"
+      - "-commandlog"
     healthcheck:
       test: ["CMD", "valkey-cli", "-p", "6379", "PING"]
       interval: 2s

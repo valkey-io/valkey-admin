@@ -95,12 +95,14 @@ export const abortConfigSessionsForSocket = (ws: WebSocket): void => {
  * reply reaches the frontend.
  */
 export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
-  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry, ownerKey }) => {
     const { connectionId, clusterId, config } = action.payload
 
     const replyId: AggregateReplyId =
       typeof clusterId === "string" ? { clusterId } : { nodeId: toNodeId(connectionId) }
     const targetId = "clusterId" in replyId ? replyId.clusterId : replyId.nodeId
+    // Sessions are per owner, so one user's update never supersedes another's.
+    const sessionKey = `${ownerKey ?? ""}|${targetId}`
 
     const targetNodeIds =
       typeof clusterId === "string" ? Object.keys(clusterNodesRegistry.get(clusterId) ?? {}) : [targetId]
@@ -110,9 +112,9 @@ export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
     }))
 
     // Supersede any in-flight session for this target.
-    configSessions.get(targetId)?.controller.abort()
+    configSessions.get(sessionKey)?.controller.abort()
     const controller = new AbortController()
-    configSessions.set(targetId, { controller, ws })
+    configSessions.set(sessionKey, { controller, ws })
 
     const onNodeStatusUpdate = (update: NodeStatusUpdate): void => {
       safeSend(ws, JSON.stringify({
@@ -134,8 +136,8 @@ export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
       }
       return result
     } finally {
-      if (configSessions.get(targetId)?.controller === controller) {
-        configSessions.delete(targetId)
+      if (configSessions.get(sessionKey)?.controller === controller) {
+        configSessions.delete(sessionKey)
       }
     }
   },
@@ -148,8 +150,7 @@ export const runConfigPushSession = withDeps<Deps, RetryRunResult>(
  * node samples with stale settings.
  */
 export const updateConfig = withDeps<Deps, void>(
-  async ({ ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry, action }) => {
-    const deps: Deps = { ws, clients, connectionId, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry }
+  async ({ action, ...deps }: Deps & { action: ReduxAction }) => {
     const { config, monitorAction } = action.payload
 
     // Without a config there is no session to run

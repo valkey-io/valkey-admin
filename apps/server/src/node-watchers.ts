@@ -1,5 +1,11 @@
 import type WebSocket from "ws"
 
+/**
+ * Watcher ids are scoped by owner identity, so sockets of different Valkey
+ * users on the same connectionId never see each other's updates.
+ */
+export const scopedId = (ownerKey: string, id: string): string => `${ownerKey}|${id}`
+
 // connectionId → Set of WebSocket clients watching this node
 const nodeWatchers: Map<string, Set<WebSocket>> = new Map()
 

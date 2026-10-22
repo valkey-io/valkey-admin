@@ -6,6 +6,9 @@ FIRST_HOST=valkey-7001
 FIRST_PORT=7001
 VALKEY_USER=${VALKEY_USER:-appuser}
 VALKEY_PASS=${VALKEY_PASS:-admin}
+# Second ACL user for identity-isolation tests: everything except ACL and COMMANDLOG.
+RESTRICTED_USER=${RESTRICTED_USER:-restricted}
+RESTRICTED_PASS=${RESTRICTED_PASS:-restricted}
 
 NODES="
 valkey-7001:7001
@@ -30,6 +33,22 @@ wait_port() {
   echo "timeout waiting for ${host}:${port}" >&2
   exit 1
 }
+
+# ACL users are per node and are lost when a node restarts, so set them on
+# every run, before the "already healthy" early exit.
+setup_acl_users() {
+  for hp in $NODES; do
+    host="${hp%%:*}"
+    port="${hp##*:}"
+    valkey-cli -h "$host" -p "$port" ACL SETUSER "$VALKEY_USER" on ">$VALKEY_PASS" '~*' '&*' +@all
+    valkey-cli -h "$host" -p "$port" ACL SETUSER "$RESTRICTED_USER" on ">$RESTRICTED_PASS" '~*' '&*' +@all -acl -commandlog
+  done
+}
+
+for hp in $NODES; do
+  wait_port "$hp"
+done
+setup_acl_users
 
 echo "Checking cluster..."
 info="$(valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null || true | tr -d '\r')"
@@ -89,8 +108,7 @@ while [ "$i" -lt 120 ]; do
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory 100mb
       valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory-policy allkeys-lfu
       valkey-cli -h "$host" -p "$port" CONFIG SET cluster-slot-stats-enabled yes
-      valkey-cli -h "$host" -p "$port" ACL SETUSER $VALKEY_USER on \>$VALKEY_PASS ~* +@all
-      
+
     done
     echo "✅ LFU eviction configured."
     exit 0
