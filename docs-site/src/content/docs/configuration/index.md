@@ -39,7 +39,7 @@ What it cares about:
       - `K8` — does not spawn children; expects externally-managed metrics sidecars to self-register via `/orchestrator/register` (Kubernetes)
    - **Note**: In `Web` and `K8` modes, set `VALKEY_HOST` / `VALKEY_PORT` plus the rest of the `VALKEY_*` credential variables so the server can discover cluster nodes on its own.
    - See [Picking a Mode](/configuration/server/#picking-a-mode) for the full breakdown.
-- In `Electron` and `Web` modes the server **spawns** a metrics child process per node. It copies its own environment into the child and overrides a handful of values (`VALKEY_HOST`, `VALKEY_PORT`, credentials, `DATA_DIR`, `CONFIG_PATH`, `CONNECTION_ID`) so each child knows which node it is sampling.
+- In `Electron` and `Web` modes the server **spawns** a metrics child process per node. It copies its own environment into the child and overrides a handful of values (`VALKEY_HOST`, `VALKEY_PORT`, credentials, `DATA_DIR`, `CONFIG_PATH`, `CONNECTION_ID`) so each child knows which node it is sampling. The server runs one child per node for each Valkey identity connected to it, and gives each child the data directory `<DATA_DIR>/<owner>/<nodeId>` and the settings file `<DATA_DIR>/<owner>/config.yml` of its identity.
 
 In short: configure the server, and most of its settings flow through to the metrics children automatically.
 

@@ -7,6 +7,10 @@ Deploy Valkey Admin on Kubernetes by running metrics collectors as sidecars insi
 
 The workflow below uses Minikube for local development, but the manifests and sidecar pattern apply to any Kubernetes cluster.
 
+:::caution[Collector features are not available in Kubernetes in this release]
+Each Valkey pod runs one metrics sidecar under one set of credentials, so its data cannot be scoped to the Valkey user who asks for it. Valkey Admin therefore turns off the collector-backed features in Kubernetes: dashboard history (CPU and memory charts), the node dashboard, hot keys, big keys, command logs, Monitor and collector settings. Each of these shows "Metrics collection is not available in Kubernetes in this release." Commands, the key browser and the cluster dashboard keep working, because they use each user's own Valkey connection. A later release brings these features back through an operator-configured admin account. The sidecar steps below still apply, and sidecars still register.
+:::
+
 ## Architecture
 
 - **`valkey-admin-app`**: Main frontend + backend server, deployed as a standalone `Deployment`

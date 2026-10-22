@@ -47,6 +47,10 @@ Keep boundaries clear:
 ### Connection Tracking
 The Server keeps active Valkey clients in an in-memory Client_Map maintained by the Connection_Manager (`apps/server/src/connection.ts`). Each Client_Map entry is keyed by `buildConnectionId(host, port, db)` exported from `common/src/connection-id.ts`. Do not reconstruct this identifier elsewhere.
 
+All per-connection server state is scoped by **owner identity**, the Valkey identity the connection authenticated as (`ownerOf` in `apps/server/src/owner.ts`). Each owner has its own `OwnerState`: clients, cluster topology, collector credentials, collectors and their keys. CPU baselines, config sessions and node watchers carry the owner key too. Handlers get the requesting owner's maps through `Deps`. Do not read the module-level maps in `metrics-orchestrator.ts` from a user path: they are the env owner's state (the `VALKEY_*` identity).
+
+A WebSocket may act only on connections it opened with credentials Valkey accepted. `resolveAction` in `apps/server/src/socket-binding.ts` resolves every action to its owner or rejects it. Every connect first proves the credentials with a short-lived client (`createAuthProbeClient`), under the failed-AUTH limit in `apps/server/src/auth-limiter.ts`.
+
 ### Per-Node Config Fan-Out & Reply Contract
 Monitor-configuration updates fan out to every cluster node and collect a per-node outcome rather than treating the cluster as all-or-nothing. When adding or changing this flow:
 

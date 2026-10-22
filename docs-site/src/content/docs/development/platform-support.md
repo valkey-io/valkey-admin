@@ -62,6 +62,8 @@ There is no native Windows desktop build. Windows users run the Docker image ins
 
 ### Docker (Web Deployment)
 
+Running the web server directly on a host (bare metal or a VM, without a container) is not supported. Use the Docker image or Kubernetes.
+
 - **Support Method:** Docker image on any platform
 - **Deployment:** Web interface only, served at port `8080`
 - **Images:** `valkey/valkey-admin`, `ghcr.io/valkey-io/valkey-admin`, `public.ecr.aws/valkey/valkey-admin`
@@ -93,8 +95,8 @@ The desktop application built with Electron provides the complete Valkey Admin e
 | Key Browser | ✅ | ✅ |
 | Send Command Interface | ✅ | ✅ |
 | Cluster Topology | ✅ | ✅ |
-| Hot Keys Monitoring | ✅ | ✅ |
-| Command Logs | ✅ | ✅ |
+| Hot Keys Monitoring | ✅ | ✅ (not available in Kubernetes in this release) |
+| Command Logs | ✅ | ✅ (not available in Kubernetes in this release) |
 
 ### Web Application (All Platforms)
 

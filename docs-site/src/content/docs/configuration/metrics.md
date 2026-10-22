@@ -199,14 +199,14 @@ TCP port the metrics HTTP server listens on. Setting `PORT=0` lets the OS assign
 
 ### `DATA_DIR`
 
-Directory where NDJSON metric files are written and rotated. The server passes a per-node subdirectory here when spawning children, so each child gets its own slice of disk.
+Directory where NDJSON metric files are written and rotated. The server passes `<base>/<owner>/<nodeId>` here when spawning children, so each child gets its own slice of disk and each Valkey identity keeps its own history. See [`DATA_DIR` on the server](/configuration/server/#data_dir).
 
 - **Default:** `cfg.server.data_dir` from `config.yml` (`/app/data`)
 - **Overrides:** `cfg.server.data_dir`
 
 ### `CONFIG_PATH`
 
-Absolute path to the `config.yml` file. When set, the metrics process loads its config from this location instead of the bundled `apps/metrics/config.yml`. The Electron build uses this to point at a config file packaged inside the app bundle.
+Absolute path to the `config.yml` file. When set, the metrics process loads its config from this location instead of the bundled `apps/metrics/config.yml`. A server-spawned child gets the settings file of its Valkey identity, `<DATA_DIR>/<owner>/config.yml`, which the server copies once from its own `CONFIG_PATH` (or the bundled file). The Electron build points the server's `CONFIG_PATH` at a config file packaged inside the app bundle.
 
 `POST /update-config` writes tuning changes back into this file. Mounting it read-only or serving it from a ConfigMap is supported — updates then apply to the running process only and report `"persisted": false`.
 

@@ -5,6 +5,10 @@ description: Deploy Valkey Admin using Docker or Docker Compose
 
 Run Valkey Admin using Docker or Docker Compose for a zero-install web deployment.
 
+:::note[Run the web server in a container]
+Running the web server directly on a host (bare metal or a VM, with `node apps/server/dist/index.js` and no container) is not supported. The server spawns one metrics collector per node for each connected Valkey identity. If the server crashes outside a container, those collectors keep running and cannot register with a new server. When a container stops, the runtime stops all its processes. The desktop app is not affected.
+:::
+
 ## Docker Images
 
 Valkey Admin images are published to the following registries:
@@ -107,7 +111,7 @@ See the [Metrics Configuration](/configuration/metrics/) page for available opti
 
 ## Resource Sizing
 
-In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
+In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node for each Valkey identity connected to it. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
 
 ## Configuration Reference
 
