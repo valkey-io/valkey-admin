@@ -8,8 +8,6 @@ import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-gli
 import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey-common"
 import { GoogleAuth } from "google-auth-library"
 import {
-  _resetConnectInFlight,
-  _resetInFlightClusterClients,
   connectToValkey,
   getExistingConnection,
   teardownConnection
@@ -18,6 +16,7 @@ import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
+import { createOwnerState, type OwnerState } from "../owner"
 import { _reset as resetNodeWatchers } from "../node-watchers"
 
 const DEFAULT_PAYLOAD = {
@@ -164,14 +163,18 @@ describe("connectToValkey", () => {
   let clients: Map<string, any>
   let connectedNodesByCluster: Map<string, string[]>
   let metricsServerMap: MetricsServerMap
+  let owner: OwnerState
   beforeEach(() => {
     messages = []
     mockWs = {
       send: mock.fn((msg: string) => messages.push(msg)),
     }
-    clients = new Map()
+    // One owner per test. Its in-flight maps are shared by every ctx() call in
+    // the test, so concurrent connects dedupe as they do in production.
+    owner = createOwnerState("password~user0")
+    clients = owner.clients
     connectedNodesByCluster = new Map()
-    metricsServerMap = new Map()
+    metricsServerMap = owner.metricsServerMap
     // metricsServerMap is keyed by metrics-node-id; the empty Connection_Identifier
     // strips to the empty string, which matches the empty connectionId used by
     // the default payload in these tests.
@@ -191,11 +194,9 @@ describe("connectToValkey", () => {
     clients.clear()
     connectedNodesByCluster.clear()
     resetNodeWatchers()
-    _resetInFlightClusterClients()
-    _resetConnectInFlight()
   })
 
-  const ctx = () => ({ clients, connectedNodesByCluster, clusterNodesRegistry: new Map(), metricsServerMap })
+  const ctx = () => ({ ...owner, connectedNodesByCluster })
 
   it("should connect to standalone Valkey instance", async () => {
     const standalone = buildStandaloneMock()
@@ -749,8 +750,8 @@ describe("connectToValkey", () => {
       const aliceClient = buildStandaloneMock()
       const bobClient = buildStandaloneMock()
       const clientsFor = [aliceClient, bobClient]
-      const alice = { ...ctx(), clients: new Map() }
-      const bob = { ...ctx(), clients: new Map() }
+      const alice = { ...createOwnerState("password~user0"), connectedNodesByCluster: new Map() }
+      const bob = { ...createOwnerState("password~bob"), connectedNodesByCluster: new Map() }
       await withMockedClients(() => clientsFor.shift(), null, async () => {
         await connectToValkey(alice, mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-O" })
         await connectToValkey(bob, mockWs, {
@@ -1186,10 +1187,7 @@ describe("teardownConnection", () => {
     clients.set("conn-1", { client: mockClient })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection(
-      { clients, clusterNodesRegistry: new Map(), metricsServerMap },
-      "conn-1",
-    )
+    teardownConnection({ ...createOwnerState("password~t"), clients, metricsServerMap }, "conn-1")
 
     assert.strictEqual(clients.has("conn-1"), false)
     assert.strictEqual(mockClient.close.mock.calls.length, 1)
@@ -1202,10 +1200,7 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    teardownConnection(
-      { clients, clusterNodesRegistry: new Map(), metricsServerMap },
-      "node-1",
-    )
+    teardownConnection({ ...createOwnerState("password~t"), clients, metricsServerMap }, "node-1")
 
     assert.strictEqual(clients.has("node-1"), false)
     assert.strictEqual(clients.has("node-2"), true)
@@ -1219,7 +1214,7 @@ describe("teardownConnection", () => {
     clients.set("node-2", { client: sharedClient, clusterId: "c1" })
     const metricsServerMap: MetricsServerMap = new Map()
 
-    const ctx = { clients, clusterNodesRegistry: new Map(), metricsServerMap }
+    const ctx = { ...createOwnerState("password~t"), clients, metricsServerMap }
     teardownConnection(ctx, "node-1")
     teardownConnection(ctx, "node-2")
 
@@ -1232,10 +1227,7 @@ describe("teardownConnection", () => {
     const metricsServerMap: MetricsServerMap = new Map()
 
     assert.doesNotThrow(() => {
-      teardownConnection(
-        { clients, clusterNodesRegistry: new Map(), metricsServerMap },
-        "unknown",
-      )
+      teardownConnection({ ...createOwnerState("password~t"), clients, metricsServerMap }, "unknown")
     })
   })
 })

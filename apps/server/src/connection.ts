@@ -28,7 +28,7 @@ import { scopedId, subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
 import { createAuthProbeClient, createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 import { withAuthLimit } from "./auth-limiter"
-import { createOwnerState, type OwnerState } from "./owner"
+import { type OwnerState } from "./owner"
 
 /**
  * One owner's state plus the requesting socket's cluster bookkeeping. All
@@ -37,25 +37,6 @@ import { createOwnerState, type OwnerState } from "./owner"
  */
 export type ConnectionContext = OwnerState & {
   connectedNodesByCluster: Map<string, string[]>
-}
-
-// Fill-in state for callers that pass only some maps (tests), keyed by their
-// `clients` map so concurrent calls with the same maps share in-flight state.
-const fillIns = new WeakMap<object, OwnerState>()
-
-/**
- * Complete a partial context with the missing owner-state fields.
- */
-export const toConnectionContext = (
-  partial: Partial<OwnerState> & { connectedNodesByCluster?: Map<string, string[]> },
-): ConnectionContext => {
-  const anchor = partial.clients ?? partial
-  let fill = fillIns.get(anchor)
-  if (!fill) {
-    fill = createOwnerState(partial.ownerKey ?? "password~default")
-    fillIns.set(anchor, fill)
-  }
-  return { ...fill, connectedNodesByCluster: new Map(), ...partial }
 }
 
 type ClusterCommit = {
@@ -94,10 +75,6 @@ type ClusterConnectFulfilledPayload = {
   address: { host: string; port: number }
   connectionDetails: ClusterConnectionDetails
 }
-
-// Concurrent cluster-client creations are deduplicated per owner by clusterId
-// (OwnerState.inFlightClusterClients). Kept for the existing tests.
-export const _resetInFlightClusterClients = () => {}
 
 /**
  * Read the server's configured database count via `CONFIG GET`, trying each of
@@ -145,13 +122,6 @@ class ConnectionRejectedError extends Error {
   }
 }
 
-// Per-connectionId mutex around the entire connectToValkey body. The second connector enters
-// only after the first has fully committed (or failed), at which point the
-// getExistingConnection path below reuses the committed
-// entry (standalone or cluster).
-// The map lives in the owner's state (OwnerState.connectInFlight). Kept for the existing tests.
-export const _resetConnectInFlight = () => {}
-
 /**
  * Prove that Valkey accepts `details`' credentials on this node: open a
  * short-lived client, then close it. Throws on rejection. Counted by the
@@ -171,7 +141,7 @@ async function verifyCredentials(
 }
 
 export async function connectToValkey(
-  partialCtx: Partial<ConnectionContext>,
+  ctx: ConnectionContext,
   ws: WebSocket,
   payload: {
     connectionDetails: ConnectionDetails
@@ -179,7 +149,11 @@ export async function connectToValkey(
     isRetry?: boolean
   },
 ) {
-  const ctx = toConnectionContext(partialCtx)
+  // Per-connectionId mutex (per owner) around the entire connectToValkey body. The
+  // second connector enters only after the first has fully committed (or failed),
+  // at which point the getExistingConnection path reuses the committed entry
+  // (standalone or cluster). Concurrent cluster-client creations are deduplicated
+  // per owner by clusterId in `ctx.inFlightClusterClients`.
   const { connectInFlight } = ctx
   const { connectionId } = payload
   const priorConnect = connectInFlight.get(connectionId) ?? Promise.resolve()
@@ -814,10 +788,9 @@ export async function closeMetricsServer(
  * that owner uses their node.
  */
 export function teardownConnection(
-  partialCtx: Partial<OwnerState>,
+  ctx: OwnerState,
   connectionId: string,
 ) {
-  const ctx = toConnectionContext(partialCtx)
   const { clients, clusterNodesRegistry, clusterCredentials, ownerKey, env } = ctx
 
   // In web mode, the env owner's metrics servers are managed by the orchestrator

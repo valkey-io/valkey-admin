@@ -9,12 +9,8 @@ import {
   isAuthError,
   _resetAuthLimiter
 } from "../auth-limiter"
-import {
-  _resetConnectInFlight,
-  _resetInFlightClusterClients,
-  connectToValkey,
-  discoverTopology
-} from "../connection"
+import { connectToValkey, discoverTopology } from "../connection"
+import { createOwnerState } from "../owner"
 import { _reset as resetNodeWatchers } from "../node-watchers"
 import type { ConnectionDetails } from "../actions/connection"
 
@@ -43,23 +39,18 @@ describe("auth-limiter", () => {
   let realNow: () => number
   let now: number
 
-  const ctx = () => ({
-    clients: new Map(),
-    connectedNodesByCluster: new Map(),
-    clusterNodesRegistry: new Map(),
-    metricsServerMap: new Map(),
-  })
-
   const connect = (details: ConnectionDetails = DETAILS, connectionId = "conn-1") =>
-    connectToValkey(ctx() as any, ws, { connectionDetails: details, connectionId, sessionId: "s" } as any)
+    connectToValkey(
+      { ...createOwnerState("password~alice"), connectedNodesByCluster: new Map() },
+      ws,
+      { connectionDetails: details, connectionId },
+    )
 
   const lastType = () => messages[messages.length - 1]?.type
   const lastPayload = () => messages[messages.length - 1]?.payload
 
   beforeEach(() => {
     _resetAuthLimiter()
-    _resetConnectInFlight()
-    _resetInFlightClusterClients()
     resetNodeWatchers()
     messages = []
     ws = { send: (m: string) => messages.push(JSON.parse(m)), readyState: 1, OPEN: 1 }
