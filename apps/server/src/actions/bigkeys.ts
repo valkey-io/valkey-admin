@@ -1,7 +1,7 @@
 import { type WebSocket } from "ws"
 import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
-import { withDeps, Deps } from "./utils"
+import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
 type BigKey = {
   key: string
@@ -52,12 +52,14 @@ const sendBigKeysError = (
   ws: WebSocket,
   nodeId: string,
   error: unknown,
+  clusterId?: unknown,
 ) => {
   console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.BIGKEYS.bigKeysError,
       payload: {
+        ...(typeof clusterId === "string" && clusterId && { clusterId }),
         nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
@@ -68,6 +70,10 @@ const sendBigKeysError = (
 export const bigKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, scanLimit, topN } = action.payload
+    if (collectorFeaturesDisabled()) {
+      sendBigKeysError(ws, toNodeId(connectionId), KUBERNETES_METRICS_UNAVAILABLE, clusterId)
+      return
+    }
 
     // Resolve once so every node and the merge cap use the same value.
     const effectiveTopN = Number(topN) || DEFAULT_TOP_N

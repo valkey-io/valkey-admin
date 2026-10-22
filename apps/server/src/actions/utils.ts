@@ -1,5 +1,6 @@
 import { type GlideClient, type GlideClusterClient } from "@valkey/valkey-glide"
 import { FETCH_TIMEOUT_MS } from "valkey-common"
+import { isKubernetes } from "../metrics-orchestrator"
 import { ClusterNodeMap, MetricsServerMap } from "../metrics-orchestrator"
 import type { OwnerState } from "../owner"
 import type { SocketBinding } from "../socket-binding"
@@ -45,6 +46,16 @@ export const withDeps =
       }
 
 export type Handler = (deps: Deps) => (action: ReduxAction) => Promise<void>
+
+/**
+ * In Kubernetes, each Valkey pod runs one metrics sidecar under one set of
+ * credentials, so its data cannot be scoped to the requesting user. Phase 1
+ * turns off the collector-backed features there and answers with this message.
+ */
+export const KUBERNETES_METRICS_UNAVAILABLE = "Metrics collection is not available in Kubernetes in this release."
+
+/** True when collector-backed features are turned off (Kubernetes mode). */
+export const collectorFeaturesDisabled = (): boolean => isKubernetes
 
 export const unknownHandler: Handler = () =>
   async (action: { type: string }) => {

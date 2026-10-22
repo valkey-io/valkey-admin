@@ -1,7 +1,7 @@
 import { type WebSocket } from "ws"
 import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
-import { withDeps, Deps } from "./utils"
+import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
 type HotKeysResponse = {
   nodeId: string
@@ -38,12 +38,14 @@ const sendHotKeysError = (
   ws: WebSocket,
   nodeId: string,
   error: unknown,
+  clusterId?: unknown,
 ) => {
   console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.HOTKEYS.hotKeysError,
       payload: {
+        ...(typeof clusterId === "string" && clusterId && { clusterId }),
         nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
@@ -54,6 +56,10 @@ const sendHotKeysError = (
 export const hotKeysRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
+    if (collectorFeaturesDisabled()) {
+      sendHotKeysError(ws, toNodeId(connectionId), KUBERNETES_METRICS_UNAVAILABLE, clusterId)
+      return
+    }
     const count = Number(action.payload.count) || Number(process.env.HOT_KEYS_COUNT) || 50
 
     const nodes =

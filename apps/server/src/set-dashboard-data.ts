@@ -36,7 +36,7 @@ const sendSetDataFulfilled = (
   )
 }
 
-const sendSetDataError = (
+export const sendSetDataError = (
   ws: WebSocket,
   connectionId: string,
   error: unknown,

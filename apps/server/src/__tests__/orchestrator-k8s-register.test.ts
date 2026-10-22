@@ -1,4 +1,4 @@
-import { describe, it, afterEach } from "node:test"
+import { describe, it, afterEach, mock } from "node:test"
 import assert from "node:assert"
 import {
   ORCHESTRATOR_AUTH_DOMAIN,
@@ -110,5 +110,94 @@ describe("K8s shared-key registration", () => {
       assert.strictEqual(captured.statusCode, 401, "a bad signature must be rejected before the membership check")
       assert.strictEqual(metricsServerMap.has(NODE_ID), false)
     })
+  })
+})
+
+describe("collector-backed actions in Kubernetes", async () => {
+  const { VALKEY } = await import("valkey-common")
+  const { KUBERNETES_METRICS_UNAVAILABLE } = await import("../actions/utils")
+  const { hotKeysRequested } = await import("../actions/hotkeys")
+  const { bigKeysRequested } = await import("../actions/bigkeys")
+  const { commandLogsRequested } = await import("../actions/commandLogs")
+  const { monitorRequested } = await import("../actions/monitorAction")
+  const { cpuUsageRequested } = await import("../actions/cpuUsage")
+  const { memoryUsageRequested } = await import("../actions/memoryUsage")
+  const { setData } = await import("../actions/stats")
+  const { updateConfig } = await import("../actions/config")
+
+  const NODE = "valkey-0-6379"
+  const CONN = `${NODE}-db0`
+
+  const cases = [
+    { name: "hot keys", handler: hotKeysRequested, type: VALKEY.HOTKEYS.hotKeysError, payload: {} },
+    { name: "big keys", handler: bigKeysRequested, type: VALKEY.BIGKEYS.bigKeysError, payload: {} },
+    { name: "command logs", handler: commandLogsRequested, type: VALKEY.COMMANDLOGS.commandLogsError, payload: { commandLogType: "slow" } },
+    { name: "monitor", handler: monitorRequested, type: VALKEY.MONITOR.monitorError, payload: { monitorAction: "status" } },
+    { name: "cpu", handler: cpuUsageRequested, type: VALKEY.CPU.cpuUsageError, payload: {} },
+    { name: "memory", handler: memoryUsageRequested, type: VALKEY.MEMORY.memoryUsageError, payload: {} },
+    { name: "dashboard", handler: setData, type: VALKEY.STATS.setError, payload: {} },
+  ]
+
+  for (const c of cases) {
+    it(`answers ${c.name} with the Kubernetes message and makes no fetch`, async () => {
+      const sent: { type: string; payload: Record<string, unknown> }[] = []
+      const fetchMock = mock.method(globalThis, "fetch", async () => new Response("{}"))
+      metricsServerMap.set(NODE, { metricsURI: "http://10.0.0.1:3000", pid: undefined, lastSeen: Date.now() })
+      try {
+        await c.handler({
+          ws: { send: (m: string) => sent.push(JSON.parse(m)), readyState: 1, OPEN: 1 },
+          connectionId: CONN,
+          metricsServerMap,
+          clusterNodesRegistry,
+          connectedNodesByCluster: new Map(),
+          clients: new Map(),
+          ownerKey: "password~default",
+        } as never)({ type: "x", payload: { connectionId: CONN, ...c.payload }, meta: undefined })
+
+        assert.strictEqual(fetchMock.mock.callCount(), 0)
+        assert.strictEqual(sent.length, 1)
+        assert.strictEqual(sent[0].type, c.type)
+        assert.strictEqual(sent[0].payload.error, KUBERNETES_METRICS_UNAVAILABLE)
+        assert.strictEqual(sent[0].payload.errorKind, undefined)
+      } finally {
+        mock.restoreAll()
+      }
+    })
+  }
+
+  it("answers a config update with a failed node result per node and makes no fetch", async () => {
+    const sent: { type: string; payload: Record<string, unknown> }[] = []
+    const fetchMock = mock.method(globalThis, "fetch", async () => new Response("{}"))
+    clusterNodesRegistry.set("c1", {
+      "n1-6379": { host: "n1", port: 6379, tls: false, verifyTlsCertificate: false },
+      "n2-6379": { host: "n2", port: 6379, tls: false, verifyTlsCertificate: false },
+    })
+    try {
+      await updateConfig({
+        ws: { send: (m: string) => sent.push(JSON.parse(m)), readyState: 1, OPEN: 1 },
+        connectionId: "n1-6379-db0",
+        metricsServerMap,
+        clusterNodesRegistry,
+        connectedNodesByCluster: new Map(),
+        clients: new Map(),
+        ownerKey: "password~default",
+      } as never)({
+        type: VALKEY.CONFIG.updateConfig,
+        payload: { connectionId: "n1-6379-db0", clusterId: "c1", config: { epics: {} }, monitorAction: "start" },
+        meta: undefined,
+      })
+      assert.strictEqual(fetchMock.mock.callCount(), 0)
+      assert.strictEqual(sent.length, 1)
+      assert.strictEqual(sent[0].type, VALKEY.CONFIG.updateConfigFailed)
+      assert.strictEqual(sent[0].payload.clusterId, "c1")
+      assert.strictEqual(sent[0].payload.outcome, "failed")
+      assert.deepStrictEqual(sent[0].payload.nodeResults, [
+        { nodeId: "n1-6379", success: false, message: KUBERNETES_METRICS_UNAVAILABLE },
+        { nodeId: "n2-6379", success: false, message: KUBERNETES_METRICS_UNAVAILABLE },
+      ])
+      assert.deepStrictEqual(sent[0].payload.notAttemptedNodeIds, [])
+    } finally {
+      mock.restoreAll()
+    }
   })
 })

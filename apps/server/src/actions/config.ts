@@ -6,7 +6,15 @@ import {
   toNodeId,
   buildUrl
 } from "valkey-common"
-import { Deps, withDeps, fetchWithTimeout, safeSend, type ReduxAction } from "./utils"
+import {
+  Deps,
+  withDeps,
+  fetchWithTimeout,
+  safeSend,
+  collectorFeaturesDisabled,
+  KUBERNETES_METRICS_UNAVAILABLE,
+  type ReduxAction
+} from "./utils"
 import { toOutcome, type CollectionResult } from "./node-fanout"
 import { runWithRetry, type RetryRunResult, type NodeStatusUpdate } from "./retry-runner"
 import { monitorRequested } from "./monitorAction"
@@ -155,6 +163,22 @@ export const updateConfig = withDeps<Deps, void>(
 
     // Without a config there is no session to run
     if (!config) return
+
+    // Kubernetes: no collector may be configured. Reply once, with every
+    // target node failed, and skip the monitor rider.
+    if (collectorFeaturesDisabled()) {
+      const { connectionId, clusterId } = action.payload
+      const replyId: AggregateReplyId =
+        typeof clusterId === "string" && clusterId ? { clusterId } : { nodeId: toNodeId(connectionId) }
+      const nodeIds = "clusterId" in replyId
+        ? Object.keys(deps.clusterNodesRegistry.get(replyId.clusterId) ?? {})
+        : [replyId.nodeId]
+      sendConfigReply(deps.ws, replyId, {
+        attempted: nodeIds.map((nodeId) => ({ nodeId, success: false, message: KUBERNETES_METRICS_UNAVAILABLE })),
+        notAttempted: [],
+      }, config)
+      return
+    }
 
     // Complete the config push and collect its per-node results (sending the
     // Config_Reply) before issuing the toggle. The session reads only
