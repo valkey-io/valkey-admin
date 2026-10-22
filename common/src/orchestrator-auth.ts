@@ -39,12 +39,14 @@ export const ORCHESTRATOR_RATE_LIMIT_MAX_ENV = "ORCHESTRATOR_RATE_LIMIT_MAX"
  * Default requests per minute allowed on `/orchestrator/*`, per source address.
  *
  * Sized for the shared-bucket case rather than per-collector traffic. Spawned
- * collectors all call back to `SERVER_HOST` from the same host, so an entire
- * cluster's collectors land in one loopback bucket: at a 10s ping interval
- * that is 6 requests per minute per node, so this default covers roughly a
- * 100-node cluster with headroom for registration retries.
+ * collectors all call back to `SERVER_HOST` from the same host, so every
+ * collector the server runs lands in one loopback bucket. There is one
+ * collector per node per Valkey identity that is connected to it. At a 10s
+ * ping interval each collector sends about 6 requests per minute, so this
+ * default covers about 300 collectors (for example 30 primaries × 10 users)
+ * with headroom for registration retries.
  */
-export const ORCHESTRATOR_RATE_LIMIT_DEFAULT_MAX = 600
+export const ORCHESTRATOR_RATE_LIMIT_DEFAULT_MAX = 2000
 
 /** Protocol version, prefixing both the canonical message and the credential. */
 export const ORCHESTRATOR_AUTH_VERSION = "v1"

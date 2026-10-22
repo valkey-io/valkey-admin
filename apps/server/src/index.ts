@@ -80,11 +80,11 @@ const limiter = rateLimit({
  * Dedicated limit for the collector control plane.
  *
  * `/orchestrator/*` gets its own bucket rather than sharing the UI limiter 
- * because the UI limit is per browser, while this one is effectively per cluster.
+ * because the UI limit is per browser, while this one is effectively per server.
  *
  * Spawned collectors all call back to `SERVER_HOST` from the same host, so
- * express-rate-limit's per-address keying puts an entire cluster's collectors
- * into a single loopback bucket. At a 10s ping interval that is 6 requests per
+ * express-rate-limit's per-address keying puts every collector (one per node
+ * per connected Valkey identity) into a single loopback bucket. At a 10s ping interval that is 6 requests per
  * minute per node, so the UI's 100/min ceiling would begin throttling
  * legitimate collectors at around 16 nodes. Sizing this separately keeps the
  * two tunable independently.

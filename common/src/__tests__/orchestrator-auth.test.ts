@@ -452,6 +452,10 @@ describe("resolveOrchestratorRateLimitMax", () => {
 
   // The default has to cover a whole cluster, not one collector: spawned
   // collectors share a single loopback bucket at 6 requests per minute each.
+  it("defaults to 2000 requests per minute", () => {
+    assert.strictEqual(ORCHESTRATOR_RATE_LIMIT_DEFAULT_MAX, 2000)
+  })
+
   it("defaults high enough for a large cluster's shared loopback bucket", () => {
     assert.ok(
       ORCHESTRATOR_RATE_LIMIT_DEFAULT_MAX >= 6 * 50,
