@@ -1,11 +1,12 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
-import { EndpointType, toNodeId } from "valkey-common"
+import { EndpointType } from "valkey-common"
 import { VALKEY } from "valkey-common"
-import { connectToValkey, teardownConnection  } from "../connection"
-import { unsubscribe, getWatcherCount } from "../node-watchers"
+import { connectToValkey, proveCredentials, teardownConnection } from "../connection"
+import { unsubscribe, getWatcherCount, scopedId } from "../node-watchers"
+import { bindConnection, connectedNodesFor, scheduleRelease, unbindConnection } from "../socket-binding"
+import { findOwnerState, getOwnerState, removeOwnerStateIfUnused } from "../owner"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
-import { authorizeConnection, isConnectionAuthorized, revokeConnection, hasAuthorizedSession } from "../session"
 
 export interface ConnectionDetails {
   host: string;
@@ -33,60 +34,71 @@ type ConnectPayload = {
   isResume?: boolean,
 }
 
+const isPasswordAuth = (details: ConnectionDetails) =>
+  details.authType !== "iam" && details.authType !== "gcp-iam"
+
 export const connectPending = withDeps<Deps, void>(
-  async ({ ws, clients, action, connectedNodesByCluster, metricsServerMap, clusterNodesRegistry, sessionId }) => {
+  async ({ ws, action, ownerKey, binding }) => {
     const payload = action.payload as ConnectPayload
-    const { connectionId } = payload
+    const { connectionId, connectionDetails } = payload
 
-    // ws.sessionId is assigned for every upgrade (ensureSession), so this is a defensive
-    // invariant, not the expiry path (expiry is handled by isConnectionAuthorized returning
-    // false because the session record is gone). Fail closed rather than connect without a
-    // session to scope client reuse to.
-    if (!sessionId) {
+    // A resume without a password cannot prove the identity, and no server-side
+    // session remembers it, so the user must enter the password again.
+    if (payload.isResume && isPasswordAuth(connectionDetails) && !connectionDetails.password) {
       ws.send(JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,
-        payload: { connectionId, errorMessage: "Unable to establish a session. Please reload and try again.", requiresAuth: true },
+        payload: { connectionId, errorMessage: "Enter the password to reconnect.", requiresAuth: true },
       }))
       return
     }
 
-    // if connection is being resumed, check if the session is still valid and if the connection exists
-    if (payload.isResume && (!isConnectionAuthorized(sessionId, connectionId) || !clients.has(connectionId))) {
+    // Prove the credentials before anything is created for the owner, so a
+    // request that Valkey rejects leaves no owner state behind.
+    try {
+      await proveCredentials(connectionDetails)
+    } catch (err) {
       ws.send(JSON.stringify({
         type: VALKEY.CONNECTION.connectRejected,
-        payload: { connectionId, errorMessage: "Session expired. Please sign in again.", requiresAuth: true },
+        payload: { connectionId, errorMessage: err instanceof Error ? err.message : String(err) },
       }))
       return
     }
 
-    // A retry reconnects an existing connection and (for clusters) closes + repoints the shared
-    // client, so require ownership — same rule as resume. The frontend only retries connections it
-    // previously established, so this never rejects a legitimate retry; it prevents one session's
-    // retry from closing or repointing a connection another session owns (e.g. a same-endpoint
-    // collision on a shared instance).
-    if (payload.isRetry && !isConnectionAuthorized(sessionId, connectionId)) {
-      ws.send(JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: { connectionId, errorMessage: "Session expired. Please sign in again.", requiresAuth: true },
-      }))
-      return
-    }
-
+    const ownerState = getOwnerState(ownerKey)
     const client = await connectToValkey(
-      { clients, connectedNodesByCluster, clusterNodesRegistry, metricsServerMap },
+      { ...ownerState, connectedNodesByCluster: connectedNodesFor(binding, ownerKey) },
       ws,
-      { ...payload, sessionId },
+      payload,
+      { credentialsProven: true },
     )
+    if (!client) {
+      // The connect failed after AUTH (for example a bad database index).
+      removeOwnerStateIfUnused(ownerState)
+      return
+    }
 
-    if (client) {
-      authorizeConnection(sessionId, connectionId)
-      authorizeConnection(sessionId, toNodeId(connectionId))
+    // Case if the socket closed while the connect ran.
+    if (ws.readyState !== ws.OPEN) {
+      unsubscribe(scopedId(ownerKey, connectionId), ws)
+      scheduleRelease(ownerState, connectionId)
+      return
+    }
+
+    // Valkey accepted the credentials: the socket may now act on this connection.
+    const previousOwner = bindConnection(binding, ownerKey, connectionId)
+    if (previousOwner !== undefined) {
+      // The socket reconnected the same connectionId as another Valkey user.
+      // Release the old owner's watch so its client can be torn down.
+      const previousState = findOwnerState(previousOwner)
+      if (unsubscribe(scopedId(previousOwner, connectionId), ws) && previousState) {
+        scheduleRelease(previousState, connectionId)
+      }
     }
   },
 )
 
 export const resetConnection = withDeps<Deps, void>(
-  async ({ ws, connectionId, clients, action, clusterNodesRegistry }) => {
+  async ({ ws, connectionId, clients, action, ownerState }) => {
     const entry = clients.get(connectionId)
 
     if (!entry) {
@@ -97,20 +109,20 @@ export const resetConnection = withDeps<Deps, void>(
 
     const { clusterId } = action.payload as unknown as { clusterId: string }
 
-    if (client instanceof GlideClusterClient) {
-      await setClusterDashboardData(clusterId, client, ws, connectionId, clusterNodesRegistry)
+    if (ownerState && client instanceof GlideClusterClient) {
+      await setClusterDashboardData(clusterId, client, ws, connectionId, ownerState)
     }
   },
 )
 
 export const closeConnection = withDeps<Deps, void>(
-  async ({ ws, clients, action, metricsServerMap, connectedNodesByCluster, clusterNodesRegistry, sessionId }) => {
+  async ({ ws, clients, action, connectedNodesByCluster, ownerKey, ownerState, binding }) => {
     const { connectionId } = action.payload
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId
 
-    revokeConnection(sessionId, connectionId)
-    unsubscribe(connectionId, ws)
+    unbindConnection(binding, connectionId)
+    unsubscribe(scopedId(ownerKey, connectionId), ws)
 
     // Always ack the requesting client — UI needs confirmation
     ws.send(JSON.stringify({
@@ -118,26 +130,17 @@ export const closeConnection = withDeps<Deps, void>(
       payload: { connectionId },
     }))
 
-    // Don't tear down a shared connection another session still owns
-    if (getWatcherCount(connectionId) > 0 || hasAuthorizedSession(connectionId)) {
-      return
-    }
     const nodes = connectedNodesByCluster.get(clusterId!)
-
-    // Remove node from cluster map accordingly
+    // Remove node from this socket's cluster map accordingly
     if (clusterId && nodes) {
-      if (nodes.length === 1) {
-        connectedNodesByCluster.delete(clusterId)
-      } else {
-        const index = nodes.indexOf(connectionId)
-        if (index !== -1) {
-          nodes.splice(index, 1)
-        }
-      }
+      const index = nodes.indexOf(connectionId)
+      if (index !== -1) nodes.splice(index, 1)
+      if (nodes.length === 0) connectedNodesByCluster.delete(clusterId)
     }
-    teardownConnection(
-      { clients, clusterNodesRegistry, metricsServerMap },
-      connectionId,
-    )
+
+    // Don't tear down a connection another socket of the same owner still uses
+    if (getWatcherCount(scopedId(ownerKey, connectionId)) > 0) return
+
+    if (ownerState) teardownConnection(ownerState, connectionId)
   },
 )

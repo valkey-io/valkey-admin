@@ -7,6 +7,7 @@ import {
   createOrchestratorAuthCredential
 } from "valkey-common"
 import { metricsServerMap, __test__ } from "../metrics-orchestrator"
+import { getOwnerState } from "../owner"
 import type { Request, Response } from "express"
 
 const NODE_ID = "127-0-0-1-6379"
@@ -573,5 +574,62 @@ describe("POST /orchestrator/ping", () => {
 
     assert.strictEqual(captured.statusCode, 401)
     assert.strictEqual(captured.body, "Unauthorized")
+  })
+})
+
+describe("registration with several owners on one node", () => {
+  const ALICE_KEY = "b".repeat(64)
+  const BOB_KEY = "c".repeat(64)
+  let alice: ReturnType<typeof getOwnerState>
+  let bob: ReturnType<typeof getOwnerState>
+
+  beforeEach(() => {
+    alice = getOwnerState("password~reg-alice")
+    bob = getOwnerState("password~reg-bob")
+    for (const [state, key] of [[alice, ALICE_KEY], [bob, BOB_KEY]] as const) {
+      state.collectorKeys.set(NODE_ID, key)
+      state.metricsServerMap.set(NODE_ID, { metricsURI: SEEDED_URI, pid: 1, lastSeen: SEEDED_LAST_SEEN })
+    }
+  })
+
+  afterEach(() => {
+    for (const state of [alice, bob]) {
+      state.collectorKeys.clear()
+      state.metricsServerMap.clear()
+    }
+    mock.restoreAll()
+  })
+
+  it("updates only the entry of the collector whose key signed the request", () => {
+    const timestamp = Date.now()
+    const { res, captured } = makeRes()
+    __test__.handleRegister(
+      makeReq({ nodeId: NODE_ID, metricsServerUri: URI, timestamp }, signRegister({ timestamp }, BOB_KEY)),
+      res,
+    )
+    assert.strictEqual(captured.statusCode, 200)
+    assert.strictEqual(bob.metricsServerMap.get(NODE_ID)?.metricsURI, URI)
+    assert.strictEqual(alice.metricsServerMap.get(NODE_ID)?.metricsURI, SEEDED_URI)
+  })
+
+  it("refreshes only the signing collector on ping", () => {
+    const { res, captured } = makeRes()
+    __test__.handlePing(makeReq({ nodeId: NODE_ID, timestamp: Date.now() }, signPing({}, ALICE_KEY)), res)
+    assert.strictEqual(captured.statusCode, 200)
+    assert.ok((alice.metricsServerMap.get(NODE_ID)?.lastSeen ?? 0) > SEEDED_LAST_SEEN)
+    assert.strictEqual(bob.metricsServerMap.get(NODE_ID)?.lastSeen, SEEDED_LAST_SEEN)
+  })
+
+  it("rejects a key that no owner issued", () => {
+    mock.method(console, "warn", () => {})
+    const timestamp = Date.now()
+    const { res, captured } = makeRes()
+    __test__.handleRegister(
+      makeReq({ nodeId: NODE_ID, metricsServerUri: URI, timestamp }, signRegister({ timestamp }, "d".repeat(64))),
+      res,
+    )
+    assert.strictEqual(captured.statusCode, 401)
+    assert.strictEqual(alice.metricsServerMap.get(NODE_ID)?.metricsURI, SEEDED_URI)
+    assert.strictEqual(bob.metricsServerMap.get(NODE_ID)?.metricsURI, SEEDED_URI)
   })
 })

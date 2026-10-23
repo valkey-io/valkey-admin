@@ -4,7 +4,7 @@ import assert from "node:assert"
 import { VALKEY } from "valkey-common"
 import { monitorRequested } from "../actions/monitorAction"
 import { updateConfig } from "../actions/config"
-import { subscribe, _reset as resetNodeWatchers } from "../node-watchers"
+import { scopedId, subscribe, _reset as resetNodeWatchers } from "../node-watchers"
 import { ClusterNodeMap } from "../metrics-orchestrator"
 
 function createMockResponse(body: any, ok = true, status = 200) {
@@ -14,6 +14,8 @@ function createMockResponse(body: any, ok = true, status = 200) {
     json: async () => body,
   }
 }
+
+const OWNER = "password~default"
 
 describe("monitorAction", () => {
   let mockWs: any
@@ -59,7 +61,7 @@ describe("monitorAction", () => {
   }
 
   const deps = () => ({ 
-    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry, 
+    ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry, ownerKey: OWNER,
   } as any)
 
   describe("status request", () => {
@@ -301,8 +303,8 @@ describe("monitorAction", () => {
       const otherWs: any = { send: mock.fn((msg: string) => watcherMessages.push(msg)) }
 
       // Both ws clients watch the same node
-      subscribe("conn-1", mockWs)
-      subscribe("conn-1", otherWs)
+      subscribe(scopedId(OWNER, "conn-1"), mockWs)
+      subscribe(scopedId(OWNER, "conn-1"), otherWs)
 
       const action = {
         type: VALKEY.MONITOR.monitorRequested,
@@ -333,8 +335,8 @@ describe("monitorAction", () => {
       const watcherMessages: string[] = []
       const otherWs: any = { send: mock.fn((msg: string) => watcherMessages.push(msg)) }
 
-      subscribe("conn-1", mockWs)
-      subscribe("conn-1", otherWs)
+      subscribe(scopedId(OWNER, "conn-1"), mockWs)
+      subscribe(scopedId(OWNER, "conn-1"), otherWs)
 
       const action = {
         type: VALKEY.MONITOR.monitorRequested,
@@ -356,8 +358,8 @@ describe("monitorAction", () => {
       const watcherMessages: string[] = []
       const otherWs: any = { send: mock.fn((msg: string) => watcherMessages.push(msg)) }
 
-      subscribe("conn-1", mockWs)
-      subscribe("conn-1", otherWs)
+      subscribe(scopedId(OWNER, "conn-1"), mockWs)
+      subscribe(scopedId(OWNER, "conn-1"), otherWs)
 
       const action = {
         type: VALKEY.MONITOR.monitorRequested,
@@ -377,7 +379,7 @@ describe("monitorAction", () => {
       mockFetch({ monitorRunning: true, checkAt: 12345 })
 
       // Only the originator is watching
-      subscribe("conn-1", mockWs)
+      subscribe(scopedId(OWNER, "conn-1"), mockWs)
 
       const action = {
         type: VALKEY.MONITOR.monitorRequested,
@@ -390,6 +392,23 @@ describe("monitorAction", () => {
       assert.strictEqual(messages.length, 1)
     })
 
+    it("does not broadcast to a watcher of another owner on the same connection", async () => {
+      metricsServerMap.set("conn-1", { metricsURI: "http://localhost:9999" })
+      mockFetch({ monitorRunning: true, checkAt: 12345 })
+
+      const otherOwnerMessages: string[] = []
+      const otherOwnerWs: any = { send: mock.fn((msg: string) => otherOwnerMessages.push(msg)) }
+      subscribe(scopedId(OWNER, "conn-1"), mockWs)
+      subscribe(scopedId("password~someone-else", "conn-1"), otherOwnerWs)
+
+      await monitorRequested(deps())({
+        type: VALKEY.MONITOR.monitorRequested,
+        payload: { connectionId: "conn-1", monitorAction: "start" },
+      } as any)
+
+      assert.strictEqual(otherOwnerMessages.length, 0)
+    })
+
     it("looks up other watchers by the db-suffixed connectionId while replying with a db-less nodeId", async () => {
       // Metrics is keyed db-less; watcher subscriptions stay keyed by the
       // db-suffixed connectionId (Req 6.5). The reply payload is node-level.
@@ -400,8 +419,8 @@ describe("monitorAction", () => {
       const otherWs: any = { send: mock.fn((msg: string) => watcherMessages.push(msg)) }
 
       // Both clients subscribe under the db-suffixed connectionId.
-      subscribe("host-6379-db2", mockWs)
-      subscribe("host-6379-db2", otherWs)
+      subscribe(scopedId(OWNER, "host-6379-db2"), mockWs)
+      subscribe(scopedId(OWNER, "host-6379-db2"), otherWs)
 
       const action = {
         type: VALKEY.MONITOR.monitorRequested,

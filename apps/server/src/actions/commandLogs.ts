@@ -1,7 +1,7 @@
 import { type WebSocket } from "ws"
 import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
-import { withDeps, Deps } from "./utils"
+import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
 
@@ -67,12 +67,14 @@ const sendCommandLogsError = (
   ws: WebSocket,
   nodeId: string,
   error: unknown,
+  clusterId?: unknown,
 ) => {
   console.error(error)
   ws.send(
     JSON.stringify({
       type: VALKEY.COMMANDLOGS.commandLogsError,
       payload: {
+        ...(typeof clusterId === "string" && clusterId && { clusterId }),
         nodeId,
         error: error instanceof Error ? error.message : String(error),
       },
@@ -100,6 +102,10 @@ const fetchCommandLogs = async (metricsServerURI: string, commandLogType: Comman
 export const commandLogsRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
     const { connectionId, clusterId } = action.payload
+    if (collectorFeaturesDisabled()) {
+      sendCommandLogsError(ws, toNodeId(connectionId), KUBERNETES_METRICS_UNAVAILABLE, clusterId)
+      return
+    }
     const commandLogType: CommandLogType = action.payload.commandLogType as CommandLogType
     const count = Number(action.payload.count) || Number(process.env.COMMAND_LOGS_COUNT) || 100
 

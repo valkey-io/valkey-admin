@@ -1,7 +1,7 @@
 import { type WebSocket } from "ws"
 import { VALKEY, type MonitorAction, type NodeReplyId, toNodeId, buildUrl } from "valkey-common"
-import { withDeps, type Deps, fetchWithTimeout } from "./utils"
-import { getOtherWatchers } from "../node-watchers"
+import { withDeps, type Deps, fetchWithTimeout, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
+import { getOtherWatchers, scopedId } from "../node-watchers"
 
 type MonitorResponse = {
   monitorRunning: boolean
@@ -44,8 +44,14 @@ const sendMonitorError = (
 }
 
 export const monitorRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry, ownerKey }) => {
     const { connectionId, clusterId, monitorAction } = action.payload
+    if (collectorFeaturesDisabled()) {
+      const nodeId = toNodeId(connectionId)
+      const replyId = typeof clusterId === "string" && clusterId ? { clusterId, nodeId } : { nodeId }
+      sendMonitorError(ws, replyId, new Error(KUBERNETES_METRICS_UNAVAILABLE))
+      return
+    }
     // Internal restriction used by the save flow to toggle only the nodes
     // whose config push succeeded.
     const restrictToNodeIds = action.payload.targetNodeIds as string[] | undefined
@@ -57,13 +63,17 @@ export const monitorRequested = withDeps<Deps, void>(
         : allNodeIds
       const registered = targetNodeIds.filter((id) => metricsServerMap.has(id))
       await Promise.all(registered.map((nodeId) =>
-        runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { clusterId, nodeId }, nodeId),
+        runMonitorForNode(
+          ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { clusterId, nodeId }, scopedId(ownerKey, nodeId),
+        ),
       ))
     } else {
       // Standalone path. Monitor state is keyed by the db-less nodeId, so the
       // reply carries { nodeId }.
       const nodeId = toNodeId(connectionId)
-      await runMonitorForNode(ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { nodeId }, connectionId)
+      await runMonitorForNode(
+        ws, metricsServerMap.get(nodeId)?.metricsURI, monitorAction, { nodeId }, scopedId(ownerKey, connectionId),
+      )
     }
   })
 

@@ -1,48 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, beforeEach } from "node:test"
+import { describe, it } from "node:test"
 import assert from "node:assert"
 import { GlideClusterClient } from "@valkey/valkey-glide"
 import { parseInfo, parseResponse, parseClusterInfo, getExistingClusterClient } from "../utils"
-import { ensureSession, authorizeConnection, _resetSessions } from "../session"
-import type { IncomingMessage } from "http"
 
-describe("getExistingClusterClient (session-scoped reuse)", () => {
-  let sessionId: string
+describe("getExistingClusterClient (owner-scoped reuse)", () => {
   const makeClusterEntry = () => ({
     // Satisfies isClusterClientEntry's `instanceof GlideClusterClient` check without a real client.
     client: Object.create(GlideClusterClient.prototype) as GlideClusterClient,
     clusterId: "cluster-1",
   })
 
-  beforeEach(() => {
-    _resetSessions()
-    sessionId = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
-  })
-
-  it("reuses the shared cluster client when the session owns the matched sibling node", async () => {
+  it("reuses the owner's cluster client for a sibling node", async () => {
     const entry = makeClusterEntry()
     const clients = new Map([["node-A", entry]])
-    // Session connected to node-A earlier -> owns it.
-    authorizeConnection(sessionId, "node-A")
 
     // Connecting to node-B of the same cluster: discovery surfaces node-A as an existing entry.
     const discovered = { "node-A": {} as never, "node-B": {} as never }
-    const result = await getExistingClusterClient(discovered, clients, sessionId)
+    const result = await getExistingClusterClient(discovered, clients)
 
-    assert.strictEqual(result?.client, entry.client, "should reuse the owned cluster's client for the new node")
+    assert.strictEqual(result?.client, entry.client, "should reuse the owner's cluster client for the new node")
   })
 
-  it("does NOT reuse when the session does not own the matched node", async () => {
-    const entry = makeClusterEntry()
-    const clients = new Map([["node-A", entry]])
-    // node-A belongs to a DIFFERENT session.
-    const otherSession = ensureSession({ headers: {}, socket: {} } as unknown as IncomingMessage).sessionId
-    authorizeConnection(otherSession, "node-A")
-
+  it("finds nothing in another owner's empty map", async () => {
     const discovered = { "node-A": {} as never }
-    const result = await getExistingClusterClient(discovered, clients, sessionId)
-
-    assert.strictEqual(result, undefined, "must not inherit another session's cluster client")
+    const result = await getExistingClusterClient(discovered, new Map())
+    assert.strictEqual(result, undefined)
   })
 })
 

@@ -62,6 +62,8 @@ There is no native Windows desktop build. Windows users run the Docker image ins
 
 ### Docker (Web Deployment)
 
+Running the web server directly on a host (bare metal or a VM, without a container) is not supported. Use the Docker image or Kubernetes.
+
 - **Support Method:** Docker image on any platform
 - **Deployment:** Web interface only, served at port `8080`
 - **Images:** `valkey/valkey-admin`, `ghcr.io/valkey-io/valkey-admin`, `public.ecr.aws/valkey/valkey-admin`
@@ -77,9 +79,9 @@ There is no native Windows desktop build. Windows users run the Docker image ins
 - **Recommended for:** Large clusters (50+ primaries)
 
 **Features:**
-- Web interface with all core features
+- Web interface with the key browser, Send Command and the cluster dashboard
 - Lower memory usage on the main Valkey Admin pod compared to Docker mode
-- Hot Keys monitoring and Command Logs (Valkey 8.0+/8.1+)
+- The collector features are not available in this release: dashboard history (CPU and memory charts), the node dashboard, hot keys, big keys, command logs, Monitor and collector settings. See [Kubernetes deployment](/deployment/kubernetes/).
 
 ## Desktop vs Web Features
 
@@ -89,12 +91,12 @@ The desktop application built with Electron provides the complete Valkey Admin e
 
 | Feature | Desktop | Docker / Kubernetes |
 |---------|---------|-----|
-| Dashboard & Metrics | ✅ | ✅ |
+| Dashboard & Metrics | ✅ | ✅ (Kubernetes: cluster dashboard only, in this release) |
 | Key Browser | ✅ | ✅ |
 | Send Command Interface | ✅ | ✅ |
 | Cluster Topology | ✅ | ✅ |
-| Hot Keys Monitoring | ✅ | ✅ |
-| Command Logs | ✅ | ✅ |
+| Hot Keys Monitoring | ✅ | ✅ (not available in Kubernetes in this release) |
+| Command Logs | ✅ | ✅ (not available in Kubernetes in this release) |
 
 ### Web Application (All Platforms)
 

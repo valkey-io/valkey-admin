@@ -217,7 +217,7 @@ describe("metrics-orchestrator", () => {
       metricsServerMap.set("node2", { metricsURI: "uri", pid: 2, lastSeen: 2 })
       mock.method(process, "kill", (pid: number) => killed.push(pid))
 
-      await stopAllMetricsServers(metricsServerMap)
+      stopAllMetricsServers()
       assert.strictEqual(metricsServerMap.size, 0)
       assert.strictEqual(killed.includes(1), true)
       assert.strictEqual(killed.includes(2), true)
@@ -246,7 +246,7 @@ describe("metrics-orchestrator", () => {
       const findDiff = mock.method(__test__, "findDiff", async () => ({ nodesToAdd: {}, nodesToRemove: [] }))
       clusterNodesRegistry.clear()
 
-      await reconcileClusterMetricsServers(metricsServerMap)
+      await reconcileClusterMetricsServers()
 
       // No clusters to reconcile, so the diff is never computed.
       assert.strictEqual(findDiff.mock.callCount(), 0)
@@ -259,7 +259,7 @@ describe("metrics-orchestrator", () => {
         node1: { host: "127.0.0.1", port: 6379, tls: false, verifyTlsCertificate: false },
       })
 
-      await reconcileClusterMetricsServers(metricsServerMap)
+      await reconcileClusterMetricsServers()
 
       // The cluster is inspected, but findDiff reports no changes, so no
       // metrics servers are started or stopped.

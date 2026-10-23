@@ -109,3 +109,18 @@ export const createOrchestratorValkeyClient = ({
     clientName: "valkey_admin_orchestrator_client",
     nodeDiscoveryMode: NodeDiscoveryMode.Static,
   })
+
+/**
+ * Short-lived client that only proves credentials. It uses Glide's default
+ * node discovery, because with `NodeDiscoveryMode.Static` `createClient` does
+ * not reject a wrong password or a disabled user: it returns a client and
+ * keeps retrying in the background. Here `createClient` rejects with
+ * WRONGPASS / NOAUTH when Valkey refuses the credentials.
+ */
+export const createAuthProbeClient = ({
+  ...options
+}: ClientOptions) =>
+  GlideClient.createClient({
+    ...buildSharedOptions({ ...options, databaseId: undefined }),
+    clientName: "valkey_admin_auth_probe",
+  })

@@ -11,6 +11,8 @@ The server has no config file. Everything below is read from `process.env` at st
 
 Before touching individual variables, decide which mode the server should run in. `DEPLOYMENT_MODE` is the key switch — it determines which other variables actually matter.
 
+The server runs only as the desktop app, in a Docker container, or in Kubernetes. Running `apps/server` directly on a host (bare metal or a VM, without a container) is not supported: if the server process crashes there, the collectors it spawned keep running and cannot register with a new server.
+
 ### Electron mode (desktop default)
 
 When `DEPLOYMENT_MODE=Electron` (or unset in the desktop build), the server spawns a metrics child only for nodes the user has explicitly connected to. The UI initiates a connection, the server spawns a metrics child for that node, the child registers itself, and the server proxies its data back to the UI. When the UI disconnects, the child is killed.
@@ -24,6 +26,18 @@ When `DEPLOYMENT_MODE=Web`, the server starts metrics processes for all cluster 
 ### Kubernetes mode
 
 When `DEPLOYMENT_MODE=K8`, metrics processes are spawned **outside** the server (as pod sidecars) and call back to `POST /orchestrator/register` to advertise themselves. The server runs a reconcile loop that discovers cluster nodes via `VALKEY_HOST` / `VALKEY_PORT` and prunes stale registry entries older than `TTL` milliseconds.
+
+Each sidecar collects under one set of credentials, so its data cannot be scoped to the user who asks for it. In this release the collector-backed features (dashboard history, hot keys, big keys, command logs, Monitor and collector settings) are not available in Kubernetes and show a message in their place. See [Kubernetes deployment](/deployment/kubernetes/).
+
+## Users and Valkey identities
+
+Valkey Admin has no login of its own. A user's identity is the Valkey user they connect as, and Valkey's ACLs decide what that user may do.
+
+- **Separate clients and collectors per Valkey identity.** The server keeps one Valkey client per connection and one metrics collector per node for each Valkey identity: the auth type and the Valkey username (`default` when no password is given). For ElastiCache IAM, the region and replication group are part of the identity. Users who connect as the same Valkey user share one client and one set of collectors. Users who connect as different Valkey users share nothing, so commands always run as the user's own Valkey user and the metrics they see were collected with their own credentials.
+- **Valkey checks every reuse.** The identity is not secret, so it never grants access by itself. Before every connect, the server opens a short-lived connection and sends `AUTH` with the presented credentials. It continues only when Valkey accepts them. Valkey Admin never stores or compares passwords.
+- **Failed authentication limit.** After 10 failed authentication attempts in 60 seconds for one node and one Valkey identity, the server rejects new attempts for that pair without contacting Valkey, until the 60-second window ends.
+- **Connections belong to the browser connection.** A browser's WebSocket may act only on Valkey connections it opened itself. When the WebSocket drops briefly, the UI reconnects with the credentials it holds in memory. After a full page reload, or in a new tab, the user must enter the password again (the desktop app with an OS keystore reconnects without asking). IAM, GCP IAM and passwordless connections reconnect without a prompt.
+- **Release.** A Valkey client is closed about 10 seconds after the last browser that uses it disconnects or closes the connection. The identity's collectors stop when no connection of that identity uses their node. The identity configured with `VALKEY_USERNAME`/`VALKEY_PASSWORD` is an exception: its collectors keep running.
 
 ## Network
 
@@ -103,17 +117,26 @@ Key material a metrics collector uses to authenticate to `/orchestrator/register
 
 Requests per minute allowed on `/orchestrator/*`, counted per source address and tracked separately from the UI's own limit.
 
-This is effectively a **per-cluster** budget, not a per-collector one. Spawned collectors all call back to `SERVER_HOST` from the same host, so every collector in a cluster shares a single loopback bucket. Each one sends roughly 6 requests per minute at the default 10s ping interval, so the budget you need scales with node count:
+This is effectively a **per-server** budget, not a per-collector one. Spawned collectors all call back to `SERVER_HOST` from the same host, so every collector the server runs shares a single loopback bucket. The server runs one collector per monitored node **per Valkey identity** connected to it (see [Users and Valkey identities](#users-and-valkey-identities)). Each collector sends roughly 6 requests per minute at the default 10s ping interval.
 
-| Cluster nodes | Steady-state requests/min |
-|---|---|
-| 6 | 36 |
-| 30 | 180 |
-| 100 | 600 |
+**Sizing guide.** Count the collectors, then multiply by 6:
 
-The default covers about 100 nodes with headroom for registration retries. Raise it for larger clusters, or if collectors are configured with a shorter `ping_interval`. Symptom of a ceiling that is too low: collectors logging `Register failed: 429` or `Ping failed: 429`, and nodes intermittently losing their metrics.
+```text
+collectors        = monitored nodes × distinct Valkey identities connected to them
+requests per min  = collectors × 6 (at ping_interval 10000 ms)
+set the limit to  = requests per min × 1.5 (headroom for registration retries)
+```
 
-- **Default:** `600`
+| Monitored nodes | Distinct Valkey identities | Collectors | Steady-state requests/min | Suggested limit |
+|---|---|---|---|---|
+| 6 | 1 | 6 | 36 | default |
+| 30 | 5 | 150 | 900 | default |
+| 30 | 10 | 300 | 1800 | `2700` |
+| 100 | 10 | 1000 | 6000 | `9000` |
+
+The default covers about 300 collectors. Raise it when more identities connect to large clusters, or if collectors use a shorter `ping_interval`. A ceiling that is too low shows as collectors logging `Register failed: 429` or `Ping failed: 429`, and nodes that lose their metrics from time to time. Each collector is also a process on the Valkey Admin host and holds connections to Valkey, so size the host too (see [Resource Sizing](/deployment/resource-sizing/)).
+
+- **Default:** `2000`
 - **Read in:** `apps/server/src/index.ts`
 
 ## Collector Authentication
@@ -138,7 +161,7 @@ Beyond authentication, the server validates the advertised URI itself. It must b
 
 A collector that starts without `ORCHESTRATOR_KEY` logs a single error and shuts down rather than issuing requests that can only be refused.
 
-Requests to `/orchestrator/*` are rate limited separately from the UI, defaulting to 600 per minute per source address — see [`ORCHESTRATOR_RATE_LIMIT_MAX`](#orchestrator_rate_limit_max).
+Requests to `/orchestrator/*` are rate limited separately from the UI, defaulting to 2000 per minute per source address — see [`ORCHESTRATOR_RATE_LIMIT_MAX`](#orchestrator_rate_limit_max).
 
 ### `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`
 
@@ -241,7 +264,11 @@ Unlike the variables above, this one is **not** inherited from the server. The s
 
 ### `DATA_DIR`
 
-Base directory the server passes to each spawned child. Each child gets its own subdirectory at `${DATA_DIR}/${nodeId}` for its NDJSON output, so a single `DATA_DIR` is enough for an entire cluster.
+Base directory for collector data. Each Valkey identity gets its own directory, `${DATA_DIR}/<owner>`, and each collector of that identity writes its NDJSON output to `${DATA_DIR}/<owner>/<nodeId>`. The identity's collector settings file is `${DATA_DIR}/<owner>/config.yml`. The server copies it once from the base config file (`CONFIG_PATH`) and never overwrites it, so a settings change made by one identity never reaches another.
+
+`<owner>` is a readable, reversible encoding of the identity, for example `password~alice`, `password~%41lice` (for `Alice`), `iam~us-east-1~my-rg~iam-user` or `gcp-iam~default`. Lowercase letters, digits, `_`, `-` and `~` stay as they are. Every other byte becomes `%XX`, so names stay distinct on case-insensitive filesystems. Names longer than 200 bytes are cut and get a hash suffix (`~h<hex>`).
+
+History from earlier releases, in `${DATA_DIR}/<nodeId>`, has no known owner. The server does not read it. Delete it when you no longer need it.
 
 - **Default:** `apps/server/data`, resolved relative to the compiled server entry point
 

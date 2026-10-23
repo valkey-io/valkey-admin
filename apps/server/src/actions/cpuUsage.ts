@@ -1,6 +1,6 @@
 import { type WebSocket } from "ws"
 import { VALKEY, toNodeId, buildUrl, MILLISECONDS_IN_AN_HOUR } from "valkey-common"
-import { withDeps, Deps, fetchWithTimeout } from "./utils"
+import { withDeps, Deps, fetchWithTimeout, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
 type CpuUsageResponse = Array<{
   timestamp: number
@@ -49,6 +49,10 @@ type RequestPayload = {
 export const cpuUsageRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
     const { connectionId, clusterId, timeRange = 12 * MILLISECONDS_IN_AN_HOUR } = action.payload as unknown as RequestPayload
+    if (collectorFeaturesDisabled()) {
+      sendCpuUsageError(ws, connectionId, new Error(KUBERNETES_METRICS_UNAVAILABLE))
+      return
+    }
     const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
 
     const promises = connectionIds.map(async (connectionId: string) => {

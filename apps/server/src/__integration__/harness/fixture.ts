@@ -26,3 +26,23 @@ export const defaultStandaloneConnectionDetails = (db: number = 0) => {
     db,
   }
 }
+
+/**
+ * A second ACL user with every command except `ACL` and `COMMANDLOG`. Created
+ * on the cluster nodes by `cluster_init.sh` and on the standalone node by its
+ * `--user` arguments in `docker/docker-compose.test.yml`.
+ */
+export const RESTRICTED_USER = { username: "restricted", password: "restricted" }
+
+export const restrictedClusterConnectionDetails = () => ({
+  ...defaultConnectionDetails(),
+  ...RESTRICTED_USER,
+})
+
+export const standaloneConnectionDetailsAs = (
+  user: { username: string; password: string },
+  db: number = 0,
+) => ({
+  ...defaultStandaloneConnectionDetails(db),
+  ...user,
+})

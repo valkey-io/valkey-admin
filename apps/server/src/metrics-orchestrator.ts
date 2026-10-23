@@ -14,6 +14,7 @@
  */
 import { GlideClient, GlideClusterClient, ConnectionError, ServiceType } from "@valkey/valkey-glide"
 import { ChildProcess, spawn, type SpawnOptions } from "child_process"
+import fs from "node:fs"
 import { fileURLToPath } from "url"
 import { Router, type Request, type Response } from "express"
 import path from "path"
@@ -35,6 +36,14 @@ import {
 import { discoverCluster, belongsToCluster } from "./connection"
 import { ConnectionDetails } from "./actions/connection"
 import { createOrchestratorValkeyClient } from "./valkey-client"
+import {
+  allOwnerStates,
+  encodeOwnerDir,
+  getEnvOwnerState,
+  ownerOf,
+  registerEnvOwner,
+  type OwnerState
+} from "./owner"
 
 // Assumes nodeId is unique among all clusters
 export type MetricsServerMap = Map<string,
@@ -61,23 +70,29 @@ export type NodeInfo = {
 
 export type ClusterNodeMap = Record<string, NodeInfo>;
 
-export const clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}> = new Map()
+// The module-level maps are the env owner's state: the identity configured
+// through VALKEY_* environment variables. The preconfigured and Kubernetes
+// paths use them. User connections use their own owner's state.
+const envState = getEnvOwnerState()
 
-export const clusterNodesRegistry: Map<string, ClusterNodeMap> = new Map()
+export const clients = envState.clients
 
-export const clusterCredentials: Map<string, string | undefined> = new Map()
+export const clusterNodesRegistry = envState.clusterNodesRegistry
+
+export const clusterCredentials = envState.clusterCredentials
 
 let preconfiguredClusterId: string | undefined
 export function setPreconfiguredClusterId(clusterId: string | undefined) {
   preconfiguredClusterId = clusterId
 }
 
-export const metricsServerMap: MetricsServerMap = new Map()
+export const metricsServerMap: MetricsServerMap = envState.metricsServerMap
 
 /**
- * HMAC key material for spawned collectors, keyed by metrics-node-id.
+ * HMAC key material for the env owner's spawned collectors, keyed by metrics-node-id.
+ * Each owner state keeps its own `collectorKeys`.
  */
-const collectorKeys: Map<string, string> = new Map()
+const collectorKeys: Map<string, string> = envState.collectorKeys
 
 /**
  * Resolve the only key material acceptable for `nodeId`.
@@ -86,14 +101,14 @@ const collectorKeys: Map<string, string> = new Map()
  * be accepted in its place, or a credential valid for one node could be
  * replayed against another.
  */
-export function resolveCollectorKey(nodeId: string): string | undefined {
-  const spawnedKey = collectorKeys.get(nodeId)
+export function resolveCollectorKey(nodeId: string, state: OwnerState = envState): string | undefined {
+  const spawnedKey = state.collectorKeys.get(nodeId)
   if (spawnedKey) return spawnedKey
   // K8s collectors are external sidecars the orchestrator never spawns, so there
   // is no per-node minted key. They authenticate with a shared key provisioned to
   // both the orchestrator and every sidecar via a Kubernetes Secret. Scoped to K8s
   // so the per-node property is preserved for spawned (Web/Electron) collectors.
-  if (isKubernetes) return process.env[ORCHESTRATOR_AUTH_KEY_ENV]
+  if (isKubernetes && state === envState) return process.env[ORCHESTRATOR_AUTH_KEY_ENV]
   return undefined
 }
 
@@ -102,8 +117,8 @@ export function resolveCollectorKey(nodeId: string): string | undefined {
  * removed so the two stay in lockstep and no secret outlives the process it
  * belonged to.
  */
-export function forgetCollectorKey(nodeId: string): void {
-  collectorKeys.delete(nodeId)
+export function forgetCollectorKey(nodeId: string, state: OwnerState = envState): void {
+  state.collectorKeys.delete(nodeId)
 }
 
 export const isWebMode = process.env.DEPLOYMENT_MODE === DEPLOYMENT_TYPE.WEB
@@ -135,6 +150,10 @@ export const initialConnectionDetails: ConnectionDetails = {
   awsReplicationGroupId: process.env.VALKEY_REPLICATION_GROUP_ID,
   db: Number(process.env.VALKEY_DB ?? 0),
 }
+
+// A user who authenticates as the preconfigured identity reuses the env
+// owner's clients and collectors.
+if (preConfiguredConnection) registerEnvOwner(ownerOf(initialConnectionDetails))
 
 const ttl = Number(process.env.TTL) || 60000
 
@@ -258,6 +277,35 @@ function isKnownClusterNode(nodeId: string): boolean {
 }
 
 /**
+ * Find the owner whose collector signed a request for `nodeId`.
+ *
+ * Several owners can run a collector on the same node, and each collector
+ * signs with its own key. The request names only the node, so the credential
+ * is checked against each key issued for it. Only the issuing collector's key
+ * verifies, so the match identifies the collector.
+ */
+function verifyCollector(
+  nodeId: string,
+  credential: string | undefined,
+  domain: (typeof ORCHESTRATOR_AUTH_DOMAIN)[keyof typeof ORCHESTRATOR_AUTH_DOMAIN],
+  fields: { nodeId: string; metricsServerUri?: string; timestamp: number },
+): { ok: true; state: OwnerState } | { ok: false; reason: string; skewMs?: number } {
+  const windowMs = resolveOrchestratorAuthWindowMs(process.env[ORCHESTRATOR_AUTH_WINDOW_ENV])
+  const candidates = allOwnerStates().filter((state) => resolveCollectorKey(nodeId, state) !== undefined)
+  let failure: { ok: false; reason: string; skewMs?: number } | undefined
+  for (const state of candidates) {
+    const verification = verifyOrchestratorAuthCredential({
+      key: resolveCollectorKey(nodeId, state), credential, domain, fields, windowMs,
+    })
+    if (verification.ok) return { ok: true, state }
+    failure ??= verification
+  }
+  if (failure) return failure
+  const verification = verifyOrchestratorAuthCredential({ key: undefined, credential, domain, fields, windowMs })
+  return verification.ok ? { ok: false, reason: "missing_key" } : verification
+}
+
+/**
  * `POST /orchestrator/register` — a collector advertising where it can be
  * reached.
  *
@@ -274,13 +322,12 @@ function handleRegister(req: Request, res: Response): void {
     return
   }
 
-  const verification = verifyOrchestratorAuthCredential({
-    key: resolveCollectorKey(nodeId),
-    credential: readOrchestratorAuthHeader(req),
-    domain: ORCHESTRATOR_AUTH_DOMAIN.REGISTER,
-    fields: { nodeId, metricsServerUri, timestamp },
-    windowMs: resolveOrchestratorAuthWindowMs(process.env[ORCHESTRATOR_AUTH_WINDOW_ENV]),
-  })
+  const verification = verifyCollector(
+    nodeId,
+    readOrchestratorAuthHeader(req),
+    ORCHESTRATOR_AUTH_DOMAIN.REGISTER,
+    { nodeId, metricsServerUri, timestamp },
+  )
 
   if (!verification.ok) {
     const skew = verification.skewMs === undefined ? "" : ` (clock skew ${verification.skewMs}ms)`
@@ -304,17 +351,19 @@ function handleRegister(req: Request, res: Response): void {
   // Allowed if we already have an entry (orchestrator-spawned) or, in K8s,
   // the node is part of the discovered cluster (sidecars are external, so
   // they create their entry on first register).
-  const allowed = metricsServerMap.has(nodeId) || (isKubernetes && isKnownClusterNode(nodeId))
+  const ownerMap = verification.state.metricsServerMap
+  const isSidecar = isKubernetes && verification.state === envState && isKnownClusterNode(nodeId)
+  const allowed = ownerMap.has(nodeId) || isSidecar
   if (!allowed) {
     console.warn(`Rejected metrics registration for ${nodeId}: no metrics server entry`)
     res.status(401).send("Unauthorized")
     return
   }
 
-  let entry = metricsServerMap.get(nodeId)
+  let entry = ownerMap.get(nodeId)
   if (!entry) {
     entry = { metricsURI: "", pid: undefined, lastSeen: Date.now() }
-    metricsServerMap.set(nodeId, entry)
+    ownerMap.set(nodeId, entry)
   }
 
   entry.metricsURI = metricsServerUri
@@ -337,13 +386,12 @@ function handlePing(req: Request, res: Response): void {
     return
   }
 
-  const verification = verifyOrchestratorAuthCredential({
-    key: resolveCollectorKey(nodeId),
-    credential: readOrchestratorAuthHeader(req),
-    domain: ORCHESTRATOR_AUTH_DOMAIN.PING,
-    fields: { nodeId, timestamp },
-    windowMs: resolveOrchestratorAuthWindowMs(process.env[ORCHESTRATOR_AUTH_WINDOW_ENV]),
-  })
+  const verification = verifyCollector(
+    nodeId,
+    readOrchestratorAuthHeader(req),
+    ORCHESTRATOR_AUTH_DOMAIN.PING,
+    { nodeId, timestamp },
+  )
 
   if (!verification.ok) {
     const skew = verification.skewMs === undefined ? "" : ` (clock skew ${verification.skewMs}ms)`
@@ -352,7 +400,7 @@ function handlePing(req: Request, res: Response): void {
     return
   }
 
-  const entry = metricsServerMap.get(nodeId)
+  const entry = verification.state.metricsServerMap.get(nodeId)
   if (!entry) {
     console.warn(`Rejected metrics ping for ${nodeId}: no metrics server entry`)
     res.status(401).send("Unauthorized")
@@ -416,6 +464,7 @@ export async function updateClusterNodeRegistry(
   client: GlideClusterClient | GlideClient,
   nodeInfo: NodeInfo,
   clusterId?: string,
+  registry: Map<string, ClusterNodeMap> = clusterNodesRegistry,
 ) {
   try {
     const { discoveredClusterNodes, clusterId: discoveredClusterId } = await discoverCluster(client, { connectionDetails: nodeInfo })
@@ -424,7 +473,7 @@ export async function updateClusterNodeRegistry(
     // change on failover/resharding and would otherwise orphan the old entry.
     const key = clusterId ?? discoveredClusterId
     if (key && discoveredClusterNodes) {
-      clusterNodesRegistry.set(key, discoveredClusterNodes)
+      registry.set(key, discoveredClusterNodes)
       return key
     }
   }
@@ -449,17 +498,22 @@ export async function resolveClusterRefreshTarget(
   clusterId: string,
   clusterNodes: ClusterNodeMap,
   userClient: GlideClusterClient | GlideClient | undefined,
+  registry: Map<string, ClusterNodeMap> = clusterNodesRegistry,
 ): Promise<{ client: GlideClusterClient | GlideClient; nodeInfo: NodeInfo } | undefined> {
   if (userClient) return { client: userClient, nodeInfo: Object.values(clusterNodes)[0] }
 
-  // Only the preconfigured cluster may be refreshed via the initial client.
-  if (preConfiguredConnection && clusterId === preconfiguredClusterId) {
+  // Only the env owner's preconfigured cluster may be refreshed via the initial client.
+  if (preConfiguredConnection && clusterId === preconfiguredClusterId && registry === clusterNodesRegistry) {
     return { client: await internals.getInitialClient(), nodeInfo: initialConnectionDetails }
   }
   return undefined
 }
 
-async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: ClusterNodeMap) {
+async function findDiff(
+  metricsServerMap: MetricsServerMap,
+  clusterNodeMap: ClusterNodeMap,
+  ownerClients: OwnerState["clients"] = clients,
+) {
   const clusterNodes = isKubernetes ? flattenClusterNodeMap(clusterNodeMap) : clusterNodeMap
   // These are nodes that are in the clusterMap but not metricsMap
   // TODO: Could use R.pickBy instead
@@ -475,7 +529,7 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
       // Treat the metrics process as still-claimed if any open client strips
       // down to this node (N:1). Avoids evicting standalone metrics whose
       // owner connection is keyed `-db<N>`.
-      const knownToClients = [...clients.keys()].some(
+      const knownToClients = [...ownerClients.keys()].some(
         (id) => toNodeId(id) === key,
       )
       return (!clusterNodes[key] && !knownToClients) || (now - value.lastSeen) > ttl
@@ -485,45 +539,87 @@ async function findDiff(metricsServerMap: MetricsServerMap, clusterNodeMap: Clus
   return { nodesToAdd, nodesToRemove }
 }
 
-async function updateMetricsServers(nodesToAdd: ClusterNodeMap, nodesToRemove: string[], clusterId: string) {
-  await startMetricsServers(nodesToAdd, clusterId)
-  await stopMetricsServers(nodesToRemove)
+async function updateMetricsServers(
+  nodesToAdd: ClusterNodeMap,
+  nodesToRemove: string[],
+  clusterId: string,
+  state: OwnerState = envState,
+) {
+  await internals.startMetricsServers(nodesToAdd, clusterId, state)
+  await internals.stopMetricsServers(nodesToRemove, state)
 }
 
-async function startMetricsServers(nodesToStart: ClusterNodeMap, clusterId: string) {
-  const password = clusterCredentials.get(clusterId)
+async function startMetricsServers(nodesToStart: ClusterNodeMap, clusterId: string, state: OwnerState = envState) {
+  const password = state.clusterCredentials.get(clusterId)
   await Promise.all(
     Object.entries(nodesToStart).map(async ([nodeId, nodeInfo]) => {
-      if (!metricsServerMap.has(nodeId)) {
-        await startMetricsServer({ ...nodeInfo, password }, nodeId)
+      if (!state.metricsServerMap.has(nodeId)) {
+        await startMetricsServer({ ...nodeInfo, password }, nodeId, state)
       }
     }),
   )
 }
 
-async function stopMetricsServers(nodesToStop: string[]) {
+async function stopMetricsServers(nodesToStop: string[], state: OwnerState = envState) {
   await Promise.all(
     nodesToStop.map(async (node) => {
-      if (metricsServerMap.has(node)) {
-        await stopMetricsServer(node)
-      }  
+      if (state.metricsServerMap.has(node)) {
+        await internals.stopMetricsServer(node, state)
+      }
     }),
   )
 }
 
-export async function stopAllMetricsServers(metricsMap: MetricsServerMap) {
-  if (!isKubernetes) {
-    metricsMap.forEach((metricsServer, nodeId) => {
-      try {
-        if (metricsServer.pid)
-          process.kill(metricsServer.pid)
-      } catch (e) {
-        console.warn(`Failed to kill metrics server ${nodeId}:`, e)
-      }
-    })
+/** Stop every owner's collectors. Used on graceful shutdown. */
+export function stopAllMetricsServers() {
+  for (const state of allOwnerStates()) {
+    if (!isKubernetes) {
+      state.metricsServerMap.forEach((metricsServer, nodeId) => {
+        try {
+          if (metricsServer.pid)
+            process.kill(metricsServer.pid)
+        } catch (e) {
+          console.warn(`Failed to kill metrics server ${nodeId}:`, e)
+        }
+      })
+    }
+    state.metricsServerMap.clear()
+    state.collectorKeys.clear()
   }
-  metricsMap.clear()
-  collectorKeys.clear()
+}
+
+/**
+ * Stop the collectors of `state` that no remaining connection of that owner
+ * uses: a node is still used when one of the owner's clients is on it, or it
+ * is in one of the owner's remaining clusters.
+ */
+export async function pruneOwnerCollectors(state: OwnerState) {
+  const usedNodes = new Set([...state.clients.keys()].map(toNodeId))
+  for (const clusterNodes of state.clusterNodesRegistry.values()) {
+    Object.keys(clusterNodes).forEach((nodeId) => usedNodes.add(nodeId))
+  }
+  const unused = [...state.metricsServerMap.keys()].filter((nodeId) => !usedNodes.has(nodeId))
+  await stopMetricsServers(unused, state)
+}
+
+const defaultDataDir = () =>
+  process.env.DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data")
+
+/**
+ * The owner's own copy of the collector settings file. It is seeded once from
+ * the base file, so a settings change from one owner never reaches another.
+ */
+function ownerConfigPath(ownerDir: string, baseConfigPath: string): string {
+  const configPath = path.join(ownerDir, "config.yml")
+  try {
+    fs.mkdirSync(ownerDir, { recursive: true })
+    if (!fs.existsSync(configPath)) fs.copyFileSync(baseConfigPath, configPath, fs.constants.COPYFILE_EXCL)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
+      console.error(`Could not create the collector settings file ${configPath}:`, err)
+    }
+  }
+  return configPath
 }
 
 /**
@@ -534,25 +630,27 @@ function spawnProcess(command: string, args: string[], options: SpawnOptions): C
   return spawn(command, args, options)
 }
 
-export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) {
+export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string, state: OwnerState = envState) {
   const processResourcesPath = process.env.PROCESS_RESOURCES_PATH  ?? ""
   const metricsServerPath = isElectron
     ? path.join(processResourcesPath, "server-metrics.js")
     : fileURLToPath(new URL("../../metrics/dist/index.cjs", import.meta.url))
 
-  const configPath = process.env.CONFIG_PATH
+  const baseConfigPath = process.env.CONFIG_PATH
     ?? (isElectron
       ? path.join(processResourcesPath, "config.yml")
       : fileURLToPath(new URL("../../metrics/config.yml", import.meta.url)))
 
-  const data_dir = process.env.DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data")
+  // Each owner keeps its own metrics history and collector settings.
+  const ownerDir = path.join(defaultDataDir(), encodeOwnerDir(state.ownerKey))
+  const configPath = ownerConfigPath(ownerDir, baseConfigPath)
 
   console.log("Starting metrics server for: ", nodeId)
 
   // Minted before the spawn so the key is already resolvable when the child
   // races ahead and registers.
   const collectorKey = generateOrchestratorAuthKey()
-  collectorKeys.set(nodeId, collectorKey)
+  state.collectorKeys.set(nodeId, collectorKey)
 
   const proc: ChildProcess = internals.spawnProcess(process.execPath, [metricsServerPath], {
     env: {
@@ -571,7 +669,7 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
       SERVER_HOST: process.env.SERVER_HOST ?? "localhost",
       SERVER_PORT: process.env.SERVER_PORT ?? "8080",
       METRICS_BIND_HOST: process.env.METRICS_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1"),
-      DATA_DIR: `${data_dir}/${nodeId}`,
+      DATA_DIR: path.join(ownerDir, nodeId),
       CONFIG_PATH: configPath,
       // MUST stay after the `...process.env` spread. The orchestrator may
       // itself carry an ORCHESTRATOR_KEY (the shared key used by externally
@@ -600,7 +698,7 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
   })
 
   // Don't need to set metricsURI here since we need to wait for server to register itself
-  metricsServerMap.set(nodeId,
+  state.metricsServerMap.set(nodeId,
     {
       metricsURI: "",
       pid: proc.pid,
@@ -609,19 +707,19 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string) 
   )
 }
 
-async function stopMetricsServer(nodeToStop: string) {
+async function stopMetricsServer(nodeToStop: string, state: OwnerState = envState) {
   try {
     console.log("Killing metrics server for ", nodeToStop)
-    const entry = metricsServerMap.get(nodeToStop)
+    const entry = state.metricsServerMap.get(nodeToStop)
     if (isKubernetes) {
-      metricsServerMap.delete(nodeToStop)
-      forgetCollectorKey(nodeToStop)
+      state.metricsServerMap.delete(nodeToStop)
+      forgetCollectorKey(nodeToStop, state)
       return
     }
     if (entry?.pid) {
       try { process?.kill(entry.pid, "SIGTERM") } catch { /* already dead */ }
-      metricsServerMap.delete(nodeToStop)
-      forgetCollectorKey(nodeToStop)
+      state.metricsServerMap.delete(nodeToStop)
+      forgetCollectorKey(nodeToStop, state)
     }
   }
   catch (e) {
@@ -629,22 +727,24 @@ async function stopMetricsServer(nodeToStop: string) {
   }
 }
 
-export async function reconcileClusterMetricsServers(
-  metricsServerMap: MetricsServerMap, 
-) {
-  const clusterIds = [...clusterNodesRegistry.keys()]
+export async function reconcileClusterMetricsServers(state: OwnerState = envState) {
+  const clusterIds = [...state.clusterNodesRegistry.keys()]
   if (clusterIds.length === 0) return
 
   await Promise.all(
     clusterIds.map(async (clusterId) => {
       try {
-        const { nodesToAdd, nodesToRemove } = await internals.findDiff(metricsServerMap, clusterNodesRegistry.get(clusterId) ?? {})
+        const { nodesToAdd, nodesToRemove } = await internals.findDiff(
+          state.metricsServerMap,
+          state.clusterNodesRegistry.get(clusterId) ?? {},
+          state.clients,
+        )
         // Early return if nothing has changed
         if (Object.keys(nodesToAdd).length === 0 && nodesToRemove.length === 0) {
           console.debug("Cluster nodes and metrics servers are in sync")
           return
         }
-        await internals.updateMetricsServers(nodesToAdd, nodesToRemove, clusterId)
+        await internals.updateMetricsServers(nodesToAdd, nodesToRemove, clusterId, state)
       } catch (err) {
         console.error(`Failed to reconcile metrics servers for cluster ${clusterId}:`, err)
       }
@@ -678,7 +778,7 @@ export async function runReconcileLoop() {
   const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
   while (true) {
     try {
-      await reconcileClusterMetricsServers(metricsServerMap)
+      await Promise.all(allOwnerStates().map((state) => reconcileClusterMetricsServers(state)))
       await delay(10000)
     } catch (err) {
       console.error("Failed to reconcile metrics servers", err)
@@ -689,7 +789,7 @@ export async function runReconcileLoop() {
 
 export function cleanupOrchestratorResources() {
   initialClient?.close()
-  stopAllMetricsServers(metricsServerMap)
+  stopAllMetricsServers()
 }
 
 // To help mock internal methods in tests
