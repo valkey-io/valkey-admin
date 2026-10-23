@@ -28,7 +28,7 @@ import { scopedId, subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
 import { createAuthProbeClient, createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
 import { withAuthLimit } from "./auth-limiter"
-import { type OwnerState } from "./owner"
+import { removeOwnerStateIfUnused, type OwnerState } from "./owner"
 
 /**
  * One owner's state plus the requesting socket's cluster bookkeeping. All
@@ -122,6 +122,36 @@ class ConnectionRejectedError extends Error {
   }
 }
 
+/** Glide credentials for `details`. Mints a token for GCP IAM. */
+async function buildCredentials(details: ConnectionDetails): Promise<ServerCredentials | undefined> {
+  const { username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = details
+  if (authType === "iam") {
+    return {
+      username: username!,
+      iamConfig: { clusterName: awsReplicationGroupId!, service: ServiceType.Elasticache, region: awsRegion! },
+    }
+  }
+  if (authType === "gcp-iam") return { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate) }
+  return password ? { username, password } : undefined
+}
+
+/**
+ * Prove that Valkey accepts `details`' credentials on the node they name.
+ * Throws when Valkey rejects them (or the limit is reached). Call it before
+ * anything is created for the owner, so a rejected request leaves nothing behind.
+ */
+export async function proveCredentials(details: ConnectionDetails): Promise<void> {
+  const credentials = await buildCredentials(details)
+  await verifyCredentials(details, {
+    addresses: [{ host: details.host, port: Number(details.port) }],
+    credentials,
+    useTLS: details.tls,
+    verifyTlsCertificate: details.verifyTlsCertificate,
+    // VALKEY_CA_CERT_PATH is a server-side default; an empty value counts as missing.
+    caCertPath: details.caCertPath || process.env.VALKEY_CA_CERT_PATH,
+  })
+}
+
 /**
  * Prove that Valkey accepts `details`' credentials on this node: open a
  * short-lived client, then close it. Throws on rejection. Counted by the
@@ -148,6 +178,7 @@ export async function connectToValkey(
     connectionId: string
     isRetry?: boolean
   },
+  options: { credentialsProven?: boolean } = {},
 ) {
   // Per-connectionId mutex (per owner) around the entire connectToValkey body. The
   // second connector enters only after the first has fully committed (or failed),
@@ -159,7 +190,7 @@ export async function connectToValkey(
   const priorConnect = connectInFlight.get(connectionId) ?? Promise.resolve()
   // .catch swallows the prior connect's failure so our turn still runs.
   const currentConnect = priorConnect.catch(() => {}).then(() =>
-    connectToValkeyLocked(ctx, ws, payload),
+    connectToValkeyLocked(ctx, ws, payload, options),
   )
   connectInFlight.set(connectionId, currentConnect)
   try {
@@ -179,13 +210,11 @@ async function connectToValkeyLocked(
     connectionId: string
     isRetry?: boolean
   },
+  options: { credentialsProven?: boolean },
 ) {
   const { clients, clusterNodesRegistry, metricsServerMap, clusterCredentials, inFlightClusterClients } = ctx
 
-  const {
-    host, port, username, password, tls: useTLS,
-    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
-  } = payload.connectionDetails
+  const { host, port, tls: useTLS, verifyTlsCertificate, authType } = payload.connectionDetails
   // VALKEY_CA_CERT_PATH is a server-side default: the UI has no CA field, so a
   // UI-initiated connection can only get a private CA from the environment.
   // An empty persisted value counts as missing, hence `||` not `??`.
@@ -203,19 +232,7 @@ async function connectToValkeyLocked(
   let standaloneClient: GlideClient | undefined
 
   try {
-    const credentials: ServerCredentials | undefined =
-      authType === "iam"
-        ? {
-          username: username!,
-          iamConfig: {
-            clusterName: awsReplicationGroupId!,
-            service: ServiceType.Elasticache,
-            region: awsRegion!,
-          },
-        }
-        : authType === "gcp-iam"
-          ? { username: "default", password: await mintGcpAccessToken(useTLS, verifyTlsCertificate) }
-          : password ? { username, password } : undefined
+    const credentials = await buildCredentials(payload.connectionDetails)
 
     if (!isValidDatabaseIndex(db)) {
       throw new ConnectionRejectedError(
@@ -226,9 +243,13 @@ async function connectToValkeyLocked(
     // Valkey must accept the presented credentials before anything else: before
     // an existing client is handed over (the owner identity is not secret, so it
     // never grants reuse by itself) and before a retry closes the stale client.
-    await verifyCredentials(payload.connectionDetails, {
-      addresses, credentials, useTLS, verifyTlsCertificate, caCertPath,
-    })
+    // The caller may already have proven them (connectPending does, before it
+    // creates the owner's state).
+    if (!options.credentialsProven) {
+      await verifyCredentials(payload.connectionDetails, {
+        addresses, credentials, useTLS, verifyTlsCertificate, caCertPath,
+      })
+    }
 
     // A retry replaces the stale client only after the new client exists, so a
     // failed retry cannot close a client that works. Cluster clients are
@@ -508,10 +529,7 @@ export async function discoverTopology(
   payload: { discoveryId: string; connectionDetails: ConnectionDetails },
 ): Promise<void> {
   const { discoveryId, connectionDetails } = payload
-  const {
-    host, port, username, password, tls: useTLS,
-    verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId,
-  } = connectionDetails
+  const { host, port, tls: useTLS, verifyTlsCertificate } = connectionDetails
   // VALKEY_CA_CERT_PATH is a server-side default: the UI has no CA field, so a
   // UI-initiated discovery can only get a private CA from the environment.
   // An empty persisted value counts as missing, hence `||` not `??`.
@@ -521,19 +539,7 @@ export async function discoverTopology(
 
   let client: GlideClient | undefined
   try {
-    const credentials: ServerCredentials | undefined =
-      authType === "iam"
-        ? {
-          username: username!,
-          iamConfig: {
-            clusterName: awsReplicationGroupId!,
-            service: ServiceType.Elasticache,
-            region: awsRegion!,
-          },
-        }
-        : authType === "gcp-iam"
-          ? { username: "default", password: await mintGcpAccessToken(useTLS, verifyTlsCertificate) }
-          : password ? { username, password } : undefined
+    const credentials = await buildCredentials(connectionDetails)
 
     // Cluster discovery is read-only `CLUSTER SLOTS` against the seed node;
     // database selection is irrelevant for cluster commands. Skip
@@ -825,8 +831,9 @@ export function teardownConnection(
   }
 
   if (!env) {
-    pruneOwnerCollectors(ctx).catch((err) =>
-      console.error(`Error stopping collectors after ${connectionId} closed:`, err),
-    )
+    pruneOwnerCollectors(ctx)
+      .then(() => removeOwnerStateIfUnused(ctx))
+      .catch((err) => console.error(`Error stopping collectors after ${connectionId} closed:`, err))
+    removeOwnerStateIfUnused(ctx)
   }
 }

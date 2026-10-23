@@ -1,6 +1,6 @@
 import { VALKEY, toNodeId } from "valkey-common"
 import { CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
-import { getOwnerState, ownerOf, type OwnerState } from "./owner"
+import { findOwnerState, ownerOf, type OwnerState } from "./owner"
 import { getWatcherCount, scopedId } from "./node-watchers"
 import { teardownConnection } from "./connection"
 import type { ConnectionDetails } from "./actions/connection"
@@ -55,7 +55,11 @@ export const connectedNodesFor = (binding: SocketBinding, ownerKey: string): Map
 type ActionLike = { type: string; payload?: { connectionId?: string; clusterId?: unknown; connectionDetails?: unknown } }
 
 export type ResolvedAction =
-  | { ok: true; ownerKey: string; state: OwnerState }
+  /**
+   * `state` is undefined only for a connect or a discovery whose owner has no
+   * entry yet. A connect creates the entry after Valkey accepts the credentials.
+   */
+  | { ok: true; ownerKey: string; state: OwnerState | undefined }
   | { ok: false; reason: string }
 
 // The cluster that a bound connection (or a db-less node id) belongs to in its owner's state.
@@ -80,7 +84,7 @@ const clusterOf = (state: OwnerState, connectionId: string): string | undefined 
 export const resolveAction = (
   binding: SocketBinding,
   action: ActionLike,
-  lookup: (ownerKey: string) => OwnerState | undefined = getOwnerState,
+  lookup: (ownerKey: string) => OwnerState | undefined = findOwnerState,
 ): ResolvedAction => {
   const payload = action.payload ?? {}
 
@@ -88,7 +92,8 @@ export const resolveAction = (
     const details = payload.connectionDetails as ConnectionDetails | undefined
     if (!details || typeof details !== "object") return { ok: false, reason: "missing connection details" }
     const ownerKey = ownerOf(details)
-    return { ok: true, ownerKey, state: getOwnerState(ownerKey) }
+    // Look up only: Valkey has not accepted these credentials yet.
+    return { ok: true, ownerKey, state: findOwnerState(ownerKey) }
   }
 
   const { connectionId } = payload

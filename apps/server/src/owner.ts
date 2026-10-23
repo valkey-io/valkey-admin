@@ -98,6 +98,17 @@ export const registerEnvOwner = (ownerKey: string): void => {
   owners.set(ownerKey, envState)
 }
 
+/**
+ * The owner's state if it exists. Does not create one: use this for any
+ * request whose credentials Valkey has not accepted yet.
+ */
+export const findOwnerState = (ownerKey: string): OwnerState | undefined =>
+  owners.get(ownerKey) ?? (envState.ownerKey === ownerKey ? envState : undefined)
+
+/**
+ * The owner's state, created on first use. Call it only after Valkey accepted
+ * the owner's credentials, so unauthenticated requests cannot add entries.
+ */
 export const getOwnerState = (ownerKey: string): OwnerState => {
   let state = owners.get(ownerKey)
   if (!state) {
@@ -105,6 +116,22 @@ export const getOwnerState = (ownerKey: string): OwnerState => {
     owners.set(ownerKey, state)
   }
   return state
+}
+
+/**
+ * Remove an owner's entry when the owner has nothing left on the server: no
+ * client, no collector, no cluster topology and no connect in progress. The env
+ * owner is never removed.
+ */
+export const removeOwnerStateIfUnused = (state: OwnerState): boolean => {
+  if (state.env || owners.get(state.ownerKey) !== state) return false
+  const unused = state.clients.size === 0
+    && state.metricsServerMap.size === 0
+    && state.clusterNodesRegistry.size === 0
+    && state.connectInFlight.size === 0
+    && state.inFlightClusterClients.size === 0
+  if (unused) owners.delete(state.ownerKey)
+  return unused
 }
 
 /** Every owner state, the env owner's included. */

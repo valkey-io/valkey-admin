@@ -1,10 +1,10 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
 import { EndpointType } from "valkey-common"
 import { VALKEY } from "valkey-common"
-import { connectToValkey, teardownConnection } from "../connection"
+import { connectToValkey, proveCredentials, teardownConnection } from "../connection"
 import { unsubscribe, getWatcherCount, scopedId } from "../node-watchers"
 import { bindConnection, connectedNodesFor, scheduleRelease, unbindConnection } from "../socket-binding"
-import { getOwnerState } from "../owner"
+import { findOwnerState, getOwnerState, removeOwnerStateIfUnused } from "../owner"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
 
@@ -38,7 +38,7 @@ const isPasswordAuth = (details: ConnectionDetails) =>
   details.authType !== "iam" && details.authType !== "gcp-iam"
 
 export const connectPending = withDeps<Deps, void>(
-  async ({ ws, action, ownerKey, ownerState, binding }) => {
+  async ({ ws, action, ownerKey, binding }) => {
     const payload = action.payload as ConnectPayload
     const { connectionId, connectionDetails } = payload
 
@@ -52,20 +52,39 @@ export const connectPending = withDeps<Deps, void>(
       return
     }
 
+    // Prove the credentials before anything is created for the owner, so a
+    // request that Valkey rejects leaves no owner state behind.
+    try {
+      await proveCredentials(connectionDetails)
+    } catch (err) {
+      ws.send(JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: { connectionId, errorMessage: err instanceof Error ? err.message : String(err) },
+      }))
+      return
+    }
+
+    const ownerState = getOwnerState(ownerKey)
     const client = await connectToValkey(
       { ...ownerState, connectedNodesByCluster: connectedNodesFor(binding, ownerKey) },
       ws,
       payload,
+      { credentialsProven: true },
     )
-    if (!client) return
+    if (!client) {
+      // The connect failed after AUTH (for example a bad database index).
+      removeOwnerStateIfUnused(ownerState)
+      return
+    }
 
     // Valkey accepted the credentials: the socket may now act on this connection.
     const previousOwner = bindConnection(binding, ownerKey, connectionId)
     if (previousOwner !== undefined) {
       // The socket reconnected the same connectionId as another Valkey user.
       // Release the old owner's watch so its client can be torn down.
-      if (unsubscribe(scopedId(previousOwner, connectionId), ws)) {
-        scheduleRelease(getOwnerState(previousOwner), connectionId)
+      const previousState = findOwnerState(previousOwner)
+      if (unsubscribe(scopedId(previousOwner, connectionId), ws) && previousState) {
+        scheduleRelease(previousState, connectionId)
       }
     }
   },
@@ -83,7 +102,7 @@ export const resetConnection = withDeps<Deps, void>(
 
     const { clusterId } = action.payload as unknown as { clusterId: string }
 
-    if (client instanceof GlideClusterClient) {
+    if (ownerState && client instanceof GlideClusterClient) {
       await setClusterDashboardData(clusterId, client, ws, connectionId, ownerState)
     }
   },
@@ -115,6 +134,6 @@ export const closeConnection = withDeps<Deps, void>(
     // Don't tear down a connection another socket of the same owner still uses
     if (getWatcherCount(scopedId(ownerKey, connectionId)) > 0) return
 
-    teardownConnection(ownerState, connectionId)
+    if (ownerState) teardownConnection(ownerState, connectionId)
   },
 )

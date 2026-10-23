@@ -15,7 +15,11 @@ export type Deps = {
   clusterNodesRegistry: Map<string, ClusterNodeMap>,
   /** Owner identity the action runs as. The maps above are this owner's. */
   ownerKey: string,
-  ownerState: OwnerState,
+  /**
+   * The owner's state. Undefined only for a connect or a discovery whose owner
+   * has no entry yet; every other action is rejected before it reaches a handler.
+   */
+  ownerState: OwnerState | undefined,
   /** What the requesting socket may act on. */
   binding: SocketBinding,
 }

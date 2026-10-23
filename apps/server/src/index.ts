@@ -44,7 +44,7 @@ import {
   setPreconfiguredClusterId
 } from "./metrics-orchestrator"
 import { isAllowedWebSocketOrigin } from "./websocket-origin"
-import { allOwnerStates, getOwnerState } from "./owner"
+import { allOwnerStates, findOwnerState } from "./owner"
 import {
   connectedNodesFor,
   createSocketBinding,
@@ -341,13 +341,15 @@ wss.on("connection", (ws: AliveWebSocket) => {
       }
       const { ownerKey, state } = resolved
 
+      // `state` is undefined only for a connect or discovery of an owner that has
+      // no entry yet. Those handlers do not read the maps below.
       await handler(
         { ws,
-          clients: state.clients,
+          clients: state?.clients ?? new Map(),
           connectionId: connectionId!,
-          metricsServerMap: state.metricsServerMap,
+          metricsServerMap: state?.metricsServerMap ?? new Map(),
           connectedNodesByCluster: connectedNodesFor(ws.binding, ownerKey),
-          clusterNodesRegistry: state.clusterNodesRegistry,
+          clusterNodesRegistry: state?.clusterNodesRegistry ?? new Map(),
           ownerKey,
           ownerState: state,
           binding: ws.binding })(action as ReduxAction)
@@ -366,7 +368,8 @@ wss.on("connection", (ws: AliveWebSocket) => {
     // Release every connection this socket bound. Each one is torn down after
     // the teardown delay unless another socket of the same owner watches it.
     for (const [connectionId, ownerKey] of ws.binding.connections) {
-      scheduleRelease(getOwnerState(ownerKey), connectionId)
+      const state = findOwnerState(ownerKey)
+      if (state) scheduleRelease(state, connectionId)
     }
     ws.binding = createSocketBinding()
   })
