@@ -77,6 +77,13 @@ export const connectPending = withDeps<Deps, void>(
       return
     }
 
+    // Case if the socket closed while the connect ran.
+    if (ws.readyState !== ws.OPEN) {
+      unsubscribe(scopedId(ownerKey, connectionId), ws)
+      scheduleRelease(ownerState, connectionId)
+      return
+    }
+
     // Valkey accepted the credentials: the socket may now act on this connection.
     const previousOwner = bindConnection(binding, ownerKey, connectionId)
     if (previousOwner !== undefined) {
