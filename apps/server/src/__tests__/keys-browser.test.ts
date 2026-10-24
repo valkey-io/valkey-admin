@@ -124,6 +124,31 @@ describe("getKeyInfo", () => {
       ])
     })
 
+    it("should display binary fields and values escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 250,
+        HLEN: 2,
+        HSCAN: ["0", ["name", "Alice", Buffer.from([0xff, 0xfe, 0x00, 0x01]), Buffer.from([0x80, 0x88])]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "user:1")
+
+      assert.strictEqual(result.name, "user:1")
+      assert.strictEqual(result.type, "hash")
+      assert.deepStrictEqual(result.elements, [
+        { key: "name", value: "Alice" },
+        {
+          key: "\\xff\\xfe\\x00\\x01",
+          value: "\\x80\\x88",
+          isKeyBinary: true,
+          isValueBinary: true,
+          isBinary: true,
+        },
+      ])
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
   })
 
   describe("list keys", () => {
@@ -145,6 +170,24 @@ describe("getKeyInfo", () => {
       assert.deepStrictEqual(result.elements, ["item1", "item2"])
     })
 
+    it("should display binary list elements escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "list",
+        TTL: 0,
+        MEMORY: 150,
+        LLEN: 2,
+        LRANGE: ["item1", Buffer.from([0x80, 0x00])],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mylist")
+
+      assert.strictEqual(result.name, "mylist")
+      assert.deepStrictEqual(result.elements, [
+        "item1",
+        { value: "\\x80\\x00", isBinary: true },
+      ])
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
   })
 
   describe("zset keys", () => {
@@ -167,6 +210,42 @@ describe("getKeyInfo", () => {
       assert.deepStrictEqual(result.elements, [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }])
     })
 
+    it("should display binary zset members escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 200,
+        ZCARD: 2,
+        ZRANGE: [{ key: "member1", value: "1.5" }, { key: Buffer.from([0x80, 0x00]), value: "2.5" }],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myzset")
+
+      assert.strictEqual(result.name, "myzset")
+      assert.deepStrictEqual(result.elements, [
+        { key: "member1", value: "1.5" },
+        { key: "\\x80\\x00", value: "2.5", isKeyBinary: true, isBinary: true },
+      ])
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
+
+    it("should decode zset scores returned as Buffers", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 200,
+        ZCARD: 1,
+        ZRANGE: [{ key: "member1", value: Buffer.from("10.5") }],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myzset")
+
+      assert.strictEqual(result.name, "myzset")
+      assert.deepStrictEqual(result.elements, [
+        { key: "member1", value: "10.5" },
+      ])
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
   })
 
   describe("stream keys", () => {
@@ -195,6 +274,25 @@ describe("getKeyInfo", () => {
       assert.ok(Array.isArray(elements[1]))
     })
 
+    it("should display binary stream fields and values escaped with binary flags", async () => {
+      const mockClient = createMockClient({
+        TYPE: "stream",
+        TTL: -1,
+        MEMORY: 300,
+        XLEN: 1,
+        XRANGE: [
+          ["1234567890-0", ["field1", Buffer.from([0x80, 0x00])]],
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mystream")
+
+      assert.strictEqual(result.name, "mystream")
+      assert.deepStrictEqual(result.elements, [
+        ["1234567890-0", [{ field: "field1", value: "\\x80\\x00", isValueBinary: true, isBinary: true }]],
+      ])
+      assert.strictEqual(result.elementsWarning, undefined)
+    })
   })
 
   describe("json keys", () => {
