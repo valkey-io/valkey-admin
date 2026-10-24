@@ -1,10 +1,11 @@
 import { VALKEY, findBlockedCommand, parseCommandArgs } from "valkey-common"
-import { sendValkeyRunCommand } from "../send-command"
+import { sendValkeyRunCommand, type CommandRoute } from "../send-command"
 import { type Deps, withDeps } from "./utils"
 
 type CommandAction = {
   command: string
   connectionId: string
+  route?: CommandRoute
 }
 
 export const sendRequested = withDeps<Deps, void>(

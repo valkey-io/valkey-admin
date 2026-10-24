@@ -27,6 +27,8 @@ import { SendCommandParamsModal } from "@/components/send-command/send-command-p
 import { useAppDispatch } from "@/hooks/hooks.ts"
 import { Typography } from "@/components/ui/typography.tsx"
 import { selectClusterAlias } from "@/state/valkey-features/connection/connectionSelectors"
+import { selectClusterNodes, buildNodeRows } from "@/state/valkey-features/cluster/clusterSelectors"
+import { Select } from "@/components/ui/select"
 
 export function SendCommand() {
   const dispatch = useAppDispatch()
@@ -50,12 +52,24 @@ export function SendCommand() {
 
   const { id, clusterId } = useParams()
   const clusterAlias = useSelector(selectClusterAlias(id!))
+  const clusterNodesMap = useSelector(selectClusterNodes(clusterId ?? ""))
+  const clusterNodeRows = useMemo(() => buildNodeRows(clusterNodesMap ?? {}), [clusterNodesMap])
+  const [selectedNodeRoute, setSelectedNodeRoute] = useState<string>("auto")
+
   const allCommands = useSelector(selectAllCommands(id as string)) || []
   const historyLimit = useSelector(selectCommandHistoryLimit)
   const { error, response, durationMs } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const dispatchCommand = (command: string) => {
-    dispatch(sendRequested({ command, connectionId: id }))
+    let route: { host: string; port: number } | undefined
+    if (selectedNodeRoute !== "auto") {
+      const selectedRow = clusterNodeRows.find((node) => node.searchKey === selectedNodeRoute)
+      if (selectedRow) {
+        route = { host: selectedRow.host, port: selectedRow.port }
+      }
+    }
+
+    dispatch(sendRequested({ command, connectionId: id, route }))
     setCommandIndex(length)
     setText("")
     setSuggestionsDismissed(false)
@@ -344,6 +358,21 @@ export function SendCommand() {
             value={text}
           />
         </div>
+        {clusterId && clusterNodeRows.length > 0 && (
+          <Select
+            aria-label="Route to node"
+            className="h-10 text-xs font-mono py-1 pr-7 pl-2 max-w-[200px]"
+            onChange={(e) => setSelectedNodeRoute(e.target.value)}
+            value={selectedNodeRoute}
+          >
+            <option value="auto">Auto (Default)</option>
+            {clusterNodeRows.map((node) => (
+              <option key={node.searchKey} value={node.searchKey}>
+                {node.searchKey} ({node.role})
+              </option>
+            ))}
+          </Select>
+        )}
         <Button
           disabled={text.trim().length === 0}
           onClick={() => onSubmit()}
