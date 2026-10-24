@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Typography } from "../../ui/typography"
+import { BinaryNotice, BinaryValue } from "./binary-value"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -20,17 +21,22 @@ interface KeyDetailsZSetProps {
     size: number;
     collectionSize?: number;
     elements: ZSetElement[];
+    binaryIndexes?: number[];
   };
   connectionId: string;
   readOnly: boolean;
 }
 
+/**
+ * Shows and edits a sorted set's members and scores; binary members are badged and read-only.
+ */
 export default function KeyDetailsZSet(
   { selectedKey, selectedKeyInfo, connectionId, readOnly = false }: KeyDetailsZSetProps,
 ) {
   const dispatch = useAppDispatch()
   const [isEditable, setIsEditable] = useState(false)
   const [editedValues, setEditedValues] = useState<number[]>([])
+  const binaryIndexes = new Set(selectedKeyInfo.binaryIndexes)
 
   console.debug("selectedKeyInfo:::", selectedKeyInfo)
 
@@ -53,7 +59,8 @@ export default function KeyDetailsZSet(
         member: selectedKeyInfo.elements[index].key,
         score: newScore,
       }))
-      .filter((update, index) => update.score !== selectedKeyInfo.elements[index].value)
+      // Binary members can't be addressed by their escaped text, so their scores are never sent
+      .filter((update, index) => !binaryIndexes.has(index) && update.score !== selectedKeyInfo.elements[index].value)
 
     dispatch(updateKeyRequested({
       connectionId: connectionId,
@@ -88,11 +95,16 @@ export default function KeyDetailsZSet(
             />
           </div>
         </div>
+        {binaryIndexes.size > 0 && (
+          <div className="px-4 pt-3">
+            <BinaryNotice count={binaryIndexes.size} noun="members" total={selectedKeyInfo.elements.length} />
+          </div>
+        )}
         {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => (
           <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
-            <Typography variant="code">{element.key}</Typography>
+            <BinaryValue isBinary={binaryIndexes.has(index)} value={element.key} />
             <div className="col-span-3">
-              {isEditable ? (
+              {isEditable && !binaryIndexes.has(index) ? (
                 <Input
                   aria-label="Edit zset value"
                   onChange={(e) => handleValueChange(index, e.target.value)}

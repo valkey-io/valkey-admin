@@ -2,6 +2,7 @@ import { useState } from "react"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Textarea } from "../../ui/textarea"
 import { Typography } from "../../ui/typography"
+import { BinaryNotice } from "./binary-value"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -70,6 +71,13 @@ export default function KeyDetailsString(
           </tr>
         </thead>
         <tbody>
+          {selectedKeyInfo.isBinary && (
+            <tr>
+              <td className="px-4 pt-3" colSpan={2}>
+                <BinaryNotice count={1} />
+              </td>
+            </tr>
+          )}
           <tr>
             <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
               {isEditable ? (
@@ -81,7 +89,7 @@ export default function KeyDetailsString(
                   value={editedValue}
                 />
               ) : (
-                <Typography className="whitespace-pre-wrap break-words" variant="code">
+                <Typography className={cn("whitespace-pre-wrap", selectedKeyInfo.isBinary ? "break-all" : "break-words")} variant="code">
                   {selectedKeyInfo.elements}
                 </Typography>
               )}
