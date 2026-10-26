@@ -8,7 +8,8 @@ import { downsampleMinMaxOrdered } from "../utils/helpers.js"
 // These counters monotonically increase for the lifetime of the process.
 // To display CPU usage over time, we sum them to get total CPU seconds
 // at each timestamp, then compute deltas between consecutive timestamps.
-// Dividing the CPU-time delta by wall-clock time yields "CPU cores used".
+// Dividing the CPU-time delta by wall-clock time yields "CPU cores used",
+// which is scaled by 100 to report CPU usage as a percentage of one core.
 
 export const cpuSeed = {
   out: [],
@@ -62,11 +63,11 @@ export const cpuReducer =
           const cpuSecondsElapsed = acc.curTotal - acc.prevTotal
 
           if (wallSecondsElapsed > 0 && cpuSecondsElapsed >= 0) {
-            const coresUsed = cpuSecondsElapsed / wallSecondsElapsed
+            const cpuPercent = (cpuSecondsElapsed / wallSecondsElapsed) * 100
             const prevValue = acc.out.at(-1)?.value
 
-            if (shouldEmitPoint({ prevValue, currValue: coresUsed, tolerance })) {
-              acc.out.push({ timestamp: acc.curTs, value: coresUsed })
+            if (shouldEmitPoint({ prevValue, currValue: cpuPercent, tolerance })) {
+              acc.out.push({ timestamp: acc.curTs, value: cpuPercent })
             }
           }
         }
@@ -95,11 +96,11 @@ export const cpuFinalize =
 
       if (wallSecondsElapsed <= 0 || cpuSecondsElapsed < 0) return acc.out
 
-      const coresUsed = cpuSecondsElapsed / wallSecondsElapsed
+      const cpuPercent = (cpuSecondsElapsed / wallSecondsElapsed) * 100
       const prevValue = acc.out.at(-1)?.value
 
-      if (shouldEmitPoint({ prevValue, currValue: coresUsed, tolerance })) {
-        acc.out.push({ timestamp: acc.curTs, value: coresUsed })
+      if (shouldEmitPoint({ prevValue, currValue: cpuPercent, tolerance })) {
+        acc.out.push({ timestamp: acc.curTs, value: cpuPercent })
       }
 
       return acc.out

@@ -17,7 +17,7 @@ The dashboard is your central hub for monitoring cluster node activity, displayi
 
 The top of the dashboard displays four summary cards for the connected node:
 
-- **Total Memory**: The server's configured `maxmemory` (or total system memory if unbounded)
+- **Total Memory**: The server's configured `maxmemory`, or `∞` if unbounded
 - **Used Memory**: Current memory consumption
 - **Operations**: Total commands processed
 - **Hit Ratio**: Cache hit rate (keyspace hits vs misses)
