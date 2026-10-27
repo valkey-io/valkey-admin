@@ -19,6 +19,7 @@ interface KeyDetailsSetProps {
     size: number;
     collectionSize?: number;
     elements: string[];
+    isBinary?: boolean;
   };
   connectionId: string;
   readOnly: boolean;
@@ -145,42 +146,64 @@ export default function KeyDetailsSet(
         {selectedKeyInfo.elements
           .map((element: string, index: number) => ({ element, index }))
           .filter(({ element }) => !deletedValues.has(element))
-          .map(({ element, index }) => (
-            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
-              <Typography variant="bodySm">{index}</Typography>
-              <div className="col-span-3">
-                {isEditable ? (
-                  <div className="flex gap-2 relative">
-                    <Input
-                      aria-label="Edit set value"
-                      onChange={(e) => handleSetFieldChange(index, e.target.value)}
-                      type="text"
-                      value={editedSetValues[index] || ""}
-                    />
-                    <CustomTooltip content="Delete element">
-                      <Button
-                        aria-label="Delete set element"
-                        onClick={() => handleDeleteElement(element)}
-                        variant={"destructiveGhost"}
-                      >
-                        <Trash/>
-                      </Button>
-                    </CustomTooltip>
-                    {pendingDeleteValue === element && (
-                      <DeleteModal
-                        itemName={element}
-                        message="You are deleting element:"
-                        onCancel={cancelDeleteElement}
-                        onConfirm={confirmDeleteElement}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <Typography variant="code">{String(element)}</Typography>
-                )}
+          .map(({ element, index }) => {
+            const isItemBinary = /\\x[0-9a-fA-F]{2}/.test(element)
+            return (
+              <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+                <Typography variant="bodySm">{index}</Typography>
+                <div className="col-span-3">
+                  {isEditable ? (
+                    <div className="flex gap-2 relative items-center">
+                      {isItemBinary ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            aria-label="Locked binary set item"
+                            className="opacity-70 cursor-not-allowed bg-muted/40"
+                            disabled
+                            type="text"
+                            value={element}
+                          />
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                        </div>
+                      ) : (
+                        <Input
+                          aria-label="Edit set value"
+                          onChange={(e) => handleSetFieldChange(index, e.target.value)}
+                          type="text"
+                          value={editedSetValues[index] || ""}
+                        />
+                      )}
+                      <CustomTooltip content="Delete element">
+                        <Button
+                          aria-label="Delete set element"
+                          disabled={isItemBinary}
+                          onClick={() => handleDeleteElement(element)}
+                          variant={"destructiveGhost"}
+                        >
+                          <Trash/>
+                        </Button>
+                      </CustomTooltip>
+                      {pendingDeleteValue === element && (
+                        <DeleteModal
+                          itemName={element}
+                          message="You are deleting element:"
+                          onCancel={cancelDeleteElement}
+                          onConfirm={confirmDeleteElement}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Typography variant="code">{String(element)}</Typography>
+                      {isItemBinary && (
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         {isEditable && newItems.map((newItem) => (
           <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={newItem.tempId}>
             <Typography variant="bodySm">New</Typography>
