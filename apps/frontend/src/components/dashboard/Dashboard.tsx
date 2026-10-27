@@ -49,14 +49,11 @@ export function Dashboard() {
   }
 
   const maxmem = Number(infoData.maxmemory)
-  const sysmem = Number(infoData.total_system_memory)
   const totalMemoryDisplay = maxmem > 0
     ? formatBytes(maxmem)
-    : maxmem === 0 && sysmem > 0
-      ? formatBytes(sysmem)
-      : maxmem === 0
-        ? "∞"
-        : "—"
+    : maxmem === 0
+      ? "∞"
+      : "—"
 
   const upTimeMetrics = {
     evicted_scripts: infoData.evicted_scripts,

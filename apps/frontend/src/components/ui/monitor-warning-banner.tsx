@@ -154,7 +154,7 @@ function ClusterMonitorRow({ clusterId, runningNodes, now, onOpenSettings }: Clu
 
       {startedAt != null && (
         <span className="text-xs text-destructive">
-          Running for: {formatDuration(now - startedAt)}
+          Running for: {formatDuration(Math.max(0, now - startedAt))}
         </span>
       )}
 
@@ -234,7 +234,7 @@ function StandaloneMonitorRow({ nodeId, startedAt, running, now, onOpenSettings 
 
       {startedAt != null && (
         <span className="text-xs text-destructive">
-          Running for: {formatDuration(now - startedAt)}
+          Running for: {formatDuration(Math.max(0, now - startedAt))}
         </span>
       )}
 
@@ -325,6 +325,7 @@ export function MonitorWarningBanner() {
 
   useEffect(() => {
     if (!hasContent) return
+    setNow(Date.now())
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
   }, [hasContent])
