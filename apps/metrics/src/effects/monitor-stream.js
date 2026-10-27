@@ -40,26 +40,62 @@ async function getPassword() {
   return process.env.VALKEY_PASSWORD
 }
 
+// iovalkey emits this when a reply arrives that no queued command is waiting for.
+const QUEUE_STATE_ERROR = "Command queue state error"
+
 /**
  * Phase 1: Connect and issue MONITOR command.
- * Returns the client and monitor handle for use in Phase 2.
- * Throws immediately if the command is unsupported.
+ * Returns the monitor handle for use in Phase 2.
+ * Throws immediately if the command is unsupported or the connection fails.
+ *
+ * The connection is built directly with `monitor: true` instead of through
+ * `client.monitor()`, so the error listener is attached before the socket
+ * opens. iovalkey only switches to monitoring mode in a `.then()` after
+ * MONITOR's OK, so monitor lines that arrive in the same socket read as the
+ * OK are treated as unexpected replies and emitted as queue-state errors.
+ * Without a listener already in place, the second of those errors is thrown
+ * from the socket handler and kills the process. Those few lines are dropped.
+ *
+ * monitor-stream.race.test.js reproduces this against a real iovalkey
+ * connection and a fake server that sends the OK and monitor lines in one write.
  */
 export const connectMonitor = async () => {
   const { host, port, username, tls } = getConnectionOptions()
   const password = await getPassword()
-  const client = new Valkey({ host, port, username, password, tls })
-  client.on("error", (err) => console.error("[monitor] iovalkey client error:", err.message))
-  const monitor = await client.monitor()
-  monitor.on("error", (err) => console.error("[monitor] monitor stream error:", err.message))
-  return { client, monitor }
+  const monitor = new Valkey({ host, port, username, password, tls, monitor: true, lazyConnect: true })
+
+  let monitoring = false
+  const ready = new Promise((resolve, reject) => {
+    monitor.on("error", (err) => {
+      if (err.message?.startsWith(QUEUE_STATE_ERROR)) {
+        console.warn("[monitor] dropped a line received before monitoring started")
+        return
+      }
+      console.error("[monitor] monitor stream error:", err.message)
+      // Before monitoring starts this is a connection failure or an unsupported MONITOR.
+      if (!monitoring) reject(err)
+    })
+    monitor.once("monitoring", () => {
+      monitoring = true
+      resolve()
+    })
+  })
+
+  try {
+    // Promise.all keeps a late rejection from the slower promise handled.
+    await Promise.all([monitor.connect(), ready])
+  } catch (err) {
+    monitor.disconnect()
+    throw err
+  }
+  return { monitor }
 }
 
 /**
  * Phase 2: Collect logs from an active monitor handle.
  * Listens for monitoringDuration or until maxLogs is reached, then disconnects.
  */
-export const collectLogs = async ({ client, monitor }, { monitoringDuration, maxCommandsPerRun: maxLogs }) => {
+export const collectLogs = async ({ monitor }, { monitoringDuration, maxCommandsPerRun: maxLogs }) => {
   const rows = []
   const overflow$ = new Subject()
 
@@ -83,7 +119,6 @@ export const collectLogs = async ({ client, monitor }, { monitoringDuration, max
     monitor.off("monitor", processEvent)
     await Promise.all([
       monitor.disconnect(),
-      client.disconnect(),
       (async () => { overflow$.complete() })(),
     ])
     console.debug(`Monitor run complete (${monitorCompletionReason}).`)
