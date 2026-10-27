@@ -174,12 +174,17 @@ async function refreshAllClusterRegistries() {
         const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient, state.clusterNodesRegistry)
         if (!target) return
 
+        let timer: ReturnType<typeof setTimeout> | undefined
+
         await Promise.race([
           updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId, state.clusterNodesRegistry),
-          delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
-            console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
-          ),
-        ])
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`)
+              resolve()
+            }, TOPOLOGY_REDISCOVERY_TIMEOUT_MS)
+          }),
+        ]).finally(() => clearTimeout(timer))
       }),
     )
 
