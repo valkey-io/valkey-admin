@@ -134,13 +134,24 @@ For the full-featured desktop application:
 3. **Start dev servers:** `npm run dev` or use `./quickstart-web.sh`
 4. **Connect:** Open http://localhost:5173 and manually add connection to `localhost:7001`
 
+### All local Valkey deployments
+
+`./tools/build_run_all.sh` starts two clusters and one standalone instance, each with RedisJSON and seed data:
+
+- Cluster with LFU eviction and cluster slot stats enabled: `localhost:7001`–`7006`
+- Cluster with Valkey defaults: `localhost:7101`–`7106`
+- Standalone: `localhost:6379`
+
+Stop and remove them all with `./tools/build_run_all.sh down`. See [`tools/README.md`](./tools/README.md) for details.
+
 ### Windows/WSL Users
 
 Fix line endings before running scripts:
 ```bash
 sed -i 's/\r$//' tools/valkey-cluster/scripts/build_run_cluster.sh
 sed -i 's/\r$//' tools/valkey-cluster/scripts/cluster_init.sh
-chmod +x tools/valkey-cluster/scripts/*.sh
+sed -i 's/\r$//' tools/valkey-standalone/build_run_standalone.sh tools/build_run_all.sh
+chmod +x tools/valkey-cluster/scripts/*.sh tools/valkey-standalone/*.sh tools/build_run_all.sh
 ```
 
 ### Shutting Down
@@ -149,6 +160,8 @@ chmod +x tools/valkey-cluster/scripts/*.sh
 cd tools/valkey-cluster
 docker compose down -v
 ```
+
+If you started every deployment with `./tools/build_run_all.sh`, stop them with `./tools/build_run_all.sh down` instead.
 
 ### Local Valkey seed data
 

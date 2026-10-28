@@ -4,9 +4,33 @@ Docker **or Podman** is a prerequisite. The scripts prefer Docker when its daemo
 
 From root run:
 
-`./tools/valkey-standalone/build_run_standalone.sh` for a standalone instance populated with seed data.
+`./tools/build_run_all.sh` to start every deployment below in the background, each populated with seed data. Stop and remove them all with `./tools/build_run_all.sh down`.
 
-`./tools/valkey-cluster/scripts/build_run_cluster.sh` for a cluster instance populated with seed data.
+| Deployment | Ports | Started individually with | Config |
+|---|---|---|---|
+| Cluster (LFU) | `7001`–`7006` | `./tools/valkey-cluster/scripts/build_run_cluster.sh` (or `... lfu`) | `maxmemory 100mb`, `maxmemory-policy allkeys-lfu`, `cluster-slot-stats-enabled yes` |
+| Cluster (default) | `7101`–`7106` | `./tools/valkey-cluster/scripts/build_run_cluster.sh default` | Valkey defaults (`noeviction`, slot stats off) |
+| Standalone | `6379` | `./tools/valkey-standalone/build_run_standalone.sh` | Valkey defaults |
+
+Every deployment loads the RedisJSON module (`tools/valkey-cluster/rejson.so`), baked into a local `valkey-skyscope-json:local` image at build time.
+
+Both clusters share `tools/valkey-cluster/docker-compose.yml` and run as separate Compose projects, `valkey-cluster` (LFU) and `valkey-cluster-default`. Each cluster is a 3 primary / 3 replica cluster with cluster bus ports at client port + 10000 (`17001`–`17006`, `17101`–`17106`). The variant is selected through two variables, which the build script sets for you:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `CLUSTER_PORT_PREFIX` | `700` | Node `n` listens on `${CLUSTER_PORT_PREFIX}n` (for example `7001`) |
+| `CLUSTER_LFU_SLOT_STATS` | `yes` | `yes` passes the LFU and slot stats flags to `valkey-server`; anything else leaves Valkey defaults |
+
+The LFU and slot stats settings are server start-up flags, so they survive node restarts. To manage one cluster directly, pass its project name, for example:
+
+```bash
+docker compose -f tools/valkey-cluster/docker-compose.yml -p valkey-cluster-default logs -f
+docker compose -f tools/valkey-cluster/docker-compose.yml -p valkey-cluster-default down -v
+```
+
+Run commands for the default cluster through `build_run_cluster.sh default` or with `CLUSTER_PORT_PREFIX=710 CLUSTER_LFU_SLOT_STATS=no` set. Without them, Compose falls back to the LFU cluster settings.
+
+Seeding all three deployments with the default bulk load takes a while. For a faster start, run `POPULATE_BULK_KEYS=1000 ./tools/build_run_all.sh`.
 
 #### Podman notes
 
@@ -14,7 +38,7 @@ Podman 4.x or newer is recommended, and the `podman compose` Compose v2 provider
 
 ### Logical databases
 
-Both stacks expose **16 logical databases** by default. The cluster stack passes `--cluster-databases 16` to every node, and the standalone stack passes `--databases 16`. The `populate.mjs` scripts iterate every configured database and seed each one with the typed sample dataset (string, list, set, hash, sorted set, geo, bitmap, stream) plus a bulk string load.
+Every stack exposes **16 logical databases** by default. Both cluster stacks pass `--cluster-databases 16` to every node, and the standalone stack passes `--databases 16`. The `populate.mjs` scripts iterate every configured database and seed each one with the typed sample dataset (string, list, set, hash, sorted set, geo, bitmap, stream) plus a bulk string load.
 
 Per-database content is distinguishable by construction: every key written into database `d` carries the literal token `db<d>` in its name, and every string value carries the same token. For example, the third sample string in database `3` is `string:db3:1` with value `value_db3_1`, and the 42nd bulk key is `bulk:db3:42` with value `value_db3_42`. Two distinct databases never share a key.
 
