@@ -2,22 +2,19 @@
 set -eu
 
 # Talk to nodes via Docker DNS names on the internal network.
-FIRST_HOST=valkey-7001
-FIRST_PORT=7001
+PORT_PREFIX=${CLUSTER_PORT_PREFIX:-700}
+FIRST_HOST=valkey-1
+FIRST_PORT=${PORT_PREFIX}1
 VALKEY_USER=${VALKEY_USER:-appuser}
 VALKEY_PASS=${VALKEY_PASS:-admin}
 # Second ACL user for identity-isolation tests: everything except ACL and COMMANDLOG.
 RESTRICTED_USER=${RESTRICTED_USER:-restricted}
 RESTRICTED_PASS=${RESTRICTED_PASS:-restricted}
 
-NODES="
-valkey-7001:7001
-valkey-7002:7002
-valkey-7003:7003
-valkey-7004:7004
-valkey-7005:7005
-valkey-7006:7006
-"
+NODES=""
+for n in 1 2 3 4 5 6; do
+  NODES="$NODES valkey-$n:${PORT_PREFIX}$n"
+done
 
 wait_port() {
   hostport="$1"
@@ -45,34 +42,30 @@ setup_acl_users() {
   done
 }
 
+report_config() {
+  echo "Eviction and slot stats config on $FIRST_HOST:$FIRST_PORT:"
+  valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CONFIG GET maxmemory-policy | tr -d '\r' | paste - -
+  valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CONFIG GET cluster-slot-stats-enabled | tr -d '\r' | paste - -
+}
+
 for hp in $NODES; do
   wait_port "$hp"
 done
 setup_acl_users
 
 echo "Checking cluster..."
-info="$(valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null || true | tr -d '\r')"
+info="$( (valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null || true) | tr -d '\r')"
 state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
 
 if [ "${state:-}" = "ok" ]; then
   echo "🫡 Cluster already healthy."
+  report_config
   exit 0
 fi
 
-# Ensure all nodes are reachable first
-for hp in $NODES; do
-  wait_port "$hp"
-done
-
 echo "Creating 3M/3R cluster..."
 if ! out=$(
-  valkey-cli --cluster create \
-    valkey-7001:7001 \
-    valkey-7002:7002 \
-    valkey-7003:7003 \
-    valkey-7004:7004 \
-    valkey-7005:7005 \
-    valkey-7006:7006 \
+  valkey-cli --cluster create $NODES \
     --cluster-replicas 1 --cluster-yes 2>&1
 ); then
   msg="$(printf '%s' "$out" | tr -d '\r')"
@@ -90,7 +83,7 @@ fi
 printf "Waiting for cluster to stabilize"
 i=0
 while [ "$i" -lt 120 ]; do
-  info="$(valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null | tr -d '\r' || true)"
+  info="$( (valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null || true) | tr -d '\r')"
   state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
   known="$(printf '%s\n' "$info" | awk -F: '/^cluster_known_nodes/ {print $2}')"
   size="$(printf  '%s\n' "$info" | awk -F: '/^cluster_size/  {print $2}')"
@@ -100,17 +93,7 @@ while [ "$i" -lt 120 ]; do
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
     echo ""
     echo "🫡 SUCCESS: Valkey cluster is ready."
-    echo "Configuring LFU eviction on all nodes..."
-    for hp in $NODES; do
-      host="${hp%%:*}"
-      port="${hp##*:}"
-      echo "Setting LFU and enabling cluster slot stats on $host:$port"
-      valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory 100mb
-      valkey-cli -h "$host" -p "$port" CONFIG SET maxmemory-policy allkeys-lfu
-      valkey-cli -h "$host" -p "$port" CONFIG SET cluster-slot-stats-enabled yes
-
-    done
-    echo "✅ LFU eviction configured."
+    report_config
     exit 0
   fi
   i=$((i+1))

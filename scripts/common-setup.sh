@@ -90,13 +90,13 @@ start_cluster() {
     echo "🐳 Starting containers with $CONTAINER_ENGINE in background..."
     cd "$TOOLS_DIR"
     export DOCKER_PLATFORM
-    compose --profile populate up --build -d
+    compose --profile populate up --build -d --remove-orphans
 
     # Wait for cluster to be ready (stay in $TOOLS_DIR so `compose` finds the file).
     echo "⏳ Waiting for cluster to be ready..."
 
     for i in {1..30}; do
-        cid=$(compose ps -q valkey-7001 2>/dev/null || true)
+        cid=$(compose ps -q valkey-1 2>/dev/null || true)
         if [ -n "$cid" ] && "$CONTAINER_ENGINE" exec "$cid" valkey-cli -p 7001 cluster info 2>/dev/null | grep -q "cluster_state:ok"; then
             echo "✅ Cluster is ready!"
             break
