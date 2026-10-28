@@ -115,14 +115,12 @@ export function HotKeysParamsModal({ open, onClose, connectionId, clusterId }: H
               can impact performance. We recommend testing with your workload before production use.
               {clusterId && (
                 <>
-                  {" "}For lower overhead, consider using the Cluster Slot Stats approach for collecting hot keys data.{" "}
-                  <span className="inline-block align-middle">
-                    <TooltipIcon
-                      description={"Enable cluster-slot-stats-enabled and set maxmemory-policy to allkeys-lfu"
-                        + " on every node, then reconnect."}
-                      size={14}
-                    />
-                  </span>
+                  {" "}For lower overhead in <Typography variant="code">Valkey 8.0+</Typography>,
+                  consider using the Cluster Slot Stats approach by running{" "}
+                  <Typography variant="code">CONFIG SET cluster-slot-stats-enabled yes</Typography>{" "}
+                  and{" "}
+                  <Typography variant="code">CONFIG SET maxmemory-policy allkeys-lfu</Typography>{" "}
+                  on every node, then reconnect.
                 </>
               )}
             </Typography>
