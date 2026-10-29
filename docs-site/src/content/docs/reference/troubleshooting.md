@@ -89,4 +89,38 @@ The connection target is a cluster running a Valkey/Redis server below `9.0.0`, 
 
 ---
 
+## The UI loads but never connects, and the server log says `WebSocket upgrade refused: Host "…" is not a local name`
+
+You reach the UI under a DNS name (a Kubernetes Service or Ingress, a reverse proxy, a LAN hostname) and the server has no `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`. In Web mode with no allowlist, the server accepts a WebSocket only when the `Host` header is `localhost`, a `*.localhost` name or an IP address. Any other name is refused with `403`, because that is the shape of a DNS rebinding attack: a page on the attacker's domain points that domain at `127.0.0.1` and opens a WebSocket to the local server. `kubectl port-forward` and `docker run -p 127.0.0.1:8080:8080` use `localhost`, so they are not affected.
+
+**Fix:** Set `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` to the origin users load the UI from. The log line prints the exact value, for example:
+
+```
+WebSocket upgrade refused: Host "valkey-admin.example.com" is not a local name. Set VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://valkey-admin.example.com to allow it, or VALKEY_ADMIN_ALLOW_ANY_HOST=true to turn this check off.
+```
+
+For Kubernetes, add the variable to the app container in your manifest (`examples/k8s/app.yaml` has a commented example). For Docker, pass `-e VALKEY_ADMIN_ALLOWED_WS_ORIGINS=…`. If you cannot list the origins, for example behind an authenticating proxy that serves the UI under many names, `VALKEY_ADMIN_ALLOW_ANY_HOST=true` turns the check off; the server then warns at startup. See [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](/configuration/server/#valkey_admin_allowed_ws_origins).
+
+---
+
+## Connection rejected: `GCP IAM authentication requires VALKEY_CA_CERT_PATH`
+
+A `gcp-iam` connection was requested and the server has no `VALKEY_CA_CERT_PATH`. The server mints an access token from its own Google Cloud identity and sends it as the AUTH password to the host you entered. That token is a bearer credential with the `cloud-platform` scope. The CA file is what limits where it can go: Glide uses that file as the only trust root, so the token can reach only a server with a certificate from your Memorystore CA. Without the file, any host with a publicly trusted certificate would receive it.
+
+If the preconfigured connection (`VALKEY_AUTH_TYPE=gcp-iam`) has the same problem, the server logs `Cannot start the preconfigured connection: GCP IAM authentication requires VALKEY_CA_CERT_PATH …` and exits.
+
+**Fix:** Download the instance's server CA (Memorystore's per-instance and shared CA modes require this for any client) and point `VALKEY_CA_CERT_PATH` at the file. In Kubernetes, mount it from a Secret. For a customer-managed CA that your system already trusts, point the variable at the same CA file. The desktop app reads the variable from the environment that launches it. See [`VALKEY_CA_CERT_PATH`](/configuration/server/#valkey_ca_cert_path) and [GCP IAM Authentication](/features/connections/#gcp-iam-authentication).
+
+The related messages `GCP IAM authentication requires TLS` and `… requires TLS certificate verification` mean the connection has TLS off or verification off; turn both on. `AWS IAM authentication requires TLS with certificate verification` is the same rule for ElastiCache IAM.
+
+---
+
+## Connection rejected: `Connection id does not match the host and port`
+
+A raw WebSocket client sent a `connectionId` that was not built from the normalized host and port of the request. The UI builds ids with `normalizeEndpoint` (host trimmed and lowercased, one trailing dot removed, port as a plain number) and never hits this. Connections saved by an earlier version are renamed on load.
+
+**Fix:** Build the id with `buildConnectionId(normalizeEndpoint(host, port), db)` from `valkey-common`. In the UI, edit the connection and connect again.
+
+---
+
 For a list of capabilities and operational caveats that aren't bugs (no built-in auth, no RBAC, mTLS, ElastiCache Serverless, etc.), see [Known Limitations](/reference/limitations/).
