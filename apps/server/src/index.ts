@@ -43,7 +43,7 @@ import {
   resolveClusterRefreshTarget,
   setPreconfiguredClusterId
 } from "./metrics-orchestrator"
-import { isAllowedWebSocketOrigin } from "./websocket-origin"
+import { ALLOW_ANY_HOST_ENV, isAllowAnyHost, isAllowedWebSocketOrigin } from "./websocket-origin"
 import { allOwnerStates, findOwnerState } from "./owner"
 import {
   connectedNodesFor,
@@ -231,6 +231,12 @@ const bindHost =
   process.env.SERVER_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1")
 server.listen(port, bindHost, () => {
   console.log(`Server running at http://${bindHost}:${port}`)
+  if (isAllowAnyHost()) {
+    console.warn(
+      `WARNING: ${ALLOW_ANY_HOST_ENV} is set. The server accepts WebSocket upgrades from any Host header, `
+        + "which leaves it open to DNS rebinding. Use VALKEY_ADMIN_ALLOWED_WS_ORIGINS instead where possible.",
+    )
+  }
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }

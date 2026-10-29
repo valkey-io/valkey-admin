@@ -56,6 +56,11 @@ port can use it to access your Valkey instances. `-p 8080:8080` (and the compose
 - Only publish on a routable interface if you have placed an authenticating proxy
   in front of it or otherwise restricted access. Treat external exposure as a
   deliberate decision.
+- If users open the UI through a DNS name instead of `localhost` or an IP address,
+  set `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` to that origin. Without it the server refuses
+  the WebSocket with `403`, because a DNS-name `Host` with no allowlist is what a
+  DNS rebinding attack looks like. See
+  [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](/configuration/server/#valkey_admin_allowed_ws_origins).
 :::
 
 ## With Pre-configured Connection

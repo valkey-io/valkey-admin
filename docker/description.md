@@ -95,6 +95,8 @@ Here are all the relevant environment variables for configuration
 |----------|-------------|---------|
 | `DEPLOYMENT_MODE` | Deployment mode (`Web`, `K8`) | `Web` |
 | `PORT` | Server port | `8080` |
+| `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` | Comma-separated origins allowed to open the WebSocket. Set it when users open the UI through a DNS name. Unset: same-origin only, and the `Host` header must be `localhost` or an IP address | — |
+| `VALKEY_ADMIN_ALLOW_ANY_HOST` | `true` turns off the local-`Host` rule above. Leaves the server open to DNS rebinding; prefer the allowlist | — |
 | `VALKEY_HOST` | Pre-configured Valkey host | — |
 | `VALKEY_PORT` | Pre-configured Valkey port | `6379` |
 | `VALKEY_USERNAME` | Valkey username | — |

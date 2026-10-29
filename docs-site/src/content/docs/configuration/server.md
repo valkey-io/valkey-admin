@@ -167,14 +167,31 @@ Requests to `/orchestrator/*` are rate limited separately from the UI, defaultin
 
 Comma-separated list of trusted origins allowed to open a WebSocket connection to the server. Origin validation is enforced in **all** deployment modes — connections with no `Origin` header are always rejected.
 
-- **Web mode:** when unset, allows same-origin (compares `Origin` against the `Host` header). When set, **only** the listed origins are allowed, so include the origin users load the UI from.
+- **Web mode:** when unset, allows same-origin (compares `Origin` against the `Host` header) **and** requires the `Host` header to name this machine: `localhost`, a `*.localhost` name, or an IP address. A `Host` with any other DNS name is refused with `403`, and the server logs one line per name that says which variable to set. When set, **only** the listed origins are allowed, so include the origin users load the UI from. The `Host` rule does not apply when an allowlist is set.
 - **Electron mode:** allows `file://`, `null` (packaged Electron renderers), and loopback origins (`localhost`, `127.0.0.1`, `::1`) plus any configured origins. Other remote origins are rejected.
+
+The `Host` rule stops DNS rebinding. A web page from a name the attacker controls can point that name at `127.0.0.1` and open a WebSocket to a local server. The browser then sends the attacker's name in both `Origin` and `Host`, so a same-origin check alone passes. A rebinding page cannot send `localhost` or an IP address as `Host`, so the rule refuses it. Local access through `docker run -p 127.0.0.1:8080:8080` or `kubectl port-forward` uses `localhost`, so it keeps working.
+
+If users open the UI through a DNS name (an Ingress, a reverse proxy, a LAN hostname), list that origin here:
 
 ```bash
 VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://valkey-admin.example.com,https://other.example.com
 ```
 
-- **Default:** unset (Web mode enforces same-origin only; Electron mode enforces its allowlist of file:// and loopback)
+- **Default:** unset (Web mode enforces same-origin plus the `Host` rule; Electron mode enforces its allowlist of file:// and loopback)
+- **Read in:** `apps/server/src/websocket-origin.ts`
+
+### `VALKEY_ADMIN_ALLOW_ANY_HOST`
+
+Set to the literal string `true` to turn off the `Host` rule described under [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](#valkey_admin_allowed_ws_origins). Same-origin matching still applies. Any other value is ignored.
+
+Use this only when you cannot list the origins, for example behind an authenticating proxy that serves the UI under many names. The server logs a warning at startup when the flag is set. With the flag on and no allowlist, a DNS rebinding page can reach the server from the user's browser.
+
+```bash
+VALKEY_ADMIN_ALLOW_ANY_HOST=true
+```
+
+- **Default:** unset (the `Host` rule applies)
 - **Read in:** `apps/server/src/websocket-origin.ts`
 
 ## Initial Valkey Connection (Orchestrator Mode)
