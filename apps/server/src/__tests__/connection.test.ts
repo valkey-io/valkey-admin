@@ -13,7 +13,6 @@ import {
   getExistingConnection,
   teardownConnection
 } from "../connection"
-import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
@@ -130,7 +129,9 @@ async function withMockedClients<T>(
   // Every connect first opens a short-lived AUTH probe client
   // (`valkey_admin_auth_probe`). Probe calls are answered by a separate mock and
   // recorded in `authProbeCalls`, so `GlideClient.createClient` counts only the
-  // working clients, as before the probe existed.
+  // working clients, as before the probe existed. The probe also runs
+  // `INFO cluster` and `CLUSTER SLOTS`, which it answers like the standalone
+  // mock would, so the connect sees the same topology either way.
   const realCreate = mock.fn(async (config?: unknown) => {
     if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
     return standaloneFactory(config) as any
@@ -138,7 +139,8 @@ async function withMockedClients<T>(
   const dispatch = async (config: any) => {
     if (config?.clientName === "valkey_admin_auth_probe") {
       authProbeCalls.push(config)
-      return { close: mock.fn() } as any
+      const answers = standaloneFactory(config) as any
+      return { info: answers.info, customCommand: answers.customCommand, close: mock.fn() } as any
     }
     return realCreate(config)
   }
@@ -590,7 +592,6 @@ describe("connectToValkey", () => {
     const error = new Error("Connection failed")
     const originalCreateClient = GlideClient.createClient
     GlideClient.createClient = mock.fn(async () => { throw error })
-    mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
       const result = await connectToValkey(ctx(), mockWs, DEFAULT_PAYLOAD)
@@ -848,7 +849,9 @@ describe("connectToValkey", () => {
       const clientsFor = [aliceClient, bobClient]
       const alice = { ...createOwnerState("password~user0"), connectedNodesByCluster: new Map() }
       const bob = { ...createOwnerState("password~bob"), connectedNodesByCluster: new Map() }
-      await withMockedClients(() => clientsFor.shift(), null, async () => {
+      // The probe takes a fresh mock; only working clients consume the queue.
+      const factory = (config: any) => config?.clientName === "valkey_admin_auth_probe" ? buildStandaloneMock() : clientsFor.shift()
+      await withMockedClients(factory, null, async () => {
         await connectToValkey(alice, mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-O" })
         await connectToValkey(bob, mockWs, {
           ...DEFAULT_PAYLOAD,
@@ -1110,169 +1113,51 @@ describe("connectToValkey", () => {
   }
 
 })
-describe("resolveHostnameOrIpAddress", () => {
-  beforeEach(() => {
-    mock.restoreAll()
-  })
-
-  it("resolves an IP address using reverse lookup", async () => {
-    mock.method(dns, "reverse", async () => ["example.com"])
-
-    const result = await resolveHostnameOrIpAddress("127.0.0.1")
-
-    assert.deepStrictEqual(result, {
-      input: "127.0.0.1",
-      hostnameType: "ip",
-      addresses: ["example.com"],
-    })
-  })
-
-  it("resolves a hostname using lookup", async () => {
-    mock.method(dns,"lookup", async () => [
-      { address: "192.168.1.10", family: 4 },
-      { address: "192.168.1.11", family: 4 },
-    ])
-
-    const result = await resolveHostnameOrIpAddress("my-host")
-
-    assert.strictEqual(result.input, "my-host")
-    assert.strictEqual(result.hostnameType, "hostname")
-    assert.deepStrictEqual(result.addresses, [
-      "192.168.1.10",
-      "192.168.1.11",
-    ])
-  })
-
-  it("returns the original input as address if resolution fails", async () => {
-    mock.method(dns, "lookup", async () => {
-      throw new Error("DNS failure")
-    })
-
-    const result = await resolveHostnameOrIpAddress("bad-host")
-
-    assert.deepStrictEqual(result, {
-      input: "bad-host",
-      hostnameType: "hostname",
-      addresses: ["bad-host"],
-    })
-  })
-})
-
 describe("getExistingConnection", () => {
-  beforeEach(() => {
-    mock.restoreAll()
-  })
-
-  it("returns the existing connection when host:port resolves to one already in clients", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
-
-    const existingClient = {} as any
-    const clients = new Map()
-    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: existingClient })
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.ok(result)
-    assert.strictEqual(result.client, existingClient)
-  })
-
-  it("returns undefined when no resolved address matches any client", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.2", family: 4 },
-    ])
-
-    const clients = new Map()
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.strictEqual(result, undefined)
-  })
-
-  it("returns undefined when isRetry is true even if a duplicate exists", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
-
-    const clients = new Map()
-    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        isRetry: true,
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.strictEqual(result, undefined)
-  })
-
-  it("returns the entry stored at connectionId when present", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.99", family: 4 },
-    ])
-
+  it("returns the entry stored at connectionId when present", () => {
     const directClient = {} as any
     const clients = new Map()
     clients.set("abc123", { client: directClient })
 
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
+    const result = getExistingConnection({ connectionId: "abc123" }, clients)
 
     assert.ok(result)
     assert.strictEqual(result.client, directClient)
   })
 
-  it("never sees another owner's client, because each owner has its own map", async () => {
-    // Owner scoping replaces the old session check: a connect looks up only the
-    // clients of the identity it authenticates as.
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
+  it("returns undefined when isRetry is true even if an entry exists", () => {
+    const clients = new Map()
+    clients.set("abc123", { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: "abc123", isRetry: true }, clients), undefined)
+  })
 
+  // The DNS branch is gone: two spellings of one host are two ids within an
+  // owner, and an attacker-controlled name can no longer resolve into a reuse.
+  it("does not resolve the host to find a match", () => {
+    const clients = new Map()
+    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: buildConnectionId("my-host", "6379", 0) }, clients), undefined)
+  })
+
+  it("never sees another owner's client, because each owner has its own map", () => {
     const otherOwnerClients = new Map()
-    otherOwnerClients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
-    const ownClients = new Map()
+    otherOwnerClients.set("abc123", { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: "abc123" }, new Map()), undefined)
+  })
 
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      ownClients,
-    )
-
-    assert.strictEqual(result, undefined)
+  // Finding 7: `a.b` and `a-b` share a connectionId. Under M1 they are two
+  // owners, so each owner's map holds only its own client for that id.
+  it("two owners whose connectionIds collide each reuse only their own client", () => {
+    const id = buildConnectionId("a.b", "6379", 0)
+    assert.strictEqual(id, buildConnectionId("a-b", "6379", 0))
+    const dotClient = {} as any
+    const dashClient = {} as any
+    const dotOwner = createOwnerState("password~default@a.b:6379")
+    const dashOwner = createOwnerState("password~default@a-b:6379")
+    dotOwner.clients.set(id, { client: dotClient })
+    dashOwner.clients.set(id, { client: dashClient })
+    assert.strictEqual(getExistingConnection({ connectionId: id }, dotOwner.clients)?.client, dotClient)
+    assert.strictEqual(getExistingConnection({ connectionId: id }, dashOwner.clients)?.client, dashClient)
   })
 })
 

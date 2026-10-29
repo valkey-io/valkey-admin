@@ -12,7 +12,7 @@ import {
 } from "../socket-binding"
 import { createOwnerState, getEnvOwnerState, type OwnerState } from "../owner"
 import { teardownConnection } from "../connection"
-import { connectPending } from "../actions/connection"
+import { CONNECTION_ID_MISMATCH_MESSAGE, connectPending } from "../actions/connection"
 import { scopedId, subscribe, unsubscribe, _reset as resetNodeWatchers } from "../node-watchers"
 
 const fakeClient = () => ({ close: mock.fn() }) as any
@@ -84,7 +84,9 @@ describe("resolveAction", () => {
     assert.ok(result.ok)
   })
 
-  it("resolves a connect to the owner named by its connection details", () => {
+  // The owner depends on the endpoint the AUTH probe succeeds against, so it is
+  // picked by connectPending after the probe, not here.
+  it("passes a connect through with no owner", () => {
     const binding = createSocketBinding()
     const result = resolveAction(
       binding,
@@ -94,7 +96,9 @@ describe("resolveAction", () => {
       }),
     )
     assert.ok(result.ok)
-    assert.strictEqual(result.ownerKey, "password~bob")
+    assert.strictEqual(result.connect, true)
+    assert.strictEqual(result.ownerKey, undefined)
+    assert.strictEqual(result.state, undefined)
   })
 
   it("rejects a connect without connection details", () => {
@@ -140,6 +144,50 @@ describe("connectPending resume", () => {
     } finally {
       GlideClient.createClient = original
     }
+  })
+})
+
+describe("connectPending id check", () => {
+  // Finding 1: the server must not trust the client's connectionId. It must
+  // name the endpoint the credentials are proven against, so a request that
+  // pairs the victim's id with the attacker's host is refused before AUTH.
+  const run = async (connectionId: string, host: string, port: string) => {
+    const sent: any[] = []
+    const ws = { send: (m: string) => sent.push(JSON.parse(m)) } as any
+    const original = GlideClient.createClient
+    const createClient = mock.fn(async () => { throw new Error("must not connect") })
+    GlideClient.createClient = createClient as any
+    try {
+      await connectPending({ ws, binding: createSocketBinding() } as any)(
+        action(VALKEY.CONNECTION.connectPending, {
+          connectionId,
+          connectionDetails: { host, port, username: "u", password: "pw", tls: false, verifyTlsCertificate: false, db: 0 },
+        }),
+      )
+    } finally {
+      GlideClient.createClient = original
+    }
+    return { sent, probes: createClient.mock.calls.length }
+  }
+
+  it("rejects a connectionId that names another endpoint, before the AUTH probe", async () => {
+    const { sent, probes } = await run("10-0-0-5-6379-db0", "6.6.6.6", "6379")
+    assert.strictEqual(probes, 0)
+    assert.strictEqual(sent[0].type, VALKEY.CONNECTION.connectRejected)
+    assert.strictEqual(sent[0].payload.errorMessage, CONNECTION_ID_MISMATCH_MESSAGE)
+  })
+
+  it("rejects a non-canonical port with the endpoint message", async () => {
+    const { sent, probes } = await run("h-06379-db0", "h", "06379")
+    assert.strictEqual(probes, 0)
+    assert.match(sent[0].payload.errorMessage, /port/i)
+  })
+
+  it("accepts an id built from the normalized endpoint", async () => {
+    // The probe runs (and fails here, by design of the mock), which shows the id check passed.
+    const { sent, probes } = await run("cache-internal-6379-db0", " Cache.Internal. ", "6379")
+    assert.strictEqual(probes, 1)
+    assert.notStrictEqual(sent[0].payload.errorMessage, CONNECTION_ID_MISMATCH_MESSAGE)
   })
 })
 

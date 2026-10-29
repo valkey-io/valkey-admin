@@ -174,6 +174,115 @@ describe("integration / identity isolation", async () => {
     assert.ok(fulfilled.length + errored.length >= 1)
   })
 
+  // `INFO server` arrives as one object on a standalone client and as a
+  // per-node `[{ key, value }]` array on a cluster client.
+  const tcpPorts = (payload: unknown): string[] =>
+    Array.isArray(payload)
+      ? payload.map((n: { value?: { tcp_port?: string } }) => String(n.value?.tcp_port))
+      : [String((payload as { tcp_port?: string } | undefined)?.tcp_port)]
+
+  // Finding 1. The victim (`admin`) is connected to the standalone node as
+  // appuser. A second socket authenticates as appuser against another node
+  // (the cluster seed) and names the victim's connectionId. Before the fix the
+  // server handed over, or with isRetry replaced, the victim's client.
+  it("does not hand a client to a socket that pairs the victim's connectionId with another host", async () => {
+    const attacker = await WsClient.connect(WS_URL)
+    try {
+      for (const isRetry of [false, true]) {
+        attacker.send({
+          type: VALKEY.CONNECTION.connectPending,
+          payload: {
+            connectionId: standaloneId,
+            connectionDetails: { ...clusterAdmin, endpointType: "node" },
+            ...(isRetry && { isRetry }),
+          },
+        })
+        const rejected = await attacker.waitFor(VALKEY.CONNECTION.connectRejected, 15000)
+        assert.equal(rejected.payload?.connectionId, standaloneId, `isRetry=${isRetry}`)
+        assert.match(rejected.payload?.errorMessage ?? "", /does not match/)
+
+        // The attacker gets nothing on that id, and the victim's client still answers from its own node.
+        attacker.send({ type: VALKEY.COMMAND.sendRequested, payload: { connectionId: standaloneId, command: "PING" } })
+        assert.equal(await silentFor(attacker, [VALKEY.COMMAND.sendFulfilled, VALKEY.COMMAND.sendFailed]), 0)
+        const info = await run(admin, standaloneId, "INFO server")
+        assert.equal(tcpPorts(info.payload).join(","), "6379", `victim still on 6379 after isRetry=${isRetry}`)
+      }
+
+      // A well-formed connect to the other node works and runs on that node.
+      attacker.send({
+        type: VALKEY.CONNECTION.connectPending,
+        payload: { connectionId: clusterId0, connectionDetails: clusterAdmin },
+      })
+      await attacker.waitFor(VALKEY.CONNECTION.clusterConnectFulfilled, 30000)
+      const info = await run(attacker, clusterId0, "INFO server")
+      assert.ok(tcpPorts(info.payload).includes("7001"), `cluster client answers from the cluster, got ${tcpPorts(info.payload)}`)
+    } finally {
+      await attacker.close()
+    }
+  })
+
+  // Two node connects of one identity into one cluster share one owner, so the
+  // second sees the collectors the first started. Checked within 3 s of the
+  // second connect: the reconcile loop runs every 10 s, so a separate owner
+  // could not have spawned its own collectors in that window.
+  const assertSharesCollectors = async (
+    ws: WsClient,
+    user: { username: string; password: string },
+    requestType: string,
+    fulfilledType: string,
+    payloadExtra: Record<string, unknown>,
+  ) => {
+    const first = defaultConnectionDetails()
+    const firstId = buildConnectionId(first.host, first.port, 0)
+    const second = { ...first, host: "valkey-7002", port: "7002" }
+    const secondId = buildConnectionId(second.host, second.port, 0)
+    ws.send({ type: VALKEY.CONNECTION.connectPending, payload: { connectionId: firstId, connectionDetails: { ...first, ...user } } })
+    const a = await ws.waitFor(VALKEY.CONNECTION.clusterConnectFulfilled, 30000)
+    // Give the first owner's collectors time to register.
+    await new Promise((r) => setTimeout(r, 8000))
+    ws.send({ type: VALKEY.CONNECTION.connectPending, payload: { connectionId: secondId, connectionDetails: { ...second, ...user } } })
+    const b = await ws.waitFor(VALKEY.CONNECTION.clusterConnectFulfilled, 30000)
+    const cid = a.payload?.connectionDetails?.clusterId
+    assert.ok(cid)
+    assert.equal(b.payload?.connectionDetails?.clusterId, cid)
+
+    ws.send({ type: requestType, payload: { connectionId: secondId, clusterId: cid, ...payloadExtra } })
+    const reply = await ws.waitFor(fulfilledType, 3000)
+    const nodeErrors = reply.payload?.nodeErrors ?? []
+    assert.deepEqual(nodeErrors, [], `no node may lack a collector: ${JSON.stringify(nodeErrors)}`)
+    return [firstId, secondId]
+  }
+
+  it("joins the env owner when the same identity connects through a second cluster node", async () => {
+    const ws = await WsClient.connect(WS_URL)
+    const ids: string[] = []
+    try {
+      ids.push(...await assertSharesCollectors(
+        ws, { username: "appuser", password: "admin" },
+        VALKEY.COMMANDLOGS.commandLogsRequested, VALKEY.COMMANDLOGS.commandLogsFulfilled,
+        { commandLogType: COMMANDLOG_TYPE.SLOW },
+      ))
+    } finally {
+      for (const id of ids) ws.send({ type: VALKEY.CONNECTION.closeConnection, payload: { connectionId: id } })
+      await ws.close()
+    }
+  })
+
+  it("joins a non-env owner through the two-way rule when the same identity connects through a second node", async () => {
+    const ws = await WsClient.connect(WS_URL)
+    const ids: string[] = []
+    try {
+      ids.push(...await assertSharesCollectors(
+        ws, RESTRICTED_USER,
+        VALKEY.HOTKEYS.hotKeysRequested, VALKEY.HOTKEYS.hotKeysFulfilled,
+        { count: 5 },
+      ))
+    } finally {
+      for (const id of ids) ws.send({ type: VALKEY.CONNECTION.closeConnection, payload: { connectionId: id } })
+      await ws.close()
+    }
+  })
+
   it("asks for the password when a password connection resumes without one", async () => {
     stranger.send({
       type: VALKEY.CONNECTION.connectPending,

@@ -1,10 +1,11 @@
 import { GlideClusterClient } from "@valkey/valkey-glide"
-import { EndpointType } from "valkey-common"
+import { EndpointType, buildConnectionId, normalizeEndpoint } from "valkey-common"
 import { VALKEY } from "valkey-common"
-import { connectToValkey, proveCredentials, teardownConnection } from "../connection"
+import { connectToValkey, proveCredentials, teardownConnection, type ProbedTopology } from "../connection"
 import { unsubscribe, getWatcherCount, scopedId } from "../node-watchers"
 import { bindConnection, connectedNodesFor, scheduleRelease, unbindConnection } from "../socket-binding"
-import { findOwnerState, getOwnerState, removeOwnerStateIfUnused } from "../owner"
+import { findOwnerState, getOwnerState, identityOf, ownerStatesWithIdentity, removeOwnerStateIfUnused } from "../owner"
+import { findClusterOwner } from "../cluster-owner"
 import { type Deps, withDeps } from "./utils"
 import { setClusterDashboardData } from "../set-dashboard-data"
 
@@ -41,39 +42,85 @@ type ConnectPayload = {
 const isPasswordAuth = (details: ConnectionDetails) =>
   details.authType !== "iam" && details.authType !== "gcp-iam"
 
+export const CONNECTION_ID_MISMATCH_MESSAGE =
+  "Connection id does not match the host and port. Edit the connection and connect again."
+
+/**
+ * The owner for a connection that just passed AUTH against `endpoint`.
+ *
+ * Standalone: this identity on this endpoint. Cluster: the owner of the same
+ * identity whose registry lists this node and whose seed the node's topology
+ * lists back (`findClusterOwner`); otherwise a new owner seeded here. A second
+ * owner for one cluster is allowed (it costs a second set of collectors) and
+ * is logged, because it can also mean a node that reports a false clusterId.
+ */
+const pickOwnerState = (details: ConnectionDetails, endpoint: ReturnType<typeof normalizeEndpoint>, probed: ProbedTopology) => {
+  if (probed.cluster) {
+    const identity = identityOf(details)
+    const candidates = ownerStatesWithIdentity(identity)
+    const joined = findClusterOwner(probed.clusterId, endpoint, probed.discoveredClusterNodes, candidates)
+    if (joined) return joined
+    const others = candidates.filter((state) => state.clusterNodesRegistry.has(probed.clusterId))
+    if (others.length > 0) {
+      console.warn(
+        `Cluster ${probed.clusterId}: ${endpoint.host}:${endpoint.port} did not join ${others.map((o) => o.ownerKey).join(", ")} `
+          + "(the node is not in that owner's topology, or that owner's seed is not in this node's topology). "
+          + "Creating a separate owner for it.",
+      )
+    }
+  }
+  return getOwnerState(details, endpoint)
+}
+
 export const connectPending = withDeps<Deps, void>(
-  async ({ ws, action, ownerKey, binding }) => {
+  async ({ ws, action, binding }) => {
     const payload = action.payload as ConnectPayload
     const { connectionId, connectionDetails } = payload
+    const reject = (errorMessage: string, extra: Record<string, unknown> = {}) =>
+      ws.send(JSON.stringify({
+        type: VALKEY.CONNECTION.connectRejected,
+        payload: { connectionId, errorMessage, ...extra },
+      }))
 
     // A resume without a password cannot prove the identity, and no server-side
     // session remembers it, so the user must enter the password again.
     if (payload.isResume && isPasswordAuth(connectionDetails) && !connectionDetails.password) {
-      ws.send(JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: { connectionId, errorMessage: "Enter the password to reconnect.", requiresAuth: true },
-      }))
+      reject("Enter the password to reconnect.", { requiresAuth: true })
+      return
+    }
+
+    // The id must name the endpoint the credentials are proven against. The
+    // frontend builds it from the same normalized values.
+    let endpoint: ReturnType<typeof normalizeEndpoint>
+    try {
+      endpoint = normalizeEndpoint(connectionDetails.host, connectionDetails.port)
+    } catch (err) {
+      reject(err instanceof Error ? err.message : String(err))
+      return
+    }
+    if (connectionId !== buildConnectionId(endpoint.host, endpoint.port, connectionDetails.db)) {
+      reject(CONNECTION_ID_MISMATCH_MESSAGE)
       return
     }
 
     // Prove the credentials before anything is created for the owner, so a
-    // request that Valkey rejects leaves no owner state behind.
+    // request that Valkey rejects leaves no owner state behind. The probe also
+    // tells us whether this is a cluster node and what topology it reports.
+    let probed: ProbedTopology
     try {
-      await proveCredentials(connectionDetails)
+      probed = await proveCredentials(connectionDetails, endpoint)
     } catch (err) {
-      ws.send(JSON.stringify({
-        type: VALKEY.CONNECTION.connectRejected,
-        payload: { connectionId, errorMessage: err instanceof Error ? err.message : String(err) },
-      }))
+      reject(err instanceof Error ? err.message : String(err))
       return
     }
 
-    const ownerState = getOwnerState(ownerKey)
+    const ownerState = pickOwnerState(connectionDetails, endpoint, probed)
+    const { ownerKey } = ownerState
     const client = await connectToValkey(
       { ...ownerState, connectedNodesByCluster: connectedNodesFor(binding, ownerKey) },
       ws,
       payload,
-      { credentialsProven: true },
+      { probed, endpoint },
     )
     if (!client) {
       // The connect failed after AUTH (for example a bad database index).
@@ -121,6 +168,8 @@ export const resetConnection = withDeps<Deps, void>(
 
 export const closeConnection = withDeps<Deps, void>(
   async ({ ws, clients, action, connectedNodesByCluster, ownerKey, ownerState, binding }) => {
+    // Resolved against a bound connection, so the owner is known.
+    if (ownerKey === undefined) return
     const { connectionId } = action.payload
     const connection = clients.get(connectionId)
     const clusterId = connection?.clusterId

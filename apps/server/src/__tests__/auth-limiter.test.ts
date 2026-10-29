@@ -2,7 +2,7 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
 import { GlideClient, ClosingError } from "@valkey/valkey-glide"
-import { VALKEY } from "valkey-common"
+import { EndpointError, VALKEY, normalizeEndpoint } from "valkey-common"
 import {
   AUTH_FAILURE_LIMIT,
   authLimitKey,
@@ -80,10 +80,15 @@ describe("auth-limiter", () => {
     assert.strictEqual(isAuthError(new Error("PermissionDenied: User x has no permissions to run the 'info' command")), false)
   })
 
-  it("keys by host:port and owner, not by connectionId or db", () => {
-    assert.strictEqual(authLimitKey({ ...DETAILS, db: 3 }), authLimitKey(DETAILS))
-    assert.notStrictEqual(authLimitKey({ ...DETAILS, username: "bob" }), authLimitKey(DETAILS))
-    assert.notStrictEqual(authLimitKey({ ...DETAILS, port: "6380" }), authLimitKey(DETAILS))
+  it("keys by normalized host:port and identity, not by connectionId, db or spelling", () => {
+    const ep = (host: string, port: string | number) => normalizeEndpoint(host, port)
+    const base = authLimitKey(DETAILS, ep(DETAILS.host, DETAILS.port))
+    assert.strictEqual(authLimitKey(DETAILS, ep(DETAILS.host, DETAILS.port)), base)
+    assert.notStrictEqual(authLimitKey({ ...DETAILS, username: "bob" }, ep(DETAILS.host, DETAILS.port)), base)
+    assert.notStrictEqual(authLimitKey(DETAILS, ep(DETAILS.host, "6380")), base)
+    // Finding 4: other spellings of one endpoint must share the bucket.
+    assert.strictEqual(authLimitKey(DETAILS, ep("Cache.internal", "6379")), authLimitKey(DETAILS, ep("cache.internal.", "6379")))
+    assert.throws(() => ep("cache.internal", "06379"), EndpointError)
   })
 
   it(`rejects without contacting Valkey after ${AUTH_FAILURE_LIMIT} failures`, async () => {

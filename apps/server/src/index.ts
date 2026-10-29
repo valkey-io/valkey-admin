@@ -5,6 +5,7 @@ import path from "path"
 import http from "http"
 import {
   VALKEY,
+  EndpointError,
   IamTransportError,
   ORCHESTRATOR_RATE_LIMIT_MAX_ENV,
   resolveOrchestratorRateLimitMax
@@ -257,7 +258,8 @@ server.listen(port, bindHost, () => {
  * so the server exits with the message. Any other failure, for example Valkey
  * not reachable yet, is logged and the server stays up, as before.
  */
-export const isFatalStartupError = (err: unknown): boolean => err instanceof IamTransportError
+export const isFatalStartupError = (err: unknown): boolean =>
+  err instanceof IamTransportError || err instanceof EndpointError
 
 function exitOnMisconfiguration(task: string) {
   return (err: unknown) => {
@@ -371,14 +373,15 @@ wss.on("connection", (ws: AliveWebSocket) => {
       }
       const { ownerKey, state } = resolved
 
-      // `state` is undefined only for a connect or discovery of an owner that has
-      // no entry yet. Those handlers do not read the maps below.
+      // `state` is undefined for a connect or a discovery: the owner is known
+      // only after the AUTH probe, and `connectPending` picks it. Those
+      // handlers do not read the maps below.
       await handler(
         { ws,
           clients: state?.clients ?? new Map(),
           connectionId: connectionId!,
           metricsServerMap: state?.metricsServerMap ?? new Map(),
-          connectedNodesByCluster: connectedNodesFor(ws.binding, ownerKey),
+          connectedNodesByCluster: ownerKey === undefined ? new Map() : connectedNodesFor(ws.binding, ownerKey),
           clusterNodesRegistry: state?.clusterNodesRegistry ?? new Map(),
           ownerKey,
           ownerState: state,

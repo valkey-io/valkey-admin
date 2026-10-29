@@ -32,6 +32,7 @@ import {
   verifyOrchestratorAuthCredential,
   assertIamTransport,
   mintGcpAccessToken,
+  normalizeEndpoint,
   registerGcpTokenRefresh
 } from "valkey-common"
 import { discoverCluster, belongsToCluster } from "./connection"
@@ -41,7 +42,6 @@ import {
   allOwnerStates,
   encodeOwnerDir,
   getEnvOwnerState,
-  ownerOf,
   registerEnvOwner,
   type OwnerState
 } from "./owner"
@@ -152,9 +152,17 @@ export const initialConnectionDetails: ConnectionDetails = {
   db: Number(process.env.VALKEY_DB ?? 0),
 }
 
-// A user who authenticates as the preconfigured identity reuses the env
-// owner's clients and collectors.
-if (preConfiguredConnection) registerEnvOwner(ownerOf(initialConnectionDetails))
+// A user who authenticates as the preconfigured identity against the
+// preconfigured endpoint, spelled as in VALKEY_HOST and VALKEY_PORT, reuses the
+// env owner's clients and collectors. Another spelling is another owner.
+if (preConfiguredConnection) {
+  try {
+    registerEnvOwner(initialConnectionDetails, normalizeEndpoint(initialConnectionDetails.host, initialConnectionDetails.port))
+  } catch (err) {
+    console.error(`VALKEY_HOST or VALKEY_PORT is invalid: ${err instanceof Error ? err.message : String(err)}`)
+    process.exit(1)
+  }
+}
 
 const ttl = Number(process.env.TTL) || 60000
 

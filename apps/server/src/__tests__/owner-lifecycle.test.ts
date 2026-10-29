@@ -47,7 +47,7 @@ const dispatch = async (ws: any, binding: ReturnType<typeof createSocketBinding>
     clients: resolved.state?.clients ?? new Map(),
     connectionId: action.payload.connectionId,
     metricsServerMap: resolved.state?.metricsServerMap ?? new Map(),
-    connectedNodesByCluster: connectedNodesFor(binding, resolved.ownerKey),
+    connectedNodesByCluster: resolved.ownerKey === undefined ? new Map() : connectedNodesFor(binding, resolved.ownerKey),
     clusterNodesRegistry: resolved.state?.clusterNodesRegistry ?? new Map(),
     ownerKey: resolved.ownerKey,
     ownerState: resolved.state,
@@ -116,7 +116,7 @@ describe("owner state lifecycle", () => {
 
   it("creates the entry after Valkey accepts the credentials, and removes it after the last connection closes", async () => {
     GlideClient.createClient = (async () => standaloneMock()) as any
-    const ownerKey = "password~lifecycle-user"
+    const ownerKey = "password~lifecycle-user@127.0.0.1:6379"
     const binding = createSocketBinding()
     const details = { ...DETAILS, username: "lifecycle-user", password: "pw" }
 
@@ -144,7 +144,7 @@ describe("owner state lifecycle", () => {
 
   it("keeps the entry while the owner still has a client", async () => {
     GlideClient.createClient = (async () => standaloneMock()) as any
-    const ownerKey = "password~two-dbs"
+    const ownerKey = "password~two-dbs@127.0.0.1:6379"
     const binding = createSocketBinding()
     const details = { ...DETAILS, username: "two-dbs", password: "pw" }
     for (const db of [0, 1]) {

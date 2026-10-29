@@ -2,16 +2,14 @@ import { GlideClient, GlideClusterClient, InfoOptions, ServerCredentials, Servic
 import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
-import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl, toNodeId, buildUrl } from "valkey-common"
+import { isValidDatabaseIndex, normalizeEndpoint, sanitizeUrl, toNodeId, buildUrl, type Endpoint } from "valkey-common"
 import { assertIamTransport, mintGcpAccessToken, registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
-  getExistingClusterClient, 
   getClusterSlotStatsEnabled, 
   getKeyEvictionPolicy, 
   getServerVersion,
   parseInfo, 
-  resolveHostnameOrIpAddress,
   supportsClusterDb } from "./utils"
 import { checkJsonModuleAvailability } from "./check-json-module"
 import { type ConnectionDetails } from "./actions/connection"
@@ -151,37 +149,58 @@ async function buildCredentials(details: ConnectionDetails): Promise<ServerCrede
   return password ? { username, password } : undefined
 }
 
+/** What the AUTH probe learned about the node: standalone, or a cluster with its topology. */
+export type ProbedTopology =
+  | { cluster: false }
+  | { cluster: true; clusterId: string; discoveredClusterNodes: ClusterNodeMap }
+
 /**
- * Prove that Valkey accepts `details`' credentials on the node they name.
- * Throws when Valkey rejects them (or the limit is reached). Call it before
- * anything is created for the owner, so a rejected request leaves nothing behind.
+ * Prove that Valkey accepts `details`' credentials on `endpoint`, and learn
+ * whether the node is in a cluster. Throws when Valkey rejects the credentials
+ * (or the limit is reached). Call it before anything is created for the owner,
+ * so a rejected request leaves nothing behind.
+ *
+ * The owner is chosen from what the probe proves: this identity, accepted by
+ * this endpoint, and for a cluster the topology this endpoint reports. So the
+ * probe, not a later client, runs `INFO cluster` and `CLUSTER SLOTS`.
  */
-export async function proveCredentials(details: ConnectionDetails): Promise<void> {
+export async function proveCredentials(details: ConnectionDetails, endpoint: Endpoint): Promise<ProbedTopology> {
   const credentials = await buildCredentials(details)
-  await verifyCredentials(details, {
-    addresses: [{ host: details.host, port: Number(details.port) }],
+  return verifyCredentials(details, {
+    addresses: [{ host: endpoint.host, port: endpoint.port }],
     credentials,
     useTLS: details.tls,
     verifyTlsCertificate: details.verifyTlsCertificate,
     caCertPath: serverCaCertPath(),
+  }, async (probe) => {
+    if (!(await belongsToCluster(probe))) return { cluster: false }
+    const { discoveredClusterNodes, clusterId } = await discoverCluster(probe, { connectionDetails: details })
+    if (typeof clusterId !== "string" || !clusterId) throw new Error("Failed to discover cluster")
+    return { cluster: true, clusterId, discoveredClusterNodes }
   })
 }
 
 /**
  * Prove that Valkey accepts `details`' credentials on this node: open a
- * short-lived client, then close it. Throws on rejection. Counted by the
- * failed-AUTH limit. Valkey Admin never stores or compares secrets.
+ * short-lived client, run `inspect` on it, then close it. Throws on rejection.
+ * Counted by the failed-AUTH limit. Valkey Admin does not compare secrets
+ * itself; it holds the cluster password in memory only to start collectors.
  *
  * Every connect and discovery runs this first. The working clients use
  * static node discovery, which does not reject bad credentials at creation.
  */
-async function verifyCredentials(
+async function verifyCredentials<T>(
   details: ConnectionDetails,
   options: Parameters<typeof createAuthProbeClient>[0],
-): Promise<void> {
-  const probe = await withAuthLimit(details, () => createAuthProbeClient(options))
-  try { probe.close() } catch (err) {
-    console.warn("Error closing AUTH probe client:", err)
+  inspect: (probe: GlideClient) => Promise<T>,
+): Promise<T> {
+  const probe = await withAuthLimit(details, options.addresses[0], () => createAuthProbeClient(options))
+  try {
+    return await inspect(probe)
+  } finally {
+    try { probe.close() } catch (err) {
+      console.warn("Error closing AUTH probe client:", err)
+    }
   }
 }
 
@@ -193,7 +212,7 @@ export async function connectToValkey(
     connectionId: string
     isRetry?: boolean
   },
-  options: { credentialsProven?: boolean } = {},
+  options: ConnectOptions = {},
 ) {
   // Per-connectionId mutex (per owner) around the entire connectToValkey body. The
   // second connector enters only after the first has fully committed (or failed),
@@ -217,6 +236,16 @@ export async function connectToValkey(
   }
 }
 
+type ConnectOptions = {
+  /**
+   * The AUTH probe's result, when the caller ran it (`connectPending` does,
+   * before it picks the owner). Without it the connect runs the probe itself.
+   */
+  probed?: ProbedTopology
+  /** The endpoint from `normalizeEndpoint`. Defaults to the details' host and `Number(port)`. */
+  endpoint?: Endpoint
+}
+
 async function connectToValkeyLocked(
   ctx: ConnectionContext,
   ws: WebSocket,
@@ -225,22 +254,19 @@ async function connectToValkeyLocked(
     connectionId: string
     isRetry?: boolean
   },
-  options: { credentialsProven?: boolean },
+  options: ConnectOptions,
 ) {
   const { clients, clusterNodesRegistry, metricsServerMap, clusterCredentials, inFlightClusterClients } = ctx
 
-  const { host, port, tls: useTLS, verifyTlsCertificate, authType } = payload.connectionDetails
+  const { tls: useTLS, verifyTlsCertificate, authType } = payload.connectionDetails
   const caCertPath = serverCaCertPath()
 
   const db = payload.connectionDetails.db
 
   const { connectionId } = payload
-  const addresses = [
-    {
-      host,
-      port: Number(port),
-    },
-  ]
+  const endpoint = options.endpoint
+    ?? { host: payload.connectionDetails.host, port: Number(payload.connectionDetails.port) }
+  const addresses = [endpoint]
   let standaloneClient: GlideClient | undefined
 
   try {
@@ -253,15 +279,11 @@ async function connectToValkeyLocked(
     }
 
     // Valkey must accept the presented credentials before anything else: before
-    // an existing client is handed over (the owner identity is not secret, so it
+    // an existing client is handed over (the owner key is not secret, so it
     // never grants reuse by itself) and before a retry closes the stale client.
     // The caller may already have proven them (connectPending does, before it
-    // creates the owner's state).
-    if (!options.credentialsProven) {
-      await verifyCredentials(payload.connectionDetails, {
-        addresses, credentials, useTLS, verifyTlsCertificate, caCertPath,
-      })
-    }
+    // picks the owner's state).
+    const probed = options.probed ?? await proveCredentials(payload.connectionDetails, endpoint)
 
     // A retry replaces the stale client only after the new client exists, so a
     // failed retry cannot close a client that works. Cluster clients are
@@ -275,7 +297,7 @@ async function connectToValkeyLocked(
       }
     }
 
-    const existingConnection = await getExistingConnection(payload, clients)
+    const existingConnection = getExistingConnection(payload, clients)
     if (existingConnection) {
       if (existingConnection.clusterId) {
         const clusterClient = existingConnection.client as GlideClusterClient
@@ -332,14 +354,14 @@ async function connectToValkeyLocked(
       }
     }
 
-    // Detect cluster mode and Server_Version on the probe BEFORE issuing any
+    // The AUTH probe already decided standalone or cluster and fetched the
+    // topology. Read the Server_Version on this client BEFORE issuing any
     // `SELECT`. This is required for cluster gating: cluster nodes reject
-    // `SELECT N` for any N (even 0), so we cannot bind the probe to a `db`
+    // `SELECT N` for any N (even 0), so we cannot bind the client to a `db`
     // without losing the chance to surface a friendly version-gating error.
-    const isCluster = await belongsToCluster(standaloneClient)
-    const serverVersion = isCluster ? await getServerVersion(standaloneClient) : null
+    const serverVersion = probed.cluster ? await getServerVersion(standaloneClient) : null
 
-    if (isCluster) {
+    if (probed.cluster) {
       let shouldCloseClusterClientOnError
       let ownInflight: Promise<GlideClusterClient> | undefined
 
@@ -371,38 +393,35 @@ async function connectToValkeyLocked(
         }
       }
 
-      const { discoveredClusterNodes, clusterId } = await discoverCluster(standaloneClient, payload)
+      const { discoveredClusterNodes, clusterId } = probed
       standaloneClient.close()
 
-      const existingClusterConnection = await getExistingClusterClient(discoveredClusterNodes, clients)
+      // Each node connection has its own cluster client today. Reuse of one
+      // owner's cluster client for a second node is left to the cluster-id
+      // overhaul. `inFlightClusterClients` only deduplicates concurrent creation.
       let clusterClient: GlideClusterClient
-      if (existingClusterConnection && !payload.isRetry) {
-        clusterClient = existingClusterConnection.client
+      const inflight = inFlightClusterClients.get(clusterId)
+      if (inflight) {
+        clusterClient = await inflight
         shouldCloseClusterClientOnError = false
       } else {
-        const inflight = inFlightClusterClients.get(clusterId)
-        if (inflight) {
-          clusterClient = await inflight
-          shouldCloseClusterClientOnError = false
-        } else {
-          ownInflight = createClusterValkeyClient({
-            addresses,
-            credentials,
-            useTLS,
-            verifyTlsCertificate,
-            caCertPath,
-            databaseId: clusterDatabaseId,
-          })
-          inFlightClusterClients.set(clusterId, ownInflight)
-          try {
-            clusterClient = await ownInflight
-            shouldCloseClusterClientOnError = true
-          } catch (err) {
-            // Surface failure to siblings awaiting our promise and clear the slot
-            // so the next connector can retry instead of inheriting a permanent reject.
-            inFlightClusterClients.delete(clusterId)
-            throw err
-          }
+        ownInflight = createClusterValkeyClient({
+          addresses,
+          credentials,
+          useTLS,
+          verifyTlsCertificate,
+          caCertPath,
+          databaseId: clusterDatabaseId,
+        })
+        inFlightClusterClients.set(clusterId, ownInflight)
+        try {
+          clusterClient = await ownInflight
+          shouldCloseClusterClientOnError = true
+        } catch (err) {
+          // Surface failure to siblings awaiting our promise and clear the slot
+          // so the next connector can retry instead of inheriting a permanent reject.
+          inFlightClusterClients.delete(clusterId)
+          throw err
         }
       }
 
@@ -421,10 +440,6 @@ async function connectToValkeyLocked(
           seedAddress: addresses[0],
           discoveredClusterNodes,
         })
-
-        if (payload.isRetry && existingClusterConnection) {
-          updateClusterNodesClient(clients, existingClusterConnection, clusterClient)
-        }
 
         shouldCloseClusterClientOnError = false
         if (authType === "gcp-iam") {
@@ -543,25 +558,16 @@ export async function discoverTopology(
   payload: { discoveryId: string; connectionDetails: ConnectionDetails },
 ): Promise<void> {
   const { discoveryId, connectionDetails } = payload
-  const { host, port, tls: useTLS, verifyTlsCertificate } = connectionDetails
-  const caCertPath = serverCaCertPath()
 
-  const addresses = [{ host, port: Number(port) }]
-
-  let client: GlideClient | undefined
   try {
-    const credentials = await buildCredentials(connectionDetails)
-
-    // Cluster discovery is read-only `CLUSTER SLOTS` against the seed node;
-    // database selection is irrelevant for cluster commands. Skip
-    // `databaseId` entirely so Glide does not issue `SELECT` (cluster nodes
-    // reject `SELECT` even for db 0).
-    await verifyCredentials(connectionDetails, { addresses, credentials, useTLS, verifyTlsCertificate, caCertPath })
-    client = await createStandaloneValkeyClient({ addresses, credentials, useTLS, verifyTlsCertificate, caCertPath })
-    const { discoveredClusterNodes } = await discoverCluster(client, { connectionDetails })
-    if (Object.keys(discoveredClusterNodes).length < 1) {
+    // The probe proves the credentials and reads `CLUSTER SLOTS` from the seed
+    // node. No client is kept: discovery creates no owner state.
+    const endpoint = normalizeEndpoint(connectionDetails.host, connectionDetails.port)
+    const probed = await proveCredentials(connectionDetails, endpoint)
+    if (!probed.cluster || Object.keys(probed.discoveredClusterNodes).length < 1) {
       throw new Error("Unable to discover cluster")
     }
+    const { discoveredClusterNodes } = probed
     ws.send(
       JSON.stringify({
         type: VALKEY.TOPOLOGY.discoveryEndpointFulfilled,
@@ -577,8 +583,6 @@ export async function discoverTopology(
         payload: { discoveryId, errorMessage },
       }),
     )
-  } finally {
-    client?.close()
   }
 }
 
@@ -586,25 +590,6 @@ export async function belongsToCluster(client: GlideClient): Promise<boolean> {
   const response = await client.info([InfoOptions.Cluster])
   const parsed = parseInfo(response)
   return parsed["cluster_enabled"] === "1"
-}
-
-function updateClusterNodesClient(
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>, 
-  existingClusterConnection: {client: GlideClient | GlideClusterClient, clusterId?: string},
-  newClusterClient: GlideClusterClient,
-) {
-  const sharedIds = [...clients.entries()]
-    .filter(([, entry]) => entry.client === existingClusterConnection.client)
-    .map(([id]) => id)
-
-  // Stop the GCP IAM token-refresh timer before closing so the stale client is
-  // released immediately rather than lingering until the next refresh interval.
-  unregisterGcpTokenRefresh(existingClusterConnection.client)
-  try { existingClusterConnection.client.close() } catch (error) {
-    console.error(`Error closing stale client for ${existingClusterConnection.clusterId}:`, error)
-  }
-  // Update map with new client
-  sharedIds.forEach((id) => clients.set(id, { client: newClusterClient!, clusterId: existingClusterConnection.clusterId }))
 }
 
 async function commitClusterConnection(
@@ -731,31 +716,19 @@ function sendClusterConnectFulfilled(ws: WebSocket, payload: ClusterConnectFulfi
   ws.send(JSON.stringify({ type: VALKEY.CONNECTION.clusterConnectFulfilled, payload }))
 }
 
-export async function getExistingConnection(
-  payload:{connectionId: string, connectionDetails: ConnectionDetails, isRetry?: boolean},
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-) : Promise<{ client: GlideClient | GlideClusterClient; clusterId?: string | undefined; } | undefined>
-{
-  const { connectionId, connectionDetails, isRetry } = payload
+/**
+ * The owner's existing client for this connectionId, if any. `clients` holds
+ * only the clients of one owner (one Valkey user on one deployment), so a hit
+ * is a client this identity already opened to this deployment. Reuse is by id
+ * only; the caller proved the credentials with a fresh AUTH first.
+ */
+export function getExistingConnection(
+  payload: { connectionId: string, isRetry?: boolean },
+  clients: Map<string, { client: GlideClient | GlideClusterClient, clusterId?: string }>,
+): { client: GlideClient | GlideClusterClient; clusterId?: string | undefined } | undefined {
   // If the frontend is retrying a broken connection, it's not a duplicate
-  if (isRetry) {
-    return undefined
-  }
-
-  // `clients` holds only the clients of the connecting owner identity, and the
-  // caller must prove the credentials with a fresh AUTH before it reuses a match.
-  // Prevent duplicate connections:
-  // 1) This connectionId already has a client
-  // 2) Or any resolved host:port:db is already connected
-  if (clients.has(connectionId)) return clients.get(connectionId)
-
-  const resolvedAddresses = (await resolveHostnameOrIpAddress(connectionDetails.host)).addresses
-  const db = connectionDetails.db
-  const existingConnectionId = resolvedAddresses
-    .map((address) => buildConnectionId(address, connectionDetails.port, db))
-    .find((key) => clients.has(key))
-
-  return existingConnectionId ? clients.get(existingConnectionId) : undefined
+  if (payload.isRetry) return undefined
+  return clients.get(payload.connectionId)
 }
 
 export async function closeMetricsServer(
