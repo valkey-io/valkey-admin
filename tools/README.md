@@ -20,6 +20,7 @@ Both clusters share `tools/valkey-cluster/docker-compose.yml` and run as separat
 |---|---|---|
 | `CLUSTER_PORT_PREFIX` | `700` | Node `n` listens on `${CLUSTER_PORT_PREFIX}n` (for example `7001`) |
 | `CLUSTER_LFU_SLOT_STATS` | `yes` | `yes` passes the LFU and slot stats flags to `valkey-server`; anything else leaves Valkey defaults |
+| `CLUSTER_HOST_PREFIX` | `valkey-` | Read by `scripts/cluster_init.sh` only. Node `n` is reached as `${CLUSTER_HOST_PREFIX}n`. The integration stack in `docker/docker-compose.test.yml` reuses the script with `valkey-700`, because its containers are `valkey-7001`..`valkey-7006` |
 
 The LFU and slot stats settings are server start-up flags, so they survive node restarts. To manage one cluster directly, pass its project name, for example:
 

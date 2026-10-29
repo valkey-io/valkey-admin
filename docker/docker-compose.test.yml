@@ -284,6 +284,9 @@ services:
       valkey-7006: { condition: service_healthy }
     networks:
       - appnet
+    environment:
+      # The nodes above are valkey-7001..7006; the script defaults to valkey-1..6.
+      CLUSTER_HOST_PREFIX: valkey-700
     volumes:
       - ../tools/valkey-cluster/scripts/cluster_init.sh:/usr/local/bin/cluster_init.sh:ro
     entrypoint: ["/usr/local/bin/cluster_init.sh"]
