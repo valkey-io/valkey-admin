@@ -9,6 +9,7 @@ import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey
 import { GoogleAuth } from "google-auth-library"
 import {
   connectToValkey,
+  discoverCluster,
   getExistingConnection,
   teardownConnection
 } from "../connection"
@@ -338,6 +339,8 @@ describe("connectToValkey", () => {
         awsRegion: "us-east-1",
         awsReplicationGroupId: "my-cluster",
         password: undefined,
+        tls: true,
+        verifyTlsCertificate: true,
       },
     }
 
@@ -353,24 +356,40 @@ describe("connectToValkey", () => {
     })
   })
 
+  // A temporary CA file plus VALKEY_CA_CERT_PATH pointing at it, for tests that
+  // need a verified channel. Restores the env afterwards.
+  const ENV_CA_PEM = "-----BEGIN CERTIFICATE-----\nenvca\n-----END CERTIFICATE-----\n"
+  const withServerCa = async (fn: (caPath: string) => Promise<void>, pem = ENV_CA_PEM) => {
+    const caPath = path.join(os.tmpdir(), `valkey-ca-env-${process.pid}-${Date.now()}-${Math.random()}.pem`)
+    fs.writeFileSync(caPath, pem)
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    process.env.VALKEY_CA_CERT_PATH = caPath
+    try {
+      await fn(caPath)
+    } finally {
+      if (prior === undefined) delete process.env.VALKEY_CA_CERT_PATH
+      else process.env.VALKEY_CA_CERT_PATH = prior
+      fs.rmSync(caPath, { force: true })
+    }
+  }
+
+  const gcpDetails = () => ({
+    ...DEFAULT_PAYLOAD.connectionDetails,
+    authType: "gcp-iam" as const,
+    username: "ignored@project.iam.gserviceaccount.com",
+    tls: true,
+    verifyTlsCertificate: true,
+    password: undefined,
+  })
+
   it("should mint an access token as the password when authType is gcp-iam", async () => {
     const standalone = buildStandaloneMock({ clusterEnabled: "1" })
     const cluster = buildClusterMock()
     mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-gcp-token")
 
-    const gcpPayload = {
-      ...DEFAULT_PAYLOAD,
-      connectionDetails: {
-        ...DEFAULT_PAYLOAD.connectionDetails,
-        authType: "gcp-iam" as const,
-        username: "ignored@project.iam.gserviceaccount.com",
-        tls: true,
-        verifyTlsCertificate: true,
-        password: undefined,
-      },
-    }
+    const gcpPayload = { ...DEFAULT_PAYLOAD, connectionDetails: gcpDetails() }
 
-    await withMockedClients(standalone, cluster, async () => {
+    await withServerCa(() => withMockedClients(standalone, cluster, async () => {
       await connectToValkey(ctx(), mockWs, gcpPayload)
 
       const calls = (GlideClusterClient.createClient as any).mock.calls
@@ -379,7 +398,51 @@ describe("connectToValkey", () => {
       assert.strictEqual(config.credentials.password, "fake-gcp-token")
       assert.strictEqual(config.credentials.username, "default")
       assert.strictEqual(config.credentials.iamConfig, undefined)
-    })
+    }))
+  })
+
+  it("rejects gcp-iam when VALKEY_CA_CERT_PATH is not set, before a token is minted", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const mint = mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-gcp-token")
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    delete process.env.VALKEY_CA_CERT_PATH
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: gcpDetails() })
+        assert.strictEqual(result, undefined)
+        assert.strictEqual(mint.mock.calls.length, 0, "no token must be minted")
+        assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0)
+        const rejected = (mockWs.send as any).mock.calls
+          .map((c: any) => JSON.parse(c.arguments[0]))
+          .find((m: any) => m.type === VALKEY.CONNECTION.connectRejected)
+        assert.match(rejected.payload.errorMessage, /VALKEY_CA_CERT_PATH/)
+      })
+    } finally {
+      if (prior !== undefined) process.env.VALKEY_CA_CERT_PATH = prior
+    }
+  })
+
+  it("rejects iam without TLS before any client is created", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const details = {
+      ...DEFAULT_PAYLOAD.connectionDetails,
+      authType: "iam" as const,
+      awsRegion: "us-east-1",
+      awsReplicationGroupId: "my-cluster",
+      password: undefined,
+    }
+    for (const transport of [{ tls: false, verifyTlsCertificate: false }, { tls: true, verifyTlsCertificate: false }]) {
+      await withMockedClients(standalone, cluster, async () => {
+        const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: { ...details, ...transport } })
+        assert.strictEqual(result, undefined)
+        assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual(authProbeCalls.length, 0, "the AUTH probe must not run")
+      })
+    }
   })
 
   it("rejects gcp-iam without TLS instead of sending the token in cleartext", async () => {
@@ -429,11 +492,11 @@ describe("connectToValkey", () => {
     })
   })
 
-  it("passes the connection's caCertPath to Glide as rootCertificates", async () => {
+  it("ignores a client-supplied caCertPath and uses VALKEY_CA_CERT_PATH", async () => {
     const standalone = buildStandaloneMock({ clusterEnabled: "1" })
     const cluster = buildClusterMock()
-    const caPath = path.join(os.tmpdir(), `valkey-ca-${process.pid}-${Date.now()}.pem`)
-    fs.writeFileSync(caPath, "-----BEGIN CERTIFICATE-----\ntestca\n-----END CERTIFICATE-----\n")
+    const clientCaPath = path.join(os.tmpdir(), `valkey-ca-client-${process.pid}-${Date.now()}.pem`)
+    fs.writeFileSync(clientCaPath, "-----BEGIN CERTIFICATE-----\nclientca\n-----END CERTIFICATE-----\n")
 
     const tlsPayload = {
       ...DEFAULT_PAYLOAD,
@@ -441,20 +504,51 @@ describe("connectToValkey", () => {
         ...DEFAULT_PAYLOAD.connectionDetails,
         tls: true,
         verifyTlsCertificate: true,
-        caCertPath: caPath,
+        caCertPath: clientCaPath,
       },
     }
 
     try {
-      await withMockedClients(standalone, cluster, async () => {
+      await withServerCa(() => withMockedClients(standalone, cluster, async () => {
         await connectToValkey(ctx(), mockWs, tlsPayload)
+        for (const config of [authProbeCalls[0], (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]]) {
+          const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
+          assert.ok(Buffer.isBuffer(ca))
+          assert.match(ca.toString(), /envca/)
+          assert.doesNotMatch(ca.toString(), /clientca/)
+        }
+      }))
+    } finally {
+      fs.rmSync(clientCaPath, { force: true })
+    }
+  })
+
+  it("uses no CA when the client sends caCertPath and VALKEY_CA_CERT_PATH is unset", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    delete process.env.VALKEY_CA_CERT_PATH
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        await connectToValkey(ctx(), mockWs, {
+          ...DEFAULT_PAYLOAD,
+          connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, tls: true, verifyTlsCertificate: true, caCertPath: "/etc/passwd" },
+        })
         const config = (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]
-        const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
-        assert.ok(Buffer.isBuffer(ca))
-        assert.match(ca.toString(), /BEGIN CERTIFICATE/)
+        assert.strictEqual(config.advancedConfiguration.tlsAdvancedConfiguration, undefined)
       })
     } finally {
-      fs.rmSync(caPath, { force: true })
+      if (prior !== undefined) process.env.VALKEY_CA_CERT_PATH = prior
+    }
+  })
+
+  it("does not copy caCertPath into discovered cluster node maps", async () => {
+    const client = buildStandaloneMock({ clusterEnabled: "1" }) as any
+    const { discoveredClusterNodes } = await discoverCluster(client, {
+      connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, caCertPath: "/etc/passwd" },
+    })
+    for (const node of Object.values(discoveredClusterNodes)) {
+      assert.strictEqual("caCertPath" in node, false)
     }
   })
 
@@ -618,6 +712,8 @@ describe("connectToValkey", () => {
         awsRegion: "us-west-2",
         awsReplicationGroupId: "my-cluster",
         password: undefined,
+        tls: true,
+        verifyTlsCertificate: true,
       },
       cluster: true,
       assertConfig: (c) => assert.strictEqual(c.credentials.iamConfig.region, "us-west-2"),

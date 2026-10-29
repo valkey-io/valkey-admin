@@ -30,6 +30,7 @@ import {
   sanitizeUrl,
   toNodeId,
   verifyOrchestratorAuthCredential,
+  assertIamTransport,
   mintGcpAccessToken,
   registerGcpTokenRefresh
 } from "valkey-common"
@@ -431,6 +432,7 @@ export async function getInitialClient() {
         "orchestrator",
         initialConnectionDetails.tls,
         initialConnectionDetails.verifyTlsCertificate,
+        process.env.VALKEY_CA_CERT_PATH,
       )
     }
   }
@@ -442,6 +444,10 @@ async function createClient(connectionDetails: ConnectionDetails) {
     host, port, username, password, tls, verifyTlsCertificate, caCertPath,
     authType, awsRegion, awsReplicationGroupId, db,
   } = connectionDetails
+  // Only `initialConnectionDetails` reaches this function, so `caCertPath` is
+  // the operator's VALKEY_CA_CERT_PATH. IAM credentials go only over a
+  // verified channel (`gcp-iam` is checked inside `mintGcpAccessToken`).
+  assertIamTransport({ authType, tls, verifyTlsCertificate }, caCertPath)
   const addresses = [{ host, port: Number(port) }]
   const credentials =
     authType === "iam"
@@ -454,7 +460,7 @@ async function createClient(connectionDetails: ConnectionDetails) {
         },
       }
       : authType === "gcp-iam"
-        ? { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate) }
+        ? { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate, caCertPath) }
         : password ? { username, password } : undefined
 
   return await createOrchestratorValkeyClient({ addresses, credentials, useTLS: tls, verifyTlsCertificate, caCertPath, databaseId: db })
@@ -662,7 +668,6 @@ export async function startMetricsServer(nodeToStart: NodeInfo, nodeId: string, 
       VALKEY_PASSWORD: nodeToStart.password,
       VALKEY_TLS: String(nodeToStart.tls),
       VALKEY_VERIFY_CERT: String(nodeToStart.verifyTlsCertificate),
-      ...(nodeToStart.caCertPath && { VALKEY_CA_CERT_PATH: nodeToStart.caCertPath }),
       VALKEY_AUTH_TYPE: nodeToStart.authType ?? "password",
       VALKEY_AWS_REGION: nodeToStart.awsRegion,
       VALKEY_REPLICATION_GROUP_ID: nodeToStart.awsReplicationGroupId,

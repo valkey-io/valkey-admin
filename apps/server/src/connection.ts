@@ -3,7 +3,7 @@ import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
 import { buildConnectionId, isValidDatabaseIndex, sanitizeUrl, toNodeId, buildUrl } from "valkey-common"
-import { mintGcpAccessToken, registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "valkey-common"
+import { assertIamTransport, mintGcpAccessToken, registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
   getExistingClusterClient, 
@@ -122,16 +122,32 @@ class ConnectionRejectedError extends Error {
   }
 }
 
-/** Glide credentials for `details`. Mints a token for GCP IAM. */
+/**
+ * The CA file Glide trusts, if any. Always the operator's `VALKEY_CA_CERT_PATH`.
+ * A client-supplied `caCertPath` is ignored: the client must not choose which
+ * file on the server's disk becomes a trust root, and for `gcp-iam` this file
+ * is what keeps the server's access token from reaching a stranger's host.
+ * An empty value counts as missing, hence `||`.
+ */
+export const serverCaCertPath = (): string | undefined => process.env.VALKEY_CA_CERT_PATH || undefined
+
+/**
+ * Glide credentials for `details`. Mints a token for GCP IAM. IAM credentials
+ * are built only for a verified TLS channel (`assertIamTransport`).
+ */
 async function buildCredentials(details: ConnectionDetails): Promise<ServerCredentials | undefined> {
   const { username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = details
+  const caCertPath = serverCaCertPath()
+  assertIamTransport({ authType, tls, verifyTlsCertificate }, caCertPath)
   if (authType === "iam") {
     return {
       username: username!,
       iamConfig: { clusterName: awsReplicationGroupId!, service: ServiceType.Elasticache, region: awsRegion! },
     }
   }
-  if (authType === "gcp-iam") return { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate) }
+  if (authType === "gcp-iam") {
+    return { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate, caCertPath) }
+  }
   return password ? { username, password } : undefined
 }
 
@@ -147,8 +163,7 @@ export async function proveCredentials(details: ConnectionDetails): Promise<void
     credentials,
     useTLS: details.tls,
     verifyTlsCertificate: details.verifyTlsCertificate,
-    // VALKEY_CA_CERT_PATH is a server-side default; an empty value counts as missing.
-    caCertPath: details.caCertPath || process.env.VALKEY_CA_CERT_PATH,
+    caCertPath: serverCaCertPath(),
   })
 }
 
@@ -215,10 +230,7 @@ async function connectToValkeyLocked(
   const { clients, clusterNodesRegistry, metricsServerMap, clusterCredentials, inFlightClusterClients } = ctx
 
   const { host, port, tls: useTLS, verifyTlsCertificate, authType } = payload.connectionDetails
-  // VALKEY_CA_CERT_PATH is a server-side default: the UI has no CA field, so a
-  // UI-initiated connection can only get a private CA from the environment.
-  // An empty persisted value counts as missing, hence `||` not `??`.
-  const caCertPath = payload.connectionDetails.caCertPath || process.env.VALKEY_CA_CERT_PATH
+  const caCertPath = serverCaCertPath()
 
   const db = payload.connectionDetails.db
 
@@ -415,7 +427,9 @@ async function connectToValkeyLocked(
         }
 
         shouldCloseClusterClientOnError = false
-        if (authType === "gcp-iam") registerGcpTokenRefresh(clusterClient, `cluster ${clusterId}`, useTLS, verifyTlsCertificate)
+        if (authType === "gcp-iam") {
+          registerGcpTokenRefresh(clusterClient, `cluster ${clusterId}`, useTLS, verifyTlsCertificate, caCertPath)
+        }
         return clusterClient
       } finally {
         if (ownInflight && inFlightClusterClients.get(clusterId) === ownInflight) {
@@ -481,7 +495,7 @@ async function connectToValkeyLocked(
       },
     })
 
-    if (authType === "gcp-iam") registerGcpTokenRefresh(standaloneClient, connectionId, useTLS, verifyTlsCertificate)
+    if (authType === "gcp-iam") registerGcpTokenRefresh(standaloneClient, connectionId, useTLS, verifyTlsCertificate, caCertPath)
     return standaloneClient
     
   } catch (err) {
@@ -530,10 +544,7 @@ export async function discoverTopology(
 ): Promise<void> {
   const { discoveryId, connectionDetails } = payload
   const { host, port, tls: useTLS, verifyTlsCertificate } = connectionDetails
-  // VALKEY_CA_CERT_PATH is a server-side default: the UI has no CA field, so a
-  // UI-initiated discovery can only get a private CA from the environment.
-  // An empty persisted value counts as missing, hence `||` not `??`.
-  const caCertPath = connectionDetails.caCertPath || process.env.VALKEY_CA_CERT_PATH
+  const caCertPath = serverCaCertPath()
 
   const addresses = [{ host, port: Number(port) }]
 
@@ -670,7 +681,6 @@ export async function discoverCluster(
           }),
           tls: payload.connectionDetails.tls,
           verifyTlsCertificate: payload.connectionDetails.verifyTlsCertificate,
-          caCertPath: payload.connectionDetails.caCertPath,
           replicas: [],
         }
       }
@@ -694,7 +704,6 @@ export async function discoverCluster(
       username?: string,
       tls: boolean,
       verifyTlsCertificate: boolean,
-      caCertPath?: string,
       replicas: { id: string; host: string; port: number }[];
     }>)
 

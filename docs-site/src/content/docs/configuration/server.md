@@ -226,13 +226,17 @@ Enable TLS for the Valkey connection. Compared as the literal string `"true"`.
 
 ### `VALKEY_VERIFY_CERT`
 
-Verify the TLS server certificate. Verification is **on** unless this is set to the literal string `"false"`. Disable it only when you knowingly talk to a node with a self-signed cert and cannot supply its CA via `VALKEY_CA_CERT_PATH`. Verification cannot be disabled for `gcp-iam` — the IAM token is a bearer credential and requires a verified TLS channel.
+Verify the TLS server certificate. Verification is **on** unless this is set to the literal string `"false"`. Disable it only when you knowingly talk to a node with a self-signed cert and cannot supply its CA via `VALKEY_CA_CERT_PATH`. Verification cannot be disabled for `iam` or `gcp-iam` — an IAM token is a credential the server signs with its own cloud identity, and it travels only over a verified TLS channel.
 
 - **Default:** `true`
 
 ### `VALKEY_CA_CERT_PATH`
 
 Filesystem path to a PEM CA certificate used to verify the Valkey server's TLS certificate. Only consulted when `VALKEY_TLS=true` and verification is enabled (`VALKEY_VERIFY_CERT` is not `false`). Glide performs TLS in its Rust core, so a private CA must be supplied this way — Node's trust store and `NODE_EXTRA_CA_CERTS` do not apply. Typical use: mount your server CA (for example a Memorystore for Valkey CA) as a secret and point this at the mounted file.
+
+This is the only CA source. It applies to every connection the server opens: the preconfigured connection, connections users add in the UI, topology discovery, and the collectors the server spawns. A `caCertPath` field in a WebSocket connection request is ignored; a client must not pick a file on the server's disk as a trust root.
+
+**Required for `gcp-iam`.** When set, Glide trusts only certificates from this CA, so the server's GCP access token (a bearer token with the `cloud-platform` scope) can reach only your Memorystore instance. Without it, the token would go to any host that presents a publicly trusted certificate. A `gcp-iam` connection is refused with a message that names this variable when it is unset. Memorystore's per-instance and shared CA modes already require you to download this CA; for a customer-managed CA, point this at the same CA file.
 
 ### `VALKEY_ENDPOINT_TYPE`
 
@@ -245,8 +249,8 @@ Tells the orchestrator how to interpret `VALKEY_HOST` / `VALKEY_PORT` when disco
 
 Selects the credentials provider for the initial connection.
 
-- **`"iam"`** — use AWS ElastiCache IAM authentication. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`.
-- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored.
+- **`"iam"`** — use AWS ElastiCache IAM authentication. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`. Requires `VALKEY_TLS=true` with verification on; ElastiCache requires in-transit encryption for IAM, and the server refuses to sign a connect token for a plain or unverified channel.
+- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored. Requires `VALKEY_TLS=true`, verification on, and `VALKEY_CA_CERT_PATH` (see above). The server exits at startup with the reason when the preconfigured connection breaks one of these rules.
 - **anything else** — fall back to password authentication using `VALKEY_USERNAME` / `VALKEY_PASSWORD`.
 
 - **Default:** `"password"`

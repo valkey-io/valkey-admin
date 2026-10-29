@@ -35,6 +35,7 @@ async function getPassword() {
     return await mintGcpAccessToken(
       process.env.VALKEY_TLS === "true",
       process.env.VALKEY_VERIFY_CERT !== "false",
+      process.env.VALKEY_CA_CERT_PATH,
     )
   }
   return process.env.VALKEY_PASSWORD

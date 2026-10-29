@@ -5,6 +5,7 @@ import path from "path"
 import http from "http"
 import {
   VALKEY,
+  IamTransportError,
   ORCHESTRATOR_RATE_LIMIT_MAX_ENV,
   resolveOrchestratorRateLimitMax
 } from "valkey-common"
@@ -243,12 +244,30 @@ server.listen(port, bindHost, () => {
   refreshAllClusterRegistriesLoop()
 
   if (preConfiguredConnection) {
-    startPreconfiguredMetricsServers()
+    startPreconfiguredMetricsServers().catch(exitOnMisconfiguration("preconfigured connection"))
   }
   if (isKubernetes) {
-    updateRegistryforK8()
+    updateRegistryforK8().catch(exitOnMisconfiguration("Kubernetes cluster registry"))
   }
 })
+
+/**
+ * A startup task that fails because the `VALKEY_*` configuration is unsafe
+ * (an IAM credential over an unverified channel) cannot be fixed by waiting,
+ * so the server exits with the message. Any other failure, for example Valkey
+ * not reachable yet, is logged and the server stays up, as before.
+ */
+export const isFatalStartupError = (err: unknown): boolean => err instanceof IamTransportError
+
+function exitOnMisconfiguration(task: string) {
+  return (err: unknown) => {
+    if (isFatalStartupError(err)) {
+      console.error(`Cannot start the ${task}: ${(err as Error).message}`)
+      process.exit(1)
+    }
+    console.error(`Error starting the ${task}:`, err)
+  }
+}
 
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {

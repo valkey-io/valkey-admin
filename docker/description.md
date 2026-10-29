@@ -103,7 +103,7 @@ Here are all the relevant environment variables for configuration
 | `VALKEY_PASSWORD` | Valkey password | — |
 | `VALKEY_TLS` | Enable TLS | `false` |
 | `VALKEY_VERIFY_CERT` | Verify the server's TLS certificate; set `false` to disable (not allowed for `gcp-iam`) | `true` |
-| `VALKEY_CA_CERT_PATH` | Path to a PEM CA cert used to verify the server's TLS certificate | — |
+| `VALKEY_CA_CERT_PATH` | Path to a PEM CA cert used to verify the server's TLS certificate. The only CA source; required for `gcp-iam` | — |
 | `VALKEY_AUTH_TYPE` | Authentication type (`password`, `iam`, `gcp-iam`) | `password` |
 | `HOT_KEYS_COUNT` | Maximum hot keys returned per query | `50` |
 | `COMMAND_LOGS_COUNT` | Maximum command log entries returned per query | `100` |

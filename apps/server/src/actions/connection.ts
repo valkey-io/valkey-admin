@@ -15,7 +15,11 @@ export interface ConnectionDetails {
   password?: string;
   tls: boolean;
   verifyTlsCertificate: boolean;
-  //TODO: Add handling and UI for uploading cert
+  /**
+   * @deprecated Ignored by the server, which always uses `VALKEY_CA_CERT_PATH`.
+   * A client must not pick a file on the server's disk as a trust root. A future
+   * CA upload feature needs a new field that carries PEM content, not a path.
+   */
   caCertPath?: string;
   endpointType: EndpointType;
   authType?: "password" | "iam" | "gcp-iam";
