@@ -86,5 +86,5 @@ export function unregisterGcpTokenRefresh(client: RefreshableClient): void {
   refreshStates.delete(client)
 }
 
-// For tests: run one refresh tick without waiting for the timer.
-export const __test__ = { refresh }
+// For tests: run one refresh tick without waiting for the timer, and ask whether a client is registered.
+export const __test__ = { refresh, isRegistered: (client: RefreshableClient) => refreshStates.has(client) }

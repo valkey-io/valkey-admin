@@ -286,14 +286,29 @@ async function connectToValkeyLocked(
     const probed = options.probed ?? await proveCredentials(payload.connectionDetails, endpoint)
 
     // A retry replaces the stale client only after the new client exists, so a
-    // failed retry cannot close a client that works. Cluster clients are
-    // repointed in updateClusterNodesClient.
-    const staleStandalone = payload.isRetry ? clients.get(connectionId)?.client : undefined
-    const replaceStale = () => {
-      if (!(staleStandalone instanceof GlideClient)) return
+    // failed retry cannot close a client that works. A standalone client is
+    // replaced before the new one is stored (replaceStaleStandalone); a cluster
+    // client is closed after commitClusterConnection has replaced the map entry
+    // (closeStaleCluster).
+    const staleClient = payload.isRetry ? clients.get(connectionId)?.client : undefined
+    const staleStandalone = staleClient instanceof GlideClient ? staleClient : undefined
+    const staleCluster = staleClient instanceof GlideClusterClient ? staleClient : undefined
+    const replaceStaleStandalone = () => {
+      if (!staleStandalone) return
       if (clients.get(connectionId)?.client === staleStandalone) clients.delete(connectionId)
       try { staleStandalone.close() } catch (error) {
         console.log(`Error closing stale client for ${connectionId}:`, error)
+      }
+    }
+    // Close the cluster client a retry replaced, unless another connectionId of
+    // this owner still uses it. Stop its token refresh first so the client does
+    // not linger until the next refresh tick.
+    const closeStaleCluster = (replacement: GlideClusterClient) => {
+      if (!staleCluster || staleCluster === replacement) return
+      if ([...clients.values()].some((entry) => entry.client === staleCluster)) return
+      unregisterGcpTokenRefresh(staleCluster)
+      try { staleCluster.close() } catch (error) {
+        console.log(`Error closing stale cluster client for ${connectionId}:`, error)
       }
     }
 
@@ -338,7 +353,7 @@ async function connectToValkeyLocked(
       verifyTlsCertificate,
       caCertPath,
     })
-    replaceStale()
+    replaceStaleStandalone()
 
     // Open the registration gate: the metrics process spawned below will POST
     // /register back to the orchestrator and the handler checks clients.has(connectionId).
@@ -440,6 +455,7 @@ async function connectToValkeyLocked(
           seedAddress: addresses[0],
           discoveredClusterNodes,
         })
+        closeStaleCluster(clusterClient)
 
         shouldCloseClusterClientOnError = false
         if (authType === "gcp-iam") {

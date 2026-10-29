@@ -5,7 +5,10 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
-import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey-common"
+import {
+  buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId,
+  gcpTokenRefreshInternals as refreshInternals, registerGcpTokenRefresh, unregisterGcpTokenRefresh
+} from "valkey-common"
 import { GoogleAuth } from "google-auth-library"
 import {
   connectToValkey,
@@ -720,6 +723,42 @@ describe("connectToValkey", () => {
       assertConfig: (c) => assert.strictEqual(c.credentials.iamConfig.region, "us-west-2"),
     },
   ]
+
+  // A cluster retry replaces the map entry in commitClusterConnection, so the
+  // old GlideClusterClient must be closed there too, or each auto-reconnect
+  // leaks a client (and with gcp-iam its token-refresh timer).
+  it("closes the stale cluster client and stops its token refresh on retry", async () => {
+    const oldCluster = Object.assign(Object.create(GlideClusterClient.prototype), { close: mock.fn() }) as GlideClusterClient
+    registerGcpTokenRefresh(oldCluster, "stale", true, true, "/etc/ca.pem")
+    const connectionId = buildConnectionId("127.0.0.1", "6379", 0)
+    clients.set(connectionId, { client: oldCluster, clusterId: "cluster-1" })
+    const newCluster = buildClusterMock()
+
+    try {
+      await withMockedClients(buildStandaloneMock({ clusterEnabled: "1" }), newCluster, async () => {
+        await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId, isRetry: true })
+      })
+      assert.strictEqual(clients.get(connectionId)?.client, newCluster)
+      assert.strictEqual((oldCluster.close as any).mock.calls.length, 1, "stale cluster client closed")
+      assert.strictEqual(refreshInternals.isRegistered(oldCluster), false, "stale refresh timer unregistered")
+    } finally {
+      unregisterGcpTokenRefresh(oldCluster)
+    }
+  })
+
+  it("keeps the stale cluster client on retry when another connectionId still uses it", async () => {
+    const shared = Object.assign(Object.create(GlideClusterClient.prototype), { close: mock.fn() }) as GlideClusterClient
+    const retried = buildConnectionId("127.0.0.1", "6379", 0)
+    const sibling = buildConnectionId("127.0.0.1", "6380", 0)
+    clients.set(retried, { client: shared, clusterId: "cluster-1" })
+    clients.set(sibling, { client: shared, clusterId: "cluster-1" })
+
+    await withMockedClients(buildStandaloneMock({ clusterEnabled: "1" }), buildClusterMock(), async () => {
+      await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId: retried, isRetry: true })
+    })
+    assert.strictEqual((shared.close as any).mock.calls.length, 0, "a client another connection uses stays open")
+    assert.strictEqual(clients.get(sibling)?.client, shared)
+  })
 
   for (const tc of REPLACE_CASES) {
     it(`replaces client under same connectionId on ${tc.name} (isRetry: true)`, async () => {
