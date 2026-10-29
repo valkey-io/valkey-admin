@@ -873,6 +873,14 @@ describe("connectionSlice", () => {
   })
 
   describe("saved connections load", () => {
+    // An ElastiCache node name typed with and without capitals. Distinct ids
+    // before host normalization, one id after.
+    const LOWER = "my-cache-001.abc123.0001.usw2.cache.amazonaws.com"
+    const MIXED = "My-Cache-001.Abc123.0001.usw2.cache.amazonaws.com"
+    const CAPS = "MY-CACHE-001.ABC123.0001.USW2.CACHE.AMAZONAWS.COM"
+    const LOWER_KEY = "my-cache-001-abc123-0001-usw2-cache-amazonaws-com-6379-db0"
+    const MIXED_KEY = "My-Cache-001-Abc123-0001-usw2-cache-amazonaws-com-6379-db0"
+    const CAPS_KEY = "MY-CACHE-001-ABC123-0001-USW2-CACHE-AMAZONAWS-COM-6379-db0"
     const saved = (host: string, port: string) => ({
       status: DISCONNECTED,
       connectionDetails: { host, port, username: "u", tls: false, verifyTlsCertificate: false, db: 0 },
@@ -882,17 +890,56 @@ describe("connectionSlice", () => {
     // refuses. They are renamed on load so auto-resume keeps working.
     it("renames entries whose key no longer matches the normalized endpoint", async () => {
       localStorage.setItem("VALKEY_CONNECTIONS", JSON.stringify({
-        "Cache-Internal-6379-db0": saved("Cache.Internal", "6379"),
+        [MIXED_KEY]: saved(MIXED, "6379"),
         "ok-6379-db0": saved("ok", "6379"),
       }))
       vi.resetModules()
       const { default: reducer } = await import("./connectionSlice")
       const state = reducer(undefined, { type: "@@init" })
-      expect(Object.keys(state.connections).sort()).toEqual(["cache-internal-6379-db0", "ok-6379-db0"])
-      expect(state.connections["cache-internal-6379-db0"].connectionDetails.host).toBe("cache.internal")
+      expect(Object.keys(state.connections).sort()).toEqual([LOWER_KEY, "ok-6379-db0"])
+      expect(state.connections[LOWER_KEY].connectionDetails.host).toBe(LOWER)
       // Persisted once, so the next load finds the new keys.
       const persisted = JSON.parse(localStorage.getItem("VALKEY_CONNECTIONS") ?? "{}")
-      expect(Object.keys(persisted).sort()).toEqual(["cache-internal-6379-db0", "ok-6379-db0"])
+      expect(Object.keys(persisted).sort()).toEqual([LOWER_KEY, "ok-6379-db0"])
+    })
+
+    // Two saved entries can normalize to one key (MIXED and LOWER above). The
+    // one already stored under the normalized key wins, whatever its position;
+    // the other keeps its original key with its own alias and history, so the
+    // user can edit or delete it.
+    it("does not overwrite an entry when two saved entries normalize to the same key", async () => {
+      const withAlias = (host: string, alias: string) => ({
+        ...saved(host, "6379"),
+        connectionDetails: { ...saved(host, "6379").connectionDetails, alias },
+        connectionHistory: [{ timestamp: 1, event: CONNECTED }],
+      })
+      // The colliding entry comes first in object order, the canonical one last.
+      localStorage.setItem("VALKEY_CONNECTIONS", JSON.stringify({
+        [MIXED_KEY]: withAlias(MIXED, "upper"),
+        [LOWER_KEY]: withAlias(LOWER, "lower"),
+      }))
+      vi.resetModules()
+      const { default: reducer } = await import("./connectionSlice")
+      const state = reducer(undefined, { type: "@@init" })
+      expect(Object.keys(state.connections).sort()).toEqual([MIXED_KEY, LOWER_KEY])
+      expect(state.connections[LOWER_KEY].connectionDetails.alias).toBe("lower")
+      expect(state.connections[MIXED_KEY].connectionDetails.alias).toBe("upper")
+      // The colliding entry is left exactly as saved: details unchanged, history kept.
+      expect(state.connections[MIXED_KEY].connectionDetails.host).toBe(MIXED)
+      expect(state.connections[MIXED_KEY].connectionHistory).toHaveLength(1)
+    })
+
+    it("keeps the first of two colliding entries when neither has the normalized key", async () => {
+      localStorage.setItem("VALKEY_CONNECTIONS", JSON.stringify({
+        [MIXED_KEY]: saved(MIXED, "6379"),
+        [CAPS_KEY]: saved(CAPS, "6379"),
+      }))
+      vi.resetModules()
+      const { default: reducer } = await import("./connectionSlice")
+      const state = reducer(undefined, { type: "@@init" })
+      expect(Object.keys(state.connections).sort()).toEqual([CAPS_KEY, LOWER_KEY])
+      expect(state.connections[LOWER_KEY].connectionDetails.host).toBe(LOWER)
+      expect(state.connections[CAPS_KEY].connectionDetails.host).toBe(CAPS)
     })
 
     it("keeps an entry whose details do not normalize", async () => {
