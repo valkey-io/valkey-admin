@@ -40,7 +40,7 @@ index_state() {
 }
 
 check_other_sites() {
-  local this_minor index version missing=()
+  local this_minor index version copy_version missing=()
   this_minor=$(minor_version "$1")
   for index in $OTHER_SITES; do
     # Check whether the site has any Pagefind index at all.
@@ -55,9 +55,8 @@ check_other_sites() {
       down) missing+=("$index"); continue ;;
     esac
     # Check whether the needed version is available.
-    case $(index_state "${index}v${this_minor}/") in
-      none | down) missing+=("$index") ;;
-    esac
+    copy_version=$(index_state "${index}v${this_minor}/")
+    [ "$(minor_version "$copy_version")" = "$this_minor" ] || missing+=("$index")
   done
   [ "${#missing[@]}" -gt 0 ] || return 0
 
