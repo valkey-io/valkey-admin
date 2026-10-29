@@ -77,6 +77,22 @@ describe("findClusterOwner", () => {
     assert.strictEqual(found, victim)
   })
 
+  it("joins through the owner's own seed even when the topology does not list it", () => {
+    // A seed typed as a name the nodes do not announce, e.g. a K8s service.
+    const owner_ = owner("valkey-svc.ns.svc", 6379, realTopology)
+    const found = findClusterOwner(CLUSTER, { host: "valkey-svc.ns.svc", port: 6379 }, realTopology, [owner_])
+    assert.strictEqual(found, owner_)
+  })
+
+  // Pins the known limitation: a non-env owner seeded on a name the nodes do
+  // not announce fails rule 2 for every other node, so those nodes get their
+  // own owners. Connecting through the cluster endpoint form avoids this.
+  it("does not join through another node when the owner's seed is a name the topology does not list", () => {
+    const owner_ = owner("valkey-svc.ns.svc", 6379, realTopology)
+    const found = findClusterOwner(CLUSTER, { host: "10.0.0.2", port: 7002 }, realTopology, [owner_])
+    assert.strictEqual(found, undefined)
+  })
+
   it("ignores owners with no registry for this cluster", () => {
     const other = owner("10.0.0.1", 7001, undefined)
     other.clusterNodesRegistry.set("c2", realTopology)

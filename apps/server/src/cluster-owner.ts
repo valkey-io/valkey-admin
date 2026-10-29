@@ -19,7 +19,14 @@ import type { OwnerState } from "./owner"
  * that includes the victim's nodes, rule 1 passes for the victim but rule 2
  * fails, because the real topology does not list the attacker's seed. The
  * env owner's registry came from the operator's `VALKEY_HOST`, so for it rule
- * 1 is enough.
+ * 1 is enough. A connection through the owner's own seed always joins.
+ *
+ * Limitation: both rules compare the hosts that `CLUSTER SLOTS` announces. An
+ * owner whose seed is a name the nodes do not announce (a Kubernetes service,
+ * `localhost` for nodes that announce `127.0.0.1`, a hostname alias) fails
+ * rule 2 for every other node, so each node connected from the topology view
+ * gets its own owner and its own collectors. Connecting through the cluster
+ * endpoint form avoids this: discovery connects to the first announced node.
  *
  * This file goes away when clusters get a server-chosen identity. It has one
  * caller, `connectPending`.
@@ -61,6 +68,8 @@ export function findClusterOwner(
   for (const candidate of candidates) {
     const registry = candidate.clusterNodesRegistry.get(clusterId)
     if (!registry) continue
+    // Reconnecting through the owner's own seed: nothing to prove.
+    if (candidate.seed && sameEndpoint(candidate.seed, endpoint)) return candidate
     if (!contains(registry, endpoint)) continue
     if (candidate.env) return candidate
     if (candidate.seed && contains(topology, candidate.seed)) return candidate
