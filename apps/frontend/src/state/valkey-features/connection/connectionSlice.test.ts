@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach, vi } from "vitest"
 import { CONNECTED, CONNECTING, ERROR, DISCONNECTED, DISCONNECTING } from "@common/src/constants"
 import connectionReducer, {
   connectPending,
@@ -869,6 +869,38 @@ describe("connectionSlice", () => {
         }),
       )
       expect(state.connections["conn-1"].status).toBe(CONNECTED)
+    })
+  })
+
+  describe("saved connections load", () => {
+    const saved = (host: string, port: string) => ({
+      status: DISCONNECTED,
+      connectionDetails: { host, port, username: "u", tls: false, verifyTlsCertificate: false, db: 0 },
+    })
+
+    // Connections saved before host normalization carry ids the server now
+    // refuses. They are renamed on load so auto-resume keeps working.
+    it("renames entries whose key no longer matches the normalized endpoint", async () => {
+      localStorage.setItem("VALKEY_CONNECTIONS", JSON.stringify({
+        "Cache-Internal-6379-db0": saved("Cache.Internal", "6379"),
+        "ok-6379-db0": saved("ok", "6379"),
+      }))
+      vi.resetModules()
+      const { default: reducer } = await import("./connectionSlice")
+      const state = reducer(undefined, { type: "@@init" })
+      expect(Object.keys(state.connections).sort()).toEqual(["cache-internal-6379-db0", "ok-6379-db0"])
+      expect(state.connections["cache-internal-6379-db0"].connectionDetails.host).toBe("cache.internal")
+      // Persisted once, so the next load finds the new keys.
+      const persisted = JSON.parse(localStorage.getItem("VALKEY_CONNECTIONS") ?? "{}")
+      expect(Object.keys(persisted).sort()).toEqual(["cache-internal-6379-db0", "ok-6379-db0"])
+    })
+
+    it("keeps an entry whose details do not normalize", async () => {
+      localStorage.setItem("VALKEY_CONNECTIONS", JSON.stringify({ "bad-abc-db0": saved("bad", "abc") }))
+      vi.resetModules()
+      const { default: reducer } = await import("./connectionSlice")
+      const state = reducer(undefined, { type: "@@init" })
+      expect(Object.keys(state.connections)).toEqual(["bad-abc-db0"])
     })
   })
 })

@@ -88,3 +88,19 @@ export const normalizeEndpoint = (host: string, port: string | number): Endpoint
   }
   return { host: trimmed, port: Number(portText) }
 }
+
+/**
+ * `buildConnectionId` from the normalized endpoint. Use it wherever an id is
+ * built from a host and port that came from somewhere else (a saved connection,
+ * a `CLUSTER SLOTS` reply, the environment), so the id matches the one the
+ * server computes. Falls back to the raw values when they do not normalize,
+ * which the server then rejects with a clear message.
+ */
+export const buildNormalizedConnectionId = (host: string, port: number | string, db: number = 0): string => {
+  try {
+    const endpoint = normalizeEndpoint(host, port)
+    return buildConnectionId(endpoint.host, endpoint.port, db)
+  } catch {
+    return buildConnectionId(host, port, db)
+  }
+}

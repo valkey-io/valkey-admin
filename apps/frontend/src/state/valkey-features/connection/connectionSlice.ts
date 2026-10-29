@@ -13,8 +13,10 @@ import {
   type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
+import { buildConnectionId, normalizeEndpoint } from "@common/src/connection-id.ts"
 import type { NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { secureStorage } from "@/utils/secureStorage"
+import { persistConnections } from "@/state/persistConnections"
 
 type ConnectionStatus =
   | typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof RECONNECTING
@@ -106,6 +108,35 @@ const buildSearchableText = (connectionId: string, details: ConnectionDetails) =
     .join(" ")
     .toLowerCase()
 
+/**
+ * Re-key saved connections whose id no longer matches their normalized host and
+ * port. The server rejects a connect whose id differs from
+ * `buildConnectionId(normalizeEndpoint(host, port), db)`, and auto-resume
+ * resends the saved id, so an entry saved with `Cache.Internal` before host
+ * normalization would never reconnect. Entries whose details do not normalize
+ * keep their key for the user to edit. Returns whether anything changed.
+ */
+const rekeyNormalized = (
+  connections: Record<string, ConnectionState>,
+): { connections: Record<string, ConnectionState>; changed: boolean } => {
+  let changed = false
+  const out: Record<string, ConnectionState> = {}
+  for (const [key, conn] of Object.entries(connections)) {
+    try {
+      const endpoint = normalizeEndpoint(conn.connectionDetails.host, conn.connectionDetails.port)
+      const newKey = buildConnectionId(endpoint.host, endpoint.port, conn.connectionDetails.db)
+      const details = { ...conn.connectionDetails, host: endpoint.host, port: String(endpoint.port) }
+      if (newKey !== key || details.host !== conn.connectionDetails.host || details.port !== conn.connectionDetails.port) {
+        changed = true
+      }
+      out[newKey] = { ...conn, connectionDetails: details }
+    } catch {
+      out[key] = conn
+    }
+  }
+  return { connections: out, changed }
+}
+
 const currentConnections = R.pipe(
   (v: string) => localStorage.getItem(v),
   // Older payloads written before `db` existed deserialize without it. Parse
@@ -117,18 +148,21 @@ const currentConnections = R.pipe(
     : JSON.parse(s) as Record<string, ConnectionState & {
       connectionDetails: Omit<ConnectionDetails, "db"> & { db?: number };
     }>),
-  R.mapObjIndexed((conn): ConnectionState => {
-    const normalized: ConnectionState = {
-      ...conn,
-      connectionDetails: {
-        ...conn.connectionDetails,
-        db: conn.connectionDetails.db ?? 0,
-      },
-    }
-    return isAutoResumeEligible(normalized)
-      ? { ...normalized, status: RECONNECTING }
-      : normalized
-  }),
+  R.mapObjIndexed((conn): ConnectionState => ({
+    ...conn,
+    connectionDetails: {
+      ...conn.connectionDetails,
+      db: conn.connectionDetails.db ?? 0,
+    },
+  })),
+  (connections) => {
+    const rekeyed = rekeyNormalized(connections)
+    if (rekeyed.changed) persistConnections(rekeyed.connections)
+    return rekeyed.connections
+  },
+  R.mapObjIndexed((conn): ConnectionState =>
+    isAutoResumeEligible(conn) ? { ...conn, status: RECONNECTING } : conn,
+  ),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
 const connectionSlice = createSlice({

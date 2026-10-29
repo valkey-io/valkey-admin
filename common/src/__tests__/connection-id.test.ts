@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { EndpointError, isNodeId, normalizeEndpoint, toNodeId } from "../connection-id"
+import { EndpointError, buildNormalizedConnectionId, isNodeId, normalizeEndpoint, toNodeId } from "../connection-id"
 
 describe("toNodeId", () => {
   // The shared db-strip helper that turns a Connection_Identifier
@@ -95,5 +95,16 @@ describe("normalizeEndpoint", () => {
   it("gives a message that names the field", () => {
     assert.throws(() => normalizeEndpoint("h", "06379"), /port/i)
     assert.throws(() => normalizeEndpoint("", "6379"), /host/i)
+  })
+})
+
+describe("buildNormalizedConnectionId", () => {
+  it("builds the id from the normalized endpoint", () => {
+    assert.strictEqual(buildNormalizedConnectionId(" Cache.Internal. ", "6379", 2), "cache-internal-6379-db2")
+    assert.strictEqual(buildNormalizedConnectionId("10.0.0.5", 7001), "10-0-0-5-7001-db0")
+  })
+
+  it("falls back to the raw values when they do not normalize", () => {
+    assert.strictEqual(buildNormalizedConnectionId("h", "06379"), "h-06379-db0")
   })
 })

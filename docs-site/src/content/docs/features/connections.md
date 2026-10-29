@@ -59,7 +59,7 @@ Valkey Admin supports three authentication methods:
 
 Provide a username and password. If no username is specified, the default ACL user is used. If you give a username without a password, Valkey Admin sends no credentials and the connection runs as the `default` user.
 
-Every command runs as the Valkey user you connected with, and the metrics you see were collected with your credentials. Valkey Admin checks your credentials with the node you name on every connect, also when another user already connected to the same node, and it reaches only the state of your Valkey user on that node. Host names are case-insensitive, and a trailing dot is ignored. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities).
+Every command runs as the Valkey user you connected with, and the metrics you see were collected with your credentials. Valkey Admin checks your credentials with the node you name on every connect, also when another user already connected to the same node, and it reaches only the state of your Valkey user on that node. Host names are case-insensitive, and a trailing dot is ignored. The port must be a plain number from 1 to 65535 with no leading zeros. Connections saved by an earlier version with a differently spelled host are renamed when the app loads, so they keep reconnecting. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities).
 
 In the web app, the browser does not keep the password across a page reload. After a reload, or in a new tab, enter the password again to reconnect. The desktop app with an OS keystore reconnects without asking. IAM, GCP IAM and passwordless connections reconnect automatically.
 
