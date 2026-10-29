@@ -1,9 +1,14 @@
 #!/bin/sh
 set -eu
 
-# Talk to nodes via Docker DNS names on the internal network.
+# Talk to nodes via Docker DNS names on the internal network. Node n is
+# "${HOST_PREFIX}n" on port "${PORT_PREFIX}n". The dev stack in
+# tools/valkey-cluster names nodes valkey-1..6; the integration stack in
+# docker/docker-compose.test.yml names them valkey-7001..7006 and sets
+# CLUSTER_HOST_PREFIX=valkey-700.
 PORT_PREFIX=${CLUSTER_PORT_PREFIX:-700}
-FIRST_HOST=valkey-1
+HOST_PREFIX=${CLUSTER_HOST_PREFIX:-valkey-}
+FIRST_HOST=${HOST_PREFIX}1
 FIRST_PORT=${PORT_PREFIX}1
 VALKEY_USER=${VALKEY_USER:-appuser}
 VALKEY_PASS=${VALKEY_PASS:-admin}
@@ -13,7 +18,7 @@ RESTRICTED_PASS=${RESTRICTED_PASS:-restricted}
 
 NODES=""
 for n in 1 2 3 4 5 6; do
-  NODES="$NODES valkey-$n:${PORT_PREFIX}$n"
+  NODES="$NODES ${HOST_PREFIX}$n:${PORT_PREFIX}$n"
 done
 
 wait_port() {
