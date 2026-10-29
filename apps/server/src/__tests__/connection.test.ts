@@ -1145,8 +1145,9 @@ describe("getExistingConnection", () => {
     assert.strictEqual(getExistingConnection({ connectionId: "abc123" }, new Map()), undefined)
   })
 
-  // Finding 7: `a.b` and `a-b` share a connectionId. Under M1 they are two
-  // owners, so each owner's map holds only its own client for that id.
+  // `a.b` and `a-b` share a connectionId. Since the owner key includes the
+  // endpoint they are two owners, so each owner's map holds only its own client
+  // for that id.
   it("two owners whose connectionIds collide each reuse only their own client", () => {
     const id = buildConnectionId("a.b", "6379", 0)
     assert.strictEqual(id, buildConnectionId("a-b", "6379", 0))

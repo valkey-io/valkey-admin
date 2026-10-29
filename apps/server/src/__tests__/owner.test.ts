@@ -67,7 +67,7 @@ describe("ownerOf", () => {
     assert.strictEqual(ownerOf({ ...base, authType: "gcp-iam" }, ep), "gcp-iam~default@cache.internal:6379")
   })
 
-  // Finding 1: the same username on two servers is two owners.
+  // The same username on two servers is two owners.
   it("separates the same identity on different endpoints", () => {
     const details = { ...base, username: "default", password: "pw" }
     assert.notStrictEqual(ownerOf(details, ep), ownerOf(details, { host: "6.6.6.6", port: 6379 }))

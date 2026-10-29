@@ -86,7 +86,7 @@ describe("auth-limiter", () => {
     assert.strictEqual(authLimitKey(DETAILS, ep(DETAILS.host, DETAILS.port)), base)
     assert.notStrictEqual(authLimitKey({ ...DETAILS, username: "bob" }, ep(DETAILS.host, DETAILS.port)), base)
     assert.notStrictEqual(authLimitKey(DETAILS, ep(DETAILS.host, "6380")), base)
-    // Finding 4: other spellings of one endpoint must share the bucket.
+    // Other spellings of one endpoint must share the bucket.
     assert.strictEqual(authLimitKey(DETAILS, ep("Cache.internal", "6379")), authLimitKey(DETAILS, ep("cache.internal.", "6379")))
     assert.throws(() => ep("cache.internal", "06379"), EndpointError)
   })

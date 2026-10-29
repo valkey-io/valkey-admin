@@ -6,15 +6,16 @@ import { defaultConnectionDetails, WS_URL } from "./harness/fixture"
 import { startFakeClusterNode, type FakeSlotRange } from "./harness/fakeClusterNode"
 
 /**
- * N1 from the security review. An attacker runs a server that accepts any
- * password and answers CLUSTER SLOTS with a victim's clusterId and node list.
+ * An attacker runs a server that accepts any password and answers CLUSTER SLOTS
+ * with a victim's clusterId and node list.
  * Before the fix, a connect to that server as the victim's username landed in
  * the victim's owner state and overwrote its cluster registry and credentials.
  *
  * The fake node runs on the host. The server inside the compose stack reaches
- * it as `host.containers.internal` (set FAKE_NODE_HOST for other setups).
+ * it as `host.docker.internal`, which `docker-compose.test.yml` maps to the
+ * host gateway (set FAKE_NODE_HOST for other setups).
  */
-const FAKE_NODE_HOST = process.env.FAKE_NODE_HOST ?? "host.containers.internal"
+const FAKE_NODE_HOST = process.env.FAKE_NODE_HOST ?? "host.docker.internal"
 
 describe("integration / fake cluster node", async () => {
   const victim = await WsClient.connect(WS_URL)
@@ -88,7 +89,13 @@ describe("integration / fake cluster node", async () => {
       outcome = rejected[0] ?? fulfilled[0]
     }
     assert.ok(outcome, "the attacker's connect settled")
-    assert.ok(fake.seen.some((c) => c[0]?.toUpperCase() === "CLUSTER"), "the probe asked the fake node for CLUSTER SLOTS")
+    const seenCommands = fake.seen.map((c) => c.slice(0, 2).join(" ")).join(", ")
+    const serverSaid = JSON.stringify((outcome as { payload?: unknown }).payload)
+    assert.ok(
+      fake.seen.some((c) => c[0]?.toUpperCase() === "CLUSTER"),
+      `the probe asked the fake node for CLUSTER SLOTS. Fake saw: [${seenCommands}]. Server said: ${serverSaid}. `
+        + `Is ${FAKE_NODE_HOST} reachable from the server container?`,
+    )
   })
 
   it("leaves the victim's registry, credentials and client untouched", async () => {

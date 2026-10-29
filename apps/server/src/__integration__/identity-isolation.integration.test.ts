@@ -181,7 +181,7 @@ describe("integration / identity isolation", async () => {
       ? payload.map((n: { value?: { tcp_port?: string } }) => String(n.value?.tcp_port))
       : [String((payload as { tcp_port?: string } | undefined)?.tcp_port)]
 
-  // Finding 1. The victim (`admin`) is connected to the standalone node as
+  // Cross-identity hijack. The victim (`admin`) is connected to the standalone node as
   // appuser. A second socket authenticates as appuser against another node
   // (the cluster seed) and names the victim's connectionId. Before the fix the
   // server handed over, or with isRetry replaced, the victim's client.

@@ -148,7 +148,7 @@ describe("connectPending resume", () => {
 })
 
 describe("connectPending id check", () => {
-  // Finding 1: the server must not trust the client's connectionId. It must
+  // The server must not trust the client's connectionId. It must
   // name the endpoint the credentials are proven against, so a request that
   // pairs the victim's id with the attacker's host is refused before AUTH.
   const run = async (connectionId: string, host: string, port: string) => {
