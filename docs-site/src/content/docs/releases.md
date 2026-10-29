@@ -19,7 +19,7 @@ Release Date: October 2026
 
 **Longer CPU and memory history**: The fixed 1H / 6H / 12H buttons are replaced by a **Last [number] [Hours / Days]** picker, up to 30 days. Default retention is unchanged (about a day per node); [Keeping more history](/configuration/metrics/#keeping-more-history) explains how to raise it. ([#554](https://github.com/valkey-io/valkey-admin/pull/554))
 
-![Hot Slots heatmap](../../assets/releases/v1.3.0/longer_history.png)
+![Longer CPU and memory history](../../assets/releases/v1.3.0/longer_history.png)
 
 ### Changed Defaults
 
