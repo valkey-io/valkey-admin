@@ -4,7 +4,7 @@ import { LayoutDashboard, Terminal, PowerIcon, Loader2, Server } from "lucide-re
 import { useNavigate } from "react-router"
 import { useSelector } from "react-redux"
 import { CONNECTED, CONNECTING, ERROR, MAX_CONNECTIONS } from "@common/src/constants.ts"
-import { buildConnectionId } from "@common/src/connection-id.ts"
+import { buildNormalizedConnectionId } from "@common/src/connection-id.ts"
 import { calculateHitRatio } from "@common/src/cache-hit-ratio.ts"
 import { formatBytes } from "@common/src/bytes-conversion.ts"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
@@ -66,7 +66,7 @@ export function ClusterNodeRow({
   // Match the db-aware id scheme from buildConnectionId so the seed node
   // resolves to its status here, and node connects reuse that id
   // instead of creating a db id less duplicate.
-  const connectionId = buildConnectionId(host, port, clusterDb)
+  const connectionId = buildNormalizedConnectionId(host, port, clusterDb)
 
   const connectionStatus = useSelector((state: RootState) =>
     state.valkeyConnection?.connections?.[connectionId]?.status,

@@ -9,7 +9,7 @@ vi.mock("./effects/fetchers.js", () => ({
 
 vi.mock("./effects/monitor-stream.js", () => ({
   makeMonitorStream: vi.fn(),
-  connectMonitor: vi.fn().mockResolvedValue(undefined),
+  connectMonitor: vi.fn(async () => ({ monitor: { disconnect: vi.fn() } })),
 }))
 
 vi.mock("./effects/ndjson-writer.js", () => ({
@@ -280,6 +280,22 @@ describe("init-collectors", () => {
       const monitorEpic = makeMonitorStream.mock.calls[0][1]
       expect(monitorEpic.name).toBe("monitor")
       expect(monitorEpic.monitoringDuration).toBe(5000)
+    })
+
+    it("should close the probe connection used to check MONITOR support", async () => {
+      makeMonitorStream.mockReturnValue(new Subject())
+      const { connectMonitor } = await import("./effects/monitor-stream.js")
+      const probe = { monitor: { disconnect: vi.fn() } }
+      connectMonitor.mockResolvedValueOnce(probe)
+
+      const monitorConfig = createMockConfig({
+        epics: [{ name: "monitor", monitoringDuration: 5000, monitoringInterval: 10000, data_retention_mb: 10 }],
+      })
+
+      const { startMonitor } = await import("./init-collectors.js")
+      await startMonitor(monitorConfig)
+
+      expect(probe.monitor.disconnect).toHaveBeenCalledTimes(1)
     })
 
     it("should update metadata when monitor starts", async () => {

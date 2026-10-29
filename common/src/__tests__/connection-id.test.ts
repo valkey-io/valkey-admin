@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { isNodeId, toNodeId } from "../connection-id"
+import { EndpointError, buildNormalizedConnectionId, isNodeId, normalizeEndpoint, toNodeId } from "../connection-id"
 
 describe("toNodeId", () => {
   // The shared db-strip helper that turns a Connection_Identifier
@@ -63,5 +63,48 @@ describe("isNodeId", () => {
     assert.strictEqual(isNodeId("host.example-6379"), false)
     assert.strictEqual(isNodeId("host/6379"), false)
     assert.strictEqual(isNodeId("host 6379"), false)
+  })
+})
+
+describe("normalizeEndpoint", () => {
+  it("trims, lowercases and removes one trailing dot from the host, and parses the port", () => {
+    assert.deepStrictEqual(normalizeEndpoint(" Cache.Internal. ", "6379"), { host: "cache.internal", port: 6379 })
+    assert.deepStrictEqual(normalizeEndpoint("10.0.0.5", 7001), { host: "10.0.0.5", port: 7001 })
+    assert.deepStrictEqual(normalizeEndpoint("[::1]", "6379"), { host: "[::1]", port: 6379 })
+  })
+
+  it("removes only one trailing dot", () => {
+    assert.strictEqual(normalizeEndpoint("a.b..", "1").host, "a.b.")
+  })
+
+  it("rejects an empty host", () => {
+    for (const host of ["", "   ", "."]) {
+      assert.throws(() => normalizeEndpoint(host, "6379"), EndpointError)
+    }
+  })
+
+  it("rejects ports that are not canonical decimal in 1..65535", () => {
+    for (const port of ["0", "06379", " 6379", "6379 ", "0x18eb", "6379.0", "6.379e3", "65536", "-1", "", "abc", 0, 65536, 1.5, NaN]) {
+      assert.throws(() => normalizeEndpoint("h", port as string | number), EndpointError, `port ${JSON.stringify(port)}`)
+    }
+    assert.strictEqual(normalizeEndpoint("h", "1").port, 1)
+    assert.strictEqual(normalizeEndpoint("h", "65535").port, 65535)
+    assert.strictEqual(normalizeEndpoint("h", 65535).port, 65535)
+  })
+
+  it("gives a message that names the field", () => {
+    assert.throws(() => normalizeEndpoint("h", "06379"), /port/i)
+    assert.throws(() => normalizeEndpoint("", "6379"), /host/i)
+  })
+})
+
+describe("buildNormalizedConnectionId", () => {
+  it("builds the id from the normalized endpoint", () => {
+    assert.strictEqual(buildNormalizedConnectionId(" Cache.Internal. ", "6379", 2), "cache-internal-6379-db2")
+    assert.strictEqual(buildNormalizedConnectionId("10.0.0.5", 7001), "10-0-0-5-7001-db0")
+  })
+
+  it("falls back to the raw values when they do not normalize", () => {
+    assert.strictEqual(buildNormalizedConnectionId("h", "06379"), "h-06379-db0")
   })
 })

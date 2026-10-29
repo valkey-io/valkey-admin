@@ -28,7 +28,7 @@ ElastiCache cluster through it. For anything beyond a throwaway test, use the
 external exposure as a deliberate decision.
 :::
 
-For IAM authentication, ensure the instance's IAM role has `elasticache:Connect` permission scoped to your replication group and user.
+For IAM authentication, ensure the instance's IAM role has `elasticache:Connect` permission scoped to your replication group and user. IAM connections require TLS with certificate verification (`VALKEY_TLS=true`, `VALKEY_VERIFY_CERT` not `false`); the server refuses to sign a connect token for a plain channel.
 
 ---
 

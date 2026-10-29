@@ -1,30 +1,56 @@
 import crypto from "node:crypto"
 import type { GlideClient, GlideClusterClient } from "@valkey/valkey-glide"
+import type { Endpoint } from "valkey-common"
 import type { ConnectionDetails } from "./actions/connection"
 import type { ClusterNodeMap, MetricsServerMap } from "./metrics-orchestrator"
 
+export type IdentityDetails = Pick<ConnectionDetails,
+  "authType" | "username" | "password" | "awsRegion" | "awsReplicationGroupId">
+
 /**
- * Owner identity: the Valkey identity a connection authenticated as.
- *
- * Every piece of server state that holds a client, a collector or per-cluster
- * data is keyed by this value, so users who authenticate as different Valkey
- * users share nothing. The key is not secret and never grants access by
- * itself: reuse of an existing client is gated by a fresh AUTH.
+ * Identity: the Valkey user a connection authenticates as, without the server.
  *
  * - password: `password~<username>`. Without a password Glide sends no
  *   credentials and the connection runs as `default`, whatever username the
- *   user typed, so the owner is `default` too.
+ *   user typed, so the identity is `default` too.
  * - ElastiCache IAM: `iam~<region>~<replicationGroupId>~<username>`.
  * - GCP IAM: `gcp-iam~default` (the only user GCP IAM supports).
  */
-export const ownerOf = (details: Pick<ConnectionDetails,
-  "authType" | "username" | "password" | "awsRegion" | "awsReplicationGroupId">): string => {
+export const identityOf = (details: IdentityDetails): string => {
   if (details.authType === "iam") {
     return ["iam", details.awsRegion ?? "", details.awsReplicationGroupId ?? "", details.username ?? ""].join("~")
   }
   if (details.authType === "gcp-iam") return "gcp-iam~default"
   const username = details.password && details.username ? details.username : "default"
   return `password~${username}`
+}
+
+/**
+ * Owner key: one Valkey user on one Valkey deployment,
+ * `<identity>@<host>:<port>` with the endpoint from `normalizeEndpoint`.
+ *
+ * Every piece of server state that holds a client, a collector or per-cluster
+ * data is keyed by this value. The endpoint is the one the AUTH probe just
+ * succeeded against, so an owner state can hold only resources that this
+ * identity proved access to on this deployment. A user who authenticates as
+ * `alice` against their own server never reaches `alice`'s state for another
+ * server, whatever connectionId or clusterId they send. The key is not secret
+ * and never grants access by itself: every connect runs a fresh AUTH.
+ *
+ * For a cluster, the endpoint is the seed of the owner's first connection to
+ * that cluster. A later connection through another node joins that owner when
+ * the join rule in `cluster-owner.ts` holds.
+ */
+export const ownerOf = (details: IdentityDetails, endpoint: Endpoint): string =>
+  `${identityOf(details)}@${endpoint.host}:${endpoint.port}`
+
+const splitOwnerKey = (ownerKey: string): { identity: string; seed: Endpoint | undefined } => {
+  const at = ownerKey.lastIndexOf("@")
+  const colon = ownerKey.lastIndexOf(":")
+  if (at < 0 || colon < at) return { identity: ownerKey, seed: undefined }
+  const port = Number(ownerKey.slice(colon + 1))
+  if (!Number.isInteger(port)) return { identity: ownerKey, seed: undefined }
+  return { identity: ownerKey.slice(0, at), seed: { host: ownerKey.slice(at + 1, colon), port } }
 }
 
 const SAFE_BYTE = /^[a-z0-9_~-]$/
@@ -54,9 +80,17 @@ export const decodeOwnerDir = (dir: string): string => decodeURIComponent(dir)
 
 type ClientEntry = { client: GlideClient | GlideClusterClient; clusterId?: string }
 
-/** All server state that belongs to one owner identity. */
+/** All server state that belongs to one owner: one Valkey user on one deployment. */
 export type OwnerState = {
   ownerKey: string
+  /** The identity part of the key (`identityOf`). Used to find candidate owners for a cluster join. */
+  identity: string
+  /**
+   * The endpoint this owner first authenticated against. For a cluster owner
+   * it is the seed node; the join rule checks that a new node's topology lists
+   * it. Undefined only for the env owner before `registerEnvOwner` runs.
+   */
+  seed: Endpoint | undefined
   /** True for the identity configured through `VALKEY_*` environment variables. */
   env: boolean
   clients: Map<string, ClientEntry>
@@ -69,8 +103,20 @@ export type OwnerState = {
   connectInFlight: Map<string, Promise<GlideClient | GlideClusterClient | undefined>>
 }
 
-export const createOwnerState = (ownerKey: string, env = false): OwnerState => ({
+/**
+ * `identity` and `seed` default to the parts of `ownerKey` split at the last
+ * `@`, or to the whole key with no seed when there is none. Production callers
+ * pass them; the defaults keep test fixtures short.
+ */
+export const createOwnerState = (
+  ownerKey: string,
+  identity: string = splitOwnerKey(ownerKey).identity,
+  seed: Endpoint | undefined = splitOwnerKey(ownerKey).seed,
+  env = false,
+): OwnerState => ({
   ownerKey,
+  identity,
+  seed,
   env,
   clients: new Map(),
   clusterNodesRegistry: new Map(),
@@ -86,16 +132,18 @@ export const createOwnerState = (ownerKey: string, env = false): OwnerState => (
  * `metrics-orchestrator.ts`, which the preconfigured and Kubernetes paths use.
  * A user reaches it only when they authenticate as the preconfigured identity.
  */
-const envState = createOwnerState("env", true)
+const envState = createOwnerState("env", "env", undefined, true)
 const owners = new Map<string, OwnerState>()
 
 export const getEnvOwnerState = (): OwnerState => envState
 
-/** Make the preconfigured identity resolve to the env owner's state. */
-export const registerEnvOwner = (ownerKey: string): void => {
+/** Make the preconfigured identity on the preconfigured endpoint resolve to the env owner's state. */
+export const registerEnvOwner = (details: IdentityDetails, seed: Endpoint): void => {
   owners.delete(envState.ownerKey)
-  envState.ownerKey = ownerKey
-  owners.set(ownerKey, envState)
+  envState.ownerKey = ownerOf(details, seed)
+  envState.identity = identityOf(details)
+  envState.seed = seed
+  owners.set(envState.ownerKey, envState)
 }
 
 /**
@@ -109,14 +157,24 @@ export const findOwnerState = (ownerKey: string): OwnerState | undefined =>
  * The owner's state, created on first use. Call it only after Valkey accepted
  * the owner's credentials, so unauthenticated requests cannot add entries.
  */
-export const getOwnerState = (ownerKey: string): OwnerState => {
-  let state = owners.get(ownerKey)
+export function getOwnerState(details: IdentityDetails, seed: Endpoint): OwnerState
+/** Test form: by raw owner key. Identity and seed are read from the key. */
+export function getOwnerState(ownerKey: string): OwnerState
+export function getOwnerState(detailsOrKey: IdentityDetails | string, seed?: Endpoint): OwnerState {
+  const ownerKey = typeof detailsOrKey === "string" ? detailsOrKey : ownerOf(detailsOrKey, seed!)
+  let state = findOwnerState(ownerKey)
   if (!state) {
-    state = createOwnerState(ownerKey)
+    state = typeof detailsOrKey === "string"
+      ? createOwnerState(ownerKey)
+      : createOwnerState(ownerKey, identityOf(detailsOrKey), seed)
     owners.set(ownerKey, state)
   }
   return state
 }
+
+/** Every owner state with this identity, the env owner's included. */
+export const ownerStatesWithIdentity = (identity: string): OwnerState[] =>
+  allOwnerStates().filter((state) => state.identity === identity)
 
 /**
  * Remove an owner's entry when the owner has nothing left on the server: no

@@ -1,4 +1,5 @@
 import { GoogleAuth } from "google-auth-library"
+import { assertIamTransport } from "./iam-transport"
 
 // GCP Memorystore for Valkey IAM auth uses a short-lived OAuth2 access token as the AUTH password.
 // We mint the token from Application Default Credentials (Workload Identity in GKE,
@@ -8,17 +9,14 @@ const auth = new GoogleAuth({
 })
 
 // The token is an OAuth2 bearer credential; refuse to mint it for a transport
-// that could leak it (plaintext, or TLS without certificate verification).
-export async function mintGcpAccessToken(useTLS: boolean, verifyTlsCertificate: boolean): Promise<string> {
-  if (!useTLS) {
-    throw new Error("GCP IAM authentication requires TLS. Set VALKEY_TLS=true.")
-  }
-  if (verifyTlsCertificate === false) {
-    throw new Error(
-      "GCP IAM authentication requires TLS certificate verification. "
-        + "Do not disable VALKEY_VERIFY_CERT; provide the server CA via VALKEY_CA_CERT_PATH instead.",
-    )
-  }
+// that could leak it. `caCertPath` is the operator's CA file (normally
+// VALKEY_CA_CERT_PATH); it is required, see `assertIamTransport`.
+export async function mintGcpAccessToken(
+  useTLS: boolean,
+  verifyTlsCertificate: boolean,
+  caCertPath: string | undefined,
+): Promise<string> {
+  assertIamTransport({ authType: "gcp-iam", tls: useTLS, verifyTlsCertificate }, caCertPath)
   const token = await auth.getAccessToken()
   if (!token) {
     throw new Error("Unable to mint a GCP access token from Application Default Credentials")

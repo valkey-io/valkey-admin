@@ -322,6 +322,10 @@ services:
       VALKEY_PASSWORD: admin
       VALKEY_TLS: "false"
       VALKEY_VERIFY_CERT: "false"
+    # Lets the server reach a listener on the host, which the fake-cluster
+    # integration test starts. Works on Docker (Linux and Desktop) and Podman.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
     networks:

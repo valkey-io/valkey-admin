@@ -6,7 +6,7 @@ import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
   METRICS_SERVER_NOT_READY, METRICS_MAX_RETRIES, METRICS_RETRY_INTERVAL_MS, SESSION_STORAGE,
   CLUSTER_DATA_POLL_INTERVAL_MS, MILLISECONDS_IN_AN_HOUR, VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
-import { buildConnectionId } from "@common/src/connection-id"
+import { buildNormalizedConnectionId } from "@common/src/connection-id"
 import { getSocket } from "./wsEpics"
 import {
   standaloneConnectFulfilled,
@@ -44,6 +44,7 @@ import { memoryUsageRequested } from "../valkey-features/memory/memorySlice.ts"
 import { monitorRequested } from "../valkey-features/monitor/monitorSlice.ts"
 import { secureStorage } from "../../utils/secureStorage.ts"
 import { selectIsAtConnectionLimit, selectConnectionDetails } from "../valkey-features/connection/connectionSelectors.ts"
+import { persistConnections } from "../persistConnections"
 import type { Store } from "@reduxjs/toolkit"
 
 const getCurrentConnections = () => R.pipe(
@@ -51,23 +52,8 @@ const getCurrentConnections = () => R.pipe(
   (s) => (s === null ? {} : JSON.parse(s)),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
-// Single write path to localStorage. A password that could not be encrypted
-// (isPasswordEncrypted === false) is never written to disk: it is dropped to
-// undefined so the connection re-prompts on next use, and the transient flag is
-// not persisted either. All persistence writes must go through this.
-export const persistConnections = (connections: Record<string, ConnectionState>) => {
-  const safe = Object.fromEntries(
-    Object.entries(connections).map(([id, conn]) => {
-      if (conn?.isPasswordEncrypted === false) {
-        const stripped = { ...conn, connectionDetails: { ...conn.connectionDetails, password: undefined } }
-        delete stripped.isPasswordEncrypted
-        return [id, stripped]
-      }
-      return [id, conn]
-    }),
-  )
-  localStorage.setItem(LOCAL_STORAGE.VALKEY_CONNECTIONS, JSON.stringify(safe))
-}
+// The single write path to localStorage lives in `../persistConnections`.
+export { persistConnections }
 
 export const connectionEpic = (store: Store) =>
   merge(
@@ -166,7 +152,7 @@ export const connectionEpic = (store: Store) =>
         const firstNode = Object.values(clusterNodes)[0]
         if (!firstNode) return
 
-        const connectionId = buildConnectionId(firstNode.host, firstNode.port, discovery.connectionDetails.db)
+        const connectionId = buildNormalizedConnectionId(firstNode.host, firstNode.port, discovery.connectionDetails.db)
         store.dispatch(connectPending({
           connectionId,
           connectionDetails: {
@@ -192,7 +178,7 @@ export const connectionEpic = (store: Store) =>
         const alias = import.meta.env.VITE_LOCAL_VALKEY_NAME
 
         if (host && port) {
-          const connectionId = buildConnectionId(host, port, 0)
+          const connectionId = buildNormalizedConnectionId(host, port, 0)
 
           store.dispatch(connectPending({
             connectionDetails: {

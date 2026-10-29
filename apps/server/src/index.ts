@@ -5,6 +5,8 @@ import path from "path"
 import http from "http"
 import {
   VALKEY,
+  EndpointError,
+  IamTransportError,
   ORCHESTRATOR_RATE_LIMIT_MAX_ENV,
   resolveOrchestratorRateLimitMax
 } from "valkey-common"
@@ -43,7 +45,7 @@ import {
   resolveClusterRefreshTarget,
   setPreconfiguredClusterId
 } from "./metrics-orchestrator"
-import { isAllowedWebSocketOrigin } from "./websocket-origin"
+import { ALLOW_ANY_HOST_ENV, isAllowAnyHost, isAllowedWebSocketOrigin } from "./websocket-origin"
 import { allOwnerStates, findOwnerState } from "./owner"
 import {
   connectedNodesFor,
@@ -174,12 +176,17 @@ async function refreshAllClusterRegistries() {
         const target = await resolveClusterRefreshTarget(clusterId, clusterNodes, userClient, state.clusterNodesRegistry)
         if (!target) return
 
+        let timer: ReturnType<typeof setTimeout> | undefined
+
         await Promise.race([
           updateClusterNodeRegistry(target.client, target.nodeInfo, clusterId, state.clusterNodesRegistry),
-          delay(TOPOLOGY_REDISCOVERY_TIMEOUT_MS).then(() =>
-            console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`),
-          ),
-        ])
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              console.warn(`Topology re-discovery for cluster ${clusterId} timed out; broadcasting last known nodes.`)
+              resolve()
+            }, TOPOLOGY_REDISCOVERY_TIMEOUT_MS)
+          }),
+        ]).finally(() => clearTimeout(timer))
       }),
     )
 
@@ -226,18 +233,43 @@ const bindHost =
   process.env.SERVER_BIND_HOST ?? (isKubernetes ? "0.0.0.0" : "127.0.0.1")
 server.listen(port, bindHost, () => {
   console.log(`Server running at http://${bindHost}:${port}`)
+  if (isAllowAnyHost()) {
+    console.warn(
+      `WARNING: ${ALLOW_ANY_HOST_ENV} is set. The server accepts WebSocket upgrades from any Host header, `
+        + "which leaves it open to DNS rebinding. Use VALKEY_ADMIN_ALLOWED_WS_ORIGINS instead where possible.",
+    )
+  }
   if (process.send) { // Check if process.send is available (i.e., if forked)
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }
   refreshAllClusterRegistriesLoop()
 
   if (preConfiguredConnection) {
-    startPreconfiguredMetricsServers()
+    startPreconfiguredMetricsServers().catch(exitOnMisconfiguration("preconfigured connection"))
   }
   if (isKubernetes) {
-    updateRegistryforK8()
+    updateRegistryforK8().catch(exitOnMisconfiguration("Kubernetes cluster registry"))
   }
 })
+
+/**
+ * A startup task that fails because the `VALKEY_*` configuration is unsafe
+ * (an IAM credential over an unverified channel) cannot be fixed by waiting,
+ * so the server exits with the message. Any other failure, for example Valkey
+ * not reachable yet, is logged and the server stays up, as before.
+ */
+export const isFatalStartupError = (err: unknown): boolean =>
+  err instanceof IamTransportError || err instanceof EndpointError
+
+function exitOnMisconfiguration(task: string) {
+  return (err: unknown) => {
+    if (isFatalStartupError(err)) {
+      console.error(`Cannot start the ${task}: ${(err as Error).message}`)
+      process.exit(1)
+    }
+    console.error(`Error starting the ${task}:`, err)
+  }
+}
 
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -341,14 +373,15 @@ wss.on("connection", (ws: AliveWebSocket) => {
       }
       const { ownerKey, state } = resolved
 
-      // `state` is undefined only for a connect or discovery of an owner that has
-      // no entry yet. Those handlers do not read the maps below.
+      // `state` is undefined for a connect or a discovery: the owner is known
+      // only after the AUTH probe, and `connectPending` picks it. Those
+      // handlers do not read the maps below.
       await handler(
         { ws,
           clients: state?.clients ?? new Map(),
           connectionId: connectionId!,
           metricsServerMap: state?.metricsServerMap ?? new Map(),
-          connectedNodesByCluster: connectedNodesFor(ws.binding, ownerKey),
+          connectedNodesByCluster: ownerKey === undefined ? new Map() : connectedNodesFor(ws.binding, ownerKey),
           clusterNodesRegistry: state?.clusterNodesRegistry ?? new Map(),
           ownerKey,
           ownerState: state,

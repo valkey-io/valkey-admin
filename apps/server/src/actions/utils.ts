@@ -13,12 +13,13 @@ export type Deps = {
   metricsServerMap: MetricsServerMap,
   connectedNodesByCluster: Map<string, string[]>,
   clusterNodesRegistry: Map<string, ClusterNodeMap>,
-  /** Owner identity the action runs as. The maps above are this owner's. */
-  ownerKey: string,
   /**
-   * The owner's state. Undefined only for a connect or a discovery whose owner
-   * has no entry yet; every other action is rejected before it reaches a handler.
+   * Owner the action runs as. The maps above are this owner's. Undefined for
+   * a connect or a discovery: those pick the owner after the AUTH probe. Every
+   * other action is rejected before it reaches a handler when no owner is bound.
    */
+  ownerKey: string | undefined,
+  /** The owner's state. Undefined exactly when `ownerKey` is. */
   ownerState: OwnerState | undefined,
   /** What the requesting socket may act on. */
   binding: SocketBinding,

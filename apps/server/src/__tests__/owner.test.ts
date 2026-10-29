@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { allOwnerStates, decodeOwnerDir, encodeOwnerDir, getOwnerState, ownerOf } from "../owner"
+import { allOwnerStates, decodeOwnerDir, encodeOwnerDir, getOwnerState, identityOf, ownerOf } from "../owner"
 import type { ConnectionDetails } from "../actions/connection"
 
 const base: ConnectionDetails = {
@@ -12,46 +12,77 @@ const base: ConnectionDetails = {
   db: 0,
 }
 
-describe("ownerOf", () => {
+describe("identityOf", () => {
   it("keys password auth by username", () => {
-    assert.strictEqual(ownerOf({ ...base, username: "alice", password: "pw" }), "password~alice")
+    assert.strictEqual(identityOf({ ...base, username: "alice", password: "pw" }), "password~alice")
   })
 
   it("uses default when the username is empty or absent", () => {
-    assert.strictEqual(ownerOf({ ...base, username: "", password: "pw" }), "password~default")
-    assert.strictEqual(ownerOf({ ...base, password: "pw" }), "password~default")
+    assert.strictEqual(identityOf({ ...base, username: "", password: "pw" }), "password~default")
+    assert.strictEqual(identityOf({ ...base, password: "pw" }), "password~default")
   })
 
   // Without a password Glide sends no credentials, so the connection runs as `default`
   // whatever username was typed. Naming a user must not give access to that user's client.
   it("uses default when there is no password, even with a username", () => {
-    assert.strictEqual(ownerOf({ ...base, username: "admin_user" }), "password~default")
-    assert.strictEqual(ownerOf({ ...base, username: "admin_user", password: "" }), "password~default")
+    assert.strictEqual(identityOf({ ...base, username: "admin_user" }), "password~default")
+    assert.strictEqual(identityOf({ ...base, username: "admin_user", password: "" }), "password~default")
   })
 
   it("does not ignore case in the username", () => {
     assert.notStrictEqual(
-      ownerOf({ ...base, username: "Alice", password: "pw" }),
-      ownerOf({ ...base, username: "alice", password: "pw" }),
+      identityOf({ ...base, username: "Alice", password: "pw" }),
+      identityOf({ ...base, username: "alice", password: "pw" }),
     )
   })
 
   it("keys ElastiCache IAM by region, replication group and username", () => {
     assert.strictEqual(
-      ownerOf({ ...base, authType: "iam", username: "iam-user", awsRegion: "us-east-1", awsReplicationGroupId: "my-rg" }),
+      identityOf({ ...base, authType: "iam", username: "iam-user", awsRegion: "us-east-1", awsReplicationGroupId: "my-rg" }),
       "iam~us-east-1~my-rg~iam-user",
     )
   })
 
   it("keys GCP IAM as default", () => {
-    assert.strictEqual(ownerOf({ ...base, authType: "gcp-iam", username: "ignored" }), "gcp-iam~default")
+    assert.strictEqual(identityOf({ ...base, authType: "gcp-iam", username: "ignored" }), "gcp-iam~default")
   })
 
   it("does not depend on the password value", () => {
     assert.strictEqual(
-      ownerOf({ ...base, username: "alice", password: "one" }),
-      ownerOf({ ...base, username: "alice", password: "two" }),
+      identityOf({ ...base, username: "alice", password: "one" }),
+      identityOf({ ...base, username: "alice", password: "two" }),
     )
+  })
+})
+
+describe("ownerOf", () => {
+  const ep = { host: "cache.internal", port: 6379 }
+
+  it("is the identity on one endpoint", () => {
+    assert.strictEqual(ownerOf({ ...base, username: "alice", password: "pw" }, ep), "password~alice@cache.internal:6379")
+    assert.strictEqual(
+      ownerOf({ ...base, authType: "iam", username: "u", awsRegion: "r", awsReplicationGroupId: "g" }, ep),
+      "iam~r~g~u@cache.internal:6379",
+    )
+    assert.strictEqual(ownerOf({ ...base, authType: "gcp-iam" }, ep), "gcp-iam~default@cache.internal:6379")
+  })
+
+  // The same username on two servers is two owners.
+  it("separates the same identity on different endpoints", () => {
+    const details = { ...base, username: "default", password: "pw" }
+    assert.notStrictEqual(ownerOf(details, ep), ownerOf(details, { host: "6.6.6.6", port: 6379 }))
+    assert.notStrictEqual(ownerOf(details, ep), ownerOf(details, { host: "cache.internal", port: 6380 }))
+  })
+})
+
+describe("getOwnerState", () => {
+  it("records identity and seed", () => {
+    const ep = { host: "10.0.0.5", port: 7001 }
+    const state = getOwnerState({ ...base, username: "alice", password: "pw" }, ep)
+    assert.strictEqual(state.ownerKey, "password~alice@10.0.0.5:7001")
+    assert.strictEqual(state.identity, "password~alice")
+    assert.deepStrictEqual(state.seed, ep)
+    assert.strictEqual(getOwnerState({ ...base, username: "alice", password: "other" }, ep), state)
   })
 })
 

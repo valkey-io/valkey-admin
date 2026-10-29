@@ -4,18 +4,26 @@ import { mockEnv, createMockMonitor } from "../__tests__/test-helpers.js"
 let mockMonitorGlobal = null
 let mockValkeyInstances = []
 
-// Mock iovalkey with a class
+// Mock iovalkey with a class. connectMonitor builds the monitor connection
+// directly (`monitor: true`), so each instance is the monitor handle itself and
+// shares its spies with the current mock monitor.
 class MockValkey {
   constructor(options) {
     this.options = options
     mockValkeyInstances.push(this)
-    this.on = vi.fn()
+    const monitor = mockMonitorGlobal || createMockMonitor()
+    this.on = monitor.on
+    this.off = monitor.off
+    this.disconnect = monitor.disconnect
+    this.status = "wait"
   }
-  async monitor() {
-    return mockMonitorGlobal || createMockMonitor()
+  once(event, listener) {
+    if (event === "monitoring") this.onMonitoring = listener
+    return this
   }
-  async disconnect() {
-    return Promise.resolve()
+  async connect() {
+    this.status = "monitoring"
+    this.onMonitoring?.()
   }
 }
 
@@ -76,6 +84,8 @@ describe("monitor-stream", () => {
       expect(instance.options.port).toBe(6379)
       expect(instance.options.username).toBe("envuser")
       expect(instance.options.password).toBe("envpass")
+      expect(instance.options.monitor).toBe(true)
+      expect(instance.options.lazyConnect).toBe(true)
 
       subscription.unsubscribe()
     })
