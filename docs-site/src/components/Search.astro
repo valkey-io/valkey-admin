@@ -1,0 +1,103 @@
+---
+// Adds the other Valkey sites' results to Starlight's search box. A stopgap until Pagefind PR #1361 and Starlight PR #4307
+// are released, after which Starlight's `pagefind.mergeIndex` setting can replace the <script>. Until then, an index that
+// fails to load after passing its check leaves the search box on "Searching…" until the page is reloaded.
+import Default from "@astrojs/starlight/components/Search.astro"
+import sites from "../cross-site-search.json"
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<!-- Tags this site's pages with its name, which every Valkey site's search shows on results and uses in the site filter. -->
+<span hidden data-pagefind-filter={`site:${sites.label}`} data-pagefind-meta={`site:${sites.label}`}></span>
+
+<script>
+  // @ts-expect-error -- Starlight's internal module has no types
+  import { pagefindUserConfig } from "virtual:starlight/pagefind-config"
+  import sites from "../cross-site-search.json"
+
+  type PagefindEntry = { version: string; languages: Record<string, { hash: string }> }
+
+  const searchBox = "#starlight__search"
+  const ownBundle = import.meta.env.BASE_URL.replace(/\/$/, "") + "/pagefind/"
+  const pagefindModule = ownBundle + "pagefind.js"
+
+  // Limit for the background check of each other site. Searches don't wait for it, and a site slower than this is left out.
+  const loadTimeoutMs = 3000
+
+  // Merging a missing index would break every search (Pagefind issue #887), so each index is checked first.
+  async function probeIndexVersion(bundlePath: string) {
+    try {
+      const signal = AbortSignal.timeout(loadTimeoutMs)
+      // `?ts=` skips caches, as Pagefind does when it loads this file, so the check sees the same deploy Pagefind will.
+      const entry: PagefindEntry = await (await fetch(`${bundlePath}pagefind-entry.json?ts=${Date.now()}`, { signal })).json()
+      const language = Object.values(entry.languages)[0]
+      const meta = await fetch(`${bundlePath}pagefind.${language.hash}.pf_meta`, { signal })
+      return meta.ok ? entry.version.split(".").slice(0, 2).join(".") : null
+    } catch {
+      return null
+    }
+  }
+
+  async function mergeOtherSites() {
+    const pagefind = await import(/* @vite-ignore */ pagefindModule)
+    const ownVersion = await probeIndexVersion(ownBundle)
+    if (!ownVersion) {
+      console.warn("Search: this site's index didn't load, so not merging the other sites")
+      return
+    }
+    await Promise.all(sites.otherSites.map(async (index) => {
+      // Pagefind only merges indexes built with the same minor version as this site's Pagefind. So each Valkey site
+      // publishes a copy of its index for every version in use, and this merges the one for this site's version.
+      const bundle = `${index}v${ownVersion}/`
+      if ((await probeIndexVersion(bundle)) !== ownVersion) {
+        console.warn(`Search: leaving out ${index}, which has no copy for Pagefind ${ownVersion} or didn't load in time`)
+        return
+      }
+      // Merged indexes don't inherit the search box's settings, so they're given its ranking. The weight lowers their
+      // scores, so this site's own pages usually come first.
+      await pagefind.mergeIndex(bundle, { ranking: pagefindUserConfig.ranking, indexWeight: sites.otherSitesIndexWeight })
+      // Without this the merged site is missing from the filter.
+      await pagefind.filters()
+    }))
+  }
+
+  // Merging downloads from the other sites, so it only starts when the visitor first opens the search box.
+  document.querySelector(searchBox)?.addEventListener("focusin", () => {
+    mergeOtherSites().catch((error) => console.warn("Search: merging the other sites failed", error))
+  }, { once: true })
+
+  // Pagefind shows only results matching every ticked site, so ticking two would show nothing. Ticking a site therefore
+  // unticks the others (Pagefind issue #594).
+  document.addEventListener("change", (event) => {
+    const ticked = event.target
+    const isSiteTicked = ticked instanceof HTMLInputElement && ticked.checked && ticked.matches(`${searchBox} input[name="site"]`)
+    if (!isSiteTicked) return
+    for (const other of document.querySelectorAll<HTMLInputElement>(`${searchBox} input[name="site"]:checked`)) {
+      // Click rather than set `checked`, so that Pagefind notices.
+      if (other !== ticked) other.click()
+    }
+  })
+</script>
+
+<style is:global>
+  /* The site filter as a row of pills above the results, rather than a column beside them. */
+  #starlight__search .pagefind-ui__drawer { flex-direction: column; gap: 0; }
+  #starlight__search .pagefind-ui__filter-panel { flex: none; width: 100%; max-width: none; margin-top: calc(16px * var(--pagefind-ui-scale)); }
+  #starlight__search .pagefind-ui__filter-panel-label { display: none; }
+
+  /* Only the site filter, so that another Pagefind filter a page might add keeps Pagefind's own look. */
+  #starlight__search .pagefind-ui__filter-block:has(input[name="site"]) {
+    /* With one site there's nothing to pick. */
+    &:not(:has(.pagefind-ui__filter-value ~ .pagefind-ui__filter-value)) { display: none; }
+    /* The heading is also the toggle that opens the filter, so it's only hidden once the filter is open. */
+    &[open] > .pagefind-ui__filter-name { display: none; }
+    .pagefind-ui__filter-value::before { display: none; }
+    /* Hidden but still focusable, so the pills work from the keyboard. */
+    .pagefind-ui__filter-checkbox { position: absolute; opacity: 0; }
+    .pagefind-ui__filter-group { flex-direction: row; flex-wrap: wrap; gap: calc(8px * var(--pagefind-ui-scale)); padding-top: 0; }
+    .pagefind-ui__filter-label { padding: calc(4px * var(--pagefind-ui-scale)) calc(14px * var(--pagefind-ui-scale)); border: 1px solid var(--pagefind-ui-border); border-radius: 999px; }
+    .pagefind-ui__filter-value--checked .pagefind-ui__filter-label { background: var(--pagefind-ui-primary); border-color: var(--pagefind-ui-primary); color: var(--pagefind-ui-background); }
+    .pagefind-ui__filter-checkbox:focus-visible + .pagefind-ui__filter-label { outline: 2px solid var(--pagefind-ui-primary); outline-offset: 2px; }
+  }
+</style>

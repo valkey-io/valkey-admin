@@ -8,6 +8,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Valkey Admin',
+			components: { Search: './src/components/Search.astro' },
 			head: [
 				{
 					tag: 'script',
