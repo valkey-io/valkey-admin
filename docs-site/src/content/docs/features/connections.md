@@ -59,7 +59,7 @@ Valkey Admin supports three authentication methods:
 
 Provide a username and password. If no username is specified, the default ACL user is used. If you give a username without a password, Valkey Admin sends no credentials and the connection runs as the `default` user.
 
-Every command runs as the Valkey user you connected with, and the metrics you see were collected with your credentials. Valkey Admin checks your credentials with Valkey on every connect, also when another user already connected to the same node. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities).
+Every command runs as the Valkey user you connected with, and the metrics you see were collected with your credentials. Valkey Admin checks your credentials with the node you name on every connect, also when another user already connected to the same node, and it reaches only the state of your Valkey user on that node. Host names are case-insensitive, and a trailing dot is ignored. The port must be a plain number from 1 to 65535 with no leading zeros. Connections saved by an earlier version with a differently spelled host are renamed when the app loads, so they keep reconnecting. If two saved connections now spell the same host (for example `My-Cache-001.abc123.0001.usw2.cache.amazonaws.com` and `my-cache-001.abc123.0001.usw2.cache.amazonaws.com`), the one already saved under the new spelling is kept as is and the other keeps its old name; edit or delete it. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities).
 
 In the web app, the browser does not keep the password across a page reload. After a reload, or in a new tab, enter the password again to reconnect. The desktop app with an OS keystore reconnects without asking. IAM, GCP IAM and passwordless connections reconnect automatically.
 
@@ -70,11 +70,11 @@ For ElastiCache clusters with IAM authentication enabled, provide:
 - **AWS Region**: The region where the cluster is deployed
 - **Replication Group ID**: The ElastiCache cluster name
 
-Valkey Admin generates short-lived IAM auth tokens automatically.
+Valkey Admin generates short-lived IAM auth tokens automatically. The server signs each token with its own AWS credentials and sends it as the AUTH password to the host you enter, so TLS **with certificate verification** is required; a connection with TLS off is refused. ElastiCache requires in-transit encryption for IAM in any case.
 
 ### GCP IAM Authentication
 
-For Memorystore for Valkey instances with IAM authentication enabled, select **GCP IAM**. No username or password is required — Valkey Admin mints a short-lived OAuth2 access token from the ambient Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry, including across every cluster node. Connections authenticate as the `default` user, which is the only username Memorystore for Valkey supports. TLS **with certificate verification** is required (the token is a bearer credential); supply the instance's server CA via `VALKEY_CA_CERT_PATH`.
+For Memorystore for Valkey instances with IAM authentication enabled, select **GCP IAM**. No username or password is required — Valkey Admin mints a short-lived OAuth2 access token from the ambient Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry, including across every cluster node. Connections authenticate as the `default` user, which is the only username Memorystore for Valkey supports. TLS **with certificate verification** is required, and the operator must set `VALKEY_CA_CERT_PATH` to the instance's server CA. The token is a bearer credential for the server's whole Google Cloud identity, and that CA file is what limits it to your Memorystore instance: Glide trusts only that CA, so the token cannot be sent to a host that presents some other certificate. A GCP IAM connection is refused when the variable is not set. The UI has no CA field; a `caCertPath` in a connection request is ignored.
 
 ## TLS
 

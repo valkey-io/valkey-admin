@@ -3,7 +3,7 @@ import { useSelector } from "react-redux"
 import { useState, useRef, useEffect, type ReactNode } from "react"
 import { CircleChevronDown, CircleChevronUp, Dot, CornerDownRight, Search } from "lucide-react"
 import { CONNECTED } from "@common/src/constants.ts"
-import { buildConnectionId } from "@common/src/connection-id.ts"
+import { buildNormalizedConnectionId } from "@common/src/connection-id.ts"
 import { Badge } from "./badge"
 import { Input } from "./input"
 import { Typography } from "./typography"
@@ -163,7 +163,7 @@ function AppHeader({ title, icon, description, className }: AppHeaderProps) {
                     )}
                     {/* TODO: Remove extra defensiveness */}
                     {nodesToRender.map(([primaryKey, primary]) => {
-                      const connectionId = buildConnectionId(primary.host, primary.port, clusterDb)
+                      const connectionId = buildNormalizedConnectionId(primary.host, primary.port, clusterDb)
                       const nodeIsConnected = allConnections?.[connectionId]?.status === CONNECTED
 
                       return (

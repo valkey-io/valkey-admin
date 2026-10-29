@@ -111,8 +111,8 @@ Filesystem path to a PEM CA certificate used to verify the Valkey server's TLS c
 
 Selects the credentials provider.
 
-- **`"iam"`** — use AWS ElastiCache IAM authentication via `ElastiCacheIAMProvider`. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`.
-- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored. Requires TLS with certificate verification: `VALKEY_TLS=true` and `VALKEY_VERIFY_CERT` must not be `"false"` (the general verification opt-out does not apply to `gcp-iam`). Startup fails otherwise, since the IAM token is a bearer credential that must not travel over an unverified channel.
+- **`"iam"`** — use AWS ElastiCache IAM authentication via `ElastiCacheIAMProvider`. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`. Requires `VALKEY_TLS=true` with verification on; startup fails otherwise.
+- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored. Requires TLS with certificate verification and a CA file: `VALKEY_TLS=true`, `VALKEY_VERIFY_CERT` must not be `"false"`, and `VALKEY_CA_CERT_PATH` must be set (the general verification opt-out does not apply to `gcp-iam`). Startup fails otherwise, since the IAM token is a bearer credential that must reach only your instance. The server passes its own `VALKEY_CA_CERT_PATH` to the collectors it spawns.
 - **anything else** — password authentication using `VALKEY_USERNAME` / `VALKEY_PASSWORD`.
 
 ### `VALKEY_AWS_REGION`

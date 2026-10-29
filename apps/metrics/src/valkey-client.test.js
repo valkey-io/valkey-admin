@@ -114,4 +114,30 @@ describe("valkey client mode selection", () => {
       nodeDiscoveryMode: 1,
     })
   })
+
+  it("refuses gcp-iam without VALKEY_CA_CERT_PATH before any client is created", async () => {
+    process.env.VALKEY_AUTH_TYPE = "gcp-iam"
+    process.env.VALKEY_TLS = "true"
+    delete process.env.VALKEY_VERIFY_CERT
+    delete process.env.VALKEY_CA_CERT_PATH
+    const { createValkeyClient } = await import("./valkey-client.js")
+
+    await expect(createValkeyClient({})).rejects.toMatchObject({
+      name: "IamTransportError",
+      message: expect.stringContaining("VALKEY_CA_CERT_PATH"),
+    })
+    expect(glideMocks.standaloneCreateClient).not.toHaveBeenCalled()
+  })
+
+  it("refuses iam without TLS before any client is created", async () => {
+    process.env.VALKEY_AUTH_TYPE = "iam"
+    process.env.VALKEY_TLS = "false"
+    process.env.VALKEY_USERNAME = "u"
+    process.env.VALKEY_AWS_REGION = "us-east-1"
+    process.env.VALKEY_REPLICATION_GROUP_ID = "rg"
+    const { createValkeyClient } = await import("./valkey-client.js")
+
+    await expect(createValkeyClient({})).rejects.toMatchObject({ name: "IamTransportError" })
+    expect(glideMocks.standaloneCreateClient).not.toHaveBeenCalled()
+  })
 })

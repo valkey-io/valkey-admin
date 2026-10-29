@@ -11,6 +11,7 @@ describe("isAllowedWebSocketOrigin", () => {
   const originalDeploymentMode = process.env.DEPLOYMENT_MODE
   const originalAllowedOrigins = process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
   const originalWsToken = process.env.ELECTRON_WS_TOKEN
+  const originalAllowAnyHost = process.env.VALKEY_ADMIN_ALLOW_ANY_HOST
 
   const restoreEnv = (name: string, value: string | undefined) => {
     if (value === undefined) delete process.env[name]
@@ -21,6 +22,7 @@ describe("isAllowedWebSocketOrigin", () => {
     restoreEnv("DEPLOYMENT_MODE", originalDeploymentMode)
     restoreEnv("VALKEY_ADMIN_ALLOWED_WS_ORIGINS", originalAllowedOrigins)
     restoreEnv("ELECTRON_WS_TOKEN", originalWsToken)
+    restoreEnv("VALKEY_ADMIN_ALLOW_ANY_HOST", originalAllowAnyHost)
   })
 
   it("rejects requests without an origin header", () => {
@@ -96,16 +98,83 @@ describe("isAllowedWebSocketOrigin", () => {
     )
   })
 
-  it("allows same-host web origins and rejects cross-origin requests", () => {
+  it("rejects cross-origin requests in web mode", () => {
     process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "https://evil.example", host: "localhost:8080" })),
+      false,
+    )
+  })
+
+  // DNS rebinding: the attacker's page sets both Origin and Host to a name the
+  // attacker controls, and the browser connects to loopback. Only a local Host
+  // is accepted when no allowlist is set.
+  it("rejects a same-origin request whose Host is a DNS name when no allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+    delete process.env.VALKEY_ADMIN_ALLOW_ANY_HOST
+
+    for (const host of ["rebind.attacker.example:8080", "admin.example.com", "localhost.evil.example:8080"]) {
+      assert.strictEqual(
+        isAllowedWebSocketOrigin(makeRequest({ origin: `http://${host}`, host })),
+        false,
+        `${host} must be refused`,
+      )
+    }
+  })
+
+  it("accepts local Host values when no allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+    delete process.env.VALKEY_ADMIN_ALLOW_ANY_HOST
+
+    const hosts = [
+      "localhost:8080", "LOCALHOST:8080", "127.0.0.1:8080", "[::1]:8080", "app.localhost:8080", "192.168.1.20:8080", "10.0.0.5",
+    ]
+    for (const host of hosts) {
+      assert.strictEqual(
+        isAllowedWebSocketOrigin(makeRequest({ origin: `http://${host}`, host })),
+        true,
+        `${host} must be accepted`,
+      )
+    }
+  })
+
+  it("accepts any Host when VALKEY_ADMIN_ALLOW_ANY_HOST is exactly \"true\"", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+    const request = makeRequest({ origin: "https://admin.example.com", host: "admin.example.com" })
+
+    process.env.VALKEY_ADMIN_ALLOW_ANY_HOST = "true"
+    assert.strictEqual(isAllowedWebSocketOrigin(request), true)
+
+    for (const value of ["1", "yes", "TRUE", ""]) {
+      process.env.VALKEY_ADMIN_ALLOW_ANY_HOST = value
+      assert.strictEqual(isAllowedWebSocketOrigin(request), false, `value ${JSON.stringify(value)} must not disable the check`)
+    }
+  })
+
+  it("still requires Origin to match Host when the flag is set", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    delete process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+    process.env.VALKEY_ADMIN_ALLOW_ANY_HOST = "true"
+
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "https://evil.example", host: "admin.example.com" })),
+      false,
+    )
+  })
+
+  it("does not apply the Host rule when an allowlist is configured", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    process.env.VALKEY_ADMIN_ALLOWED_WS_ORIGINS = "https://admin.example.com"
+    delete process.env.VALKEY_ADMIN_ALLOW_ANY_HOST
 
     assert.strictEqual(
       isAllowedWebSocketOrigin(makeRequest({ origin: "https://admin.example.com", host: "admin.example.com" })),
       true,
-    )
-    assert.strictEqual(
-      isAllowedWebSocketOrigin(makeRequest({ origin: "https://evil.example", host: "admin.example.com" })),
-      false,
     )
   })
 
