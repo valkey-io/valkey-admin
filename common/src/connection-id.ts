@@ -51,3 +51,40 @@ export const isValidDatabaseIndex = (db: unknown): db is number =>
  */
 export const isNodeId = (id: string): boolean =>
   id.length > 0 && id === toNodeId(id) && /^[a-zA-Z0-9_-]+$/.test(id)
+
+/** A host and port in the form the server uses for identity, ids and clients. */
+export type Endpoint = { host: string; port: number }
+
+export class EndpointError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "EndpointError"
+  }
+}
+
+const PORT_PATTERN = /^[1-9][0-9]{0,4}$/
+
+/**
+ * Put a host and port into one canonical form, or throw `EndpointError`.
+ *
+ * The host is trimmed, lowercased, and loses one trailing dot. DNS and TLS
+ * hostname checks ignore case, and certificates do not carry the dot, so these
+ * spellings name the same server. IPv6 brackets stay as typed.
+ *
+ * The port must be canonical decimal in 1..65535. `"06379"`, `" 6379"` and
+ * `"0x18eb"` are refused, not converted: `Number()` accepts them, which let one
+ * server appear under many ids and gave the failed-AUTH limiter a fresh key
+ * for each spelling.
+ *
+ * Both the frontend and the server call this before they build a
+ * connectionId or an owner key, so the two sides agree on the id.
+ */
+export const normalizeEndpoint = (host: string, port: string | number): Endpoint => {
+  const trimmed = (host ?? "").trim().toLowerCase().replace(/\.$/, "")
+  if (trimmed.length === 0) throw new EndpointError("Enter a host.")
+  const portText = typeof port === "number" ? String(port) : (port ?? "")
+  if (!PORT_PATTERN.test(portText) || Number(portText) > 65535) {
+    throw new EndpointError(`Enter a port between 1 and 65535 with no leading zeros (got ${JSON.stringify(port)}).`)
+  }
+  return { host: trimmed, port: Number(portText) }
+}
