@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import * as R from "ramda"
-import { useParams } from "react-router"
+import { useParams, useSearchParams } from "react-router"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { formatBytes } from "@common/src/bytes-conversion"
 import { calculateTotalMemoryUsage } from "@common/src/memory-usage-calculation"
@@ -53,8 +53,10 @@ interface KeyInfo {
 
 export function KeyBrowser() {
   const { id, clusterId } = useParams()
+  const [searchParams] = useSearchParams()
   const dispatch = useAppDispatch()
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const keyFromUrl = searchParams.get("key")
+  const [selectedKey, setSelectedKey] = useState<string | null>(keyFromUrl)
   const [isAddKeyOpen, setIsAddKeyOpen] = useState(false)
   const [isDistributionOpen, setIsDistributionOpen] = useState(false)
   const [searchPattern, setSearchPattern] = useState("")

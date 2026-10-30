@@ -14,6 +14,7 @@ export interface BigKey {
   ttl: number
   freq: number | null
   nodeId?: string
+  slotId?: number
 }
 
 export const selectBigKeys = (targetId: string) => (state: RootState) =>

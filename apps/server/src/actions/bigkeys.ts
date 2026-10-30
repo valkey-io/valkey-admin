@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, type AggregateReplyId, toNodeId, buildUrl, calculateClusterSlot } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
@@ -10,6 +10,7 @@ type BigKey = {
   ttl: number
   freq: number | null
   nodeId?: string
+  slotId?: number
 }
 
 type BigKeysResponse = {
@@ -137,9 +138,15 @@ export const bigKeysRequested = withDeps<Deps, void>(
       return
     }
 
-    // Merge every node's keys, keep the globally largest top N, each key carries its nodeId.
+    // Merge every node's keys, keep the globally largest top N, each key carries its nodeId and slotId.
     const mergedKeys = R.pipe(
-      R.chain((res: BigKeysResponse) => res.keys.map((k): BigKey => ({ ...k, nodeId: res.nodeId }))),
+      R.chain((res: BigKeysResponse) =>
+        res.keys.map((k): BigKey => ({
+          ...k,
+          nodeId: res.nodeId,
+          slotId: calculateClusterSlot(k.key),
+        })),
+      ),
       R.sort<BigKey>(R.descend((k) => k.sizeBytes)),
       R.take(effectiveTopN),
     )(results) as BigKey[]

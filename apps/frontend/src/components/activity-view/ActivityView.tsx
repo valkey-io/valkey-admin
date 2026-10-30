@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
 import { Activity, Play, RefreshCcw, ScanSearch, Settings } from "lucide-react"
-import { useParams } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import { COMMANDLOG_TYPE, PENDING } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
 import { MONITOR_ACTION } from "@common/src/constants"
@@ -56,6 +56,7 @@ interface KeyInfo {
 
 export const ActivityView = () => {
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const { id, clusterId } = useParams()
   const [activeTab, setActiveTab] = useState<TabType>("hot-keys")
   const [commandLogSubTab, setCommandLogSubTab] = useState<CommandLogSubTab>("slow")
@@ -175,6 +176,14 @@ export const ActivityView = () => {
     if (!keyInfo?.type) {
       dispatch(getKeyTypeRequested({ connectionId: id!, key: keyName }))
     }
+  }
+
+  const handleBigKeyClick = (keyName: string) => {
+    if (!id) return
+    const path = clusterId
+      ? `/${clusterId}/${id}/browse?key=${encodeURIComponent(keyName)}`
+      : `/${id}/browse?key=${encodeURIComponent(keyName)}`
+    navigate(path)
   }
 
   const selectedKeyInfo = selectedKey
@@ -387,6 +396,7 @@ export const ActivityView = () => {
                   errorMessage={bigKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
                   nodeErrors={bigKeysNodeErrors}
+                  onKeyClick={handleBigKeyClick}
                   status={bigKeysStatus as string | undefined}
                 />
               )}
