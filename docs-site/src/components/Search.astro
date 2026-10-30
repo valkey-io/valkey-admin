@@ -63,9 +63,19 @@ import sites from "../cross-site-search.json"
     }))
   }
 
+  // Changing the search box's value during an IME composition breaks the composition. iOS Safari leaves the box stuck
+  // (WebKit bug 255857), and Chromium can duplicate the composed text. A search that comes due during one waits until
+  // it ends.
+  let isComposing = false
+  let isSearchAgainPending = false
+
   // Pagefind doesn't redo a search that finished before a site merged, so its results would leave that site out until
   // the query changes. Changing the query and putting it back makes the search box search again.
   function searchAgain() {
+    if (isComposing) {
+      isSearchAgainPending = true
+      return
+    }
     const input = document.querySelector<HTMLInputElement>(`${searchBox} .pagefind-ui__search-input`)
     if (!input?.value) return
     const { value: query, selectionStart, selectionEnd } = input
@@ -80,6 +90,17 @@ import sites from "../cross-site-search.json"
   document.querySelector(searchBox)?.addEventListener("focusin", () => {
     mergeOtherSites().catch((error) => console.warn("Search: merging the other sites failed", error))
   }, { once: true })
+
+  document.querySelector(searchBox)?.addEventListener("compositionstart", () => {
+    isComposing = true
+  })
+  document.querySelector(searchBox)?.addEventListener("compositionend", () => {
+    isComposing = false
+    if (!isSearchAgainPending) return
+    isSearchAgainPending = false
+    // Waits a task in case a browser fires this before the composed text is in the box.
+    setTimeout(searchAgain)
+  })
 
   // Pagefind shows only results matching every ticked site, so ticking two would show nothing. Ticking a site therefore
   // unticks the others (Pagefind issue #594).
