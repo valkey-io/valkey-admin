@@ -59,7 +59,21 @@ import sites from "../cross-site-search.json"
       await pagefind.mergeIndex(bundle, { ranking: pagefindUserConfig.ranking, indexWeight: sites.otherSitesIndexWeight })
       // Without this the merged site is missing from the filter.
       await pagefind.filters()
+      searchAgain()
     }))
+  }
+
+  // Pagefind doesn't redo a search that finished before a site merged, so its results would leave that site out until
+  // the query changes. Changing the query and putting it back makes the search box search again.
+  function searchAgain() {
+    const input = document.querySelector<HTMLInputElement>(`${searchBox} .pagefind-ui__search-input`)
+    if (!input?.value) return
+    const { value: query, selectionStart, selectionEnd } = input
+    input.value = query + " "
+    input.dispatchEvent(new Event("input"))
+    input.value = query
+    input.dispatchEvent(new Event("input"))
+    input.setSelectionRange(selectionStart, selectionEnd)
   }
 
   // Merging downloads from the other sites, so it only starts when the visitor first opens the search box.
