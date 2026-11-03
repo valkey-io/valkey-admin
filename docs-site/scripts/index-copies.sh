@@ -8,6 +8,8 @@
 #
 # Both fail if a site that has set up cross-site search has no copy for this build's Pagefind minor version yet.
 # Redeploying that site usually adds the copy.
+#
+# Each Valkey site with cross-site search has a copy of this script. Keep the copies in sync.
 
 set -euo pipefail
 case ${1:-} in build | check) ;; *) echo "usage: $0 build|check" >&2; exit 2 ;; esac
