@@ -488,6 +488,7 @@ describe("config/updateConfig orchestration (config session + monitorAction ride
 
   const deps = () => ({
     ws: mockWs, metricsServerMap, connectedNodesByCluster, clients: new Map(), connectionId: "", clusterNodesRegistry,
+    ownerKey: "password~test@h:6379",
   } as any)
 
   // Aggregate replies only: the live per-node `updateConfigNodeStatus` pushes

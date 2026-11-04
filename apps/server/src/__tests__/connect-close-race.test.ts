@@ -18,6 +18,7 @@ import { _resetAuthLimiter } from "../auth-limiter"
  */
 
 const CONNECTION_ID = "127-0-0-1-6379-db0"
+const ownerKeyFor = (username: string) => `password~${username}@127.0.0.1:6379`
 
 const clientMock = () => ({
   info: async () => "cluster_enabled:0",
@@ -50,11 +51,11 @@ const startConnect = (ws: any, binding: SocketBinding, username: string) => {
   const resolved = resolveAction(binding, action) as any
   return connectPending({
     ws, ownerKey: resolved.ownerKey, ownerState: resolved.state, binding,
-    connectedNodesByCluster: connectedNodesFor(binding, resolved.ownerKey),
+    connectedNodesByCluster: resolved.ownerKey === undefined ? new Map() : connectedNodesFor(binding, resolved.ownerKey),
   } as any)(action)
 }
 
-const findState = (username: string) => allOwnerStates().find((s) => s.ownerKey === `password~${username}`)
+const findState = (username: string) => allOwnerStates().find((s) => s.ownerKey === ownerKeyFor(username))
 
 // Let pending promise callbacks run without moving the mocked clock.
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve() }
@@ -100,13 +101,13 @@ describe("socket closes while a connect is running", () => {
       calls++
       const wait = waits.get(calls)
       if (wait) await wait
-      return calls === 1 ? { close: mock.fn() } : client
+      return calls === 1 ? { ...clientMock(), close: mock.fn() } : client
     }) as any
   }
 
   const assertReleased = (username: string) => {
     mock.timers.tick(CONNECTION_TEARDOWN_DELAY_MS)
-    assert.strictEqual(getWatcherCount(scopedId(`password~${username}`, CONNECTION_ID)), 0, "no watcher remains")
+    assert.strictEqual(getWatcherCount(scopedId(ownerKeyFor(username), CONNECTION_ID)), 0, "no watcher remains")
     assert.strictEqual(client.close.mock.calls.length, 1, "the client is closed")
     assert.strictEqual(findState(username)?.clients.has(CONNECTION_ID) ?? false, false, "the client is removed")
     assert.ok(killed.includes(4242), "the collector is stopped")
@@ -142,7 +143,7 @@ describe("socket closes while a connect is running", () => {
     holdCall(2)
     const ws = makeWs()
     const other = makeWs()
-    subscribe(scopedId("password~shared-owner", CONNECTION_ID), other)
+    subscribe(scopedId(ownerKeyFor("shared-owner"), CONNECTION_ID), other)
     const connecting = startConnect(ws, createSocketBinding(), "shared-owner")
     await flush()
     closeSocket(ws)
@@ -152,7 +153,7 @@ describe("socket closes while a connect is running", () => {
     mock.timers.tick(CONNECTION_TEARDOWN_DELAY_MS)
     assert.strictEqual(client.close.mock.calls.length, 0, "the other socket still uses the client")
     assert.ok(findState("shared-owner")?.clients.has(CONNECTION_ID))
-    unsubscribe(scopedId("password~shared-owner", CONNECTION_ID), other)
+    unsubscribe(scopedId(ownerKeyFor("shared-owner"), CONNECTION_ID), other)
     findState("shared-owner")!.metricsServerMap.clear()
   })
 
@@ -165,8 +166,8 @@ describe("socket closes while a connect is running", () => {
     held.get(2)!()
     await connecting
     mock.timers.tick(CONNECTION_TEARDOWN_DELAY_MS)
-    assert.strictEqual(binding.connections.get(CONNECTION_ID), "password~stays-open")
-    assert.strictEqual(getWatcherCount(scopedId("password~stays-open", CONNECTION_ID)), 1)
+    assert.strictEqual(binding.connections.get(CONNECTION_ID), ownerKeyFor("stays-open"))
+    assert.strictEqual(getWatcherCount(scopedId(ownerKeyFor("stays-open"), CONNECTION_ID)), 1)
     assert.strictEqual(client.close.mock.calls.length, 0)
     findState("stays-open")!.metricsServerMap.clear()
   })

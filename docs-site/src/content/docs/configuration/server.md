@@ -33,11 +33,13 @@ Each sidecar collects under one set of credentials, so its data cannot be scoped
 
 Valkey Admin has no login of its own. A user's identity is the Valkey user they connect as, and Valkey's ACLs decide what that user may do.
 
-- **Separate clients and collectors per Valkey identity.** The server keeps one Valkey client per connection and one metrics collector per node for each Valkey identity: the auth type and the Valkey username (`default` when no password is given). For ElastiCache IAM, the region and replication group are part of the identity. Users who connect as the same Valkey user share one client and one set of collectors. Users who connect as different Valkey users share nothing, so commands always run as the user's own Valkey user and the metrics they see were collected with their own credentials.
-- **Valkey checks every reuse.** The identity is not secret, so it never grants access by itself. Before every connect, the server opens a short-lived connection and sends `AUTH` with the presented credentials. It continues only when Valkey accepts them. Valkey Admin never stores or compares passwords.
+- **Separate clients and collectors per Valkey user and deployment.** The server keeps one Valkey client per connection and one metrics collector per node for each *owner*: a Valkey identity on one Valkey deployment. The identity is the auth type and the Valkey username (`default` when no password is given); for ElastiCache IAM, the region and replication group are part of it. The deployment is the host and port the credentials were accepted on, for a cluster the first node connected to. Users who connect as the same Valkey user to the same deployment share one client per connection and one set of collectors. Users who connect as different Valkey users, or as the same user to different deployments, share nothing. Commands always run as the user's own Valkey user, and the metrics they see were collected with their own credentials on their own deployment.
+- **Valkey checks every connect, against the node that will be used.** The owner key is not secret, so it never grants access by itself. Before every connect, the server opens a short-lived connection to the requested host and port and sends `AUTH` with the presented credentials. It continues only when Valkey accepts them, and it then reaches only the state of that identity on that host and port. The server also checks that the connection id names that host and port. Valkey Admin does not compare passwords itself; it holds a cluster's password in memory only to start that cluster's collectors.
+- **Joining a cluster through another node.** When the same identity connects to a second node of a cluster, the server lets it share the first connection's owner (and collectors) only if the second node is in the topology the first node reported, and the first node is in the topology the second node reports. Reconnecting through the first node itself always joins. A node that reports another cluster's id but is not part of that cluster gets its own owner. The server logs a warning when that happens. Both checks use the addresses the cluster announces, so a first node connected by a name the cluster does not announce (a Kubernetes service name, a hostname alias) does not let other nodes join; see [Limitations](/reference/limitations/). This rule is temporary until clusters get a server-chosen identity.
 - **Failed authentication limit.** After 10 failed authentication attempts in 60 seconds for one node and one Valkey identity, the server rejects new attempts for that pair without contacting Valkey, until the 60-second window ends.
 - **Connections belong to the browser connection.** A browser's WebSocket may act only on Valkey connections it opened itself. When the WebSocket drops briefly, the UI reconnects with the credentials it holds in memory. After a full page reload, or in a new tab, the user must enter the password again (the desktop app with an OS keystore reconnects without asking). IAM, GCP IAM and passwordless connections reconnect without a prompt.
-- **Release.** A Valkey client is closed about 10 seconds after the last browser that uses it disconnects or closes the connection. The identity's collectors stop when no connection of that identity uses their node. The identity configured with `VALKEY_USERNAME`/`VALKEY_PASSWORD` is an exception: its collectors keep running.
+- **Release.** A Valkey client is closed about 10 seconds after the last browser that uses it disconnects or closes the connection. The owner's collectors stop when no connection of that owner uses their node. The owner configured with `VALKEY_HOST`, `VALKEY_PORT`, `VALKEY_USERNAME` and `VALKEY_PASSWORD` is an exception: its collectors keep running.
+- **The preconfigured owner.** A user joins the owner configured through `VALKEY_*` (and sees its collectors and history) by connecting as that identity to `VALKEY_HOST` and `VALKEY_PORT` spelled as configured (case does not matter; a trailing dot is ignored). The same node typed as an IP address, a short name or an alias is a separate owner with its own collectors. The UI does not know `VALKEY_HOST`, so tell users which host to type.
 
 ## Network
 
@@ -167,14 +169,31 @@ Requests to `/orchestrator/*` are rate limited separately from the UI, defaultin
 
 Comma-separated list of trusted origins allowed to open a WebSocket connection to the server. Origin validation is enforced in **all** deployment modes — connections with no `Origin` header are always rejected.
 
-- **Web mode:** when unset, allows same-origin (compares `Origin` against the `Host` header). When set, **only** the listed origins are allowed, so include the origin users load the UI from.
+- **Web mode:** when unset, allows same-origin (compares `Origin` against the `Host` header) **and** requires the `Host` header to name this machine: `localhost`, a `*.localhost` name, or an IP address. A `Host` with any other DNS name is refused with `403`, and the server logs one line per name that says which variable to set. When set, **only** the listed origins are allowed, so include the origin users load the UI from. The `Host` rule does not apply when an allowlist is set.
 - **Electron mode:** allows `file://`, `null` (packaged Electron renderers), and loopback origins (`localhost`, `127.0.0.1`, `::1`) plus any configured origins. Other remote origins are rejected.
+
+The `Host` rule stops DNS rebinding. A web page from a name the attacker controls can point that name at `127.0.0.1` and open a WebSocket to a local server. The browser then sends the attacker's name in both `Origin` and `Host`, so a same-origin check alone passes. A rebinding page cannot send `localhost` or an IP address as `Host`, so the rule refuses it. Local access through `docker run -p 127.0.0.1:8080:8080` or `kubectl port-forward` uses `localhost`, so it keeps working.
+
+If users open the UI through a DNS name (an Ingress, a reverse proxy, a LAN hostname), list that origin here:
 
 ```bash
 VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://valkey-admin.example.com,https://other.example.com
 ```
 
-- **Default:** unset (Web mode enforces same-origin only; Electron mode enforces its allowlist of file:// and loopback)
+- **Default:** unset (Web mode enforces same-origin plus the `Host` rule; Electron mode enforces its allowlist of file:// and loopback)
+- **Read in:** `apps/server/src/websocket-origin.ts`
+
+### `VALKEY_ADMIN_ALLOW_ANY_HOST`
+
+Set to the literal string `true` to turn off the `Host` rule described under [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](#valkey_admin_allowed_ws_origins). Same-origin matching still applies. Any other value is ignored.
+
+Use this only when you cannot list the origins, for example behind an authenticating proxy that serves the UI under many names. The server logs a warning at startup when the flag is set. With the flag on and no allowlist, a DNS rebinding page can reach the server from the user's browser.
+
+```bash
+VALKEY_ADMIN_ALLOW_ANY_HOST=true
+```
+
+- **Default:** unset (the `Host` rule applies)
 - **Read in:** `apps/server/src/websocket-origin.ts`
 
 ## Initial Valkey Connection (Orchestrator Mode)
@@ -209,13 +228,17 @@ Enable TLS for the Valkey connection. Compared as the literal string `"true"`.
 
 ### `VALKEY_VERIFY_CERT`
 
-Verify the TLS server certificate. Verification is **on** unless this is set to the literal string `"false"`. Disable it only when you knowingly talk to a node with a self-signed cert and cannot supply its CA via `VALKEY_CA_CERT_PATH`. Verification cannot be disabled for `gcp-iam` — the IAM token is a bearer credential and requires a verified TLS channel.
+Verify the TLS server certificate. Verification is **on** unless this is set to the literal string `"false"`. Disable it only when you knowingly talk to a node with a self-signed cert and cannot supply its CA via `VALKEY_CA_CERT_PATH`. Verification cannot be disabled for `iam` or `gcp-iam` — an IAM token is a credential the server signs with its own cloud identity, and it travels only over a verified TLS channel.
 
 - **Default:** `true`
 
 ### `VALKEY_CA_CERT_PATH`
 
 Filesystem path to a PEM CA certificate used to verify the Valkey server's TLS certificate. Only consulted when `VALKEY_TLS=true` and verification is enabled (`VALKEY_VERIFY_CERT` is not `false`). Glide performs TLS in its Rust core, so a private CA must be supplied this way — Node's trust store and `NODE_EXTRA_CA_CERTS` do not apply. Typical use: mount your server CA (for example a Memorystore for Valkey CA) as a secret and point this at the mounted file.
+
+This is the only CA source. It applies to every connection the server opens: the preconfigured connection, connections users add in the UI, topology discovery, and the collectors the server spawns. A `caCertPath` field in a WebSocket connection request is ignored; a client must not pick a file on the server's disk as a trust root.
+
+**Required for `gcp-iam`.** When set, Glide trusts only certificates from this CA, so the server's GCP access token (a bearer token with the `cloud-platform` scope) can reach only your Memorystore instance. Without it, the token would go to any host that presents a publicly trusted certificate. A `gcp-iam` connection is refused with a message that names this variable when it is unset. Memorystore's per-instance and shared CA modes already require you to download this CA; for a customer-managed CA, point this at the same CA file.
 
 ### `VALKEY_ENDPOINT_TYPE`
 
@@ -228,8 +251,8 @@ Tells the orchestrator how to interpret `VALKEY_HOST` / `VALKEY_PORT` when disco
 
 Selects the credentials provider for the initial connection.
 
-- **`"iam"`** — use AWS ElastiCache IAM authentication. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`.
-- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored.
+- **`"iam"`** — use AWS ElastiCache IAM authentication. Requires `VALKEY_USERNAME`, `VALKEY_AWS_REGION`, and `VALKEY_REPLICATION_GROUP_ID`. Requires `VALKEY_TLS=true` with verification on; ElastiCache requires in-transit encryption for IAM, and the server refuses to sign a connect token for a plain or unverified channel.
+- **`"gcp-iam"`** — use GCP Memorystore for Valkey IAM authentication. Mints a short-lived OAuth2 access token from Application Default Credentials (Workload Identity in GKE, the metadata server on GCE, or `GOOGLE_APPLICATION_CREDENTIALS` locally) and rotates it before expiry. Authenticates as the `default` user — the only username Memorystore supports — so `VALKEY_USERNAME` is ignored. Requires `VALKEY_TLS=true`, verification on, and `VALKEY_CA_CERT_PATH` (see above). The server exits at startup with the reason when the preconfigured connection breaks one of these rules.
 - **anything else** — fall back to password authentication using `VALKEY_USERNAME` / `VALKEY_PASSWORD`.
 
 - **Default:** `"password"`
@@ -264,11 +287,11 @@ Unlike the variables above, this one is **not** inherited from the server. The s
 
 ### `DATA_DIR`
 
-Base directory for collector data. Each Valkey identity gets its own directory, `${DATA_DIR}/<owner>`, and each collector of that identity writes its NDJSON output to `${DATA_DIR}/<owner>/<nodeId>`. The identity's collector settings file is `${DATA_DIR}/<owner>/config.yml`. The server copies it once from the base config file (`CONFIG_PATH`) and never overwrites it, so a settings change made by one identity never reaches another.
+Base directory for collector data. Each owner (one Valkey identity on one deployment, see [Users and Valkey identities](#users-and-valkey-identities)) gets its own directory, `${DATA_DIR}/<owner>`, and each collector of that owner writes its NDJSON output to `${DATA_DIR}/<owner>/<nodeId>`. The owner's collector settings file is `${DATA_DIR}/<owner>/config.yml`. The server copies it once from the base config file (`CONFIG_PATH`) and never overwrites it, so a settings change made by one owner never reaches another.
 
-`<owner>` is a readable, reversible encoding of the identity, for example `password~alice`, `password~%41lice` (for `Alice`), `iam~us-east-1~my-rg~iam-user` or `gcp-iam~default`. Lowercase letters, digits, `_`, `-` and `~` stay as they are. Every other byte becomes `%XX`, so names stay distinct on case-insensitive filesystems. Names longer than 200 bytes are cut and get a hash suffix (`~h<hex>`).
+`<owner>` is a readable, reversible encoding of the owner key `<identity>@<host>:<port>`, for example `password~alice%40cache.internal%3A6379`, `password~%41lice%40cache.internal%3A6379` (for `Alice`), `iam~us-east-1~my-rg~iam-user%40my-rg.cache.amazonaws.com%3A6379` or `gcp-iam~default%4010.0.0.5%3A6379`. Lowercase letters, digits, `_`, `-` and `~` stay as they are. Every other byte becomes `%XX`, so names stay distinct on case-insensitive filesystems. Names longer than 200 bytes are cut and get a hash suffix (`~h<hex>`).
 
-History from earlier releases, in `${DATA_DIR}/<nodeId>`, has no known owner. The server does not read it. Delete it when you no longer need it.
+History from earlier releases has a different directory name: `${DATA_DIR}/<nodeId>` (before owners existed) or `${DATA_DIR}/<identity>` without the `%40<host>%3A<port>` part (before the deployment became part of the owner). The server does not read either. Dashboard history and changed collector settings start empty after the upgrade. Delete the old directories when you no longer need them.
 
 - **Default:** `apps/server/data`, resolved relative to the compiled server entry point
 

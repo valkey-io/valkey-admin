@@ -8,7 +8,7 @@ import {
 } from "../common/populate-helpers.mjs"
 
 const ROOT_NODES = [
-  { url: `valkey://${process.env.VALKEY_START_NODE ?? "valkey-7001:7001"}` },
+  { url: `valkey://${process.env.VALKEY_START_NODE ?? "valkey-1:7001"}` },
 ]
 
 async function main() {

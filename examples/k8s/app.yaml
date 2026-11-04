@@ -59,6 +59,11 @@ spec:
             # Bind all interfaces so the Service/pod network can reach the server.
             - name: SERVER_BIND_HOST
               value: "0.0.0.0"
+            # When users open the UI through a Service or Ingress DNS name, list that
+            # origin here. Without it the server accepts only a local Host header
+            # (localhost or an IP), which `kubectl port-forward` provides.
+            # - name: VALKEY_ADMIN_ALLOWED_WS_ORIGINS
+            #   value: "https://valkey-admin.example.com"
             - name: VALKEY_HOST
               value: valkey-headless.valkey.svc.cluster.local
             - name: VALKEY_PORT

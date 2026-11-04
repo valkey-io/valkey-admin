@@ -17,6 +17,7 @@ interface RefreshState {
   label: string
   useTLS: boolean
   verifyTlsCertificate: boolean
+  caCertPath: string | undefined
   timer?: NodeJS.Timeout // the next scheduled refresh (regular cadence or backoff retry)
   failures: number // 0 while healthy; drives exponential backoff while failing
 }
@@ -45,7 +46,7 @@ async function refresh(client: RefreshableClient): Promise<void> {
   const state = refreshStates.get(client)
   if (!state) return
   try {
-    const token = await mintGcpAccessToken(state.useTLS, state.verifyTlsCertificate)
+    const token = await mintGcpAccessToken(state.useTLS, state.verifyTlsCertificate, state.caCertPath)
     await client.updateConnectionPassword(token, true)
     state.failures = 0
     scheduleNext(client, REFRESH_INTERVAL_MS)
@@ -72,9 +73,10 @@ export function registerGcpTokenRefresh(
   label: string,
   useTLS: boolean,
   verifyTlsCertificate: boolean,
+  caCertPath: string | undefined,
 ): void {
   if (refreshStates.has(client)) return
-  refreshStates.set(client, { label, useTLS, verifyTlsCertificate, failures: 0 })
+  refreshStates.set(client, { label, useTLS, verifyTlsCertificate, caCertPath, failures: 0 })
   scheduleNext(client, REFRESH_INTERVAL_MS)
 }
 
@@ -83,3 +85,6 @@ export function unregisterGcpTokenRefresh(client: RefreshableClient): void {
   if (state?.timer) clearTimeout(state.timer)
   refreshStates.delete(client)
 }
+
+// For tests: run one refresh tick without waiting for the timer, and ask whether a client is registered.
+export const __test__ = { refresh, isRegistered: (client: RefreshableClient) => refreshStates.has(client) }

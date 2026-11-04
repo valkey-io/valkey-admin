@@ -1,6 +1,6 @@
 import { type FormEvent, useState, useEffect, useCallback } from "react"
 import { useSelector } from "react-redux"
-import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
+import { buildConnectionId, isValidDatabaseIndex, normalizeEndpoint } from "@common/src/connection-id.ts"
 import { CONNECTED } from "@common/src/constants"
 import { toast } from "sonner"
 import { ConnectionModal } from "./connection-modal.tsx"
@@ -45,6 +45,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
   })
   const [passwordChanged, setPasswordChanged] = useState(false)
   const [dbError, setDbError] = useState<string | undefined>(undefined)
+  const [endpointError, setEndpointError] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (currentConnection) {
@@ -115,9 +116,20 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
       return
     }
 
+    // Same normalization as the server's id check (see connection-form.tsx).
+    let endpoint: ReturnType<typeof normalizeEndpoint>
+    try {
+      endpoint = normalizeEndpoint(connectionDetails.host, connectionDetails.port)
+    } catch (err) {
+      setEndpointError(err instanceof Error ? err.message : String(err))
+      return
+    }
+    setEndpointError(undefined)
+
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
-      host: connectionDetails.host.trim(),
+      host: endpoint.host,
+      port: String(endpoint.port),
       alias: connectionDetails.alias?.trim() ?? "",
       username: connectionDetails.username?.trim() ?? "",
       awsRegion: connectionDetails.awsRegion?.trim(),
@@ -192,6 +204,7 @@ function EditForm({ onClose, connectionId }: EditFormProps) {
           : undefined
       }
       description="Modify your server's connection details."
+      errorMessage={endpointError}
       isSubmitDisabled={
         !connectionDetails.host ||
         !connectionDetails.port ||

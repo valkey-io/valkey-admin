@@ -1,9 +1,8 @@
 import { VALKEY, toNodeId } from "valkey-common"
 import { CONNECTION_TEARDOWN_DELAY_MS } from "valkey-common"
-import { findOwnerState, ownerOf, type OwnerState } from "./owner"
+import { findOwnerState, type OwnerState } from "./owner"
 import { getWatcherCount, scopedId } from "./node-watchers"
 import { teardownConnection } from "./connection"
-import type { ConnectionDetails } from "./actions/connection"
 
 /**
  * What one browser WebSocket may act on.
@@ -56,10 +55,12 @@ type ActionLike = { type: string; payload?: { connectionId?: string; clusterId?:
 
 export type ResolvedAction =
   /**
-   * `state` is undefined only for a connect or a discovery whose owner has no
-   * entry yet. A connect creates the entry after Valkey accepts the credentials.
+   * A connect or a discovery. The owner is not known yet: it depends on the
+   * endpoint that the AUTH probe succeeds against, and for a cluster on the
+   * join rule. `connectPending` picks it after the probe.
    */
-  | { ok: true; ownerKey: string; state: OwnerState | undefined }
+  | { ok: true; connect: true; ownerKey?: undefined; state?: undefined }
+  | { ok: true; connect?: false; ownerKey: string; state: OwnerState }
   | { ok: false; reason: string }
 
 // The cluster that a bound connection (or a db-less node id) belongs to in its owner's state.
@@ -75,7 +76,8 @@ const clusterOf = (state: OwnerState, connectionId: string): string | undefined 
 /**
  * Decide which owner's state an action runs against, or reject it.
  *
- * - A connect is resolved to the owner named by its connection details. It is
+ * - A connect or a discovery carries connection details and no owner yet. The
+ *   handler proves the credentials and then picks the owner. The connection is
  *   bound to the socket only after Valkey accepts the credentials.
  * - Any other action must name a connectionId (or db-less node id) bound on
  *   this socket. A clusterId is accepted only if it is the cluster of that
@@ -89,11 +91,9 @@ export const resolveAction = (
   const payload = action.payload ?? {}
 
   if (action.type === VALKEY.CONNECTION.connectPending || action.type === VALKEY.TOPOLOGY.discoveryEndpointPending) {
-    const details = payload.connectionDetails as ConnectionDetails | undefined
+    const details = payload.connectionDetails
     if (!details || typeof details !== "object") return { ok: false, reason: "missing connection details" }
-    const ownerKey = ownerOf(details)
-    // Look up only: Valkey has not accepted these credentials yet.
-    return { ok: true, ownerKey, state: findOwnerState(ownerKey) }
+    return { ok: true, connect: true }
   }
 
   const { connectionId } = payload

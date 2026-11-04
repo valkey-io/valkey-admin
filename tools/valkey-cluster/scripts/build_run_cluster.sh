@@ -1,6 +1,25 @@
 #!/bin/sh
 set -eu
 
+VARIANT=${1:-lfu}
+
+case "$VARIANT" in
+  lfu)
+    COMPOSE_PROJECT=valkey-cluster
+    CLUSTER_PORT_PREFIX=700
+    CLUSTER_LFU_SLOT_STATS=yes
+    ;;
+  default)
+    COMPOSE_PROJECT=valkey-cluster-default
+    CLUSTER_PORT_PREFIX=710
+    CLUSTER_LFU_SLOT_STATS=no
+    ;;
+  *)
+    echo "Error: unknown cluster variant '$VARIANT' (expected 'lfu' or 'default')." >&2
+    exit 1
+    ;;
+esac
+
 # Find the absolute directory where this script is located.
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 
@@ -52,8 +71,15 @@ echo "Set ANNOUNCE_HOST to $ANNOUNCE_IP in $ENV_FILE"
 echo "Set DOCKER_PLATFORM to $DOCKER_PLATFORM in $ENV_FILE"
 
 cd "$TOOLS_DIR"
-echo "Starting Valkey cluster..."
-echo "Keep this terminal open to monitor cluster logs"
+export DOCKER_PLATFORM CLUSTER_PORT_PREFIX CLUSTER_LFU_SLOT_STATS
+
+echo "Starting Valkey cluster '$VARIANT' (project $COMPOSE_PROJECT, ports ${CLUSTER_PORT_PREFIX}1-${CLUSTER_PORT_PREFIX}6)..."
+compose -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
+
+echo "Populating cluster '$VARIANT' with test data (waits for cluster-init)..."
+compose -p "$COMPOSE_PROJECT" --profile populate run --rm populate
+
 echo ""
-export DOCKER_PLATFORM
-compose --profile populate up --build
+echo "Done! Valkey cluster '$VARIANT' running on $ANNOUNCE_IP:${CLUSTER_PORT_PREFIX}1-${CLUSTER_PORT_PREFIX}6"
+echo "Logs:                 $COMPOSE_CMD -f tools/valkey-cluster/docker-compose.yml -p $COMPOSE_PROJECT logs -f"
+echo "To stop and clean up: $COMPOSE_CMD -f tools/valkey-cluster/docker-compose.yml -p $COMPOSE_PROJECT down -v"

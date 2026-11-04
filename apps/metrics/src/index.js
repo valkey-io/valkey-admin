@@ -42,6 +42,7 @@ async function main() {
       "metrics",
       process.env.VALKEY_TLS === "true",
       process.env.VALKEY_VERIFY_CERT !== "false",
+      process.env.VALKEY_CA_CERT_PATH,
     )
   }
 

@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { useSelector } from "react-redux"
-import { buildConnectionId, isValidDatabaseIndex } from "@common/src/connection-id.ts"
+import { buildConnectionId, isValidDatabaseIndex, normalizeEndpoint } from "@common/src/connection-id.ts"
 import { CONNECTED, CONNECTING, ERROR } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { ConnectionModal } from "./connection-modal.tsx"
@@ -34,6 +34,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [discoveryId, setDiscoveryId] = useState<string | null>(null)
   const [dbError, setDbError] = useState<string | undefined>(undefined)
+  const [endpointError, setEndpointError] = useState<string | undefined>(undefined)
   const isAtConnectionLimit = useSelector(selectIsAtConnectionLimit)
   const discoveryState = useAppSelector((state) =>
     discoveryId ? state.valkeyTopology.discoveries[discoveryId] : null,
@@ -78,9 +79,21 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
     }
     setDbError(undefined)
 
+    // The server builds the connection id from the normalized host and port and
+    // rejects a request whose id differs, so build it from the same values.
+    let endpoint: ReturnType<typeof normalizeEndpoint>
+    try {
+      endpoint = normalizeEndpoint(connectionDetails.host, connectionDetails.port)
+    } catch (err) {
+      setEndpointError(err instanceof Error ? err.message : String(err))
+      return
+    }
+    setEndpointError(undefined)
+
     const trimmed: ConnectionDetails = {
       ...connectionDetails,
-      host: connectionDetails.host.trim(),
+      host: endpoint.host,
+      port: String(endpoint.port),
       // uses typed alias which falls back to awsReplicationGroupId for AWS IAM auth
       alias: connectionDetails.alias?.trim() || (connectionDetails.authType === "iam" ? connectionDetails.awsReplicationGroupId : ""),
       username: connectionDetails.username?.trim() ?? "",
@@ -118,7 +131,7 @@ function ConnectionForm({ onClose }: ConnectionFormProps) {
       connectionDetails={connectionDetails}
       dbError={dbError}
       description="Enter your server's host and port to connect."
-      errorMessage={hasError && errorMessage ? errorMessage : undefined}
+      errorMessage={endpointError ?? (hasError && errorMessage ? errorMessage : undefined)}
       isConnecting={isConnecting}
       isSubmitDisabled={
         !connectionDetails.host || !connectionDetails.port || isConnecting || isAtConnectionLimit

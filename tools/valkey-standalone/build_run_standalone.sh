@@ -21,6 +21,9 @@ if [ -z "${ANNOUNCE_IP:-}" ]; then
   ANNOUNCE_IP="127.0.0.1"
 fi
 
+DOCKER_PLATFORM="linux/arm64"
+export DOCKER_PLATFORM
+
 cd "$SCRIPT_DIR"
 
 # Defensive cleanup: the previous version of this script created a container with

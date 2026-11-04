@@ -50,8 +50,10 @@ const startMonitor = async (cfg) => {
     )
   }
 
-  // Phase 1: Verify MONITOR command is supported (fast — throws if not)
-  await connectMonitor()
+  // Phase 1: Verify MONITOR command is supported (fast — throws if not).
+  // Close the probe connection so it doesn't stay in MONITOR mode on the node.
+  const probe = await connectMonitor()
+  await probe.monitor.disconnect()
 
   // Command works — set up collection
   const { maxFiles, maxFileSize } = computeCapacity(monitorEpic.data_retention_mb)

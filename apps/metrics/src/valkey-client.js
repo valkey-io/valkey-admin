@@ -1,6 +1,6 @@
 import { GlideClient, ServiceType, NodeDiscoveryMode } from "@valkey/valkey-glide"
 import { readFileSync } from "node:fs"
-import { APP_VERSION ,deploymentSuffix, mintGcpAccessToken } from "valkey-common"
+import { APP_VERSION, assertIamTransport, deploymentSuffix, mintGcpAccessToken } from "valkey-common"
 
 const clientInfoTag = `valkey-admin-metrics-${deploymentSuffix()}:${APP_VERSION}`
 
@@ -25,6 +25,11 @@ export const createValkeyClient = async (cfg = {}) => {
   ]
   const useTLS = process.env.VALKEY_TLS === "true"
   const verifyTlsCertificate = process.env.VALKEY_VERIFY_CERT !== "false"
+  // Glide's TLS runs in its Rust core, so a custom CA must be passed explicitly
+  // via `rootCertificates` (Node's trust store / NODE_EXTRA_CA_CERTS do not apply).
+  const caCertPath = process.env.VALKEY_CA_CERT_PATH
+  // IAM credentials go only over a verified channel; same rule as the server.
+  assertIamTransport({ authType: process.env.VALKEY_AUTH_TYPE, tls: useTLS, verifyTlsCertificate }, caCertPath)
   const credentials =
     process.env.VALKEY_AUTH_TYPE === "iam"
       ? {
@@ -41,16 +46,13 @@ export const createValkeyClient = async (cfg = {}) => {
           // https://docs.cloud.google.com/memorystore/docs/valkey/manage-iam-auth#error-messages
           // mintGcpAccessToken rejects non-TLS / unverified transports for this bearer token.
           username: "default",
-          password: await mintGcpAccessToken(useTLS, verifyTlsCertificate),
+          password: await mintGcpAccessToken(useTLS, verifyTlsCertificate, caCertPath),
         }
         : process.env.VALKEY_PASSWORD ? {
           username: process.env.VALKEY_USERNAME,
           password: process.env.VALKEY_PASSWORD,
         } : undefined
 
-  // Glide's TLS runs in its Rust core, so a custom CA must be passed explicitly
-  // via `rootCertificates` (Node's trust store / NODE_EXTRA_CA_CERTS do not apply).
-  const caCertPath = process.env.VALKEY_CA_CERT_PATH
   const tlsAdvancedConfiguration = !useTLS
     ? undefined
     : process.env.VALKEY_VERIFY_CERT === "false"

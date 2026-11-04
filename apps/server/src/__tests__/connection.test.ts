@@ -5,14 +5,17 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { GlideClient, GlideClusterClient, InfoOptions } from "@valkey/valkey-glide"
-import { buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId } from "valkey-common"
+import {
+  buildConnectionId, KEY_EVICTION_POLICY, VALKEY, toNodeId,
+  gcpTokenRefreshInternals as refreshInternals, registerGcpTokenRefresh, unregisterGcpTokenRefresh
+} from "valkey-common"
 import { GoogleAuth } from "google-auth-library"
 import {
   connectToValkey,
+  discoverCluster,
   getExistingConnection,
   teardownConnection
 } from "../connection"
-import { resolveHostnameOrIpAddress, dns } from "../utils"
 import { checkJsonModuleAvailability } from "../check-json-module"
 import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
@@ -129,7 +132,9 @@ async function withMockedClients<T>(
   // Every connect first opens a short-lived AUTH probe client
   // (`valkey_admin_auth_probe`). Probe calls are answered by a separate mock and
   // recorded in `authProbeCalls`, so `GlideClient.createClient` counts only the
-  // working clients, as before the probe existed.
+  // working clients, as before the probe existed. The probe also runs
+  // `INFO cluster` and `CLUSTER SLOTS`, which it answers like the standalone
+  // mock would, so the connect sees the same topology either way.
   const realCreate = mock.fn(async (config?: unknown) => {
     if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
     return standaloneFactory(config) as any
@@ -137,7 +142,8 @@ async function withMockedClients<T>(
   const dispatch = async (config: any) => {
     if (config?.clientName === "valkey_admin_auth_probe") {
       authProbeCalls.push(config)
-      return { close: mock.fn() } as any
+      const answers = standaloneFactory(config) as any
+      return { info: answers.info, customCommand: answers.customCommand, close: mock.fn() } as any
     }
     return realCreate(config)
   }
@@ -338,6 +344,8 @@ describe("connectToValkey", () => {
         awsRegion: "us-east-1",
         awsReplicationGroupId: "my-cluster",
         password: undefined,
+        tls: true,
+        verifyTlsCertificate: true,
       },
     }
 
@@ -353,24 +361,40 @@ describe("connectToValkey", () => {
     })
   })
 
+  // A temporary CA file plus VALKEY_CA_CERT_PATH pointing at it, for tests that
+  // need a verified channel. Restores the env afterwards.
+  const ENV_CA_PEM = "-----BEGIN CERTIFICATE-----\nenvca\n-----END CERTIFICATE-----\n"
+  const withServerCa = async (fn: (caPath: string) => Promise<void>, pem = ENV_CA_PEM) => {
+    const caPath = path.join(os.tmpdir(), `valkey-ca-env-${process.pid}-${Date.now()}-${Math.random()}.pem`)
+    fs.writeFileSync(caPath, pem)
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    process.env.VALKEY_CA_CERT_PATH = caPath
+    try {
+      await fn(caPath)
+    } finally {
+      if (prior === undefined) delete process.env.VALKEY_CA_CERT_PATH
+      else process.env.VALKEY_CA_CERT_PATH = prior
+      fs.rmSync(caPath, { force: true })
+    }
+  }
+
+  const gcpDetails = () => ({
+    ...DEFAULT_PAYLOAD.connectionDetails,
+    authType: "gcp-iam" as const,
+    username: "ignored@project.iam.gserviceaccount.com",
+    tls: true,
+    verifyTlsCertificate: true,
+    password: undefined,
+  })
+
   it("should mint an access token as the password when authType is gcp-iam", async () => {
     const standalone = buildStandaloneMock({ clusterEnabled: "1" })
     const cluster = buildClusterMock()
     mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-gcp-token")
 
-    const gcpPayload = {
-      ...DEFAULT_PAYLOAD,
-      connectionDetails: {
-        ...DEFAULT_PAYLOAD.connectionDetails,
-        authType: "gcp-iam" as const,
-        username: "ignored@project.iam.gserviceaccount.com",
-        tls: true,
-        verifyTlsCertificate: true,
-        password: undefined,
-      },
-    }
+    const gcpPayload = { ...DEFAULT_PAYLOAD, connectionDetails: gcpDetails() }
 
-    await withMockedClients(standalone, cluster, async () => {
+    await withServerCa(() => withMockedClients(standalone, cluster, async () => {
       await connectToValkey(ctx(), mockWs, gcpPayload)
 
       const calls = (GlideClusterClient.createClient as any).mock.calls
@@ -379,7 +403,51 @@ describe("connectToValkey", () => {
       assert.strictEqual(config.credentials.password, "fake-gcp-token")
       assert.strictEqual(config.credentials.username, "default")
       assert.strictEqual(config.credentials.iamConfig, undefined)
-    })
+    }))
+  })
+
+  it("rejects gcp-iam when VALKEY_CA_CERT_PATH is not set, before a token is minted", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const mint = mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-gcp-token")
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    delete process.env.VALKEY_CA_CERT_PATH
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: gcpDetails() })
+        assert.strictEqual(result, undefined)
+        assert.strictEqual(mint.mock.calls.length, 0, "no token must be minted")
+        assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0)
+        const rejected = (mockWs.send as any).mock.calls
+          .map((c: any) => JSON.parse(c.arguments[0]))
+          .find((m: any) => m.type === VALKEY.CONNECTION.connectRejected)
+        assert.match(rejected.payload.errorMessage, /VALKEY_CA_CERT_PATH/)
+      })
+    } finally {
+      if (prior !== undefined) process.env.VALKEY_CA_CERT_PATH = prior
+    }
+  })
+
+  it("rejects iam without TLS before any client is created", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const details = {
+      ...DEFAULT_PAYLOAD.connectionDetails,
+      authType: "iam" as const,
+      awsRegion: "us-east-1",
+      awsReplicationGroupId: "my-cluster",
+      password: undefined,
+    }
+    for (const transport of [{ tls: false, verifyTlsCertificate: false }, { tls: true, verifyTlsCertificate: false }]) {
+      await withMockedClients(standalone, cluster, async () => {
+        const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: { ...details, ...transport } })
+        assert.strictEqual(result, undefined)
+        assert.strictEqual((GlideClusterClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0)
+        assert.strictEqual(authProbeCalls.length, 0, "the AUTH probe must not run")
+      })
+    }
   })
 
   it("rejects gcp-iam without TLS instead of sending the token in cleartext", async () => {
@@ -429,11 +497,11 @@ describe("connectToValkey", () => {
     })
   })
 
-  it("passes the connection's caCertPath to Glide as rootCertificates", async () => {
+  it("ignores a client-supplied caCertPath and uses VALKEY_CA_CERT_PATH", async () => {
     const standalone = buildStandaloneMock({ clusterEnabled: "1" })
     const cluster = buildClusterMock()
-    const caPath = path.join(os.tmpdir(), `valkey-ca-${process.pid}-${Date.now()}.pem`)
-    fs.writeFileSync(caPath, "-----BEGIN CERTIFICATE-----\ntestca\n-----END CERTIFICATE-----\n")
+    const clientCaPath = path.join(os.tmpdir(), `valkey-ca-client-${process.pid}-${Date.now()}.pem`)
+    fs.writeFileSync(clientCaPath, "-----BEGIN CERTIFICATE-----\nclientca\n-----END CERTIFICATE-----\n")
 
     const tlsPayload = {
       ...DEFAULT_PAYLOAD,
@@ -441,20 +509,51 @@ describe("connectToValkey", () => {
         ...DEFAULT_PAYLOAD.connectionDetails,
         tls: true,
         verifyTlsCertificate: true,
-        caCertPath: caPath,
+        caCertPath: clientCaPath,
       },
     }
 
     try {
-      await withMockedClients(standalone, cluster, async () => {
+      await withServerCa(() => withMockedClients(standalone, cluster, async () => {
         await connectToValkey(ctx(), mockWs, tlsPayload)
+        for (const config of [authProbeCalls[0], (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]]) {
+          const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
+          assert.ok(Buffer.isBuffer(ca))
+          assert.match(ca.toString(), /envca/)
+          assert.doesNotMatch(ca.toString(), /clientca/)
+        }
+      }))
+    } finally {
+      fs.rmSync(clientCaPath, { force: true })
+    }
+  })
+
+  it("uses no CA when the client sends caCertPath and VALKEY_CA_CERT_PATH is unset", async () => {
+    const standalone = buildStandaloneMock({ clusterEnabled: "1" })
+    const cluster = buildClusterMock()
+    const prior = process.env.VALKEY_CA_CERT_PATH
+    delete process.env.VALKEY_CA_CERT_PATH
+    try {
+      await withMockedClients(standalone, cluster, async () => {
+        await connectToValkey(ctx(), mockWs, {
+          ...DEFAULT_PAYLOAD,
+          connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, tls: true, verifyTlsCertificate: true, caCertPath: "/etc/passwd" },
+        })
         const config = (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]
-        const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
-        assert.ok(Buffer.isBuffer(ca))
-        assert.match(ca.toString(), /BEGIN CERTIFICATE/)
+        assert.strictEqual(config.advancedConfiguration.tlsAdvancedConfiguration, undefined)
       })
     } finally {
-      fs.rmSync(caPath, { force: true })
+      if (prior !== undefined) process.env.VALKEY_CA_CERT_PATH = prior
+    }
+  })
+
+  it("does not copy caCertPath into discovered cluster node maps", async () => {
+    const client = buildStandaloneMock({ clusterEnabled: "1" }) as any
+    const { discoveredClusterNodes } = await discoverCluster(client, {
+      connectionDetails: { ...DEFAULT_PAYLOAD.connectionDetails, caCertPath: "/etc/passwd" },
+    })
+    for (const node of Object.values(discoveredClusterNodes)) {
+      assert.strictEqual("caCertPath" in node, false)
     }
   })
 
@@ -496,7 +595,6 @@ describe("connectToValkey", () => {
     const error = new Error("Connection failed")
     const originalCreateClient = GlideClient.createClient
     GlideClient.createClient = mock.fn(async () => { throw error })
-    mock.method(dns, "reverse", async () => ["localhost"])
 
     try {
       const result = await connectToValkey(ctx(), mockWs, DEFAULT_PAYLOAD)
@@ -618,11 +716,49 @@ describe("connectToValkey", () => {
         awsRegion: "us-west-2",
         awsReplicationGroupId: "my-cluster",
         password: undefined,
+        tls: true,
+        verifyTlsCertificate: true,
       },
       cluster: true,
       assertConfig: (c) => assert.strictEqual(c.credentials.iamConfig.region, "us-west-2"),
     },
   ]
+
+  // A cluster retry replaces the map entry in commitClusterConnection, so the
+  // old GlideClusterClient must be closed there too, or each auto-reconnect
+  // leaks a client (and with gcp-iam its token-refresh timer).
+  it("closes the stale cluster client and stops its token refresh on retry", async () => {
+    const oldCluster = Object.assign(Object.create(GlideClusterClient.prototype), { close: mock.fn() }) as GlideClusterClient
+    registerGcpTokenRefresh(oldCluster, "stale", true, true, "/etc/ca.pem")
+    const connectionId = buildConnectionId("127.0.0.1", "6379", 0)
+    clients.set(connectionId, { client: oldCluster, clusterId: "cluster-1" })
+    const newCluster = buildClusterMock()
+
+    try {
+      await withMockedClients(buildStandaloneMock({ clusterEnabled: "1" }), newCluster, async () => {
+        await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId, isRetry: true })
+      })
+      assert.strictEqual(clients.get(connectionId)?.client, newCluster)
+      assert.strictEqual((oldCluster.close as any).mock.calls.length, 1, "stale cluster client closed")
+      assert.strictEqual(refreshInternals.isRegistered(oldCluster), false, "stale refresh timer unregistered")
+    } finally {
+      unregisterGcpTokenRefresh(oldCluster)
+    }
+  })
+
+  it("keeps the stale cluster client on retry when another connectionId still uses it", async () => {
+    const shared = Object.assign(Object.create(GlideClusterClient.prototype), { close: mock.fn() }) as GlideClusterClient
+    const retried = buildConnectionId("127.0.0.1", "6379", 0)
+    const sibling = buildConnectionId("127.0.0.1", "6380", 0)
+    clients.set(retried, { client: shared, clusterId: "cluster-1" })
+    clients.set(sibling, { client: shared, clusterId: "cluster-1" })
+
+    await withMockedClients(buildStandaloneMock({ clusterEnabled: "1" }), buildClusterMock(), async () => {
+      await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId: retried, isRetry: true })
+    })
+    assert.strictEqual((shared.close as any).mock.calls.length, 0, "a client another connection uses stays open")
+    assert.strictEqual(clients.get(sibling)?.client, shared)
+  })
 
   for (const tc of REPLACE_CASES) {
     it(`replaces client under same connectionId on ${tc.name} (isRetry: true)`, async () => {
@@ -752,7 +888,9 @@ describe("connectToValkey", () => {
       const clientsFor = [aliceClient, bobClient]
       const alice = { ...createOwnerState("password~user0"), connectedNodesByCluster: new Map() }
       const bob = { ...createOwnerState("password~bob"), connectedNodesByCluster: new Map() }
-      await withMockedClients(() => clientsFor.shift(), null, async () => {
+      // The probe takes a fresh mock; only working clients consume the queue.
+      const factory = (config: any) => config?.clientName === "valkey_admin_auth_probe" ? buildStandaloneMock() : clientsFor.shift()
+      await withMockedClients(factory, null, async () => {
         await connectToValkey(alice, mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-O" })
         await connectToValkey(bob, mockWs, {
           ...DEFAULT_PAYLOAD,
@@ -1014,169 +1152,52 @@ describe("connectToValkey", () => {
   }
 
 })
-describe("resolveHostnameOrIpAddress", () => {
-  beforeEach(() => {
-    mock.restoreAll()
-  })
-
-  it("resolves an IP address using reverse lookup", async () => {
-    mock.method(dns, "reverse", async () => ["example.com"])
-
-    const result = await resolveHostnameOrIpAddress("127.0.0.1")
-
-    assert.deepStrictEqual(result, {
-      input: "127.0.0.1",
-      hostnameType: "ip",
-      addresses: ["example.com"],
-    })
-  })
-
-  it("resolves a hostname using lookup", async () => {
-    mock.method(dns,"lookup", async () => [
-      { address: "192.168.1.10", family: 4 },
-      { address: "192.168.1.11", family: 4 },
-    ])
-
-    const result = await resolveHostnameOrIpAddress("my-host")
-
-    assert.strictEqual(result.input, "my-host")
-    assert.strictEqual(result.hostnameType, "hostname")
-    assert.deepStrictEqual(result.addresses, [
-      "192.168.1.10",
-      "192.168.1.11",
-    ])
-  })
-
-  it("returns the original input as address if resolution fails", async () => {
-    mock.method(dns, "lookup", async () => {
-      throw new Error("DNS failure")
-    })
-
-    const result = await resolveHostnameOrIpAddress("bad-host")
-
-    assert.deepStrictEqual(result, {
-      input: "bad-host",
-      hostnameType: "hostname",
-      addresses: ["bad-host"],
-    })
-  })
-})
-
 describe("getExistingConnection", () => {
-  beforeEach(() => {
-    mock.restoreAll()
-  })
-
-  it("returns the existing connection when host:port resolves to one already in clients", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
-
-    const existingClient = {} as any
-    const clients = new Map()
-    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: existingClient })
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.ok(result)
-    assert.strictEqual(result.client, existingClient)
-  })
-
-  it("returns undefined when no resolved address matches any client", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.2", family: 4 },
-    ])
-
-    const clients = new Map()
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.strictEqual(result, undefined)
-  })
-
-  it("returns undefined when isRetry is true even if a duplicate exists", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
-
-    const clients = new Map()
-    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
-
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        isRetry: true,
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
-
-    assert.strictEqual(result, undefined)
-  })
-
-  it("returns the entry stored at connectionId when present", async () => {
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.99", family: 4 },
-    ])
-
+  it("returns the entry stored at connectionId when present", () => {
     const directClient = {} as any
     const clients = new Map()
     clients.set("abc123", { client: directClient })
 
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      clients,
-    )
+    const result = getExistingConnection({ connectionId: "abc123" }, clients)
 
     assert.ok(result)
     assert.strictEqual(result.client, directClient)
   })
 
-  it("never sees another owner's client, because each owner has its own map", async () => {
-    // Owner scoping replaces the old session check: a connect looks up only the
-    // clients of the identity it authenticates as.
-    mock.method(dns, "lookup", async () => [
-      { address: "10.0.0.1", family: 4 },
-    ])
+  it("returns undefined when isRetry is true even if an entry exists", () => {
+    const clients = new Map()
+    clients.set("abc123", { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: "abc123", isRetry: true }, clients), undefined)
+  })
 
+  // The DNS branch is gone: two spellings of one host are two ids within an
+  // owner, and an attacker-controlled name can no longer resolve into a reuse.
+  it("does not resolve the host to find a match", () => {
+    const clients = new Map()
+    clients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: buildConnectionId("my-host", "6379", 0) }, clients), undefined)
+  })
+
+  it("never sees another owner's client, because each owner has its own map", () => {
     const otherOwnerClients = new Map()
-    otherOwnerClients.set(buildConnectionId("10.0.0.1", "6379", 0), { client: {} as any })
-    const ownClients = new Map()
+    otherOwnerClients.set("abc123", { client: {} as any })
+    assert.strictEqual(getExistingConnection({ connectionId: "abc123" }, new Map()), undefined)
+  })
 
-    const result = await getExistingConnection(
-      {
-        connectionId: "abc123",
-        connectionDetails: {
-          host: "my-host", port: "6379", tls: false, verifyTlsCertificate: false, endpointType: "node",
-        } as any,
-      },
-      ownClients,
-    )
-
-    assert.strictEqual(result, undefined)
+  // `a.b` and `a-b` share a connectionId. Since the owner key includes the
+  // endpoint they are two owners, so each owner's map holds only its own client
+  // for that id.
+  it("two owners whose connectionIds collide each reuse only their own client", () => {
+    const id = buildConnectionId("a.b", "6379", 0)
+    assert.strictEqual(id, buildConnectionId("a-b", "6379", 0))
+    const dotClient = {} as any
+    const dashClient = {} as any
+    const dotOwner = createOwnerState("password~default@a.b:6379")
+    const dashOwner = createOwnerState("password~default@a-b:6379")
+    dotOwner.clients.set(id, { client: dotClient })
+    dashOwner.clients.set(id, { client: dashClient })
+    assert.strictEqual(getExistingConnection({ connectionId: id }, dotOwner.clients)?.client, dotClient)
+    assert.strictEqual(getExistingConnection({ connectionId: id }, dashOwner.clients)?.client, dashClient)
   })
 })
 

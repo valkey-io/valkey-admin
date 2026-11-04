@@ -180,6 +180,13 @@ kubectl port-forward -n valkey svc/valkey-admin-app 8080:8080
 
 Then open `http://localhost:8080`.
 
+If you expose the app through a Service or Ingress under a DNS name, set
+`VALKEY_ADMIN_ALLOWED_WS_ORIGINS` on the app container to that origin (for example
+`https://valkey-admin.example.com`). Without it the server refuses the WebSocket
+for a DNS-name `Host`, which is the shape of a DNS rebinding attack. `port-forward`
+uses `localhost`, so it needs no setting. See
+[`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](/configuration/server/#valkey_admin_allowed_ws_origins).
+
 ## Development Iteration
 
 When you change the metrics sidecar:

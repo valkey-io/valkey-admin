@@ -1,33 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { GlideClusterClient } from "@valkey/valkey-glide"
-import { parseInfo, parseResponse, parseClusterInfo, getExistingClusterClient } from "../utils"
-
-describe("getExistingClusterClient (owner-scoped reuse)", () => {
-  const makeClusterEntry = () => ({
-    // Satisfies isClusterClientEntry's `instanceof GlideClusterClient` check without a real client.
-    client: Object.create(GlideClusterClient.prototype) as GlideClusterClient,
-    clusterId: "cluster-1",
-  })
-
-  it("reuses the owner's cluster client for a sibling node", async () => {
-    const entry = makeClusterEntry()
-    const clients = new Map([["node-A", entry]])
-
-    // Connecting to node-B of the same cluster: discovery surfaces node-A as an existing entry.
-    const discovered = { "node-A": {} as never, "node-B": {} as never }
-    const result = await getExistingClusterClient(discovered, clients)
-
-    assert.strictEqual(result?.client, entry.client, "should reuse the owner's cluster client for the new node")
-  })
-
-  it("finds nothing in another owner's empty map", async () => {
-    const discovered = { "node-A": {} as never }
-    const result = await getExistingClusterClient(discovered, new Map())
-    assert.strictEqual(result, undefined)
-  })
-})
+import { parseInfo, parseResponse, parseClusterInfo } from "../utils"
 
 describe("parseInfo", () => {
   it("should parse INFO response string into key-value pairs", () => {

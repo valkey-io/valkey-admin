@@ -1,218 +1,125 @@
+x-valkey-env: &valkey-env
+    ANNOUNCE_HOST: ${ANNOUNCE_HOST}
+    CLUSTER_LFU_SLOT_STATS: ${CLUSTER_LFU_SLOT_STATS:-yes}
+
+x-valkey-node: &valkey-node
+    image: valkey-skyscope-json:local
+    build: { context: . }
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    command:
+        - sh
+        - -c
+        - |
+            set -- \
+              --port "$$NODE_PORT" \
+              --bind 0.0.0.0 \
+              --cluster-enabled yes \
+              --cluster-databases 16 \
+              --cluster-config-file nodes.conf \
+              --cluster-node-timeout 5000 \
+              --cluster-announce-port "$$NODE_PORT" \
+              --cluster-announce-bus-port "1$$NODE_PORT" \
+              --cluster-announce-hostname "$$ANNOUNCE_HOST" \
+              --cluster-preferred-endpoint-type hostname \
+              --appendonly no \
+              --protected-mode no \
+              --loadmodule /opt/modules/rejson.so \
+              --ignore-warnings ARM64-COW-BUG
+            if [ "$$CLUSTER_LFU_SLOT_STATS" = "yes" ]; then
+              set -- "$$@" \
+                --maxmemory 100mb \
+                --maxmemory-policy allkeys-lfu \
+                --cluster-slot-stats-enabled yes
+            fi
+            exec docker-entrypoint.sh valkey-server "$$@"
+    healthcheck:
+        {
+            test: ["CMD-SHELL", "valkey-cli -p $$NODE_PORT PING"],
+            interval: 2s,
+            timeout: 1s,
+            retries: 30,
+        }
+    networks: [valnet]
+
 services:
-    valkey-7001:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7001
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7001
-            --cluster-announce-bus-port 17001
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-1:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7001", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7001:7001", "17001:17001"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}1"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}1:${CLUSTER_PORT_PREFIX:-700}1"
+            - "1${CLUSTER_PORT_PREFIX:-700}1:1${CLUSTER_PORT_PREFIX:-700}1"
         volumes:
-            - valkey-7001:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-1:/data
 
-    valkey-7002:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7002
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7002
-            --cluster-announce-bus-port 17002
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-2:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7002", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7002:7002", "17002:17002"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}2"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}2:${CLUSTER_PORT_PREFIX:-700}2"
+            - "1${CLUSTER_PORT_PREFIX:-700}2:1${CLUSTER_PORT_PREFIX:-700}2"
         volumes:
-            - valkey-7002:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-2:/data
 
-    valkey-7003:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7003
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7003
-            --cluster-announce-bus-port 17003
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-3:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7003", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7003:7003", "17003:17003"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}3"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}3:${CLUSTER_PORT_PREFIX:-700}3"
+            - "1${CLUSTER_PORT_PREFIX:-700}3:1${CLUSTER_PORT_PREFIX:-700}3"
         volumes:
-            - valkey-7003:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-3:/data
 
-    valkey-7004:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7004
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7004
-            --cluster-announce-bus-port 17004
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-4:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7004", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7004:7004", "17004:17004"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}4"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}4:${CLUSTER_PORT_PREFIX:-700}4"
+            - "1${CLUSTER_PORT_PREFIX:-700}4:1${CLUSTER_PORT_PREFIX:-700}4"
         volumes:
-            - valkey-7004:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-4:/data
 
-    valkey-7005:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7005
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7005
-            --cluster-announce-bus-port 17005
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-5:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7005", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7005:7005", "17005:17005"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}5"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}5:${CLUSTER_PORT_PREFIX:-700}5"
+            - "1${CLUSTER_PORT_PREFIX:-700}5:1${CLUSTER_PORT_PREFIX:-700}5"
         volumes:
-            - valkey-7005:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-5:/data
 
-    valkey-7006:
-        image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
-        command: >
-            valkey-server
-            --port 7006
-            --bind 0.0.0.0
-            --cluster-enabled yes
-            --cluster-databases 16
-            --cluster-config-file nodes.conf
-            --cluster-node-timeout 5000
-            --cluster-announce-port 7006
-            --cluster-announce-bus-port 17006
-            --cluster-announce-hostname ${ANNOUNCE_HOST}
-            --cluster-preferred-endpoint-type hostname
-            --appendonly no
-            --protected-mode no
-            --loadmodule /opt/modules/rejson.so
-            --ignore-warnings ARM64-COW-BUG
+    valkey-6:
+        <<: *valkey-node
         environment:
-            - ANNOUNCE_HOST=${ANNOUNCE_HOST}
-        healthcheck:
-            {
-                test: ["CMD", "valkey-cli", "-p", "7006", "PING"],
-                interval: 2s,
-                timeout: 1s,
-                retries: 30,
-            }
-        ports: ["7006:7006", "17006:17006"]
+            <<: *valkey-env
+            NODE_PORT: "${CLUSTER_PORT_PREFIX:-700}6"
+        ports:
+            - "${CLUSTER_PORT_PREFIX:-700}6:${CLUSTER_PORT_PREFIX:-700}6"
+            - "1${CLUSTER_PORT_PREFIX:-700}6:1${CLUSTER_PORT_PREFIX:-700}6"
         volumes:
-            - valkey-7006:/data
-            - ./rejson.so:/opt/modules/rejson.so:ro
-        networks: [valnet]
+            - valkey-6:/data
 
     cluster-init:
         image: valkey/valkey:latest
-        platform: ${DOCKER_PLATFORM:-linux/amd64}
+        platform: ${DOCKER_PLATFORM:-linux/arm64}
         depends_on:
-            valkey-7001: { condition: service_healthy }
-            valkey-7002: { condition: service_healthy }
-            valkey-7003: { condition: service_healthy }
-            valkey-7004: { condition: service_healthy }
-            valkey-7005: { condition: service_healthy }
-            valkey-7006: { condition: service_healthy }
+            valkey-1: { condition: service_healthy }
+            valkey-2: { condition: service_healthy }
+            valkey-3: { condition: service_healthy }
+            valkey-4: { condition: service_healthy }
+            valkey-5: { condition: service_healthy }
+            valkey-6: { condition: service_healthy }
+        environment:
+            CLUSTER_PORT_PREFIX: ${CLUSTER_PORT_PREFIX:-700}
         networks: [valnet]
         volumes:
             - ./scripts/cluster_init.sh:/usr/local/bin/cluster_init.sh:ro
@@ -229,23 +136,26 @@ services:
             - ./populate.mjs:/app/valkey-cluster/populate.mjs:ro
             - ../common/populate-helpers.mjs:/app/common/populate-helpers.mjs:ro
         environment:
-            # inside Docker network; on host use (ipconfig getifaddr en0):7001 instead
-            VALKEY_START_NODE: "valkey-7001:7001"
+            # inside Docker network; on host use (ipconfig getifaddr en0):<port> instead
+            VALKEY_START_NODE: "valkey-1:${CLUSTER_PORT_PREFIX:-700}1"
             ANNOUNCE_HOST: ${ANNOUNCE_HOST}
+            POPULATE_DB_COUNT: ${POPULATE_DB_COUNT:-}
+            POPULATE_BULK_KEYS: ${POPULATE_BULK_KEYS:-}
         networks: [valnet]
         command: >
             sh -c "
               npm -s install @valkey/client >/dev/null 2>&1 &&
               node populate.mjs
             "
+        profiles: [populate]
 
 networks:
     valnet:
 
 volumes:
-    valkey-7001:
-    valkey-7002:
-    valkey-7003:
-    valkey-7004:
-    valkey-7005:
-    valkey-7006:
+    valkey-1:
+    valkey-2:
+    valkey-3:
+    valkey-4:
+    valkey-5:
+    valkey-6:

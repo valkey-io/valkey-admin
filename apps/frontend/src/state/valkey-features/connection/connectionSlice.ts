@@ -13,8 +13,10 @@ import {
   type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
+import { buildConnectionId, normalizeEndpoint } from "@common/src/connection-id.ts"
 import type { NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { secureStorage } from "@/utils/secureStorage"
+import { persistConnections } from "@/state/persistConnections"
 
 type ConnectionStatus =
   | typeof NOT_CONNECTED | typeof CONNECTED | typeof CONNECTING | typeof RECONNECTING
@@ -106,6 +108,60 @@ const buildSearchableText = (connectionId: string, details: ConnectionDetails) =
     .join(" ")
     .toLowerCase()
 
+/**
+ * Re-key saved connections whose id no longer matches their normalized host and
+ * port. The server rejects a connect whose id differs from
+ * `buildConnectionId(normalizeEndpoint(host, port), db)`, and auto-resume
+ * resends the saved id, so an entry saved with an upper-case host before host
+ * normalization would never reconnect.
+ *
+ * Two saved entries can normalize to one key (the same ElastiCache node name
+ * typed once with capitals and once without was two entries before). Nothing is overwritten: the entry
+ * already stored under the normalized key wins, whatever its position, and any
+ * other entry that would land on a taken key stays under its original key with
+ * its details untouched, so the user can edit or delete it. Entries whose
+ * details do not normalize keep their key too. Returns whether anything changed.
+ */
+const rekeyNormalized = (
+  connections: Record<string, ConnectionState>,
+): { connections: Record<string, ConnectionState>; changed: boolean } => {
+  type Planned = { key: string; conn: ConnectionState; newKey: string | undefined; normalized: ConnectionState }
+  const planned: Planned[] = Object.entries(connections).map(([key, conn]) => {
+    try {
+      const endpoint = normalizeEndpoint(conn.connectionDetails.host, conn.connectionDetails.port)
+      const newKey = buildConnectionId(endpoint.host, endpoint.port, conn.connectionDetails.db)
+      const details = { ...conn.connectionDetails, host: endpoint.host, port: String(endpoint.port) }
+      return { key, conn, newKey, normalized: { ...conn, connectionDetails: details } }
+    } catch {
+      return { key, conn, newKey: undefined, normalized: conn }
+    }
+  })
+
+  const out: Record<string, ConnectionState> = {}
+  let changed = false
+  // Pass 1: entries that already sit under their normalized key, and entries
+  // that do not normalize. These never move.
+  for (const p of planned) {
+    if (p.newKey === undefined) out[p.key] = p.conn
+    else if (p.newKey === p.key) {
+      out[p.key] = p.normalized
+      if (p.normalized.connectionDetails.host !== p.conn.connectionDetails.host
+        || p.normalized.connectionDetails.port !== p.conn.connectionDetails.port) changed = true
+    }
+  }
+  // Pass 2: entries that need a new key. Move only onto a free key.
+  for (const p of planned) {
+    if (p.newKey === undefined || p.newKey === p.key) continue
+    if (p.newKey in out) {
+      out[p.key] = p.conn
+    } else {
+      out[p.newKey] = p.normalized
+      changed = true
+    }
+  }
+  return { connections: out, changed }
+}
+
 const currentConnections = R.pipe(
   (v: string) => localStorage.getItem(v),
   // Older payloads written before `db` existed deserialize without it. Parse
@@ -117,18 +173,21 @@ const currentConnections = R.pipe(
     : JSON.parse(s) as Record<string, ConnectionState & {
       connectionDetails: Omit<ConnectionDetails, "db"> & { db?: number };
     }>),
-  R.mapObjIndexed((conn): ConnectionState => {
-    const normalized: ConnectionState = {
-      ...conn,
-      connectionDetails: {
-        ...conn.connectionDetails,
-        db: conn.connectionDetails.db ?? 0,
-      },
-    }
-    return isAutoResumeEligible(normalized)
-      ? { ...normalized, status: RECONNECTING }
-      : normalized
-  }),
+  R.mapObjIndexed((conn): ConnectionState => ({
+    ...conn,
+    connectionDetails: {
+      ...conn.connectionDetails,
+      db: conn.connectionDetails.db ?? 0,
+    },
+  })),
+  (connections) => {
+    const rekeyed = rekeyNormalized(connections)
+    if (rekeyed.changed) persistConnections(rekeyed.connections)
+    return rekeyed.connections
+  },
+  R.mapObjIndexed((conn): ConnectionState =>
+    isAutoResumeEligible(conn) ? { ...conn, status: RECONNECTING } : conn,
+  ),
 )(LOCAL_STORAGE.VALKEY_CONNECTIONS)
 
 const connectionSlice = createSlice({

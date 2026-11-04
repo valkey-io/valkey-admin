@@ -45,6 +45,8 @@ const sendMonitorError = (
 
 export const monitorRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, clusterNodesRegistry, ownerKey }) => {
+    // Resolved against a bound connection, so the owner is known.
+    if (ownerKey === undefined) return
     const { connectionId, clusterId, monitorAction } = action.payload
     if (collectorFeaturesDisabled()) {
       const nodeId = toNodeId(connectionId)

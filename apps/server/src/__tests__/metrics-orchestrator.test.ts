@@ -2,6 +2,7 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
 import { GlideClient } from "@valkey/valkey-glide"
+import { IamTransportError } from "valkey-common"
 import {
   metricsServerMap,
   stopAllMetricsServers,
@@ -10,6 +11,7 @@ import {
   resolveClusterRefreshTarget,
   clients,
   clusterNodesRegistry,
+  startMetricsServer,
   __test__,
   type ClusterNodeMap, 
   type MetricsServerMap 
@@ -174,6 +176,26 @@ describe("metrics-orchestrator", () => {
       mock.restoreAll()
       metricsServerMap.clear()
     })
+
+    it("gives the collector the server's VALKEY_CA_CERT_PATH, not a client-supplied caCertPath", async () => {
+      const spawnedEnvs: NodeJS.ProcessEnv[] = []
+      mock.method(__test__, "spawnProcess", (_c: string, _a: string[], options: { env?: NodeJS.ProcessEnv }) => {
+        spawnedEnvs.push(options.env ?? {})
+        return { pid: 4242, stderr: null, on: () => undefined } as unknown as import("node:child_process").ChildProcess
+      })
+      const prior = process.env.VALKEY_CA_CERT_PATH
+      process.env.VALKEY_CA_CERT_PATH = "/etc/valkey/server-ca.pem"
+      try {
+        const node = { host: "127.0.0.1", port: "6379", tls: true, verifyTlsCertificate: true, caCertPath: "/etc/passwd" }
+        await startMetricsServer(node as unknown as ConnectionDetails, "node-ca")
+        assert.strictEqual(spawnedEnvs.length, 1)
+        assert.strictEqual(spawnedEnvs[0].VALKEY_CA_CERT_PATH, "/etc/valkey/server-ca.pem")
+      } finally {
+        if (prior === undefined) delete process.env.VALKEY_CA_CERT_PATH
+        else process.env.VALKEY_CA_CERT_PATH = prior
+        __test__.collectorKeys.clear()
+      }
+    })
     it("should spawn a new metrics server", async () => {
       const nodes = {
         host: "127.0.0.1",
@@ -221,6 +243,31 @@ describe("metrics-orchestrator", () => {
       assert.strictEqual(metricsServerMap.size, 0)
       assert.strictEqual(killed.includes(1), true)
       assert.strictEqual(killed.includes(2), true)
+    })
+  })
+
+  describe("createClient (preconfigured connection)", () => {
+    it("refuses gcp-iam without VALKEY_CA_CERT_PATH with an IamTransportError, before any client is created", async () => {
+      const createClient = mock.method(GlideClient, "createClient", async () => ({} as GlideClient))
+      try {
+        await assert.rejects(
+          __test__.createClient({
+            host: "10.0.0.5", port: "6379", tls: true, verifyTlsCertificate: true,
+            authType: "gcp-iam", endpointType: "node", db: 0, caCertPath: undefined,
+          } as ConnectionDetails),
+          (err: unknown) => err instanceof IamTransportError && /VALKEY_CA_CERT_PATH/.test(err.message),
+        )
+        await assert.rejects(
+          __test__.createClient({
+            host: "10.0.0.5", port: "6379", tls: false, verifyTlsCertificate: false,
+            authType: "iam", username: "u", awsRegion: "us-east-1", awsReplicationGroupId: "rg", endpointType: "node", db: 0,
+          } as ConnectionDetails),
+          (err: unknown) => err instanceof IamTransportError,
+        )
+        assert.strictEqual(createClient.mock.calls.length, 0)
+      } finally {
+        mock.restoreAll()
+      }
     })
   })
 

@@ -72,8 +72,12 @@ describe("resolveClusterRefreshTarget (preconfigured / headless)", () => {
 describe("env owner (preconfigured connection)", () => {
   it("maps the preconfigured identity to the module state", async () => {
     const { clients, metricsServerMap } = await import("../metrics-orchestrator")
-    const { getEnvOwnerState, getOwnerState, ownerOf } = await import("../owner")
-    const state = getOwnerState(ownerOf(initialConnectionDetails))
+    const { getEnvOwnerState, getOwnerState } = await import("../owner")
+    const { normalizeEndpoint } = await import("valkey-common")
+    const state = getOwnerState(
+      initialConnectionDetails,
+      normalizeEndpoint(initialConnectionDetails.host, initialConnectionDetails.port),
+    )
     assert.strictEqual(state, getEnvOwnerState())
     assert.strictEqual(state.clients, clients)
     assert.strictEqual(state.metricsServerMap, metricsServerMap)

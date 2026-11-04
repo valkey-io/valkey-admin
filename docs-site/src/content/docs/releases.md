@@ -5,6 +5,80 @@ sidebar:
   order: 0
 ---
 
+## v1.3.0
+
+Release Date: October 2026
+
+### Key Features
+
+**Per-user isolation on the server**: Every Valkey client, cluster topology, and metrics collector now belongs to an *owner*: one Valkey identity on one Valkey deployment. Users who connect as different Valkey users, or as the same user to different servers, share nothing. Commands always run as your own Valkey user, and the metrics you see were collected with your credentials against your server. Valkey checks the credentials on every connect, against the node you named, and the server reaches only that identity's state on that node. In Kubernetes, where sidecars collect under one set of credentials, the collector-backed features show a message instead of data from another user. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities). ([#581](https://github.com/valkey-io/valkey-admin/pull/581), [#585](https://github.com/valkey-io/valkey-admin/pull/585))
+
+**Hot Slots heatmap**: The Hot Keys heatmap gains a Slots tab in hot-slots mode. Keys are grouped by hash slot, each slot is a tile colored by activity, and clicking a slot lists its keys with size, TTL and owning node. Clicking a key opens it in the Key Browser. The modal reports when some nodes failed to report. ([#503](https://github.com/valkey-io/valkey-admin/pull/503))
+
+![Hot Slots heatmap](../../assets/releases/v1.3.0/hot_slot_heatmap.png)
+
+**Longer CPU and memory history**: The fixed 1H / 6H / 12H buttons are replaced by a **Last [number] [Hours / Days]** picker, up to 30 days. Default retention is unchanged (about a day per node); [Keeping more history](/configuration/metrics/#keeping-more-history) explains how to raise it. ([#554](https://github.com/valkey-io/valkey-admin/pull/554))
+
+![Longer CPU and memory history](../../assets/releases/v1.3.0/longer_history.png)
+
+### Changed Defaults
+
+Review these before upgrading. See the [server](/configuration/server/) configuration reference for details.
+
+| Setting | v1.2.0 | v1.3.0 | What to do |
+|---------|--------|--------|------------|
+| WebSocket `Host` check in Web mode with no `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` | Any `Host` whose `Origin` matched | `Host` must be `localhost`, a `*.localhost` name, or an IP address; other names are refused with `403` | If users open the UI through a DNS name (Ingress, reverse proxy, LAN hostname), set `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` to that origin. The server log prints the exact value. `kubectl port-forward` and `docker run -p 127.0.0.1:8080:8080` are unaffected. `VALKEY_ADMIN_ALLOW_ANY_HOST=true` (new) turns the check off, with a startup warning ([#585](https://github.com/valkey-io/valkey-admin/pull/585)) |
+| `VALKEY_ADMIN_ALLOWED_WS_ORIGINS` when set in Web mode | Listed origins plus same-origin | Listed origins only | Add the origin users load the UI from to the list ([#551](https://github.com/valkey-io/valkey-admin/pull/551)) |
+| `gcp-iam` without `VALKEY_CA_CERT_PATH` | Token sent to any host with a publicly trusted certificate | Refused | Point `VALKEY_CA_CERT_PATH` at the Memorystore server CA. Memorystore's per-instance and shared CA modes already require the file ([#585](https://github.com/valkey-io/valkey-admin/pull/585)) |
+| `iam` (ElastiCache) without TLS or with verification off | Token sent | Refused | Enable TLS and keep verification on. ElastiCache requires TLS for IAM, so working setups are unaffected ([#585](https://github.com/valkey-io/valkey-admin/pull/585)) |
+| `caCertPath` in a WebSocket connection request | Overrode `VALKEY_CA_CERT_PATH` | Ignored | Nothing for UI users; the UI never sent it. Raw WebSocket clients must rely on `VALKEY_CA_CERT_PATH` ([#585](https://github.com/valkey-io/valkey-admin/pull/585)) |
+| Collector data directories | `${DATA_DIR}/<nodeId>` | `${DATA_DIR}/<owner>/<nodeId>`, where `<owner>` encodes the Valkey identity and the host and port | Dashboard history and changed collector settings start empty after the upgrade. Delete the old directories when you no longer need them ([#581](https://github.com/valkey-io/valkey-admin/pull/581), [#585](https://github.com/valkey-io/valkey-admin/pull/585)) |
+| Send Command | Allowed `SELECT`, `AUTH`, `HELLO`, `RESET`, `QUIT` | Blocked | Use the connection's database setting instead of `SELECT`. The other four changed the shared connection's state for every user ([#534](https://github.com/valkey-io/valkey-admin/pull/534)) |
+
+### Upgrade Notes
+
+- **The preconfigured connection and the metrics collectors are one owner.** A user joins the owner configured through `VALKEY_HOST`, `VALKEY_PORT`, `VALKEY_USERNAME` and `VALKEY_PASSWORD`, and sees its collectors and history, by connecting as that identity to `VALKEY_HOST` and `VALKEY_PORT` spelled as configured. The same node typed as an IP or an alias is a separate owner with its own collectors. See [Users and Valkey identities](/configuration/server/#users-and-valkey-identities) ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- **Cluster owners are matched by announced addresses.** A second node of a cluster shares the first connection's owner only if the cluster announces the first node's address. Connecting the first node by a Kubernetes service name or a hostname alias gives each node you then connect from the topology view its own collectors. Connect through the **cluster endpoint** form, or by an announced address, to share them. See [Known Limitations](/reference/limitations/) ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- **Host names are normalized.** Hosts are case-insensitive and lose a trailing dot; the port must be a plain number with no leading zeros. Saved connections are renamed on load. If two saved connections now spell the same host, the one already saved under the new spelling is kept and the other keeps its old name for you to edit or delete ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- **Kubernetes:** collector-backed features (dashboard history, hot keys, big keys, command logs, Monitor, collector settings) are not available in this release, because sidecars collect under one set of credentials that cannot be scoped to the user. See [Kubernetes deployment](/deployment/kubernetes/) ([#581](https://github.com/valkey-io/valkey-admin/pull/581))
+- **Desktop app without an OS keyring:** passwords saved unencrypted by builds before 1.2.0 are removed on startup. Affected connections prompt for the password on next use ([#555](https://github.com/valkey-io/valkey-admin/pull/555))
+
+### Improvements
+
+- Send Command shows how long each command took, next to the response and in the history list ([#553](https://github.com/valkey-io/valkey-admin/pull/553))
+- The Cluster Topology view keeps node roles in sync after a failover, and counts memory toward utilization only for nodes with `maxmemory` set; nodes without it show `∞` capacity ([#515](https://github.com/valkey-io/valkey-admin/pull/515))
+- The MONITOR dialog shows the Cluster Slot Stats setup commands inline instead of in a tooltip ([#583](https://github.com/valkey-io/valkey-admin/pull/583))
+- Failed authentication attempts are limited per node and Valkey identity, so the server cannot be used to guess passwords. The limit key uses the normalized host and port, so different spellings of one endpoint share a budget ([#581](https://github.com/valkey-io/valkey-admin/pull/581), [#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- A new troubleshooting page entry explains each of the new connection refusals ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- Local development: `tools/build_run_all.sh` starts an LFU cluster, a default cluster and a standalone node, all with RedisJSON and seed data ([#584](https://github.com/valkey-io/valkey-admin/pull/584))
+
+### Fixes
+
+- A user who authenticated as a Valkey username against their own server could reach another user's connections to a different server under the same username, and a fake cluster node could overwrite a real cluster's node list and stored password. Server state is now keyed by Valkey user and deployment, the server checks that the connection id names the host the credentials were proven against, and a cluster node joins an existing owner only when both sides' topologies agree ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- The server's GCP access token (`cloud-platform` scope) and ElastiCache IAM connect token could be sent to any host a client named. IAM credentials now travel only over TLS with verification, `gcp-iam` requires the operator's CA file so the token reaches only the Memorystore instance, and a client-supplied `caCertPath` no longer replaces the server's trust roots ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- DNS rebinding could give a remote web page the WebSocket API of a local Web-mode server (Docker on loopback, `kubectl port-forward`). The upgrade now requires a local `Host` header when no origins allowlist is set ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- A retried cluster connection leaked the replaced cluster client and, with `gcp-iam`, its token-refresh timer ([#585](https://github.com/valkey-io/valkey-admin/pull/585))
+- CPU chart values were 100× too small; the collector now reports percent of one core, matching Cluster Topology ([#582](https://github.com/valkey-io/valkey-admin/pull/582))
+- Dashboard Total Memory showed host RAM when `maxmemory` was 0; it now shows `∞` ([#582](https://github.com/valkey-io/valkey-admin/pull/582))
+- The MONITOR "Running for" timer could show a negative value right after starting ([#582](https://github.com/valkey-io/valkey-admin/pull/582))
+- UI-initiated connects and discovery fell back to `VALKEY_CA_CERT_PATH` for private-CA TLS ([#535](https://github.com/valkey-io/valkey-admin/pull/535))
+- The integration test stack's cluster initializer waited for the wrong node names after the dev-tooling rename, so Integration CI failed on release branches ([#587](https://github.com/valkey-io/valkey-admin/pull/587))
+
+### Contributors
+
+@ravjotbrar, @ArgusLi, @nassery318, @tkesgar
+
+**Full Changelog**: [v1.2.0...v1.3.0](https://github.com/valkey-io/valkey-admin/compare/v1.2.0...v1.3.0)
+
+**Release**: [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases/tag/v1.3.0)
+
+**Container Images**:
+- Docker Hub: `docker pull valkey/valkey-admin:1.3.0`
+- GHCR: `docker pull ghcr.io/valkey-io/valkey-admin:1.3.0`
+- ECR Public: `docker pull public.ecr.aws/valkey/valkey-admin:1.3.0`
+
+---
+
 ## v1.2.0
 
 Release Date: September 2026

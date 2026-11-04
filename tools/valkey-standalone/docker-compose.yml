@@ -1,8 +1,19 @@
 services:
     valkey-standalone:
-        image: valkey/valkey:latest
+        image: valkey-skyscope-json:local
+        build: { context: ../valkey-cluster }
+        platform: ${DOCKER_PLATFORM:-linux/arm64}
         container_name: valkey-standalone
-        command: ["valkey-server", "--databases", "16"]
+        command:
+            [
+                "valkey-server",
+                "--databases",
+                "16",
+                "--loadmodule",
+                "/opt/modules/rejson.so",
+                "--ignore-warnings",
+                "ARM64-COW-BUG",
+            ]
         ports: ["6379:6379"]
         healthcheck:
             {
@@ -24,6 +35,8 @@ services:
         environment:
             # inside Docker network; on host use valkey://localhost:6379 instead
             VALKEY_URL: "valkey://valkey-standalone:6379"
+            POPULATE_DB_COUNT: ${POPULATE_DB_COUNT:-}
+            POPULATE_BULK_KEYS: ${POPULATE_BULK_KEYS:-}
         networks: [valnet]
         command: >
             sh -c "

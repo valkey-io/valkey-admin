@@ -6,14 +6,7 @@ import {
 
 } from "@valkey/valkey-glide"
 import * as R from "ramda"
-import { lookup, reverse } from "node:dns/promises"
 import { KEY_EVICTION_POLICY, KeyEvictionPolicy, sanitizeUrl } from "valkey-common"
-import { ClusterNodeMap } from "./metrics-orchestrator"
-export const dns = {
-  lookup,
-  reverse,
-}
-
 export type ParsedClusterInfo = {
   [host: string]: {
     [section: string]: {
@@ -121,23 +114,6 @@ export const parseClusterInfo = (rawInfo: ClusterResponse<string>): ParsedCluste
   )(rawInfo) as ParsedClusterInfo
 }
 
-// Helps avoid duplicate connections
-// If user connects with IP address and then connects with hostname, we want a single connection
-export async function resolveHostnameOrIpAddress(hostnameOrIP: string) {
-  const isIP = /^[0-9:.]+$/.test(hostnameOrIP)
-  const hostnameType = isIP ? "ip" : "hostname"
-  try {
-    const addresses = isIP
-      ? await dns.reverse(hostnameOrIP)
-      : (await dns.lookup(hostnameOrIP, { family: 4, all: true })).map((result) => result.address)
-
-    return { input: hostnameOrIP, hostnameType, addresses }
-  } catch (err) {
-    console.warn("Unable to resolve hostname or IP:", err)
-    return { input: hostnameOrIP, hostnameType, addresses: [hostnameOrIP] }
-  }
-}
-
 export async function isLastConnectedClusterNode(
   connectionId: string, 
   clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId? :string }>,
@@ -146,30 +122,6 @@ export async function isLastConnectedClusterNode(
   const connection = clients.get(connectionId)
   const currentClusterId = connection?.clusterId
   return connectedNodesByCluster.get(currentClusterId!)?.length === 1
-}
-
-function isClusterClientEntry(
-  entry: { client: GlideClient | GlideClusterClient; clusterId?: string } | undefined,
-): entry is { client: GlideClusterClient; clusterId?: string } {
-  return !!entry && entry.client instanceof GlideClusterClient
-}
-
-export async function getExistingClusterClient(
-  discoveredClusterNodes: ClusterNodeMap, 
-  clients: Map<string, {client: GlideClient | GlideClusterClient, clusterId?: string}>,
-) {
-  // Check if we've already connected to this cluster before 
-  const existingKey = Object.keys(discoveredClusterNodes).find(
-    (key) => isClusterClientEntry(clients.get(key)),
-  )
-
-  // `clients` holds only the connecting owner's clients, and the caller has
-  // already authenticated a discovery client with the presented credentials.
-  const existingConnection = existingKey
-    ? clients.get(existingKey) as { client: GlideClusterClient; clusterId?: string }
-    : undefined
-
-  return existingConnection
 }
 
 export async function getKeyEvictionPolicy(client: GlideClient | GlideClusterClient) {
