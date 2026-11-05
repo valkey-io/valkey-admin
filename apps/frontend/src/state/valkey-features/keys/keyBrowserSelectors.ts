@@ -7,7 +7,7 @@ export const selectKeys = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState.keys, [VALKEY.KEYS.name, id, "keys"], state)
 
 export const selectTotalKeys = (id: string) => (state: RootState) =>
-  R.pathOr(defaultConnectionState.keys, [VALKEY.KEYS.name, id, "totalKeys"], state)
+  R.pathOr(defaultConnectionState.totalKeys, [VALKEY.KEYS.name, id, "totalKeys"], state)
 
 export const selectCursor = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState.cursor, [VALKEY.KEYS.name, id, "cursor"], state)
@@ -17,6 +17,9 @@ export const selectLoading = (id: string) => (state: RootState) =>
 
 export const selectError = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState.error, [VALKEY.KEYS.name, id, "error"], state)
+
+export const selectIsCapped = (id: string) => (state: RootState) =>
+  R.pathOr(defaultConnectionState.isCapped ?? false, [VALKEY.KEYS.name, id, "isCapped"], state)
 
 export const selectKeyBrowserState = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState, [VALKEY.KEYS.name, id], state)

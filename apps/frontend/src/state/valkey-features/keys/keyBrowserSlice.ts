@@ -19,6 +19,7 @@ interface KeyBrowserState {
     error: string | null;
     keyTypeLoading: { [key: string]: boolean };
     totalKeys: number;
+    isCapped?: boolean;
   };
 }
 
@@ -30,6 +31,7 @@ export const createConnectionState = (): KeyBrowserState[string] => ({
   error: null,
   keyTypeLoading: {},
   totalKeys: 0,
+  isCapped: false,
 })
 
 export const defaultConnectionState = createConnectionState()
@@ -62,14 +64,16 @@ const keyBrowserSlice = createSlice({
         keys: KeyInfo[];
         cursor: string;
         totalKeys: number;
+        isCapped?: boolean;
       }>,
     ) => {
-      const { connectionId, keys, cursor, totalKeys } = action.payload
+      const { connectionId, keys, cursor, totalKeys, isCapped } = action.payload
       if (state[connectionId]) {
         state[connectionId].loading = false
         state[connectionId].keys = keys
         state[connectionId].cursor = cursor
         state[connectionId].totalKeys = totalKeys
+        state[connectionId].isCapped = isCapped ?? (keys.length >= 1000 && totalKeys > keys.length)
       }
     },
     getKeysFailed: (
