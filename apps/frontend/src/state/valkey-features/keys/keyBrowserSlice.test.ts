@@ -15,6 +15,9 @@ import keyBrowserReducer, {
   updateKeyRequested,
   updateKeyFulfilled,
   updateKeyFailed,
+  getKeyElementsRequested,
+  getKeyElementsFulfilled,
+  getKeyElementsFailed,
   defaultConnectionState
 } from "./keyBrowserSlice"
 
@@ -623,6 +626,110 @@ describe("keyBrowserSlice", () => {
         }),
       )
       expect(state["conn-1"].keys).toHaveLength(0)
+    })
+  })
+
+  describe("getKeyElementsRequested", () => {
+    it("should set elementsLoading for the requested key", () => {
+      const state = keyBrowserReducer(
+        initialState,
+        getKeyElementsRequested({
+          connectionId: "conn-1",
+          key: "user:1",
+          keyType: "hash",
+          cursor: "0",
+          count: 100,
+        }),
+      )
+
+      expect(state["conn-1"].elementsLoading["user:1"]).toBe(true)
+    })
+  })
+
+  describe("getKeyElementsFulfilled", () => {
+    it("should append elements to existing key, update cursor and clear loading", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          keys: [
+            {
+              name: "user:1",
+              type: "hash",
+              elements: [{ key: "field1", value: "val1" }],
+              cursor: "0",
+            },
+          ],
+          elementsLoading: { "user:1": true },
+        },
+      }
+
+      const state = keyBrowserReducer(
+        previousState,
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "user:1",
+          keyType: "hash",
+          elements: [{ key: "field2", value: "val2" }],
+          cursor: "15",
+          hasMore: true,
+          collectionSize: 200,
+        }),
+      )
+
+      expect(state["conn-1"].elementsLoading["user:1"]).toBeUndefined()
+      expect(state["conn-1"].keys[0].elements).toHaveLength(2)
+      expect(state["conn-1"].keys[0].elements[1]).toEqual({ key: "field2", value: "val2" })
+      expect(state["conn-1"].keys[0].cursor).toBe("15")
+      expect(state["conn-1"].keys[0].hasMoreElements).toBe(true)
+      expect(state["conn-1"].keys[0].collectionSize).toBe(200)
+    })
+
+    it("should set elements if key elements was not an array", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          keys: [{ name: "mylist", type: "list" }],
+          elementsLoading: { mylist: true },
+        },
+      }
+
+      const state = keyBrowserReducer(
+        previousState,
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "mylist",
+          keyType: "list",
+          elements: ["item1", "item2"],
+          offset: 2,
+          hasMore: false,
+          collectionSize: 2,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["item1", "item2"])
+      expect(state["conn-1"].keys[0].hasMoreElements).toBe(false)
+    })
+  })
+
+  describe("getKeyElementsFailed", () => {
+    it("should clear elementsLoading when element fetch fails", () => {
+      const previousState = {
+        "conn-1": {
+          ...defaultConnectionState,
+          elementsLoading: { "user:1": true },
+        },
+      }
+
+      const state = keyBrowserReducer(
+        previousState,
+        getKeyElementsFailed({
+          connectionId: "conn-1",
+          key: "user:1",
+          error: "Fetch error",
+        }),
+      )
+
+      expect(state["conn-1"].elementsLoading["user:1"]).toBeUndefined()
     })
   })
 })

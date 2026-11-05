@@ -1,13 +1,13 @@
 import { useState } from "react"
-import { Trash, Plus, X } from "lucide-react"
+import { Trash, Plus, X, Loader2 } from "lucide-react"
 import { CustomTooltip } from "../../ui/tooltip"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
 import { Typography } from "../../ui/typography"
-import { useAppDispatch } from "@/hooks/hooks"
-import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
+import { useAppDispatch, useAppSelector } from "@/hooks/hooks"
+import { getKeyElementsRequested, updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
 
 interface ElementInfo {
@@ -24,9 +24,11 @@ interface KeyDetailsHashProps {
     size: number;
     collectionSize?: number;
     elements: ElementInfo[];
+    cursor?: string;
+    hasMoreElements?: boolean;
   };
   connectionId: string;
-  readOnly:boolean;
+  readOnly: boolean;
 }
 
 interface NewField {
@@ -39,11 +41,27 @@ export default function KeyDetailsHash(
   { selectedKey, selectedKeyInfo, connectionId, readOnly = false }: KeyDetailsHashProps,
 ) {
   const dispatch = useAppDispatch()
+  const elementsLoading = useAppSelector(
+    (state) => state.keyBrowser?.[connectionId]?.elementsLoading?.[selectedKey] || false,
+  )
   const [isEditable, setIsEditable] = useState(false)
   const [editedHashValue, setEditedHashValue] = useState<{ [key: string]: string }>({})
   const [deletedHashFields, setDeletedHashFields] = useState<Set<string>>(new Set())
   const [pendingDeleteField, setPendingDeleteField] = useState<string | null>(null)
   const [newFields, setNewFields] = useState<NewField[]>([])
+
+  const handleLoadMore = () => {
+    if (elementsLoading) return
+    dispatch(
+      getKeyElementsRequested({
+        connectionId,
+        key: selectedKey,
+        keyType: "hash",
+        cursor: selectedKeyInfo.cursor ?? "0",
+        count: 100,
+      }),
+    )
+  }
 
   const handleEdit = () => {
     if (isEditable) {
@@ -235,6 +253,37 @@ export default function KeyDetailsHash(
               variant={"secondary"}
             >
               <Plus className="mr-2" /> Add
+            </Button>
+          </div>
+        )}
+        {!isEditable &&
+          (selectedKeyInfo.hasMoreElements !== undefined
+            ? selectedKeyInfo.hasMoreElements
+            : (selectedKeyInfo.cursor && selectedKeyInfo.cursor !== "0") ||
+              (selectedKeyInfo.collectionSize !== undefined &&
+                selectedKeyInfo.elements.length < selectedKeyInfo.collectionSize)) && (
+          <div className="flex flex-col items-center justify-center py-4 gap-2 border-t border-border">
+            <Typography variant="bodySm">
+              Showing {selectedKeyInfo.elements.length}
+              {selectedKeyInfo.collectionSize !== undefined
+                ? ` of ${selectedKeyInfo.collectionSize.toLocaleString()}`
+                : ""}{" "}
+              fields
+            </Typography>
+            <Button
+              aria-label="Load more fields"
+              disabled={elementsLoading}
+              onClick={handleLoadMore}
+              size="sm"
+              variant="outline"
+            >
+              {elementsLoading ? (
+                <>
+                  <Loader2 className="mr-2 animate-spin" size={14} /> Loading...
+                </>
+              ) : (
+                "Load more"
+              )}
             </Button>
           </div>
         )}
