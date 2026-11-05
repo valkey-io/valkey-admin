@@ -387,6 +387,7 @@ export const ActivityView = () => {
                   errorMessage={bigKeysErrorMessage as string | null}
                   isCluster={!!clusterId}
                   nodeErrors={bigKeysNodeErrors}
+                  onKeyClick={handleKeyClick}
                   status={bigKeysStatus as string | undefined}
                 />
               )}
