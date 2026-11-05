@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { secureStorage } from "@/utils/secureStorage"
 
 interface ConnectionModalProps {
   open: boolean
@@ -255,6 +256,11 @@ export function ConnectionModal({
                           type="password"
                           value={connectionDetails.password}
                         />
+                        {!secureStorage.isElectron() && (
+                          <Typography className="text-muted-foreground mt-1 block text-xs" variant="bodyXs">
+                            Passwords aren't saved in web mode.
+                          </Typography>
+                        )}
                       </div>
                     </div>
                   )}
