@@ -13,6 +13,7 @@ interface KeyDetailsStreamProps {
       key: string;
       value: [string, string][];
     }>;
+    isBinary?: boolean;
   };
   connectionId: string;
   readOnly: boolean;
@@ -41,16 +42,30 @@ export default function KeyDetailsStream(
               </tr>
             </thead>
             <tbody>
-              {entry.value.map(([field, value], fieldIndex: number) => (
-                <tr key={fieldIndex}>
-                  <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
-                    <Typography variant="code">{field}</Typography>
-                  </td>
-                  <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
-                    <Typography variant="code">{value}</Typography>
-                  </td>
-                </tr>
-              ))}
+              {entry.value.map(([field, value], fieldIndex: number) => {
+                const isFieldBinary = /\\x[0-9a-fA-F]{2}/.test(field)
+                const isValueBinary = /\\x[0-9a-fA-F]{2}/.test(value)
+                return (
+                  <tr key={fieldIndex}>
+                    <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Typography className="truncate" variant="code">{field}</Typography>
+                        {isFieldBinary && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={cn("py-3 px-4 border-b border-border text-foreground")}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Typography className="truncate" variant="code">{value}</Typography>
+                        {isValueBinary && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

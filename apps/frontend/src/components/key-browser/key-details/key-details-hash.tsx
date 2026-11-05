@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils"
 interface ElementInfo {
   key: string;
   value: string;
+  isKeyBinary?: boolean;
+  isValueBinary?: boolean;
 }
 
 interface KeyDetailsHashProps {
@@ -24,6 +26,7 @@ interface KeyDetailsHashProps {
     size: number;
     collectionSize?: number;
     elements: ElementInfo[];
+    isBinary?: boolean;
   };
   connectionId: string;
   readOnly:boolean;
@@ -67,8 +70,13 @@ export default function KeyDetailsHash(
 
   const handleSave = () => {
     // combine existing edited fields and new fields
+    const binaryKeys = new Set(
+      selectedKeyInfo.elements
+        .filter((e) => e.isKeyBinary || e.isValueBinary)
+        .map((e) => e.key),
+    )
     const existingFields = Object.entries(editedHashValue)
-      .filter(([field]) => !deletedHashFields.has(field))
+      .filter(([field]) => !deletedHashFields.has(field) && !binaryKeys.has(field))
       .map(([field, value]) => ({
         field,
         value,
@@ -159,42 +167,71 @@ export default function KeyDetailsHash(
         </div>
         {selectedKeyInfo.elements
           .filter((element: ElementInfo) => !deletedHashFields.has(element.key))
-          .map((element: ElementInfo, index: number) => (
-            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
-              <Typography variant="code">{element.key}</Typography>
-              <div className="col-span-3">
-                {isEditable ? (
-                  <div className="flex gap-2 relative">
-                    <Input
-                      aria-label="Edit hash field value"
-                      onChange={(e) => handleHashFieldChange(element.key, e.target.value)}
-                      type="text"
-                      value={editedHashValue[element.key] || ""}
-                    />
-                    <CustomTooltip content="Delete field">
-                      <Button
-                        aria-label="Delete field"
-                        onClick={() => handleDeleteHashField(element.key)}
-                        variant={"destructiveGhost"}
-                      >
-                        <Trash/>
-                      </Button>
-                    </CustomTooltip>
-                    {pendingDeleteField === element.key && (
-                      <DeleteModal
-                        itemName={element.key}
-                        message="You are deleting field:"
-                        onCancel={cancelDeleteHashField}
-                        onConfirm={confirmDeleteHashField}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  <Typography variant="code">{element.value}</Typography>
-                )}
+          .map((element: ElementInfo, index: number) => {
+            const isBinary = Boolean(element.isKeyBinary || element.isValueBinary)
+            return (
+              <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Typography className="truncate" variant="code">{element.key}</Typography>
+                  {element.isKeyBinary && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                  )}
+                </div>
+                <div className="col-span-3">
+                  {isEditable ? (
+                    <div className="flex gap-2 relative items-center">
+                      {isBinary ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            aria-label="Locked binary field"
+                            className="opacity-70 cursor-not-allowed bg-muted/40"
+                            disabled
+                            type="text"
+                            value={element.value}
+                          />
+                          {element.isValueBinary && (
+                            <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                          )}
+                        </div>
+                      ) : (
+                        <Input
+                          aria-label="Edit hash field value"
+                          onChange={(e) => handleHashFieldChange(element.key, e.target.value)}
+                          type="text"
+                          value={editedHashValue[element.key] || ""}
+                        />
+                      )}
+                      <CustomTooltip content="Delete field">
+                        <Button
+                          aria-label="Delete field"
+                          disabled={element.isKeyBinary}
+                          onClick={() => handleDeleteHashField(element.key)}
+                          variant={"destructiveGhost"}
+                        >
+                          <Trash/>
+                        </Button>
+                      </CustomTooltip>
+                      {pendingDeleteField === element.key && (
+                        <DeleteModal
+                          itemName={element.key}
+                          message="You are deleting field:"
+                          onCancel={cancelDeleteHashField}
+                          onConfirm={confirmDeleteHashField}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Typography variant="code">{element.value}</Typography>
+                      {element.isValueBinary && (
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         {isEditable && newFields.map((newField) => (
           <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={newField.tempId}>
             <div>

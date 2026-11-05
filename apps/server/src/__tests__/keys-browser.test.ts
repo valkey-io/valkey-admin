@@ -122,8 +122,36 @@ describe("getKeyInfo", () => {
         { key: "field1", value: "value1" }, 
         { key: "field2", value: "value2" },
       ])
+      assert.strictEqual(result.isBinary, undefined)
     })
 
+    it("should display binary fields and values escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 250,
+        HLEN: 2,
+        HSCAN: [
+          Buffer.from("0"),
+          [
+            Buffer.from("name"),
+            Buffer.from("Alice"),
+            Buffer.from("avatar"),
+            Buffer.from([0xff, 0xfe, 0x00, 0x01]),
+          ],
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "user:1")
+
+      assert.strictEqual(result.name, "user:1")
+      assert.strictEqual(result.isBinary, true)
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, [
+        { key: "name", value: "Alice" },
+        { key: "avatar", value: "\\xff\\xfe\\x00\\x01", isValueBinary: true },
+      ])
+    })
   })
 
   describe("list keys", () => {
@@ -143,8 +171,25 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.collectionSize, 2)
       assert.ok(Array.isArray(result.elements))
       assert.deepStrictEqual(result.elements, ["item1", "item2"])
+      assert.strictEqual(result.isBinary, undefined)
     })
 
+    it("should display binary list elements escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "list",
+        TTL: 0,
+        MEMORY: 180,
+        LLEN: 2,
+        LRANGE: [Buffer.from("text-item"), Buffer.from([0x80, 0x01, 0xff])],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "binlist")
+
+      assert.strictEqual(result.name, "binlist")
+      assert.strictEqual(result.isBinary, true)
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, ["text-item", "\\x80\\x01\\xff"])
+    })
   })
 
   describe("zset keys", () => {
@@ -165,8 +210,31 @@ describe("getKeyInfo", () => {
       assert.ok(Array.isArray(result.elements))
       // RESP3 ZRANGE with WITHSCORES returns [{key: member, value: score}, ...]
       assert.deepStrictEqual(result.elements, [{ key: "member1", value: "1.5" }, { key: "member2", value: "2.5" }])
+      assert.strictEqual(result.isBinary, undefined)
     })
 
+    it("should display binary members in sorted set escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 220,
+        ZCARD: 2,
+        ZRANGE: [
+          { key: Buffer.from("normal"), value: Buffer.from("10") },
+          { key: Buffer.from([0xfe, 0xed]), value: Buffer.from("20") },
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "binzset")
+
+      assert.strictEqual(result.name, "binzset")
+      assert.strictEqual(result.isBinary, true)
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, [
+        { key: "normal", value: "10" },
+        { key: "\\xfe\\xed", value: "20" },
+      ])
+    })
   })
 
   describe("stream keys", () => {
@@ -188,13 +256,46 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.type, "stream")
       assert.strictEqual(result.collectionSize, 2)
       assert.ok(Array.isArray(result.elements))
-      // Stream entries are nested arrays: [[id, [field, value, ...]], ...]
-      const elements = result.elements as string[][]
+      // Stream entries are nested arrays: [{ key: id, value: [[field, value], ...] }]
+      const elements = result.elements as Array<{ key: string; value: [string, string][] }>
       assert.strictEqual(elements.length, 2)
-      assert.ok(Array.isArray(elements[0]))
-      assert.ok(Array.isArray(elements[1]))
+      assert.strictEqual(result.isBinary, undefined)
     })
 
+    it("should display binary stream fields and values escaped and mark isBinary", async () => {
+      const mockClient = createMockClient({
+        TYPE: "stream",
+        TTL: -1,
+        MEMORY: 320,
+        XLEN: 1,
+        XRANGE: [
+          [
+            Buffer.from("1000-0"),
+            [
+              Buffer.from("event"),
+              Buffer.from("click"),
+              Buffer.from("payload"),
+              Buffer.from([0x00, 0x01, 0xfe]),
+            ],
+          ],
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "binstream")
+
+      assert.strictEqual(result.name, "binstream")
+      assert.strictEqual(result.isBinary, true)
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, [
+        {
+          key: "1000-0",
+          value: [
+            ["event", "click"],
+            ["payload", "\\x00\\x01\\xfe"],
+          ],
+        },
+      ])
+    })
   })
 
   describe("json keys", () => {

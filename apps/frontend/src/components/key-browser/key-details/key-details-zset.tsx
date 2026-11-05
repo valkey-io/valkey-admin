@@ -20,6 +20,7 @@ interface KeyDetailsZSetProps {
     size: number;
     collectionSize?: number;
     elements: ZSetElement[];
+    isBinary?: boolean;
   };
   connectionId: string;
   readOnly: boolean;
@@ -52,8 +53,10 @@ export default function KeyDetailsZSet(
       .map((newScore, index) => ({
         member: selectedKeyInfo.elements[index].key,
         score: newScore,
+        isMemberBinary: /\\x[0-9a-fA-F]{2}/.test(selectedKeyInfo.elements[index].key),
       }))
-      .filter((update, index) => update.score !== selectedKeyInfo.elements[index].value)
+      .filter((update, index) => !update.isMemberBinary && update.score !== selectedKeyInfo.elements[index].value)
+      .map(({ member, score }) => ({ member, score }))
 
     dispatch(updateKeyRequested({
       connectionId: connectionId,
@@ -88,24 +91,34 @@ export default function KeyDetailsZSet(
             />
           </div>
         </div>
-        {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => (
-          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
-            <Typography variant="code">{element.key}</Typography>
-            <div className="col-span-3">
-              {isEditable ? (
-                <Input
-                  aria-label="Edit zset value"
-                  onChange={(e) => handleValueChange(index, e.target.value)}
-                  step="any"
-                  type="number"
-                  value={editedValues[index] !== undefined ? editedValues[index] : element.value}
-                />
-              ) : (
-                <Typography variant="code">{element.value}</Typography>
-              )}
+        {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => {
+          const isMemberBinary = /\\x[0-9a-fA-F]{2}/.test(element.key)
+          return (
+            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Typography className="truncate" variant="code">{element.key}</Typography>
+                {isMemberBinary && (
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded uppercase">binary</span>
+                )}
+              </div>
+              <div className="col-span-3">
+                {isEditable ? (
+                  <Input
+                    aria-label="Edit zset value"
+                    className={cn(isMemberBinary && "opacity-70 cursor-not-allowed bg-muted/40")}
+                    disabled={isMemberBinary}
+                    onChange={(e) => handleValueChange(index, e.target.value)}
+                    step="any"
+                    type="number"
+                    value={editedValues[index] !== undefined ? editedValues[index] : element.value}
+                  />
+                ) : (
+                  <Typography variant="code">{element.value}</Typography>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
