@@ -2,6 +2,8 @@ import { useState } from "react"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Typography } from "../../ui/typography"
+import { CustomTooltip } from "../../ui/tooltip"
+import { Badge } from "../../ui/badge"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -9,6 +11,8 @@ import { cn } from "@/lib/utils"
 interface ZSetElement {
   key: string;
   value: number;
+  isKeyBinary?: boolean;
+  isBinary?: boolean;
 }
 
 interface KeyDetailsZSetProps {
@@ -52,8 +56,10 @@ export default function KeyDetailsZSet(
       .map((newScore, index) => ({
         member: selectedKeyInfo.elements[index].key,
         score: newScore,
+        isBinary: selectedKeyInfo.elements[index].isKeyBinary || selectedKeyInfo.elements[index].isBinary,
       }))
-      .filter((update, index) => update.score !== selectedKeyInfo.elements[index].value)
+      .filter((update, index) => !update.isBinary && update.score !== selectedKeyInfo.elements[index].value)
+      .map(({ member, score }) => ({ member, score }))
 
     dispatch(updateKeyRequested({
       connectionId: connectionId,
@@ -88,24 +94,45 @@ export default function KeyDetailsZSet(
             />
           </div>
         </div>
-        {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => (
-          <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
-            <Typography variant="code">{element.key}</Typography>
-            <div className="col-span-3">
-              {isEditable ? (
-                <Input
-                  aria-label="Edit zset value"
-                  onChange={(e) => handleValueChange(index, e.target.value)}
-                  step="any"
-                  type="number"
-                  value={editedValues[index] !== undefined ? editedValues[index] : element.value}
-                />
-              ) : (
-                <Typography variant="code">{element.value}</Typography>
-              )}
+        {selectedKeyInfo.elements.map((element: ZSetElement, index: number) => {
+          const isBinary = element.isKeyBinary || element.isBinary
+          return (
+            <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <Typography className="truncate" variant="code">{element.key}</Typography>
+                {isBinary && (
+                  <CustomTooltip content="Binary member name">
+                    <Badge className="text-[10px] px-1 py-0" variant="secondary">binary</Badge>
+                  </CustomTooltip>
+                )}
+              </div>
+              <div className="col-span-3">
+                {isEditable ? (
+                  isBinary ? (
+                    <div className="flex items-center gap-2">
+                      <Typography className="whitespace-pre-wrap break-words text-muted-foreground" variant="code">
+                        {element.value}
+                      </Typography>
+                      <CustomTooltip content="Scores for binary members can't be edited">
+                        <Badge className="text-[10px] px-1 py-0" variant="secondary">binary</Badge>
+                      </CustomTooltip>
+                    </div>
+                  ) : (
+                    <Input
+                      aria-label="Edit zset value"
+                      onChange={(e) => handleValueChange(index, e.target.value)}
+                      step="any"
+                      type="number"
+                      value={editedValues[index] !== undefined ? editedValues[index] : element.value}
+                    />
+                  )
+                ) : (
+                  <Typography variant="code">{element.value}</Typography>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

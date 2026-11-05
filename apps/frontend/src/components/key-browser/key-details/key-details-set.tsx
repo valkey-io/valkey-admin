@@ -5,10 +5,13 @@ import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
+import { Badge } from "../../ui/badge"
 import { Typography } from "../../ui/typography"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
+
+type SetElement = string | { value: string; isBinary?: boolean }
 
 interface KeyDetailsSetProps {
   selectedKey: string;
@@ -18,7 +21,7 @@ interface KeyDetailsSetProps {
     ttl: number;
     size: number;
     collectionSize?: number;
-    elements: string[];
+    elements: SetElement[];
   };
   connectionId: string;
   readOnly: boolean;
@@ -39,6 +42,9 @@ export default function KeyDetailsSet(
   const [pendingDeleteValue, setPendingDeleteValue] = useState<string | null>(null)
   const [newItems, setNewItems] = useState<NewItem[]>([])
 
+  const getSetElementValue = (el: SetElement) => (typeof el === "string" ? el : el.value)
+  const isSetElementBinary = (el: SetElement) => (typeof el === "object" && !!el.isBinary)
+
   const handleEdit = () => {
     if (isEditable) {
       // Cancel edit
@@ -48,7 +54,7 @@ export default function KeyDetailsSet(
       setNewItems([])
     } else {
       // Start editing
-      setEditedSetValues([...selectedKeyInfo.elements])
+      setEditedSetValues(selectedKeyInfo.elements.map(getSetElementValue))
       setDeletedValues(new Set())
       setNewItems([])
       setIsEditable(true)
@@ -57,14 +63,18 @@ export default function KeyDetailsSet(
 
   const handleSave = () => {
     const setUpdates = editedSetValues
-      .map((newValue, index) => ({
-        oldValue: selectedKeyInfo.elements[index],
-        newValue,
-      }))
+      .map((newValue, index) => {
+        const raw = selectedKeyInfo.elements[index]
+        const oldValue = getSetElementValue(raw)
+        const isBinary = isSetElementBinary(raw)
+        return { oldValue, newValue, isBinary }
+      })
       .filter((update) =>
+        !update.isBinary &&
         !deletedValues.has(update.oldValue) &&
         update.oldValue !== update.newValue,
       )
+      .map(({ oldValue, newValue }) => ({ oldValue, newValue }))
 
     const deletedSetItems = Array.from(deletedValues)
 
@@ -143,40 +153,62 @@ export default function KeyDetailsSet(
           </div>
         </div>
         {selectedKeyInfo.elements
-          .map((element: string, index: number) => ({ element, index }))
+          .map((rawElement: SetElement, index: number) => {
+            const element = getSetElementValue(rawElement)
+            const isBinary = isSetElementBinary(rawElement)
+            return { element, isBinary, index }
+          })
           .filter(({ element }) => !deletedValues.has(element))
-          .map(({ element, index }) => (
+          .map(({ element, isBinary, index }) => (
             <div className={cn("grid grid-cols-4 gap-4 py-3 px-4 border-b border-border text-foreground")} key={index}>
               <Typography variant="bodySm">{index}</Typography>
               <div className="col-span-3">
                 {isEditable ? (
-                  <div className="flex gap-2 relative">
-                    <Input
-                      aria-label="Edit set value"
-                      onChange={(e) => handleSetFieldChange(index, e.target.value)}
-                      type="text"
-                      value={editedSetValues[index] || ""}
-                    />
-                    <CustomTooltip content="Delete element">
-                      <Button
-                        aria-label="Delete set element"
-                        onClick={() => handleDeleteElement(element)}
-                        variant={"destructiveGhost"}
-                      >
-                        <Trash/>
-                      </Button>
-                    </CustomTooltip>
-                    {pendingDeleteValue === element && (
-                      <DeleteModal
-                        itemName={element}
-                        message="You are deleting element:"
-                        onCancel={cancelDeleteElement}
-                        onConfirm={confirmDeleteElement}
+                  isBinary ? (
+                    <div className="flex items-center gap-2">
+                      <Typography className="whitespace-pre-wrap break-words text-muted-foreground" variant="code">
+                        {element}
+                      </Typography>
+                      <CustomTooltip content="Binary values can't be edited as text">
+                        <Badge className="text-[10px] px-1 py-0" variant="secondary">binary</Badge>
+                      </CustomTooltip>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 relative">
+                      <Input
+                        aria-label="Edit set value"
+                        onChange={(e) => handleSetFieldChange(index, e.target.value)}
+                        type="text"
+                        value={editedSetValues[index] || ""}
                       />
+                      <CustomTooltip content="Delete element">
+                        <Button
+                          aria-label="Delete set element"
+                          onClick={() => handleDeleteElement(element)}
+                          variant={"destructiveGhost"}
+                        >
+                          <Trash/>
+                        </Button>
+                      </CustomTooltip>
+                      {pendingDeleteValue === element && (
+                        <DeleteModal
+                          itemName={element}
+                          message="You are deleting element:"
+                          onCancel={cancelDeleteElement}
+                          onConfirm={confirmDeleteElement}
+                        />
+                      )}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Typography className="whitespace-pre-wrap break-words" variant="code">{element}</Typography>
+                    {isBinary && (
+                      <CustomTooltip content="Binary value">
+                        <Badge className="text-[10px] px-1 py-0" variant="secondary">binary</Badge>
+                      </CustomTooltip>
                     )}
                   </div>
-                ) : (
-                  <Typography variant="code">{String(element)}</Typography>
                 )}
               </div>
             </div>

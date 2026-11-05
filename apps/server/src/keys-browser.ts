@@ -31,14 +31,39 @@ interface EnrichedKeyInfo {
   isBinary?: boolean;
 }
 
+// Valkey strings are binary-safe, so a value may not be valid UTF-8. Strict decoding tells
+// text apart from binary: binary is escaped for display and flagged so edits can be blocked.
+const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
+
+function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
+  if (typeof raw === "string") return { value: raw, isBinary: false }
+  if (typeof raw === "number" || typeof raw === "bigint" || typeof raw === "boolean") {
+    return { value: String(raw), isBinary: false }
+  }
+  if (raw instanceof Error) throw raw
+  if (!Buffer.isBuffer(raw)) {
+    throw new TypeError(`Expected a string or Buffer reply, got ${typeof raw}`)
+  }
+  try {
+    return { value: utf8Decoder.decode(raw), isBinary: false }
+  } catch {
+    const escaped = raw.reduce((s, byte) =>
+      s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
+    )
+    return { value: escaped, isBinary: true }
+  }
+}
+
 async function getScanKeyInfo(
   client: GlideClient | GlideClusterClient,
   keyInfo: EnrichedKeyInfo,
   commands: { sizeCmd: string; elementsCmd: string[] },
 ): Promise<EnrichedKeyInfo> {
   try {
-    const results = new Set<string | { key: string; value: string }>()
     const isHash = keyInfo.type.toLowerCase() === "hash"
+    const results = isHash
+      ? new Set<{ key: string; value: string; isKeyBinary?: boolean; isValueBinary?: boolean; isBinary?: boolean }>()
+      : new Set<string | { value: string; isBinary?: boolean }>()
     let cursor = "0"
     
     // This Promise.all 1) gets the Key's collection size, and 2) fills the result set with the collection's values.
@@ -47,21 +72,32 @@ async function getScanKeyInfo(
       client.customCommand([commands.sizeCmd, keyInfo.name]),
       (async () => {
         do {
-          const [newCursor, elements] = await client.customCommand([...commands.elementsCmd, cursor]) as [string, GlideReturnType[]]
+          const [newCursor, elements] = await client.customCommand(
+            [...commands.elementsCmd, cursor],
+            { decoder: Decoder.Bytes },
+          ) as [GlideReturnType, GlideReturnType[]]
 
           if (isHash) {
             // Hash key types require constructing an object from a flat array.
             // i.e. converting [key1, value1...] to [{key: key1, value}]
-            for (let i = 0; i < elements.length; i += 2){
+            for (let i = 0; i < elements.length; i += 2) {
+              const field = decodeToStringValue(elements[i])
+              const val = decodeToStringValue(elements[i + 1])
               results.add({ 
-                key: elements[i] as string, 
-                value: elements[i + 1] as string,
+                key: field.value, 
+                value: val.value,
+                ...(field.isBinary ? { isKeyBinary: true } : {}),
+                ...(val.isBinary ? { isValueBinary: true } : {}),
+                ...(field.isBinary || val.isBinary ? { isBinary: true } : {}),
               })
             }
           } else {
-            elements.forEach((element) => results.add(element as string))
+            elements.forEach((element) => {
+              const decoded = decodeToStringValue(element)
+              results.add(decoded.isBinary ? { value: decoded.value, isBinary: true } : decoded.value)
+            })
           }
-          cursor = newCursor
+          cursor = typeof newCursor === "string" ? newCursor : decodeToStringValue(newCursor).value
         } while (cursor !== "0")
       })(),
     ])
@@ -87,19 +123,28 @@ async function getPaginatedListInfo(
 ): Promise<EnrichedKeyInfo> {
   try {
     const [firstPage, collectionSize] = await Promise.all([
-      client.customCommand([...commands.elementsCmd, "0", (VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString()]),
+      client.customCommand(
+        [...commands.elementsCmd, "0", (VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString()],
+        { decoder: Decoder.Bytes },
+      ),
       client.customCommand([commands.sizeCmd, keyInfo.name]),
-    ]) as [string[], number]
+    ]) as [GlideReturnType[], number]
 
-    const results: string[] = [...firstPage]
+    const decodeListElements = (rawElements: GlideReturnType[]) =>
+      rawElements.map((element) => {
+        const decoded = decodeToStringValue(element)
+        return decoded.isBinary ? { value: decoded.value, isBinary: true } : decoded.value
+      })
+
+    const results = decodeListElements(firstPage)
     let offset = results.length
 
     while (offset < collectionSize) {
       const elements = await client.customCommand([
         ...commands.elementsCmd, offset.toString(), (offset + VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString(),
-      ]) as string[]
+      ], { decoder: Decoder.Bytes }) as GlideReturnType[]
       if (!elements || elements.length === 0) break
-      results.push(...elements)
+      results.push(...decodeListElements(elements))
       offset += elements.length
     }
 
@@ -117,37 +162,89 @@ async function getPaginatedStreamInfo(
 ): Promise<EnrichedKeyInfo> {
   try {
     const [firstPage, collectionSize] = await Promise.all([
-      client.customCommand([...commands.elementsCmd, "-", "+", "COUNT", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString()]),
+      client.customCommand(
+        [...commands.elementsCmd, "-", "+", "COUNT", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString()],
+        { decoder: Decoder.Bytes },
+      ),
       client.customCommand([commands.sizeCmd, keyInfo.name]),
     ]) as [GlideReturnType[][], number]
 
     const results: GlideReturnType[][] = [...firstPage]
 
     if (firstPage.length === VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
-      const lastId = firstPage[firstPage.length - 1][0] as string
-      // The prefix makes the range exclusive, so the last entry isn't re-fetched on the next page
-      // See: https://valkey.io/commands/xrange/
+      const getEntryId = (entry: unknown): GlideReturnType => {
+        if (Array.isArray(entry)) return entry[0] as GlideReturnType
+        if (entry && typeof entry === "object" && "key" in entry) {
+          return (entry as { key: GlideReturnType }).key
+        }
+        return ""
+      }
+      const lastIdRaw = getEntryId(firstPage[firstPage.length - 1])
+      const lastId = typeof lastIdRaw === "string" ? lastIdRaw : decodeToStringValue(lastIdRaw).value
       let cursor = `(${lastId}`
 
       while (true) {
         const entries = await client.customCommand([
           ...commands.elementsCmd, cursor, "+", "COUNT", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
-        ]) as GlideReturnType[][]
+        ], { decoder: Decoder.Bytes }) as GlideReturnType[][]
         if (!entries || entries.length === 0) break
         results.push(...entries)
         if (entries.length < VALKEY_CLIENT.ELEMENT_PAGE_SIZE) break
-        cursor = `(${entries[entries.length - 1][0] as string}`
+        const idRaw = getEntryId(entries[entries.length - 1])
+        cursor = `(${typeof idRaw === "string" ? idRaw : decodeToStringValue(idRaw).value}`
       }
     }
 
-    return { ...keyInfo, collectionSize, elements: results }
+    const decodedResults = results.map((entry) => {
+      if (Array.isArray(entry)) {
+        const id = typeof entry[0] === "string" ? entry[0] : decodeToStringValue(entry[0] as GlideReturnType).value
+        const rawFields = entry[1]
+        if (Array.isArray(rawFields)) {
+          if (rawFields.length > 0 && Array.isArray(rawFields[0])) {
+            const decodedPairs = (rawFields as unknown[][]).map(([f, v]) => {
+              const decodedF = typeof f === "string" ? { value: f, isBinary: false } : decodeToStringValue(f as GlideReturnType)
+              const decodedV = typeof v === "string" ? { value: v, isBinary: false } : decodeToStringValue(v as GlideReturnType)
+              return {
+                field: decodedF.value,
+                value: decodedV.value,
+                ...(decodedF.isBinary ? { isFieldBinary: true } : {}),
+                ...(decodedV.isBinary ? { isValueBinary: true } : {}),
+                ...(decodedF.isBinary || decodedV.isBinary ? { isBinary: true } : {}),
+              }
+            })
+            return [id, decodedPairs]
+          } else {
+            type StreamFieldPair = { field: string; value: string; isFieldBinary?: boolean; isValueBinary?: boolean; isBinary?: boolean }
+            const decodedPairs: StreamFieldPair[] = []
+            for (let i = 0; i < rawFields.length; i += 2) {
+              const f = rawFields[i]
+              const v = rawFields[i + 1]
+              const decodedF = typeof f === "string" ? { value: f, isBinary: false } : decodeToStringValue(f)
+              const decodedV = typeof v === "string" ? { value: v, isBinary: false } : decodeToStringValue(v)
+              decodedPairs.push({
+                field: decodedF.value,
+                value: decodedV.value,
+                ...(decodedF.isBinary ? { isFieldBinary: true } : {}),
+                ...(decodedV.isBinary ? { isValueBinary: true } : {}),
+                ...(decodedF.isBinary || decodedV.isBinary ? { isBinary: true } : {}),
+              })
+            }
+            return [id, decodedPairs]
+          }
+        }
+        return [id, rawFields]
+      }
+      return entry
+    })
+
+    return { ...keyInfo, collectionSize, elements: decodedResults }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
     return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
   }
 }
 
-type ZSetMember = { key: string; value: string | number }
+type ZSetMember = { key: string; value: string | number; isKeyBinary?: boolean; isBinary?: boolean }
 
 async function getPaginatedZSetInfo(
   client: GlideClient | GlideClusterClient,
@@ -162,19 +259,41 @@ async function getPaginatedZSetInfo(
   try {
     // Grab the first page and the total member count at the same time.
     const [firstPage, collectionSize] = await Promise.all([
-      client.customCommand(buildZRangeByScoreArgs("-inf")),
+      client.customCommand(buildZRangeByScoreArgs("-inf"), { decoder: Decoder.Bytes }),
       client.customCommand([commands.sizeCmd, keyInfo.name]),
     ]) as [ZSetMember[], number]
 
-    const seen = new Set<string>() // member names we've already kept
+    const seen = new Set<string>() // member binary identities we've already kept
     const results: ZSetMember[] = []
+
+    const getMemberIdentity = (rawKey: unknown): string => {
+      if (Buffer.isBuffer(rawKey)) {
+        return "b:" + rawKey.toString("hex")
+      }
+      return "s:" + String(rawKey)
+    }
+
+    const decodeScore = (val: unknown): string | number => {
+      if (typeof val === "number" || typeof val === "string") return val
+      if (Buffer.isBuffer(val)) {
+        return decodeToStringValue(val).value
+      }
+      return String(val)
+    }
+
     // Adds only members we haven't seen yet; returns how many were new.
     const addMembers = (page: ZSetMember[]): number => {
       let added = 0
       for (const member of page) {
-        if (!seen.has(member.key)) {
-          seen.add(member.key)
-          results.push(member)
+        const identity = getMemberIdentity(member.key)
+        if (!seen.has(identity)) {
+          seen.add(identity)
+          const decoded = decodeToStringValue(member.key as unknown as GlideReturnType)
+          results.push({
+            key: decoded.value,
+            value: decodeScore(member.value),
+            ...(decoded.isBinary ? { isKeyBinary: true, isBinary: true } : {}),
+          })
           added++
         }
       }
@@ -186,22 +305,36 @@ async function getPaginatedZSetInfo(
     // members lexicographically with BYLEX, resuming just past the last one we kept.
     // BYLEX can't return scores (WITHSCORES is rejected), but every member in this
     // range shares `score`, so we re-attach it ourselves.
-    const drainTiedScore = async (score: string, lastScannedAtScoreKey: string, keptAtScore: number): Promise<void> => {
+    const drainTiedScore = async (score: string, lastScannedRawKey: unknown, keptAtScore: number): Promise<void> => {
       const tiedCount = await client.customCommand(["ZCOUNT", keyInfo.name, score, score]) as number
       let remaining = tiedCount - keptAtScore
-      let lexCursor = `(${lastScannedAtScoreKey}` // exclusive, so we don't re-read the last kept member
+      let rawLexCursor: GlideReturnType = Buffer.isBuffer(lastScannedRawKey)
+        ? Buffer.concat([Buffer.from("("), lastScannedRawKey])
+        : `(${String(lastScannedRawKey)}`
+
       while (remaining > 0) {
         const members = await client.customCommand([
-          ...commands.elementsCmd, lexCursor, "+", "BYLEX", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
-        ]) as string[]
+          ...commands.elementsCmd, rawLexCursor, "+", "BYLEX", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
+        ], { decoder: Decoder.Bytes }) as GlideReturnType[]
         if (!members || members.length === 0) break
-        for (const member of members) {
+        for (const rawMember of members) {
           if (remaining === 0) break // the page crossed into a higher score; stop before it
-          seen.add(member)
-          results.push({ key: member, value: score })
-          remaining--
+          const identity = getMemberIdentity(rawMember)
+          if (!seen.has(identity)) {
+            seen.add(identity)
+            const decoded = decodeToStringValue(rawMember)
+            results.push({
+              key: decoded.value,
+              value: decodeScore(score),
+              ...(decoded.isBinary ? { isKeyBinary: true, isBinary: true } : {}),
+            })
+            remaining--
+          }
         }
-        lexCursor = `(${members[members.length - 1]}`
+        const lastRaw = members[members.length - 1]
+        rawLexCursor = Buffer.isBuffer(lastRaw)
+          ? Buffer.concat([Buffer.from("("), lastRaw])
+          : `(${String(lastRaw)}`
       }
     }
 
@@ -212,16 +345,17 @@ async function getPaginatedZSetInfo(
     while (results.length < collectionSize && lastPage.length === VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
       // Next page starts at the last score we saw. Including that score (not skipping it)
       // means members tied on that score aren't lost — `seen` removes the repeats
-      const lastScore = String(lastPage[lastPage.length - 1].value)
-      const page = await client.customCommand(buildZRangeByScoreArgs(lastScore)) as ZSetMember[]
+      const lastScore = String(decodeScore(lastPage[lastPage.length - 1].value))
+      const page = await client.customCommand(buildZRangeByScoreArgs(lastScore), { decoder: Decoder.Bytes }) as ZSetMember[]
       if (!page || page.length === 0) break
 
       if (addMembers(page) === 0) {
         // A full page with no new members means this score is tied beyond the page size.
         // Drain the rest of it lexicographically with BYLEX, then resume past the score.
         const scannedAtScoreCount = results.reduce((n, m) => (String(m.value) === lastScore ? n + 1 : n), 0)
-        await drainTiedScore(lastScore, page[page.length - 1].key, scannedAtScoreCount)
-        const matchingLastScoreCount = await client.customCommand(buildZRangeByScoreArgs(`(${lastScore}`)) as ZSetMember[]
+        const lastKeyRaw = page[page.length - 1].key
+        await drainTiedScore(lastScore, lastKeyRaw, scannedAtScoreCount)
+        const matchingLastScoreCount = await client.customCommand(buildZRangeByScoreArgs(`(${lastScore}`), { decoder: Decoder.Bytes }) as ZSetMember[]
         if (!matchingLastScoreCount || matchingLastScoreCount.length === 0) break
         addMembers(matchingLastScoreCount)
         lastPage = matchingLastScoreCount
@@ -293,29 +427,6 @@ async function getPaginatedJsonInfo(
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
     return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
-  }
-}
-
-// Valkey strings are binary-safe, so a value may not be valid UTF-8. Strict decoding tells
-// text apart from binary: binary is escaped for display and flagged so edits can be blocked.
-const utf8Decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
-
-function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: boolean } {
-  if (typeof raw === "string") return { value: raw, isBinary: false }
-  if (typeof raw === "number" || typeof raw === "bigint" || typeof raw === "boolean") {
-    return { value: String(raw), isBinary: false }
-  }
-  if (raw instanceof Error) throw raw
-  if (!Buffer.isBuffer(raw)) {
-    throw new TypeError(`Expected a string or Buffer reply, got ${typeof raw}`)
-  }
-  try {
-    return { value: utf8Decoder.decode(raw), isBinary: false }
-  } catch {
-    const escaped = raw.reduce((s, byte) =>
-      s + (byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : "\\x" + byte.toString(16).padStart(2, "0")), "",
-    )
-    return { value: escaped, isBinary: true }
   }
 }
 
