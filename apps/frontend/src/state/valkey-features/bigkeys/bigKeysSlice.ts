@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit"
 import { type JSONObject } from "@common/src/json-utils"
 import { ERROR, FULFILLED, PENDING, VALKEY } from "@common/src/constants.ts"
 import { toNodeId } from "@common/src/connection-id.ts"
+import { getKeySlot } from "@common/src/cluster-slots.ts"
 import * as R from "ramda"
 import type { RootState } from "@/store.ts"
 
@@ -14,6 +15,7 @@ export interface BigKey {
   ttl: number
   freq: number | null
   nodeId?: string
+  slotId?: number
 }
 
 export const selectBigKeys = (targetId: string) => (state: RootState) =>
@@ -81,8 +83,12 @@ const bigKeysSlice = createSlice({
       const { keys, scanned, totalKeys, nodeId, scannedAt } = action.payload.parsedResponse
       const targetId = action.payload.clusterId ?? action.payload.nodeId
       const nodeErrors = action.payload.nodeErrors ?? []
+      const enrichedKeys = (keys ?? []).map((k: BigKey) => ({
+        ...k,
+        slotId: k.slotId ?? getKeySlot(k.key),
+      }))
       state[targetId] = {
-        keys,
+        keys: enrichedKeys,
         scanned,
         totalKeys,
         nodeId,
