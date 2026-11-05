@@ -80,7 +80,10 @@ const commandSlice = createSlice({
   name: VALKEY.COMMAND.name,
   initialState,
   reducers: {
-    sendRequested: (state: CommandState, { payload: { connectionId } }) =>
+    sendRequested: (
+      state: CommandState,
+      { payload: { connectionId } }: PayloadAction<{ command: string; connectionId: string; readOnly?: boolean }>,
+    ) =>
       R.assocPath(["connections", connectionId, "pending"], true, state),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore

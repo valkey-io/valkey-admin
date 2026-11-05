@@ -1,11 +1,11 @@
-import { CopyIcon, GitCompareIcon, RotateCwIcon, Search, Settings, SquareTerminal } from "lucide-react"
+import { CopyIcon, GitCompareIcon, RotateCwIcon, Search, Settings, Shield, ShieldCheck, SquareTerminal } from "lucide-react"
 import React, { useMemo, useRef, useState } from "react"
 import { useSelector } from "react-redux"
 import { useParams } from "react-router"
 import { toast } from "sonner"
 import { truncateText } from "@common/src/truncate-text"
 import { formatExecutionTime } from "@common/src/time-utils"
-import { findBlockedCommand, findConfirmCommand, parseCommandArgs } from "@common/src/command-restrictions"
+import { findBlockedCommand, findConfirmCommand, findReadOnlyBlockedCommand, parseCommandArgs } from "@common/src/command-restrictions"
 import type { JSONObject } from "@common/src/json-utils.ts"
 import { matchCommands, type MatchResult, type ValkeyCommand } from "@/components/send-command/valkey-command-matching"
 import { CommandAutocomplete } from "@/components/send-command/CommandAutocomplete"
@@ -40,6 +40,25 @@ export function SendCommand() {
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("valkey:send-command:readonly") === "true"
+    } catch {
+      return false
+    }
+  })
+
+  const toggleReadOnly = () => {
+    setIsReadOnly((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem("valkey:send-command:readonly", String(next))
+      } catch (e) {
+        console.error("Could not persist read-only mode preference:", e)
+      }
+      return next
+    })
+  }
 
   const normalisedHistoryFilter = historyFilter.toLowerCase()
   const suggestions: MatchResult[] = useMemo(
@@ -55,8 +74,8 @@ export function SendCommand() {
   const { error, response, durationMs } = useSelector(getNth(commandIndex, id as string)) as CommandMetadata
 
   const dispatchCommand = (command: string) => {
-    dispatch(sendRequested({ command, connectionId: id }))
-    setCommandIndex(length)
+    dispatch(sendRequested({ command, connectionId: id!, readOnly: isReadOnly }))
+    setCommandIndex(0)
     setText("")
     setSuggestionsDismissed(false)
   }
@@ -84,6 +103,14 @@ export function SendCommand() {
     if (blocked) {
       toast.error(`Command blocked: ${blocked.reason}`)
       return
+    }
+
+    if (isReadOnly) {
+      const readOnlyBlocked = findReadOnlyBlockedCommand(parsedArgs)
+      if (readOnlyBlocked) {
+        toast.error(`Read-only mode: ${readOnlyBlocked.reason}`)
+        return
+      }
     }
 
     const confirm = findConfirmCommand(parsedArgs)
@@ -150,6 +177,16 @@ export function SendCommand() {
               </>
             ) : (
               <>instance <span className="font-semibold text-primary">{truncateText(id!)}</span></>
+            )}
+            {isReadOnly && (
+              <span
+                className={cn(
+                  "ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
+                  "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30",
+                )}
+              >
+                <ShieldCheck size={12} /> Read-Only Mode
+              </span>
             )}
           </>
         }
@@ -339,11 +376,37 @@ export function SendCommand() {
               textareaRef.current?.select()
             }}
             onKeyDown={onKeyDown}
-            placeholder="Type your Valkey command here"
+            placeholder={isReadOnly ? "Type your read-only Valkey command here..." : "Type your Valkey command here"}
             ref={textareaRef}
             value={text}
           />
         </div>
+        <Tooltip delayDuration={500}>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label="Toggle Read-Only mode"
+              className={cn(
+                "flex items-center gap-1.5 transition-colors",
+                isReadOnly && "border-amber-500/60 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20",
+              )}
+              onClick={toggleReadOnly}
+              type="button"
+              variant={isReadOnly ? "secondary" : "outline"}
+            >
+              {isReadOnly ? (
+                <ShieldCheck className="size-4 text-amber-600 dark:text-amber-400" />
+              ) : (
+                <Shield className="size-4 opacity-70" />
+              )}
+              <span className="font-medium text-xs">Read-Only</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isReadOnly
+              ? "Read-Only mode is enabled. Mutation and write commands are blocked."
+              : "Enable Read-Only mode to safely prevent write and mutation commands."}
+          </TooltipContent>
+        </Tooltip>
         <Button
           disabled={text.trim().length === 0}
           onClick={() => onSubmit()}
