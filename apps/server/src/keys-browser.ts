@@ -11,13 +11,27 @@ import {
   GlideReturnType
 } from "@valkey/valkey-glide"
 import pLimit from "p-limit"
-import { VALKEY, VALKEY_CLIENT } from "valkey-common"
+import {
+  VALKEY,
+  VALKEY_CLIENT,
+  COMPRESSION_SIGNATURE_PROBE_BYTES,
+  detectCompressionCodec,
+  type CompressionCodec
+} from "valkey-common"
 import { formatBytes } from "valkey-common"
 import { buildScanCommandArgs } from "./valkey-client-commands"
 
 // Largest value the Key Browser renders before showing a size warning; override via env.
 const keyValueSizeLimitBytes =
   Number(process.env.KEY_VALUE_SIZE_LIMIT_BYTES) || VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT_BYTES
+
+// Decompression limits: the server enforces the raw fetch limit and passes the others to the browser, which decodes.
+const keyRawValueMaxBytes =
+  Number(process.env.KEY_RAW_VALUE_MAX_BYTES) || VALKEY_CLIENT.KEY_RAW_VALUE_MAX_BYTES
+const decompressMaxOutputBytes =
+  Number(process.env.DECOMPRESS_MAX_OUTPUT_BYTES) || VALKEY_CLIENT.DECOMPRESS_MAX_OUTPUT_BYTES
+const decompressPreviewMaxBytes =
+  Number(process.env.DECOMPRESS_PREVIEW_MAX_BYTES) || VALKEY_CLIENT.DECOMPRESS_PREVIEW_MAX_BYTES
 
 interface EnrichedKeyInfo {
   name: string;
@@ -29,6 +43,7 @@ interface EnrichedKeyInfo {
   elements?: any; // this can be array, object, or string depending on the key type.
   elementsWarning?: string; // alternative for elements when they cannot be displayed.
   isBinary?: boolean;
+  compressionHint?: CompressionCodec; // a guess from leading bytes; nothing is decoded on the server.
 }
 
 async function getScanKeyInfo(
@@ -319,6 +334,21 @@ function decodeToStringValue(raw: GlideReturnType): { value: string; isBinary: b
   }
 }
 
+/**
+ * Guesses the codec of a string value from its first bytes, without fetching the rest. The hint is optional,
+ * so any failure just leaves it out.
+ */
+async function probeCompressionHint(client: GlideClient | GlideClusterClient, key: string): Promise<CompressionCodec | undefined> {
+  try {
+    const head = await client.customCommand(
+      ["GETRANGE", key, "0", String(COMPRESSION_SIGNATURE_PROBE_BYTES - 1)], { decoder: Decoder.Bytes },
+    )
+    return Buffer.isBuffer(head) ? detectCompressionCodec(head) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function getFullKeyInfo(
   client: GlideClient | GlideClusterClient,
   keyInfo: EnrichedKeyInfo,
@@ -332,11 +362,13 @@ async function getFullKeyInfo(
     if (raw == null) return keyInfo
 
     const { value, isBinary } = decodeToStringValue(raw)
+    const compressionHint = Buffer.isBuffer(raw) ? detectCompressionCodec(raw) : undefined
     return {
       ...keyInfo,
       ...(commands.sizeCmd ? { collectionSize: collectionSize as number } : {}),
       elements: value,
       ...(isBinary ? { isBinary } : {}),
+      ...(compressionHint ? { compressionHint } : {}),
     }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
@@ -420,6 +452,10 @@ export async function getKeyInfo(
         keyInfo.collectionSize = await (client.customCommand([commands.sizeCmd, key])) as number
       }
       keyInfo.elementsWarning = `This key is ${formatBytes(memoryUsage)}, which is larger than the maximum display size of ${formatBytes(keyValueSizeLimitBytes)}.`
+      if (keyType.toLowerCase() === "string") {
+        const compressionHint = await probeCompressionHint(client, key)
+        if (compressionHint) keyInfo.compressionHint = compressionHint
+      }
 
       return keyInfo
     }
@@ -656,6 +692,85 @@ export async function getKeyInfoSingle(
           payload: {
             connectionId,
             errorMessage: "Error getting key info - Valkey instance could be down",
+            shouldRetry: true,
+          },
+        }),
+      )
+    }
+  }
+}
+
+type RawValueResult =
+  | { ok: true; bytes: Buffer }
+  | { ok: false; error: string }
+
+/**
+ * Fetches a string value's exact bytes. STRLEN is checked first, so a value over the limit is refused
+ * without being transferred from Valkey.
+ */
+async function fetchRawStringValue(client: GlideClient | GlideClusterClient, key: string): Promise<RawValueResult> {
+  const type = await client.customCommand(["TYPE", key]) as string
+  if (type === "none") return { ok: false, error: "The key no longer exists." }
+  if (type !== "string") return { ok: false, error: `Only string values can be decompressed; this key is a ${type}.` }
+
+  const tooLarge = (length: number): RawValueResult => ({
+    ok: false,
+    error: `This value is ${formatBytes(length)}, which is larger than the ${formatBytes(keyRawValueMaxBytes)} limit for decompression.`,
+  })
+  const length = await client.customCommand(["STRLEN", key]) as number
+  if (length > keyRawValueMaxBytes) return tooLarge(length)
+
+  const value = await client.customCommand(["GET", key], { decoder: Decoder.Bytes })
+  if (value === null) return { ok: false, error: "The key no longer exists." }
+  if (!Buffer.isBuffer(value)) return { ok: false, error: "The value could not be read as bytes." }
+  // The value may have grown between STRLEN and GET.
+  if (value.length > keyRawValueMaxBytes) return tooLarge(value.length)
+  return { ok: true, bytes: value }
+}
+
+/**
+ * Sends a string value's bytes as base64 for decompression in the browser, along with the decompression limits.
+ */
+export async function getKeyRawValue(
+  client: GlideClient | GlideClusterClient,
+  ws: WebSocket,
+  payload: { connectionId: string; key: string; requestId: string },
+) {
+  const { connectionId, key, requestId } = payload
+  try {
+    const result = await fetchRawStringValue(client, key)
+    ws.send(JSON.stringify(result.ok
+      ? {
+        type: VALKEY.KEY_DECOMPRESSION.rawValueFulfilled,
+        payload: {
+          connectionId,
+          key,
+          requestId,
+          base64: result.bytes.toString("base64"),
+          byteLength: result.bytes.length,
+          maxOutputBytes: decompressMaxOutputBytes,
+          previewMaxBytes: decompressPreviewMaxBytes,
+        },
+      }
+      : { type: VALKEY.KEY_DECOMPRESSION.rawValueFailed, payload: { connectionId, key, requestId, error: result.error } },
+    ))
+  } catch (err) {
+    console.error(`Could not read raw value for key ${key}:`, err)
+    ws.send(JSON.stringify({
+      type: VALKEY.KEY_DECOMPRESSION.rawValueFailed,
+      payload: { connectionId, key, requestId, error: err instanceof Error ? err.message : String(err) },
+    }))
+
+    // valkey connection issue
+    if (
+      err instanceof ConnectionError || err instanceof TimeoutError || err instanceof ClosingError
+    ) {
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.CONNECTION.connectRejected,
+          payload: {
+            connectionId,
+            errorMessage: "Error reading key value - Valkey instance could be down",
             shouldRetry: true,
           },
         }),

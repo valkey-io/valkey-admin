@@ -63,6 +63,11 @@ export const VALKEY = {
     updateKeyFulfilled: "updateKeyFulfilled",
     updateKeyFailed: "updateKeyFailed",
   } as const),
+  KEY_DECOMPRESSION: makeNamespace("keyDecompression", {
+    rawValueRequested: "rawValueRequested",
+    rawValueFulfilled: "rawValueFulfilled",
+    rawValueFailed: "rawValueFailed",
+  } as const),
   CLUSTER: makeNamespace( "valkeyCluster", {
     addCluster: "addCluster",
     updateClusterInfo: "updateClusterInfo",
@@ -193,6 +198,12 @@ export const VALKEY_CLIENT = {
   // chunk size for paginating elements to avoid blocking due to keys with too many elements
   ELEMENT_PAGE_SIZE: 50, 
   KEY_VALUE_SIZE_LIMIT_BYTES: 2048, // 2KiB
+  // largest string value the server will send raw for decompression; checked with STRLEN before GET
+  KEY_RAW_VALUE_MAX_BYTES: 16 * 1024 * 1024, // 16MiB
+  // decompression stops at this much output; the user can continue past it
+  DECOMPRESS_MAX_OUTPUT_BYTES: 10 * 1024 * 1024, // 10MiB
+  // most decompressed output the JSON or text view renders
+  DECOMPRESS_PREVIEW_MAX_BYTES: 1024 * 1024, // 1MiB
   // max keys per pipeline batch to avoid overwhelming the server
   PIPELINE_CHUNK_SIZE: 500,
   MESSAGES: {

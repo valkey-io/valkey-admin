@@ -1,5 +1,6 @@
 export * from "./bytes-conversion"
 export * from "./command-restrictions"
+export * from "./compression"
 export * from "./cache-hit-ratio"
 export * from "./node-results"
 export * from "./connection-id"

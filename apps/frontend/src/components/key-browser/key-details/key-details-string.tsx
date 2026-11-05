@@ -2,6 +2,9 @@ import { useState } from "react"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import { Textarea } from "../../ui/textarea"
 import { Typography } from "../../ui/typography"
+import KeyDecompression from "./key-decompression"
+import { CompressionHintBadge } from "./compression-hint-badge"
+import type { CompressionCodec } from "@common/src/compression"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -15,6 +18,7 @@ interface KeyDetailsStringProps {
     size: number;
     elements: string;
     isBinary?: boolean;
+    compressionHint?: CompressionCodec;
   };
   connectionId: string;
   readOnly: boolean;
@@ -50,45 +54,52 @@ export default function KeyDetailsString(
     setEditedValue("")
   }
   return (
-    <div className="flex items-center justify-center w-full p-4">
-      <table className="table-auto w-full overflow-hidden">
-        <thead className={cn("bg-muted/60 text-foreground")}>
-          <tr>
-            <th className="w-full py-3 px-4 text-left">
-              <Typography variant="label">Value</Typography>
-            </th>
-            <th className="">
-              <EditActionButtons
-                disabled={selectedKeyInfo.isBinary}
-                disabledTooltip="Binary values can't be edited as text"
-                isEditable={isEditable}
-                onEdit={handleEdit}
-                onSave={handleSave}
-                readOnly={readOnly}
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
-              {isEditable ? (
-                <Textarea
-                  aria-label="Edit string value"
-                  autoFocus
-                  className="min-h-[100px]"
-                  onChange={(e) => setEditedValue(e.target.value)}
-                  value={editedValue}
+    <div className="flex flex-col w-full">
+      <div className="flex items-center justify-center w-full p-4">
+        <table className="table-auto w-full overflow-hidden">
+          <thead className={cn("bg-muted/60 text-foreground")}>
+            <tr>
+              <th className="w-full py-3 px-4 text-left">
+                <span className="flex items-center gap-2">
+                  <Typography variant="label">Value</Typography>
+                  <CompressionHintBadge codec={selectedKeyInfo.compressionHint} />
+                </span>
+              </th>
+              <th className="">
+                <EditActionButtons
+                  disabled={selectedKeyInfo.isBinary}
+                  disabledTooltip="Binary values can't be edited as text"
+                  isEditable={isEditable}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  readOnly={readOnly}
                 />
-              ) : (
-                <Typography className="whitespace-pre-wrap break-words" variant="code">
-                  {selectedKeyInfo.elements}
-                </Typography>
-              )}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={cn("py-3 px-4 text-foreground")} colSpan={2}>
+                {isEditable ? (
+                  <Textarea
+                    aria-label="Edit string value"
+                    autoFocus
+                    className="min-h-[100px]"
+                    onChange={(e) => setEditedValue(e.target.value)}
+                    value={editedValue}
+                  />
+                ) : (
+                  <Typography className="whitespace-pre-wrap wrap-anywhere" variant="code">
+                    {selectedKeyInfo.elements}
+                  </Typography>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {/* Keyed so the chosen format resets when another key is shown in this view. */}
+      <KeyDecompression connectionId={connectionId} key={selectedKey} keyName={selectedKey} />
     </div>
   )
 }

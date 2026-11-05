@@ -29,7 +29,9 @@ This is the variable to set when you want to prevent users from accidentally fan
 
 ## Code-Level Tunables
 
-Everything below is a plain code constant. There is no environment variable for any of them — to change them, edit `common/src/constants.ts` and rebuild. They are documented here because this is the canonical place to tune these behaviors, and because their defaults are easy to forget.
+Everything below is a code constant in `common/src/constants.ts`; to change one, edit it there and rebuild. They are documented here because this is the canonical place to tune these behaviors, and because their defaults are easy to forget.
+
+The exceptions are the Key Browser limits `KEY_VALUE_SIZE_LIMIT_BYTES`, `KEY_RAW_VALUE_MAX_BYTES`, `DECOMPRESS_MAX_OUTPUT_BYTES` and `DECOMPRESS_PREVIEW_MAX_BYTES`: the server also reads an environment variable of the same name, which overrides the constant without a rebuild (see [Server Configuration](/configuration/server/)).
 
 ### `FETCH_TIMEOUT_MS`
 
@@ -60,11 +62,17 @@ Defaults used when the key browser issues `SCAN` against a Valkey instance. They
 
 Tune `defaultCount` if you find the key browser is making too many round-trips on large keyspaces.
 
-### `VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT`
+### `VALKEY_CLIENT.KEY_VALUE_SIZE_LIMIT_BYTES`
 
-Maximum key value size, in bytes, that the UI will render inline. Values larger than this are replaced with the placeholder defined in `VALKEY_CLIENT.MESSAGES.NOT_READABLE` ("Not human readable.") to avoid rendering huge blobs in the browser.
+Maximum key size, in bytes, that the UI will render inline. It is compared with the key's `MEMORY USAGE`, which includes Valkey's per-key overhead. Larger keys show a size warning instead of their contents, to avoid rendering huge blobs in the browser. Override it with the `KEY_VALUE_SIZE_LIMIT_BYTES` environment variable.
 
 - **Default:** `2048` (2 KiB)
+
+### `VALKEY_CLIENT.KEY_RAW_VALUE_MAX_BYTES`, `DECOMPRESS_MAX_OUTPUT_BYTES`, `DECOMPRESS_PREVIEW_MAX_BYTES`
+
+Limits for [decompressing values](/features/key-browser/#decompressing-values) in the Key Browser: the largest value sent to the browser, the output after which decoding stops, and the largest part of the output rendered. Each can be overridden with the environment variable of the same name.
+
+- **Defaults:** 16 MiB, 10 MiB and 1 MiB
 
 ### `METRICS_EVICTION_POLICY.INTERVAL`
 
