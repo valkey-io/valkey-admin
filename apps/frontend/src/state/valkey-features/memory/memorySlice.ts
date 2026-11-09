@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit"
+import { createSlice, type PayloadAction, nanoid } from "@reduxjs/toolkit"
 import { type JSONObject } from "@common/src/json-utils"
 import { VALKEY } from "@common/src/constants.ts"
 import * as R from "ramda"
@@ -31,32 +31,65 @@ interface MemoryState {
     data: MemoryData | null
     error?: JSONObject | null
     loading?: boolean
+    lastRequestId?: string
   }
 }
 
 const initialMemoryState: MemoryState = {}
 
+interface MemoryUsageRequestedPayload {
+  connectionId: string
+  clusterId?: string
+  timeRange?: number
+  requestId: string
+}
+
+interface MemoryUsageFulfilledPayload {
+  connectionId: string
+  parsedResponse: unknown
+  requestId?: string
+}
+
+interface MemoryUsageErrorPayload {
+  connectionId: string
+  error: JSONObject
+  requestId?: string
+}
+
 const memorySlice = createSlice({
   name: "memory",
   initialState: initialMemoryState,
   reducers: {
-    memoryUsageRequested: (state, action) => {
-      const { connectionId } = action.payload
+    memoryUsageRequested: {
+      reducer: (state, action: PayloadAction<MemoryUsageRequestedPayload>) => {
+        const { connectionId, requestId } = action.payload
+        if (!state[connectionId]) {
+          state[connectionId] = {
+            data: null,
+            loading: false,
+          }
+        }
+        state[connectionId].loading = true
+        state[connectionId].lastRequestId = requestId
+      },
+      prepare: (payload: { connectionId: string; clusterId?: string; timeRange?: number; requestId?: string }) => ({
+        payload: {
+          ...payload,
+          requestId: payload.requestId ?? nanoid(),
+        },
+      }),
+    },
+    memoryUsageFulfilled: (state, action: PayloadAction<MemoryUsageFulfilledPayload>) => {
+      const { connectionId, parsedResponse, requestId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
           data: null,
           loading: false,
         }
       }
-      state[connectionId].loading = true
-    },
-    memoryUsageFulfilled: (state, action) => {
-      const { connectionId, parsedResponse } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = {
-          data: null,
-          loading: false,
-        }
+      // If a requestId is provided and does not match the latest request, ignore it to prevent race conditions (#590)
+      if (requestId && state[connectionId].lastRequestId && requestId !== state[connectionId].lastRequestId) {
+        return
       }
       // validating that parsedResponse is an object (not an array, not null)
       if (parsedResponse && typeof parsedResponse === "object" && !Array.isArray(parsedResponse)) {
@@ -68,9 +101,12 @@ const memorySlice = createSlice({
       }
       state[connectionId].loading = false
     },
-    memoryUsageError: (state, action) => {
-      const { connectionId, error } = action.payload
+    memoryUsageError: (state, action: PayloadAction<MemoryUsageErrorPayload>) => {
+      const { connectionId, error, requestId } = action.payload
       if (state[connectionId]) {
+        if (requestId && state[connectionId].lastRequestId && requestId !== state[connectionId].lastRequestId) {
+          return
+        }
         state[connectionId].error = error
         state[connectionId].loading = false
       }
