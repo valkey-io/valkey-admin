@@ -607,12 +607,12 @@ export const getCpuUsageEpic = () =>
     select(cpuUsageRequested),
     tap((action) => {
       try {
-        const { timeRange, connectionId, clusterId } = action.payload
+        const { timeRange, connectionId, clusterId, requestId } = action.payload
         const socket = getSocket()
 
         socket.next({
           type: action.type,
-          payload: { connectionId, clusterId, timeRange },
+          payload: { connectionId, clusterId, timeRange, requestId },
         })
       } catch (error) {
         console.error("[getCpuUsageEpic] Error sending action:", error)
@@ -626,12 +626,12 @@ export const getMemoryUsageEpic = () =>
     select(memoryUsageRequested),
     tap((action) => {
       try {
-        const { timeRange, connectionId, clusterId } = action.payload
+        const { timeRange, connectionId, clusterId, requestId } = action.payload
         const socket = getSocket()
 
         socket.next({
           type: action.type,
-          payload: { connectionId, timeRange, clusterId },
+          payload: { connectionId, timeRange, clusterId, requestId },
         })
       } catch (error) {
         console.error("[getMemoryUsageEpic] Error sending action:", error)
