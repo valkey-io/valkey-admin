@@ -114,6 +114,28 @@ services:
 
 See the [Metrics Configuration](/configuration/metrics/) page for available options.
 
+## AI Assistants (MCP)
+
+To let AI assistants read your Valkey deployments, enable the read-only MCP server. It is served under `/mcp/<target>` on port `8080`:
+
+```yaml
+services:
+  valkey-admin:
+    image: valkey/valkey-admin:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DEPLOYMENT_MODE: Web
+      VALKEY_ADMIN_MCP_ENABLED: "true"
+      VALKEY_ADMIN_MCP_TOKEN: ${VALKEY_ADMIN_MCP_TOKEN}
+      VALKEY_ADMIN_MCP_TARGETS: prod=valkey-prod:6379
+      VALKEY_ADMIN_MCP_USERNAME: mcp_readonly
+      VALKEY_ADMIN_MCP_PASSWORD: ${VALKEY_ADMIN_MCP_PASSWORD}
+    restart: unless-stopped
+```
+
+Target hosts are resolved inside the container: use `host.docker.internal` for Valkey on your machine. See [AI Assistants (MCP)](/features/mcp/) to connect an assistant.
+
 ## Resource Sizing
 
 In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node for each Valkey identity connected to it. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
