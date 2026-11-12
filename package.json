@@ -12,7 +12,8 @@
     "common",
     "apps/frontend",
     "apps/server",
-    "apps/metrics"
+    "apps/metrics",
+    "apps/mcp"
   ],
   "main": "apps/frontend/electron.main.js",
   "devDependencies": {
@@ -35,7 +36,8 @@
     "vitest": "^4.0.15"
   },
   "scripts": {
-    "dev": "export DEPLOYMENT_MODE=Web VALKEY_ADMIN_ALLOWED_WS_ORIGINS=http://localhost:5173 VITE_VALKEY_ADMIN_WS_URL=ws://localhost:8080 && npm run build:common && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\"",
+    "dev": "export DEPLOYMENT_MODE=Web VALKEY_ADMIN_ALLOWED_WS_ORIGINS=http://localhost:5173,valkey-admin-mcp://localhost VITE_VALKEY_ADMIN_WS_URL=ws://localhost:8080 && npm run build:common && npm run build:metrics && npm run build:frontend && concurrently \"npm --workspace apps/frontend run dev\" \"npm --workspace apps/server run dev\" \"npm --workspace apps/mcp run dev\"",
+    "build:mcp": "npm --workspace apps/mcp run build",
     "build:server": "npm --workspace apps/server run build",
     "build:vite:server": "npm --workspace apps/server run build:vite",
     "build:frontend": "npm --workspace apps/frontend run build",

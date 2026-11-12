@@ -37,10 +37,13 @@ COPY apps/server/package.json ./apps/server/package.json
 # Copy the common workspace package.json
 COPY common/package.json ./common/package.json
 
+# Copy the MCP workspace package.json
+COPY apps/mcp/package.json ./apps/mcp/package.json
+
 # Copy metrics config file
 COPY apps/metrics/config.yml ./apps/metrics/config.yml
 
-# Install only production deps for server workspace
+# Install only production deps for server and MCP workspaces
 RUN npm ci --omit=dev
 
 # Copy built common
@@ -54,6 +57,9 @@ COPY --from=builder /app/apps/frontend/dist ./apps/frontend/dist
 
 # Copy built metrics
 COPY --from=builder /app/apps/metrics/dist ./apps/metrics/dist
+
+# Copy built MCP server
+COPY --from=builder /app/apps/mcp/dist ./apps/mcp/dist
 
 # Expose backend port
 EXPOSE 8080
