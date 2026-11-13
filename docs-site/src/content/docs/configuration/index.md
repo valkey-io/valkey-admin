@@ -18,6 +18,7 @@ This section documents every knob the application actually reads, what it does, 
 | `apps/server` | Express + WebSocket server, metrics orchestrator | [Server](/configuration/server/) |
 | `apps/metrics` | Per-node metrics collector that registers with the server | [Metrics](/configuration/metrics/) |
 | `apps/frontend` | React/Vite client (browser or Electron) | [Frontend](/configuration/frontend/) |
+| `apps/mcp` | Optional read-only MCP server for AI assistants, started by the server in Web mode | [MCP Server](/configuration/server/#mcp-server) |
 | `common` | Shared constants compiled into both server and frontend | [Shared constants](/configuration/shared/) |
 
 ## Where Configuration Comes From

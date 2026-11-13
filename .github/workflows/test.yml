@@ -31,3 +31,5 @@ jobs:
       run: npm test --workspace=apps/frontend
     - name: Test Metrics
       run: npm test --workspace=apps/metrics
+    - name: Test MCP
+      run: npm test --workspace=apps/mcp
