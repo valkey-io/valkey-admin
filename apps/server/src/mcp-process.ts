@@ -1,6 +1,6 @@
 // Runs the MCP server as a child process of the Valkey Admin server in Web mode.
-// Gives it an internal websocket token, requires a token and targets when not bound
-// to loopback, and proxies /mcp requests to it on localhost.
+// Gives it an internal WebSocket token, requires VALKEY_ADMIN_MCP_TOKEN and
+// VALKEY_ADMIN_MCP_TARGETS when not bound to loopback, and proxies /mcp to it.
 import { type ChildProcess, spawn } from "child_process"
 import { randomBytes } from "crypto"
 import http from "http"

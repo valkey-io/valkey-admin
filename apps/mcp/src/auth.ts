@@ -1,5 +1,5 @@
-// Bearer token check for MCP requests. Compares SHA-256 digests in constant time
-// and answers 401 when the Authorization header does not carry the expected token.
+// Bearer token check for MCP requests. Hashes both tokens so timingSafeEqual
+// can compare them at equal length, and answers 401 on a mismatch.
 import { createHash, timingSafeEqual } from "node:crypto"
 import type { IncomingMessage, ServerResponse } from "node:http"
 

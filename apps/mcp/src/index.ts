@@ -28,7 +28,7 @@ const main = () => {
   const clients = new Map<string, AdminClient>()
   const onerror = (error: Error) => console.error(error.message)
 
-  // Reuses one admin client per distinct connection, so calls for the same Valkey deployment share a websocket.
+  // Reuses one admin client per distinct connection, so calls for the same Valkey deployment share a WebSocket.
   const adminClientFor = (connection: ConnectionConfig) => {
     const key = createHash("sha256").update(JSON.stringify(connection)).digest("hex")
     let client = clients.get(key)

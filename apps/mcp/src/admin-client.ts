@@ -1,6 +1,5 @@
-// Websocket client for the Valkey Admin server. It connects to Valkey the same
-// way the UI does, then sends read-only requests and waits for their replies.
-// The MCP server never talks to Valkey directly.
+// WebSocket client for the Valkey Admin server. Asks the server to connect to
+// Valkey, as the UI does, then sends read-only requests and awaits the replies.
 import WebSocket from "ws"
 import { VALKEY, buildConnectionId, toNodeId } from "valkey-common"
 import type { AdminEndpoint, ConnectionConfig } from "./config"
@@ -43,7 +42,7 @@ const CONNECT_REPLIES = [
   VALKEY.CONNECTION.connectRejected,
 ]
 
-// Parses a websocket message, or returns undefined if it is not JSON.
+// Parses a WebSocket message, or returns undefined if it is not JSON.
 const parseAction = (data: WebSocket.RawData): AdminAction | undefined => {
   try {
     return JSON.parse(data.toString()) as AdminAction
@@ -52,14 +51,14 @@ const parseAction = (data: WebSocket.RawData): AdminAction | undefined => {
   }
 }
 
-// Creates a client for one Valkey connection. The websocket and the Valkey
+// Creates a client for one Valkey connection. The WebSocket and the Valkey
 // connection open on the first call and reopen on the next call after a drop.
 export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint): AdminClient => {
   const connectionId = buildConnectionId(valkey.host, valkey.port)
   const nodeId = toNodeId(connectionId)
   let session: Promise<Session> | undefined
 
-  // Opens the websocket with the MCP origin and, when the server started this process, its token.
+  // Opens the WebSocket with the MCP origin and, when the server started this process, its token.
   const open = () =>
     new Promise<WebSocket>((resolve, reject) => {
       const url = new URL(admin.url)
@@ -81,7 +80,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
     (clusterId !== undefined && payload?.clusterId === clusterId)
 
   // Sends an action and resolves with the first reply of a listed type for this connection.
-  // Rejects if the websocket closes or no reply arrives within REPLY_TIMEOUT_MS.
+  // Rejects if the WebSocket closes or no reply arrives within REPLY_TIMEOUT_MS.
   const send = (ws: WebSocket, action: AdminAction, replyTypes: string[], details: ConnectionDetails = {}) =>
     new Promise<AdminAction>((resolve, reject) => {
       const onMessage = (data: WebSocket.RawData) => {
@@ -109,7 +108,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       ws.send(JSON.stringify(action))
     })
 
-  // Opens a websocket and asks the server to connect to Valkey, as the UI's connect form does.
+  // Opens a WebSocket and asks the server to connect to Valkey, as the UI's connect form does.
   // Keeps the connection details from the reply, such as the cluster ID.
   const connect = async (): Promise<Session> => {
     const ws = await open()

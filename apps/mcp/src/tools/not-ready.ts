@@ -10,7 +10,8 @@ export const METRICS_NOT_STARTED = "Metrics server not started"
 // Thrown when the collector is not running yet, so the call can be retried.
 export class NotReadyError extends Error {}
 
-// Runs load, retrying once a second while it throws NotReadyError, up to NOT_READY_RETRIES attempts. Other errors are thrown at once.
+// Runs load, retrying once a second while it throws NotReadyError, up to
+// NOT_READY_RETRIES attempts. Other errors are thrown at once.
 export const retryWhileNotReady = async <T>(load: () => Promise<T>): Promise<T> => {
   for (let attempt = 1; ; attempt++) {
     try {

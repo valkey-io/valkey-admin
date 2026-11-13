@@ -30,8 +30,8 @@ const outputSchema = z.object({
 })
 
 // Requests big keys, passing the cluster ID so the server queries every node.
-// Throws NotReadyError while collectors are starting, including when every
-// node reports that as a node error.
+// Throws NotReadyError while collectors are starting, either as the whole
+// reply's error or when every node fails with that error.
 const fetchBigKeys = async (admin: AdminClient, { topN, scanLimit }: z.infer<typeof inputSchema>) => {
   const details = await admin.details()
   const reply = await admin.request(

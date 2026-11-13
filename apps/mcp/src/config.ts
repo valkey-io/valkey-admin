@@ -102,8 +102,8 @@ export const connectionForRequest = (config: Config, pathname: string, headers: 
 }
 
 // Picks the Valkey connection for a request. With no X-Valkey-* headers it
-// returns the fallback from the environment. With any of them, the headers
-// replace the fallback completely and unset headers use the schema defaults.
+// returns the fallback from the environment. With any, the headers replace it
+// entirely, and missing ones default to localhost:6379 without TLS.
 export const connectionFromHeaders = (headers: Headers | undefined, fallback: ConnectionConfig): ConnectionConfig => {
   const valkeyHeaders = Object.fromEntries(
     [...(headers?.entries() ?? [])].filter(([name]) => name.startsWith(HEADER_PREFIX)),

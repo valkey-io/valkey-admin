@@ -1,5 +1,5 @@
 // Named targets: parses VALKEY_ADMIN_MCP_TARGETS (name=host:port or name=valkeys://host:port)
-// into connections, and reads the target name from an /mcp/<target> request path.
+// into connections that share the MCP credentials, and reads <target> from /mcp/<target>.
 import type { ConnectionConfig } from "./config"
 
 const DEFAULT_PORT = 6379
