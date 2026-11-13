@@ -19,6 +19,8 @@ import { buildPingRequest, buildRegisterRequest, readOrchestratorKey } from "./u
 import { setupNdjsonCleaner, stopNdjsonCleaner } from "./effects/ndjson-cleaner.js"
 import { createValkeyClient } from "./valkey-client.js"
 import { scanBigKeys } from "./analyzers/scan-big-keys.js"
+import { maybeStartOtel } from "./otel/exporter.js"
+import { createLogger } from "./utils/logger.js"
 
 async function main() {
   const cfg = getConfig()
@@ -47,7 +49,8 @@ async function main() {
   }
 
   await setupNdjsonCleaner(cfg)
-  await setupCollectors(client, cfg)
+  const otel = maybeStartOtel({ cfg, env: process.env, nodeId: ownNodeId, log: createLogger("otel") })
+  await setupCollectors(client, cfg, { onInfo: otel?.onInfo })
 
   const app = express()
   app.use(express.json())
@@ -260,6 +263,7 @@ async function main() {
     try {
       await stopNdjsonCleaner()
       await stopCollectors()
+      await otel?.shutdown()
       unregisterGcpTokenRefresh(client)
       if (client) {
         client.close()
