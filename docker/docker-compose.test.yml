@@ -311,6 +311,18 @@ services:
         node populate.mjs
       "
 
+  # ---------------- OpenTelemetry Collector ----------------
+  # Receives the OTLP export of the metrics collectors that the app spawns and
+  # exposes it to Prometheus on :8889. Read by otel-export.integration.test.ts.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.137.0
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    volumes:
+      - ../examples/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports: ["8889:8889"]
+    networks:
+      - appnet
+
   # ---------------- App (frontend + backend) ----------------
   valkey-admin:
     build:
@@ -325,6 +337,10 @@ services:
       VALKEY_PASSWORD: admin
       VALKEY_TLS: "false"
       VALKEY_VERIFY_CERT: "false"
+      # Spawned metrics collectors inherit these and push OTLP to otel-collector.
+      METRICS_OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=integration
     # Lets the server reach a listener on the host, which the fake-cluster
     # integration test starts. Works on Docker (Linux and Desktop) and Podman.
     extra_hosts:
@@ -343,4 +359,5 @@ services:
       - valkey-standalone
       - cluster-init
       - populate
+      - otel-collector
       
