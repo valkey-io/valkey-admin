@@ -14,13 +14,13 @@
     "@modelcontextprotocol/node": "^2.1.2",
     "@modelcontextprotocol/server": "^2.4.0",
     "valkey-common": "*",
-    "ws": "^8.22.0",
-    "zod": "^4.6.7"
+    "ws": "^8.18.3",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@types/node": "^24.19.2",
-    "@types/ws": "^8.18.2",
-    "tsup": "^9.0.0",
-    "typescript": "^7.0.2"
+    "@types/node": "^24.2.1",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
   }
 }
