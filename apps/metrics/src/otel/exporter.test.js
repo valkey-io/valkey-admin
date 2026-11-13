@@ -487,5 +487,15 @@ describe("otel exporter", () => {
       diag.verbose("details")
       expect(lines.debug).toEqual(["details"])
     })
+
+    it("logs the message of an SDK export error, not the stack trace", () => {
+      const { log, lines } = makeLog()
+      const diag = makeDiagLogger(log, { now: () => 0 })
+      // @opentelemetry/core loggingErrorHandler passes JSON.stringify of the flattened error.
+      const error = new Error("PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Unauthorized)")
+      diag.error(JSON.stringify({ stack: error.stack, message: error.message, name: error.name }))
+      diag.error(JSON.stringify({ stack: error.stack }))
+      expect(lines.error).toEqual(["PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Unauthorized)"])
+    })
   })
 })

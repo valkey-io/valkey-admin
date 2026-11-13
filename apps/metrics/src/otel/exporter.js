@@ -62,9 +62,28 @@ export const buildResource = ({ env, nodeId }) => {
   return detectResources({ detectors: [envDetector] }).merge(resourceFromAttributes(own))
 }
 
+const describeObject = (arg) => {
+  if (typeof arg.message === "string") return arg.message
+  if (typeof arg.stack === "string") return arg.stack.replace(/^Error: /, "")
+  return JSON.stringify(arg)
+}
+
+// The SDK's error handler logs a failed export as JSON of the flattened error
+// ({ stack, message, ... }). Show its message, not the JSON.
+const describeString = (text) => {
+  if (!text.startsWith("{")) return text
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === "object" ? describeObject(parsed) : text
+  } catch {
+    return text
+  }
+}
+
 const describe = (arg) => {
   if (arg instanceof Error) return arg.message
-  if (arg && typeof arg === "object") return arg.message ?? JSON.stringify(arg)
+  if (typeof arg === "string") return describeString(arg)
+  if (arg && typeof arg === "object") return describeObject(arg)
   return String(arg)
 }
 // SDK errors can carry a stack trace. One line per error is enough in the log.
