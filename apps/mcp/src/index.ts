@@ -2,7 +2,6 @@
 // /mcp/<target> when targets are configured and at /mcp otherwise. Refuses
 // requests whose Origin is not local, and registers the tools. Callers must send
 // the bearer token when one is configured; otherwise the Host must be local.
-import { createHash } from "node:crypto"
 import { createServer } from "node:http"
 import { localhostHostValidation, localhostOriginValidation, toNodeHandler } from "@modelcontextprotocol/node"
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server"
@@ -30,7 +29,7 @@ const main = () => {
 
   // Reuses one admin client per distinct connection, so calls for the same Valkey deployment share a WebSocket.
   const adminClientFor = (connection: ConnectionConfig) => {
-    const key = createHash("sha256").update(JSON.stringify(connection)).digest("hex")
+    const key = JSON.stringify(connection)
     let client = clients.get(key)
     if (!client) {
       client = createAdminClient(connection, config.admin)
