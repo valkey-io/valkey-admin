@@ -30,16 +30,19 @@ The MCP server needs Web mode. It is not available in the desktop app.
 Set `VALKEY_ADMIN_MCP_ENABLED=true`, a token of at least 32 characters and the Valkey deployments the assistant may read:
 
 ```bash
+MCP_TOKEN="$(openssl rand -hex 32)"
+echo "$MCP_TOKEN"  # keep it: the assistant sends this token
+
 docker run -d --name valkey-admin -p 127.0.0.1:8080:8080 \
   -e VALKEY_ADMIN_MCP_ENABLED=true \
-  -e VALKEY_ADMIN_MCP_TOKEN="$(openssl rand -hex 32)" \
+  -e VALKEY_ADMIN_MCP_TOKEN="$MCP_TOKEN" \
   -e VALKEY_ADMIN_MCP_TARGETS="prod=valkey-prod:6379,cache=valkeys://valkey-cache:6380" \
   -e VALKEY_ADMIN_MCP_USERNAME=mcp_readonly \
-  -e VALKEY_ADMIN_MCP_PASSWORD=<password> \
+  -e VALKEY_ADMIN_MCP_PASSWORD="<password>" \
   valkey/valkey-admin
 ```
 
-The Valkey Admin server starts the MCP server and serves each target on its own port, at `/mcp/<target>`. Here those are `http://localhost:8080/mcp/prod` and `http://localhost:8080/mcp/cache`. Every request must send `Authorization: Bearer <token>`.
+The Valkey Admin server starts the MCP server and serves each target on port `8080`, at `/mcp/<target>`. Here those are `http://localhost:8080/mcp/prod` and `http://localhost:8080/mcp/cache`. Every request must send `Authorization: Bearer <token>`, with the token printed above.
 
 The server does not start the MCP server unless both the token and the targets are set, and its log names what is missing. Target hosts are resolved inside the container, so use `host.docker.internal` for Valkey on your machine, or the service name for Valkey in the same Compose project.
 
@@ -72,10 +75,10 @@ In Claude Code, run `/mcp` to confirm the entry is connected, then ask for the b
 
 ## Read-only Valkey user
 
-Connect as a dedicated Valkey user that can read but not write. `+@read -@dangerous` is not enough: Valkey Admin also needs `INFO`, `CONFIG GET` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. This rule allows exactly what the tools and the metrics collector use:
+Connect as a dedicated Valkey user that can read but not write. The rule grants `@read` and `@connection`, then removes `@dangerous`, which takes away commands such as `KEYS`, `CLIENT KILL` and `CLIENT LIST`. It then adds back only what the tools and the metrics collector use: `INFO`, `CONFIG GET` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. Rules apply in order, so keep `-@dangerous` after the category grants:
 
 ```
-ACL SETUSER mcp_readonly on >password ~* +@read +@connection +info +memory|stats +config|get +cluster|slots +cluster|slot-stats +commandlog|get +command|info
+ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +memory|stats +config|get +cluster|slots +cluster|slot-stats +commandlog|get +command|info
 ```
 
 - Writes, `FLUSHALL`, `CONFIG SET`, `KEYS`, `MONITOR` and `CLIENT KILL` stay blocked.
