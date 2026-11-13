@@ -35,6 +35,7 @@ export default defineConfig({
 						{ label: 'Send Command', slug: 'features/send-command' },
 						{ label: 'Cluster Topology', slug: 'features/cluster-topology' },
 						{ label: 'Activity', slug: 'features/activity' },
+						{ label: 'OpenTelemetry Export', slug: 'features/otel-export' },
 					],
 				},
 				{

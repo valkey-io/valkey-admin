@@ -285,6 +285,12 @@ The port that spawned children should call back to when registering.
 
 Unlike the variables above, this one is **not** inherited from the server. The server overrides it with a freshly generated per-collector key after copying its own environment, so a value set on the server never reaches a spawned child. See [Collector authentication](#collector-authentication).
 
+### `METRICS_OTEL_ENABLED` and `OTEL_*`
+
+Set `METRICS_OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` on the server to turn on OTLP export in every collector that it spawns. The children inherit every `OTEL_*` variable unchanged. See [Metrics: OpenTelemetry Export](/configuration/metrics/#opentelemetry-export).
+
+- **Default:** unset (export off)
+
 ### `DATA_DIR`
 
 Base directory for collector data. Each owner (one Valkey identity on one deployment, see [Users and Valkey identities](#users-and-valkey-identities)) gets its own directory, `${DATA_DIR}/<owner>`, and each collector of that owner writes its NDJSON output to `${DATA_DIR}/<owner>/<nodeId>`. The owner's collector settings file is `${DATA_DIR}/<owner>/config.yml`. The server copies it once from the base config file (`CONFIG_PATH`) and never overwrites it, so a settings change made by one owner never reaches another.

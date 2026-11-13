@@ -24,6 +24,10 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 
 - **ElastiCache Serverless has limited support.** Key Browser and Send Command work. Dashboard metrics, Activity features (Hot Keys, Big Keys, Command Logs), and Monitor are unavailable because Serverless restricts the `INFO` (Memory, CPU, Stats, Clients, Keyspace sections), `MONITOR`, `COMMANDLOG`, `MEMORY USAGE`, and `CLUSTER SLOT-STATS` commands.
 
+## OpenTelemetry export
+
+See [OpenTelemetry Export: Limitations](/features/otel-export/#limitations). In short: a fetch outage shows as a flat line, replicas export only in Kubernetes, the desktop app exports only the connected node, and two Valkey users on one node give duplicate series.
+
 ## Architecture
 
 - **No bare-metal web server.** Run the web server in Docker or Kubernetes, or use the desktop app. Running `apps/server` directly on a host is not supported.

@@ -104,6 +104,28 @@ MIT License
 
 --------------------------------------------------------------------------------
 
+** @opentelemetry/api@1.10.0 - https://github.com/open-telemetry/opentelemetry-js/tree/main/api
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/core@3.1.1 - https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-core
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/exporter-metrics-otlp-http@0.301.2 - https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-exporter-metrics-otlp-http
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/exporter-metrics-otlp-proto@0.301.2 - https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-exporter-metrics-otlp-proto
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/otlp-exporter-base@0.301.2 - https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-exporter-base
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/otlp-transformer@0.301.2 - https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/otlp-transformer
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/resources@3.1.1 - https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-resources
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/sdk-logs@3.1.1 - https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-logs
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/sdk-metrics@3.1.1 - https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-metrics
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/sdk-trace@3.1.1 - https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/sdk-trace
+"Licensor" shall mean the copyright owner or entity authorized by
+** @opentelemetry/semantic-conventions@1.45.0 - https://github.com/open-telemetry/opentelemetry-js/tree/main/semantic-conventions
+"Licensor" shall mean the copyright owner or entity authorized by
 ** @valkey/valkey-glide@2.5.2 - https://valkey.io/valkey-glide/node/
 "Licensor" shall mean the copyright owner or entity authorized by
 ** @valkey/valkey-glide-linux-x64-gnu@2.3.1 - https://valkey.io/valkey-glide/node/

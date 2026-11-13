@@ -281,6 +281,19 @@ curl -s 'http://localhost:3000/memory?since=0&maxPoints=10'
 curl -s 'http://localhost:3000/commandlog?type=slow'
 ```
 
+## OpenTelemetry Export
+
+To push metrics from each sidecar to an OpenTelemetry Collector, add these variables to the `metrics` container. The sidecar examples in `examples/k8s/` have them as comments.
+
+```yaml
+            - name: METRICS_OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observability.svc.cluster.local:4318
+```
+
+The sidecar already gets `POD_NAME` and `POD_NAMESPACE`, so the exported resource has `k8s.pod.name` and `k8s.namespace.name`. In Kubernetes, replicas export too. The Kubernetes export path has no automated end-to-end test in this release. See [OpenTelemetry Export](/features/otel-export/).
+
 ## Notes
 
 - The example workflow in this document is aimed at local Minikube development.

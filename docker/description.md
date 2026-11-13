@@ -110,6 +110,8 @@ Here are all the relevant environment variables for configuration
 | `COMMAND_LOGS_COUNT` | Maximum command log entries returned per query | `100` |
 | `KEY_VALUE_SIZE_LIMIT_BYTES` | Max value size (bytes) shown in the Key Browser before a size warning | `2048` |
 | `CONFIG_PATH` | Path to custom metrics config.yml | — |
+| `METRICS_OTEL_ENABLED` | `true` turns on OTLP export of memory, keyspace and CPU metrics from every metrics collector. See [OpenTelemetry Export](https://valkey-admin.valkey.io/features/otel-export/) | — |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver, for example `http://otel-collector:4318` | `http://localhost:4318` |
 
 ### Custom metrics configuration
 

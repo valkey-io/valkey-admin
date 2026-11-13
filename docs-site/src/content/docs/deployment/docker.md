@@ -114,6 +114,18 @@ services:
 
 See the [Metrics Configuration](/configuration/metrics/) page for available options.
 
+## OpenTelemetry Export
+
+To send metrics to Prometheus or another backend through an OpenTelemetry Collector, set these variables on the Valkey Admin container:
+
+```yaml
+    environment:
+      METRICS_OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+```
+
+The server passes them to every metrics collector it starts. See [OpenTelemetry Export](/features/otel-export/) for the Collector config and the exported metrics.
+
 ## Resource Sizing
 
 In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node for each Valkey identity connected to it. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
