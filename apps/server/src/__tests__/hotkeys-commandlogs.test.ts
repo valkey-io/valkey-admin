@@ -113,6 +113,46 @@ describe("hotKeysRequested reply shape", () => {
     assert.strictEqual(sent.payload.nodeErrors[0].nodeId, "node-2")
     assert.ok(!/-db\d+$/.test(sent.payload.nodeErrors[0].nodeId))
   })
+
+  it("re-reads live maxmemory_policy and cluster-slot-stats from client and passes useHotSlots", async () => {
+    metricsServerMap.set("node-1", { metricsURI: "http://localhost:9001" })
+    clusterNodesRegistry = new Map([
+      ["cluster-1", {
+        "node-1": { host: "127.0.0.1", port: 7000, tls: false, verifyTlsCertificate: false },
+      }],
+    ])
+    const fetchCalls = mockFetch({ nodeId: "node-1", hotKeys: [], checkAt: 0, monitorRunning: true, lastCollectedAt: null })
+
+    const mockClusterClient = {
+      constructor: { name: "GlideClusterClient" },
+      info: mock.fn(async () => "# Memory\r\nmaxmemory_policy:allkeys-lfu\r\n"),
+      customCommand: mock.fn(async () => [["slot", 1], ["cpu-usec", 100]]),
+    }
+
+    const clientsMap = new Map([
+      ["node-1", { client: mockClusterClient as any, clusterId: "cluster-1" }],
+    ])
+
+    const d = {
+      ...deps(),
+      clients: clientsMap,
+    }
+
+    const action = {
+      type: VALKEY.HOTKEYS.hotKeysRequested,
+      payload: { connectionId: "node-1", clusterId: "cluster-1", lfuEnabled: false, clusterSlotStatsEnabled: false },
+    }
+
+    await hotKeysRequested(d)(action as any)
+
+    assert.strictEqual(messages.length, 1)
+    const sent = JSON.parse(messages[0])
+    assert.strictEqual(sent.type, VALKEY.HOTKEYS.hotKeysFulfilled)
+    assert.strictEqual(sent.payload.clusterId, "cluster-1")
+    assert.strictEqual(sent.payload.keyEvictionPolicy, "allkeys-lfu")
+    assert.strictEqual(sent.payload.clusterSlotStatsEnabled, true)
+    assert.ok(fetchCalls[0].includes("useHotSlots=true"))
+  })
 })
 
 describe("commandLogsRequested reply shape", () => {
