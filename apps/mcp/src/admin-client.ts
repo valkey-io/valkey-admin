@@ -57,6 +57,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
   const connectionId = buildConnectionId(valkey.host, valkey.port)
   const nodeId = toNodeId(connectionId)
   let session: Promise<Session> | undefined
+  const pending = new Map<string, Promise<unknown>>()
 
   // Opens the WebSocket with the MCP origin and, when the server started this process, its token.
   const open = () =>
@@ -112,27 +113,32 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
   // Keeps the connection details from the reply, such as the cluster ID.
   const connect = async (): Promise<Session> => {
     const ws = await open()
-    const reply = await send(ws, {
-      type: VALKEY.CONNECTION.connectPending,
-      payload: {
-        connectionId,
-        connectionDetails: {
-          host: valkey.host,
-          port: String(valkey.port),
-          username: valkey.username,
-          password: valkey.password,
-          tls: valkey.useTLS,
-          verifyTlsCertificate: true,
-          endpointType: "node",
-          db: 0,
+    try {
+      const reply = await send(ws, {
+        type: VALKEY.CONNECTION.connectPending,
+        payload: {
+          connectionId,
+          connectionDetails: {
+            host: valkey.host,
+            port: String(valkey.port),
+            username: valkey.username,
+            password: valkey.password,
+            tls: valkey.useTLS,
+            verifyTlsCertificate: true,
+            endpointType: "node",
+            db: 0,
+          },
         },
-      },
-    }, CONNECT_REPLIES)
-    if (reply.type === VALKEY.CONNECTION.connectRejected) {
+      }, CONNECT_REPLIES)
+      if (reply.type === VALKEY.CONNECTION.connectRejected) {
+        throw new Error(String(reply.payload?.errorMessage ?? "Valkey Admin rejected the connection"))
+      }
+      return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionDetails }
+    } catch (error) {
+      ws.removeAllListeners("close")
       ws.close()
-      throw new Error(String(reply.payload?.errorMessage ?? "Valkey Admin rejected the connection"))
+      throw error
     }
-    return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionDetails }
   }
 
   // Returns the open session, connecting first if needed. A failed connect is forgotten so the next call retries.
@@ -151,8 +157,17 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       if (!READ_ONLY_ACTIONS.has(action.type)) {
         throw new Error(`Action ${action.type} is not on the read-only allowlist`)
       }
-      const { ws, details } = await connection()
-      return send(ws, action, replyTypes, details)
+      const previous = pending.get(action.type) ?? Promise.resolve()
+      const result = previous.then(async () => {
+        const { ws, details } = await connection()
+        return send(ws, action, replyTypes, details)
+      })
+      const settled = result.catch(() => undefined)
+      pending.set(action.type, settled)
+      void settled.then(() => {
+        if (pending.get(action.type) === settled) pending.delete(action.type)
+      })
+      return result
     },
     close: () => {
       session?.then(({ ws }) => ws.close()).catch(() => undefined)
