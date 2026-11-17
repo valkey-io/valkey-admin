@@ -6,6 +6,7 @@ import { COMMANDLOG_TYPE, PENDING } from "@common/src/constants"
 import { truncateText } from "@common/src/truncate-text"
 import { MONITOR_ACTION } from "@common/src/constants"
 import { toNodeId } from "@common/src/connection-id.ts"
+import { isLfuPolicy } from "@common/src/hotkeys.ts"
 import { AppHeader } from "../ui/app-header"
 import { TabGroup } from "../ui/tab-group"
 import { ButtonGroup } from "../ui/button-group"
@@ -97,7 +98,7 @@ export const ActivityView = () => {
   const monitorError = useSelector(selectMonitorError(nodeId))
   const connectionDetails = useSelector((state: RootState) => selectConnectionDetails(id!)(state))
   const clusterAlias = useSelector(selectClusterAlias(id!))
-  const useHotSlots = connectionDetails?.keyEvictionPolicy?.includes("lfu") && connectionDetails?.clusterSlotStatsEnabled
+  const useHotSlots = isLfuPolicy(connectionDetails?.keyEvictionPolicy) && connectionDetails?.clusterSlotStatsEnabled
   const keys: KeyInfo[] = useSelector(selectKeys(id!))
 
   useEffect(() => {

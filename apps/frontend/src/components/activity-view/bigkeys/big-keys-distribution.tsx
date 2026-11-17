@@ -16,7 +16,7 @@ import { Typography } from "../../ui/typography"
 import { Button } from "../../ui/button"
 import { Input } from "../../ui/input"
 import { TabGroup, type TabOption } from "../../ui/tab-group"
-import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
+import type { BigKey } from "@common/src/bigkeys"
 
 interface BigKeysDistributionModalProps {
   open: boolean

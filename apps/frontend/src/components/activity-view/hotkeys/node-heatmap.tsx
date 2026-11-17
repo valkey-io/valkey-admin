@@ -4,7 +4,7 @@ import { truncateText } from "@common/src/truncate-text"
 import { Typography } from "../../ui/typography"
 import { HeatmapLegend } from "./heatmap-legend"
 import { getColor, snapToBucket, toRatio } from "./heatmap-scale"
-import type { HotKeyEntry } from "./hot-keys"
+import type { HotKeyEntry } from "@common/src/hotkeys"
 
 interface NodeStat {
   nodeId: string

@@ -1,6 +1,14 @@
 // The get_big_keys tool: the largest keys by memory, as on the Valkey Admin big
 // keys page. On a cluster it scans every node and merges the results.
-import { VALKEY } from "valkey-common"
+import {
+  VALKEY,
+  type BigKey,
+  type BigKeysErrorPayload,
+  type BigKeysFulfilledPayload,
+  type BigKeysNodeError,
+  type BigKeysRequestPayload,
+  type BigKeysResponse
+} from "valkey-common"
 import { z } from "zod"
 import { METRICS_NOT_STARTED, NotReadyError, retryWhileNotReady } from "./not-ready"
 import { toolResult } from "./tool-result"
@@ -14,19 +22,39 @@ const inputSchema = z.object({
     .describe("Maximum number of keys to scan per node"),
 })
 
-const outputSchema = z.object({
-  keys: z.array(z.object({
-    key: z.string(),
-    sizeBytes: z.number(),
-    type: z.string(),
-    ttl: z.number(),
-    freq: z.number().nullable(),
-    nodeId: z.string().optional(),
-  })),
+const bigKeySchema = z.object({
+  key: z.string(),
+  sizeBytes: z.number(),
+  type: z.string(),
+  ttl: z.number(),
+  freq: z.number().nullable(),
+  nodeId: z.string().optional(),
+}) satisfies z.ZodType<BigKey>
+
+const nodeErrorSchema = z.object({
+  nodeId: z.string(),
+  error: z.string(),
+}) satisfies z.ZodType<BigKeysNodeError>
+
+const responseSchema = z.object({
+  nodeId: z.string(),
+  keys: z.array(bigKeySchema),
   scanned: z.number(),
   totalKeys: z.number(),
   scannedAt: z.number(),
-  nodeErrors: z.array(z.object({ nodeId: z.string(), error: z.string() })),
+}) satisfies z.ZodType<BigKeysResponse>
+
+const fulfilledPayloadSchema = z.object({
+  parsedResponse: responseSchema,
+  nodeErrors: z.array(nodeErrorSchema).optional(),
+}) satisfies z.ZodType<Pick<BigKeysFulfilledPayload, "parsedResponse" | "nodeErrors">>
+
+const errorPayloadSchema = z.object({
+  error: z.string(),
+}) satisfies z.ZodType<Pick<BigKeysErrorPayload, "error">>
+
+const outputSchema = responseSchema.omit({ nodeId: true }).extend({
+  nodeErrors: z.array(nodeErrorSchema),
 })
 
 // Requests big keys, passing the cluster ID so the server queries every node.
@@ -34,21 +62,18 @@ const outputSchema = z.object({
 // reply's error or when every node fails with that error.
 const fetchBigKeys = async (admin: AdminClient, { topN, scanLimit }: z.infer<typeof inputSchema>) => {
   const details = await admin.details()
+  const payload: BigKeysRequestPayload = { connectionId: admin.connectionId, clusterId: details.clusterId, topN, scanLimit }
   const reply = await admin.request(
-    {
-      type: VALKEY.BIGKEYS.bigKeysRequested,
-      payload: { connectionId: admin.connectionId, clusterId: details.clusterId, topN, scanLimit },
-    },
+    { type: VALKEY.BIGKEYS.bigKeysRequested, payload: { ...payload } },
     [VALKEY.BIGKEYS.bigKeysFulfilled, VALKEY.BIGKEYS.bigKeysError],
   )
   if (reply.type === VALKEY.BIGKEYS.bigKeysError) {
-    const message = String(reply.payload?.error ?? "Valkey Admin could not load big keys")
+    const message = errorPayloadSchema.safeParse(reply.payload).data?.error ?? "Valkey Admin could not load big keys"
     throw message === METRICS_NOT_STARTED ? new NotReadyError(message) : new Error(message)
   }
-  const result = outputSchema.parse({
-    ...(reply.payload?.parsedResponse as object),
-    nodeErrors: reply.payload?.nodeErrors ?? [],
-  })
+  const { parsedResponse, nodeErrors = [] } = fulfilledPayloadSchema.parse(reply.payload)
+  const { keys, scanned, totalKeys, scannedAt } = parsedResponse
+  const result: z.infer<typeof outputSchema> = { keys, scanned, totalKeys, scannedAt, nodeErrors }
   if (result.keys.length === 0 && result.nodeErrors.length > 0 && result.nodeErrors.every(({ error }) => error === METRICS_NOT_STARTED)) {
     throw new NotReadyError(METRICS_NOT_STARTED)
   }

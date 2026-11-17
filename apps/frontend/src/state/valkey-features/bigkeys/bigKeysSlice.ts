@@ -1,20 +1,17 @@
-import { createSlice } from "@reduxjs/toolkit"
-import { type JSONObject } from "@common/src/json-utils"
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import { ERROR, FULFILLED, PENDING, VALKEY } from "@common/src/constants.ts"
 import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
+import type {
+  BigKey,
+  BigKeysErrorPayload,
+  BigKeysFulfilledPayload,
+  BigKeysNodeError,
+  BigKeysRequestPayload
+} from "@common/src/bigkeys.ts"
 import type { RootState } from "@/store.ts"
 
 type BigKeysStatus = typeof PENDING | typeof FULFILLED | typeof ERROR
-
-export interface BigKey {
-  key: string
-  sizeBytes: number
-  type: string
-  ttl: number
-  freq: number | null
-  nodeId?: string
-}
 
 export const selectBigKeys = (targetId: string) => (state: RootState) =>
   R.pathOr<BigKey[]>([], [VALKEY.BIGKEYS.name, targetId, "keys"], state)
@@ -45,8 +42,8 @@ interface BigKeysState {
     totalKeys: number | null
     nodeId: string | null
     lastScannedAt: number | null
-    error?: JSONObject | null
-    nodeErrors?: { nodeId: string; error: string }[]
+    error?: string | null
+    nodeErrors?: BigKeysNodeError[]
     status: BigKeysStatus
   }
 }
@@ -66,7 +63,7 @@ const bigKeysSlice = createSlice({
   name: "bigKeys",
   initialState: initialBigKeysState,
   reducers: {
-    bigKeysRequested: (state, action) => {
+    bigKeysRequested: (state, action: PayloadAction<BigKeysRequestPayload>) => {
       const { connectionId, clusterId } = action.payload
       const targetId = clusterId ?? toNodeId(connectionId)
       if (!state[targetId]) {
@@ -77,9 +74,9 @@ const bigKeysSlice = createSlice({
         state[targetId].error = null
       }
     },
-    bigKeysFulfilled: (state, action) => {
+    bigKeysFulfilled: (state, action: PayloadAction<BigKeysFulfilledPayload>) => {
       const { keys, scanned, totalKeys, nodeId, scannedAt } = action.payload.parsedResponse
-      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      const targetId = "clusterId" in action.payload ? action.payload.clusterId : action.payload.nodeId
       const nodeErrors = action.payload.nodeErrors ?? []
       state[targetId] = {
         keys,
@@ -91,7 +88,7 @@ const bigKeysSlice = createSlice({
         status: FULFILLED,
       }
     },
-    bigKeysError: (state, action) => {
+    bigKeysError: (state, action: PayloadAction<BigKeysErrorPayload>) => {
       const { error } = action.payload
       const targetId = action.payload.clusterId ?? action.payload.nodeId
       if (!state[targetId]) {

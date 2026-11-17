@@ -8,7 +8,7 @@ import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../../ui
 import { Typography } from "../../ui/typography"
 import { CustomTooltip } from "../../ui/tooltip"
 import { TooltipIcon } from "../../ui/tooltip-icon"
-import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
+import type { BigKey } from "@common/src/bigkeys"
 import { copyToClipboard } from "@/lib/utils"
 
 interface BigKeyRowProps {

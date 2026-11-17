@@ -1,8 +1,14 @@
-import { createSlice } from "@reduxjs/toolkit"
-import { type JSONObject } from "@common/src/json-utils"
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import { ERROR, FULFILLED, PENDING, VALKEY } from "@common/src/constants.ts"
 import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
+import type {
+  HotKeyEntry,
+  HotKeysErrorPayload,
+  HotKeysFulfilledPayload,
+  HotKeysNodeError,
+  HotKeysRequestPayload
+} from "@common/src/hotkeys.ts"
 import type { RootState } from "@/store.ts"
 
 type HotKeysStatus = typeof PENDING | typeof FULFILLED | typeof ERROR
@@ -27,13 +33,13 @@ export const selectHotKeysLastCollectedAt = (targetId: string) => (state: RootSt
 interface HotKeysState {
   // Keyed by `targetId`: `clusterId` (cluster) or db-less `nodeId` (standalone).
   [targetId: string]: {
-    hotKeys: [string, number, number | null, number, string?, number?][]
-    checkAt: string | null,
-    monitorRunning: boolean,
-    nodeId: string | null,
+    hotKeys: HotKeyEntry[]
+    checkAt?: number | null,
+    monitorRunning?: boolean,
+    nodeId?: string | null,
     lastCollectedAt?: number | null,
-    error?: JSONObject | null,
-    nodeErrors?: { nodeId: string; error: string }[],
+    error?: string | null,
+    nodeErrors?: HotKeysNodeError[],
     status: HotKeysStatus,
   }
 }
@@ -44,7 +50,7 @@ const hotKeysSlice = createSlice({
   name: "hotKeys",
   initialState: initialHotKeysState,
   reducers: {
-    hotKeysRequested: (state, action) => {
+    hotKeysRequested: (state, action: PayloadAction<Pick<HotKeysRequestPayload, "connectionId" | "clusterId" | "count">>) => {
       const { connectionId, clusterId } = action.payload
       // Standalone hot keys state is node-level.
       const targetId = clusterId ?? toNodeId(connectionId)
@@ -62,9 +68,9 @@ const hotKeysSlice = createSlice({
         state[targetId].error = null
       }
     },
-    hotKeysFulfilled: (state, action) => {
+    hotKeysFulfilled: (state, action: PayloadAction<HotKeysFulfilledPayload>) => {
       const { hotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt } = action.payload.parsedResponse
-      const targetId = action.payload.clusterId ?? action.payload.nodeId
+      const targetId = "clusterId" in action.payload ? action.payload.clusterId : action.payload.nodeId
       const nodeErrors = action.payload.nodeErrors ?? []
       state[targetId] = {
         hotKeys,
@@ -76,7 +82,7 @@ const hotKeysSlice = createSlice({
         status: FULFILLED,
       }
     },
-    hotKeysError: (state, action) => {
+    hotKeysError: (state, action: PayloadAction<HotKeysErrorPayload>) => {
       const { error } = action.payload
       const targetId = action.payload.clusterId ?? action.payload.nodeId
       if (!state[targetId]) {
