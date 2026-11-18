@@ -1,7 +1,7 @@
 // WebSocket client for the Valkey Admin server. Asks the server to connect to
 // Valkey, as the UI does, then sends read-only requests and awaits the replies.
 import WebSocket from "ws"
-import { VALKEY, buildConnectionId, toNodeId } from "valkey-common"
+import { VALKEY, buildNormalizedConnectionId, toNodeId } from "valkey-common"
 import type { AdminEndpoint, ConnectionConfig } from "./config"
 
 export type AdminAction = {
@@ -54,7 +54,7 @@ const parseAction = (data: WebSocket.RawData): AdminAction | undefined => {
 // Creates a client for one Valkey connection. The WebSocket and the Valkey
 // connection open on the first call and reopen on the next call after a drop.
 export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint): AdminClient => {
-  const connectionId = buildConnectionId(valkey.host, valkey.port)
+  const connectionId = buildNormalizedConnectionId(valkey.host, valkey.port)
   const nodeId = toNodeId(connectionId)
   let session: Promise<Session> | undefined
   const pending = new Map<string, Promise<unknown>>()
