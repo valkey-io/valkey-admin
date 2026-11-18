@@ -57,6 +57,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
   const connectionId = buildNormalizedConnectionId(valkey.host, valkey.port)
   const nodeId = toNodeId(connectionId)
   let session: Promise<Session> | undefined
+  let closed = false
   const pending = new Map<string, Promise<unknown>>()
 
   // Opens the WebSocket with the MCP origin and, when the server started this process, its token.
@@ -69,9 +70,6 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       })
       ws.once("open", () => resolve(ws))
       ws.once("error", () => reject(new Error(`Cannot reach Valkey Admin at ${admin.url}. Is the server running?`)))
-      ws.once("close", () => {
-        session = undefined
-      })
     })
 
   // True when a reply belongs to this connection, matched by connection, node or cluster ID.
@@ -97,6 +95,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       }
       const timer = setTimeout(() => {
         cleanup()
+        ws.terminate()
         reject(new Error(`No reply from Valkey Admin for ${action.type}`))
       }, REPLY_TIMEOUT_MS)
       const cleanup = () => {
@@ -135,14 +134,18 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       }
       return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionDetails }
     } catch (error) {
-      ws.removeAllListeners("close")
       ws.close()
       throw error
     }
   }
 
   // Returns the open session, connecting first if needed. A failed connect is forgotten so the next call retries.
-  const connection = () => {
+  const connection = async (): Promise<Session> => {
+    const current = session
+    if (current && (await current).ws.readyState !== WebSocket.OPEN && session === current) {
+      session = undefined
+    }
+    if (closed) throw new Error("The Valkey Admin client is closed")
     session ??= connect().catch((error: Error) => {
       session = undefined
       throw error
@@ -170,6 +173,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       return result
     },
     close: () => {
+      closed = true
       session?.then(({ ws }) => ws.close()).catch(() => undefined)
     },
   }
