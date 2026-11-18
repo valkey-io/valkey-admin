@@ -27,7 +27,9 @@ const bigKeySchema = z.object({
   sizeBytes: z.number(),
   type: z.string(),
   ttl: z.number(),
-  freq: z.number().nullable(),
+  freq: z.number().nullable()
+    .describe("LFU counter from OBJECT FREQ, on a log scale from 0 to 255 that decays over time. " +
+      "Null unless maxmemory-policy is LFU. Use it to rank keys, not as a request count"),
   nodeId: z.string().optional(),
 }) satisfies z.ZodType<BigKey>
 
@@ -88,7 +90,8 @@ export const registerBigKeys = (server: McpServer, admin: AdminClient) =>
       title: "Big keys (via Valkey Admin)",
       description:
         "Returns the largest keys by memory, as shown on the Valkey Admin big keys page. " +
-        "In cluster mode it covers every node. Scans up to scanLimit keys per node, which adds load to the instance.",
+        "In cluster mode it covers every node. Scans up to scanLimit keys per node, which adds load to the instance, " +
+        "and returns the largest of the keys it scanned.",
       inputSchema,
       outputSchema,
       annotations: {

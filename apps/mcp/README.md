@@ -12,7 +12,7 @@ The MCP server never connects to Valkey directly. It behaves like one more Valke
 
 | | Targets (Docker and any exposed server) | Headers (local development) |
 |---|---|---|
-| Who chooses the deployment | The operator, with `VALKEY_ADMIN_MCP_TARGETS` | The AI client, with `X-Valkey-*` headers |
+| Who chooses the deployment | You, with `VALKEY_ADMIN_MCP_TARGETS` | The AI client, with `X-Valkey-*` headers |
 | URL | `/mcp/<target>`, such as `/mcp/prod` | `/mcp` |
 | Valkey credentials | `VALKEY_ADMIN_MCP_USERNAME` and `VALKEY_ADMIN_MCP_PASSWORD`, on the server | Headers, or the `VALKEY_*` variables |
 | `X-Valkey-*` headers | Refused with `400` | Used |
@@ -21,7 +21,7 @@ When `VALKEY_ADMIN_MCP_TARGETS` is set, the MCP server uses targets. Otherwise i
 
 ## Start the server
 
-Valkey Admin must be running in Web mode. The desktop app is not supported.
+Valkey Admin must be running in Web mode. The desktop app and Kubernetes mode are not supported in this release.
 
 ### Docker
 
@@ -42,7 +42,7 @@ docker run -d --name valkey-admin -p 127.0.0.1:8080:8080 \
 
 The URLs are `http://localhost:8080/mcp/prod` and `http://localhost:8080/mcp/cache`, and every request must send `Authorization: Bearer <token>`, with the token printed above. The server listens on all interfaces in the container, so it does not start the MCP server unless both the token and the targets are set, and logs which one is missing.
 
-Target hosts are resolved inside the container, where `localhost` is the container itself. Use `host.docker.internal` for Valkey on your machine, or the service name for Valkey in the same Compose project.
+Target hosts are resolved inside the container, where `localhost` is the container itself. Use `host.docker.internal` for Valkey on your machine, or the service name for Valkey in the same Compose project. On Linux, `host.docker.internal` resolves only with Docker Desktop; with Docker Engine, add `--add-host=host.docker.internal:host-gateway` to `docker run`.
 
 ### Development
 
@@ -165,26 +165,28 @@ Assistants may store headers in plain text in their config files. To keep passwo
 
 ## Read-only Valkey user
 
-Connect as a dedicated user that can read but not write. The rule grants `@read` and `@connection`, then removes `@dangerous`, which takes away commands such as `KEYS`, `CLIENT KILL` and `CLIENT LIST`. It then adds back only what the tools and the metrics collector use: `INFO`, `CONFIG GET` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. Rules apply in order, so keep `-@dangerous` after the category grants:
+Connect as a dedicated user that can read but not write. The rule grants `@read` and `@connection`, then removes `@dangerous`, which takes away commands such as `KEYS`, `CLIENT KILL` and `CLIENT LIST`. It then adds back only what the tools and the metrics collector use: `INFO` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. Rules apply in order, so keep `-@dangerous` after the category grants:
 
 ```
-ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +memory|stats +config|get +cluster|slots +cluster|slot-stats +commandlog|get +command|info
+ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +memory|stats +cluster|slots +cluster|slot-stats +commandlog|get +command|info
 ```
 
 | Allowed | Used for |
 |---|---|
 | `@read`, `@connection` | Big keys (`SCAN`, `TYPE`, `TTL`, `MEMORY USAGE`, `OBJECT FREQ`), connecting |
 | `INFO`, `MEMORY STATS` | Server info and the dashboard data |
-| `CONFIG GET` | Reading the eviction policy and `cluster-slot-stats-enabled` |
 | `CLUSTER SLOTS`, `CLUSTER SLOT-STATS` | Finding cluster nodes, hot keys |
 | `COMMANDLOG GET`, `COMMAND INFO` | The metrics collector |
 
-Writes, `FLUSHALL`, `CONFIG SET`, `KEYS`, `MONITOR`, `CLIENT KILL` and the other admin commands stay blocked. `CONFIG GET` can read any setting, including `requirepass`, because an ACL cannot limit it to some settings.
+Writes, `FLUSHALL`, `CONFIG GET`, `CONFIG SET`, `KEYS`, `MONITOR`, `CLIENT KILL` and the other admin commands stay blocked.
+
+The MCP user is a separate Valkey identity, so Valkey Admin runs its own metrics collectors for it, about 150 MB of RAM per primary node, even when the UI already monitors the same deployment. See [Resource Sizing](../../docs-site/src/content/docs/deployment/resource-sizing.md).
 
 - Create the user on every node. A cluster does not replicate ACL users.
 - Persist it with `ACL SAVE` when the node uses an ACL file, or `CONFIG REWRITE` when users live in `valkey.conf`. Otherwise it is lost on restart.
+- On ElastiCache, create the user in the console or with the AWS CLI. Use the rule without the user name and `>password` as its access string, and add the user to the cluster's user group. User groups need in-transit encryption, so use `valkeys://` in the target.
 - Give the MCP server the same username and password for every target, with `VALKEY_ADMIN_MCP_USERNAME` and `VALKEY_ADMIN_MCP_PASSWORD`.
-- If a tool fails with `NOPERM`, the error names the command; add it with `+<command>`.
+- If `get_big_keys` fails with `NOPERM`, the error names the command; add it with `+<command>`. `get_server_info` and `get_hot_keys` do not pass the `NOPERM` message through yet and fail with a generic error, so check the user against the rule above.
 
 ## Check the connection
 
@@ -214,3 +216,4 @@ If a cluster result is correct, `nodeId` shows keys from more than one node and 
 - **Caller check:** the server binds to `127.0.0.1` and refuses non-local `Origin` headers. With `VALKEY_ADMIN_MCP_TOKEN` set, every request must send the token. Without it, the `Host` header must be local, and any local program can call it.
 - **Server-chosen targets:** with `VALKEY_ADMIN_MCP_TARGETS`, a caller can reach only the listed deployments, with the MCP server's own credentials, and never sends a host or password. In header mode, a caller can point the Valkey Admin server at any host it can reach, which is why an exposed server requires targets.
 - **Least privilege:** connect with a dedicated read-only Valkey user, not `default`, as in [Read-only Valkey user](#read-only-valkey-user). Valkey's ACL is the real access control.
+- **Data sent to the assistant:** tool results, including key names, go to your AI assistant and its model provider.

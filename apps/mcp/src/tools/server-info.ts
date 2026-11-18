@@ -43,7 +43,8 @@ export const registerServerInfo = (server: McpServer, admin: AdminClient) =>
     {
       title: "Server info (via Valkey Admin)",
       description:
-        "Returns the Valkey INFO and memory data that the Valkey Admin dashboard shows, fetched through the running Valkey Admin server.",
+        "Returns the Valkey INFO and memory data that the Valkey Admin dashboard shows, fetched through the running Valkey Admin server. " +
+        "In cluster mode it covers only the node Valkey Admin connected to.",
       outputSchema,
       annotations: {
         readOnlyHint: true,

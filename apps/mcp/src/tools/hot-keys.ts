@@ -56,7 +56,8 @@ const errorPayloadSchema = z.object({
 const outputSchema = z.object({
   hotKeys: z.array(z.object({
     key: z.string(),
-    accessFrequency: z.number(),
+    accessFrequency: z.number()
+      .describe("LFU counter from OBJECT FREQ, on a log scale from 0 to 255 that decays over time. Use it to rank keys, not as a request count"),
     sizeBytes: z.number().nullable(),
     ttl: z.number(),
     nodeId: z.string(),
@@ -80,7 +81,10 @@ const fetchHotKeys = async (admin: AdminClient, { count }: z.infer<typeof inputS
   const details = await admin.details()
   const missing = missingRequirements(details)
   if (missing.length > 0) {
-    throw new Error(`Hot keys use cluster slot stats, which need ${missing.join(", ")}`)
+    const evictionNote = isLfuPolicy(details.keyEvictionPolicy)
+      ? ""
+      : ". Changing maxmemory-policy also changes which keys Valkey evicts when memory is full"
+    throw new Error(`Hot keys use cluster slot stats, which need ${missing.join(", ")}${evictionNote}`)
   }
   const payload: HotKeysRequestPayload = {
     connectionId: admin.connectionId,

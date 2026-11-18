@@ -11,7 +11,7 @@ AI assistant --HTTP--> MCP server --WebSocket--> Valkey Admin server --> Valkey
 
 The MCP server never connects to Valkey directly. It talks to the Valkey Admin server like one more browser tab, and the server does the Valkey work.
 
-The MCP server needs Web mode. It is not available in the desktop app.
+The MCP server needs Web mode. It is not available in the desktop app, or in Kubernetes mode in this release.
 
 ## Tools
 
@@ -44,7 +44,7 @@ docker run -d --name valkey-admin -p 127.0.0.1:8080:8080 \
 
 The Valkey Admin server starts the MCP server and serves each target on port `8080`, at `/mcp/<target>`. Here those are `http://localhost:8080/mcp/prod` and `http://localhost:8080/mcp/cache`. Every request must send `Authorization: Bearer <token>`, with the token printed above.
 
-The server does not start the MCP server unless both the token and the targets are set, and its log names what is missing. Target hosts are resolved inside the container, so use `host.docker.internal` for Valkey on your machine, or the service name for Valkey in the same Compose project.
+The server does not start the MCP server unless both the token and the targets are set, and its log names what is missing. Target hosts are resolved inside the container, so use `host.docker.internal` for Valkey on your machine, or the service name for Valkey in the same Compose project. On Linux, `host.docker.internal` resolves only with Docker Desktop; with Docker Engine, add `--add-host=host.docker.internal:host-gateway` to `docker run`.
 
 See [MCP Server](/configuration/server/#mcp-server) for every variable.
 
@@ -75,17 +75,19 @@ In Claude Code, run `/mcp` to confirm the entry is connected, then ask for the b
 
 ## Read-only Valkey user
 
-Connect as a dedicated Valkey user that can read but not write. The rule grants `@read` and `@connection`, then removes `@dangerous`, which takes away commands such as `KEYS`, `CLIENT KILL` and `CLIENT LIST`. It then adds back only what the tools and the metrics collector use: `INFO`, `CONFIG GET` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. Rules apply in order, so keep `-@dangerous` after the category grants:
+Connect as a dedicated Valkey user that can read but not write. The rule grants `@read` and `@connection`, then removes `@dangerous`, which takes away commands such as `KEYS`, `CLIENT KILL` and `CLIENT LIST`. It then adds back only what the tools and the metrics collector use: `INFO` and `COMMANDLOG GET`, which are in `@dangerous`, and `MEMORY STATS`, `CLUSTER SLOTS` and `CLUSTER SLOT-STATS`, which are not in `@read`. Rules apply in order, so keep `-@dangerous` after the category grants:
 
 ```
-ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +memory|stats +config|get +cluster|slots +cluster|slot-stats +commandlog|get +command|info
+ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +memory|stats +cluster|slots +cluster|slot-stats +commandlog|get +command|info
 ```
 
-- Writes, `FLUSHALL`, `CONFIG SET`, `KEYS`, `MONITOR` and `CLIENT KILL` stay blocked.
-- `CONFIG GET` can read any setting, including `requirepass`, because an ACL cannot limit it to some settings.
+The MCP user is a separate Valkey identity, so Valkey Admin runs its own metrics collectors for it, about 150 MB of RAM per primary node, even when the UI already monitors the same deployment. See [Resource Sizing](/deployment/resource-sizing/).
+
+- Writes, `FLUSHALL`, `CONFIG GET`, `CONFIG SET`, `KEYS`, `MONITOR` and `CLIENT KILL` stay blocked.
 - Create the user on every node. A cluster does not replicate ACL users.
 - Persist it with `ACL SAVE` when the node uses an ACL file, or `CONFIG REWRITE` when users live in `valkey.conf`. Otherwise it is lost on restart.
-- If a tool fails with `NOPERM`, the error names the command; add it with `+<command>`.
+- On ElastiCache, create the user in the console or with the AWS CLI. Use the rule without the user name and `>password` as its access string, and add the user to the cluster's user group. User groups need in-transit encryption, so use `valkeys://` in the target.
+- If `get_big_keys` fails with `NOPERM`, the error names the command; add it with `+<command>`. `get_server_info` and `get_hot_keys` do not pass the `NOPERM` message through yet and fail with a generic error, so check the user against the rule above.
 
 ## Security
 
@@ -93,6 +95,7 @@ ACL SETUSER mcp_readonly on >password ~* +@read +@connection -@dangerous +info +
 - **Token:** every request must send `VALKEY_ADMIN_MCP_TOKEN`. Requests with a non-local `Origin` are refused.
 - **Server-chosen targets:** an assistant can reach only the listed deployments, with the MCP server's own credentials. It never sends a host or password, and `X-Valkey-*` connection headers are refused.
 - **Least privilege:** Valkey's ACL is the real access control, so use the [read-only user](#read-only-valkey-user), not `default`.
+- **Data sent to the assistant:** tool results, including key names, go to your AI assistant and its model provider.
 
 Valkey Admin itself has no authentication, so keep publishing port `8080` on loopback, as in the example above. See [Docker Deployment](/deployment/docker/).
 

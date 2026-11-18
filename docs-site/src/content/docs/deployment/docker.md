@@ -134,7 +134,7 @@ services:
     restart: unless-stopped
 ```
 
-Target hosts are resolved inside the container: use `host.docker.internal` for Valkey on your machine. See [AI Assistants (MCP)](/features/mcp/) to connect an assistant.
+Target hosts are resolved inside the container: use `host.docker.internal` for Valkey on your machine (on Linux with Docker Engine, add `--add-host=host.docker.internal:host-gateway`). See [AI Assistants (MCP)](/features/mcp/) to connect an assistant.
 
 ## Resource Sizing
 
