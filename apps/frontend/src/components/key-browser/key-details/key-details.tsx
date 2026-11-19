@@ -26,6 +26,8 @@ interface BaseKeyInfo {
   collectionSize?: number;
   elementsWarning?: string;
   isBinary?: boolean;
+  cursor?: string;
+  hasMoreElements?: boolean;
 }
 
 interface ElementInfo {
