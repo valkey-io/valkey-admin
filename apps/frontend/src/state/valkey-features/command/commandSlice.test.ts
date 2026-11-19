@@ -20,6 +20,14 @@ describe("commandSlice", () => {
     expect(state.connections["conn-1"].pending).toBe(true)
   })
 
+  it("handles sendRequested with readOnly mode", () => {
+    const state = commandReducer(
+      initialState,
+      sendRequested({ command: "GET foo", connectionId: "conn-1", readOnly: true }),
+    )
+    expect(state.connections["conn-1"].pending).toBe(true)
+  })
+
   it("handles sendFulfilled with durationMs", () => {
     const action = {
       type: VALKEY.COMMAND.sendFulfilled,

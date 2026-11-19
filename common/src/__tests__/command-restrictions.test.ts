@@ -1,6 +1,6 @@
 import { describe, it } from "node:test"
 import assert from "node:assert"
-import { findBlockedCommand, findConfirmCommand, parseCommandArgs } from "../command-restrictions"
+import { findBlockedCommand, findConfirmCommand, findReadOnlyBlockedCommand, isWriteCommand, parseCommandArgs } from "../command-restrictions"
 
 describe("command restrictions", () => {
   describe("findBlockedCommand", () => {
@@ -86,6 +86,62 @@ describe("command restrictions", () => {
 
     it("does not confirm normal commands", () => {
       assert.strictEqual(findConfirmCommand(parseCommandArgs("GET mykey")), undefined)
+    })
+  })
+
+  describe("read-only mode write command detection", () => {
+    it("identifies standard write commands", () => {
+      const writes = [
+        "SET key value",
+        "setnx key value",
+        "\"HSET\" hash f v",
+        "'LPUSH' list elem",
+        "SADD set member",
+        "ZADD zset 10 member",
+        "DEL key",
+        "UNLINK key",
+        "EXPIRE key 60",
+        "PUBLISH chan msg",
+        "XADD stream * f v",
+        "JSON.SET doc $ {}",
+        "CONFIG SET timeout 100",
+        "CLUSTER MEET 127.0.0.1 6379",
+      ]
+      for (const cmd of writes) {
+        const args = parseCommandArgs(cmd)
+        assert.strictEqual(isWriteCommand(args), true)
+        const blocked = findReadOnlyBlockedCommand(args)
+        assert.ok(blocked, `Expected ${cmd} to be blocked in read-only mode`)
+        assert.match(blocked!.reason, /cannot be executed while Read-Only mode is enabled/)
+      }
+    })
+
+    it("allows read operations in read-only mode", () => {
+      const reads = [
+        "GET key",
+        "MGET k1 k2",
+        "HGET hash field",
+        "HGETALL hash",
+        "LRANGE list 0 -1",
+        "SMEMBERS set",
+        "ZRANGE zset 0 -1",
+        "XLEN stream",
+        "XRANGE stream - +",
+        "TTL key",
+        "EXISTS key",
+        "SCAN 0",
+        "PING",
+        "INFO",
+        "CLIENT LIST",
+        "CLUSTER NODES",
+        "JSON.GET doc",
+      ]
+      for (const cmd of reads) {
+        const args = parseCommandArgs(cmd)
+        assert.strictEqual(isWriteCommand(args), false)
+        const blocked = findReadOnlyBlockedCommand(args)
+        assert.strictEqual(blocked, undefined, `Expected ${cmd} to be allowed in read-only mode`)
+      }
     })
   })
 })
