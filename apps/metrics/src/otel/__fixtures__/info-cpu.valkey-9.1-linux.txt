@@ -1,0 +1,8 @@
+# CPU
+used_cpu_sys:0.041461
+used_cpu_user:0.004713
+used_cpu_sys_children:0.004044
+used_cpu_user_children:0.000348
+used_cpu_sys_main_thread:0.041388
+used_cpu_user_main_thread:0.004617
+used_active_time_main_thread:0.002302

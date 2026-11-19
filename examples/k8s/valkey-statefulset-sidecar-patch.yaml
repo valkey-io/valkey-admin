@@ -39,6 +39,12 @@ spec:
                 secretKeyRef:
                   name: valkey-admin-orchestrator-key
                   key: ORCHESTRATOR_KEY
+            # Optional: push metrics to an OpenTelemetry Collector over OTLP.
+            # See https://valkey-admin.valkey.io/features/otel-export/
+            # - name: METRICS_OTEL_ENABLED
+            #   value: "true"
+            # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            #   value: http://otel-collector.observability.svc.cluster.local:4318
           ports:
             - containerPort: 3000
               name: metrics

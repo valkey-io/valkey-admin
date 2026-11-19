@@ -90,3 +90,77 @@ export const downsampleMinMaxOrdered = R.curry(({ maxPoints }, series) => {
 })
 
 export const sanitizeUrl = (input) => input.replace(/[^a-zA-Z0-9_-]/g, "-")
+
+// Cluster responses may be keyed by node address; this builds the expected key for the local Valkey node.
+const getPreferredNodeKey = () => {
+  const host = process.env.VALKEY_HOST
+  const port = process.env.VALKEY_PORT
+  return host && port ? `${host}:${port}` : null
+}
+
+// Cluster clients may return a per-node map; pick the entry for this sidecar's local Valkey node.
+export const normalizeNodeScopedResponse = (result) => {
+  if (Array.isArray(result) || typeof result === "string" || result == null) {
+    return result
+  }
+
+  if (typeof result === "object") {
+    const preferredNodeKey = getPreferredNodeKey()
+    if (preferredNodeKey && preferredNodeKey in result) {
+      return result[preferredNodeKey]
+    }
+
+    // If the local node key is missing, keep going with the first node entry instead of pushing the map downstream.
+    const firstValue = Object.values(result)[0]
+    return firstValue ?? result
+  }
+
+  return result
+}
+
+/**
+ * An INFO reply to `[field, value]` pairs. Blank lines and `#` section headers
+ * are skipped. The value is everything after the first `:`, so a value that
+ * holds a colon (a path or an IPv6 address) stays whole.
+ */
+export const parseInfoToPairs = (raw) =>
+  R.pipe(
+    R.defaultTo(""),
+    String,
+    R.split(/\r?\n/),
+    R.chain((line) => {
+      const trimmed = line.trim()
+      const idx = trimmed.indexOf(":")
+      if (!trimmed || trimmed.startsWith("#") || idx === -1) return []
+      return [[trimmed.slice(0, idx), trimmed.slice(idx + 1)]]
+    }),
+  )(raw)
+
+/** An INFO reply to `{ field: value }`, with the values as strings. */
+export const parseInfo = (raw) => Object.fromEntries(parseInfoToPairs(raw))
+
+// INFO values are strings. An absent or empty value must not become 0, so it is undefined.
+export const toFiniteNumber = (raw) => {
+  if (raw == null || String(raw).trim() === "") return undefined
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : undefined
+}
+
+const DB_ROW = /^db(\d+)$/
+
+/**
+ * `INFO KEYSPACE` pairs (`["db0", "keys=1,expires=0,avg_ttl=0"]`) to
+ * `{ "0": { keys, expires } }`. Rows that are not `db<N>`, or that have no
+ * numeric `keys` and `expires`, are skipped.
+ */
+export const parseKeyspace = (pairs = []) =>
+  R.reduce((acc, [key, value]) => {
+    const match = DB_ROW.exec(String(key))
+    if (!match) return acc
+    const fields = Object.fromEntries(String(value).split(",").map((part) => part.split("=", 2)))
+    const keys = toFiniteNumber(fields.keys)
+    const expires = toFiniteNumber(fields.expires)
+    if (keys === undefined || expires === undefined) return acc
+    acc[String(Number(match[1]))] = { keys, expires }
+    return acc
+  }, {}, pairs)

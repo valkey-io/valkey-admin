@@ -122,8 +122,8 @@ const startMonitor = async (cfg) => {
 
 const stopMonitor = async () => await monitorStopper()
 
-const setupCollectors = async (client, cfg) => {
-  const fetcher = makeFetcher(client)
+const setupCollectors = async (client, cfg, { onInfo } = {}) => {
+  const fetcher = makeFetcher(client, { onInfo })
   // An epic's name is its kind: it selects the fetcher and prefixes the files.
   await Promise.all(cfg.epics
     .filter((f) => f.name !== MONITOR && fetcher[f.name])

@@ -53,6 +53,26 @@ report_config() {
   valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CONFIG GET cluster-slot-stats-enabled | tr -d '\r' | paste - -
 }
 
+# cluster_state:ok can come before the replicas are in CLUSTER SLOTS: a replica
+# is listed only when its replication link is up. Wait for all 6 nodes, so that
+# a client that reads the topology right after this script sees the replicas.
+# A node shows once for each slot range it serves, so count unique ids.
+wait_replicas_listed() {
+  i=0
+  while [ "$i" -lt 60 ]; do
+    ids="$( (valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" --raw CLUSTER SLOTS 2>/dev/null || true) \
+      | tr -d '\r' | grep -E '^[0-9a-f]{40}$' | sort -u | wc -l | tr -d ' ')"
+    if [ "$ids" = "6" ]; then
+      return 0
+    fi
+    i=$((i+1))
+    sleep 1
+  done
+  echo "" >&2
+  echo "ERROR: CLUSTER SLOTS lists ${ids:-0} of 6 nodes; the replicas did not attach in time." >&2
+  exit 1
+}
+
 for hp in $NODES; do
   wait_port "$hp"
 done
@@ -63,7 +83,8 @@ info="$( (valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER INFO 2>/dev/null 
 state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
 
 if [ "${state:-}" = "ok" ]; then
-  echo "🫡 Cluster already healthy."
+  wait_replicas_listed
+  echo "Cluster already healthy."
   report_config
   exit 0
 fi
@@ -79,7 +100,7 @@ if ! out=$(
   elif printf '%s' "$msg" | grep -qi "already.*cluster"; then
     echo "Cluster create skipped: cluster already exists."
   else
-    echo "💩 Cluster create failed:"
+    echo "Cluster create failed:"
     printf '%s\n' "$msg"
   fi
   echo "Proceeding to verify cluster state..."
@@ -96,8 +117,9 @@ while [ "$i" -lt 120 ]; do
   masters="$(valkey-cli -h "$FIRST_HOST" -p "$FIRST_PORT" CLUSTER NODES 2>/dev/null | tr -d '\r' | awk '$3 ~ /master/ {c++} END {print (c+0)}' || echo 0)"
 
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
+    wait_replicas_listed
     echo ""
-    echo "🫡 SUCCESS: Valkey cluster is ready."
+    echo "SUCCESS: Valkey cluster is ready."
     report_config
     exit 0
   fi
@@ -107,5 +129,5 @@ while [ "$i" -lt 120 ]; do
 done
 
 echo ""
-echo "💩 ERROR: Cluster did not stabilize in time." >&2
+echo "ERROR: Cluster did not stabilize in time." >&2
 exit 1

@@ -3,8 +3,9 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { mergeDeepLeft } from "ramda"
 import YAML from "yaml"
-import { configUpdateSchema, findForbiddenKey, formatIssues } from "./config-schema.js"
-import { EPIC_KINDS, EPIC_NAME_PATTERN } from "./utils/constants.js"
+import { EPIC_FIELD_BOUNDS } from "../../../common/src/constants.js"
+import { configUpdateSchema, findForbiddenKey, formatIssues, isValidPollMs } from "./config-schema.js"
+import { EPIC_KINDS, EPIC_NAME_PATTERN, MONITOR } from "./utils/constants.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -49,6 +50,36 @@ const validEpics = (epics) => epics.filter((epic) => {
   return true
 })
 
+// A YAML number, or a string that holds one ("5000"). Any other value is NaN.
+const toNumber = (raw) => {
+  if (typeof raw === "number") return raw
+  if (typeof raw === "string" && raw.trim() !== "") return Number(raw)
+  return NaN
+}
+
+/**
+ * The epics with a valid `poll_ms`, with the value as a number.
+ *
+ * A poll interval of 0, a negative value or a fraction makes the collector
+ * poll in a tight loop, and a non-numeric value breaks the export interval.
+ * So an epic with an invalid `poll_ms` is dropped with an error, as an
+ * unknown epic is. An epic without `poll_ms` keeps its current behavior, and
+ * the `monitor` epic does not use `poll_ms`.
+ */
+const withValidPollMs = (epics) => epics.flatMap((epic) => {
+  if (epic.name === MONITOR || epic.poll_ms === undefined) return [epic]
+  const pollMs = toNumber(epic.poll_ms)
+  if (!isValidPollMs(pollMs)) {
+    const { min, max } = EPIC_FIELD_BOUNDS.poll_ms
+    console.error(
+      `[config] Ignoring epic "${epic.name}": poll_ms must be an integer from ${min} to ${max}, `
+      + `not ${JSON.stringify(epic.poll_ms)}.`,
+    )
+    return []
+  }
+  return [{ ...epic, poll_ms: pollMs }]
+})
+
 const loadConfig = () => {
   const text = fs.readFileSync(cfgPath, "utf8")
   const parsed = YAML.parse(text) || {}
@@ -62,7 +93,7 @@ const loadConfig = () => {
     }
   }
   if (!Array.isArray(cfg.epics)) cfg.epics = []
-  cfg.epics = validEpics(cfg.epics).map((e) => ({ ...EPIC_DEFAULTS, ...e }))
+  cfg.epics = withValidPollMs(validEpics(cfg.epics)).map((e) => ({ ...EPIC_DEFAULTS, ...e }))
 
   if (process.env.PORT) cfg.server.port = Number(process.env.PORT)
   if (process.env.DATA_DIR) cfg.server.data_dir = process.env.DATA_DIR

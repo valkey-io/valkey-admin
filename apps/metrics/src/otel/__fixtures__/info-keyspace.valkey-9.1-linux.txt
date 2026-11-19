@@ -1,0 +1,3 @@
+# Keyspace
+db0:keys=2,expires=1,avg_ttl=0,keys_with_volatile_items=0
+db3:keys=1,expires=0,avg_ttl=0,keys_with_volatile_items=0

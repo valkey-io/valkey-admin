@@ -88,8 +88,17 @@ describe("init-collectors", () => {
 
       await setupCollectors(client, config)
 
-      expect(makeFetcher).toHaveBeenCalledWith(client)
+      expect(makeFetcher).toHaveBeenCalledWith(client, { onInfo: undefined })
       expect(startCollector).toHaveBeenCalledTimes(2)
+    })
+
+    it("should pass onInfo to the fetcher", async () => {
+      const { setupCollectors } = await import("./init-collectors.js")
+      const onInfo = vi.fn()
+
+      await setupCollectors(client, config, { onInfo })
+
+      expect(makeFetcher).toHaveBeenCalledWith(client, { onInfo })
     })
 
     it("should skip epics with no matching fetcher", async () => {

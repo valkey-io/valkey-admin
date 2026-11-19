@@ -210,6 +210,79 @@ mem_fragmentation_ratio:1.25`,
     })
   })
 
+  describe("onInfo hook", () => {
+    const memoryReply = `used_memory:800000
+used_memory_peak:1100000
+used_memory_dataset:500000
+used_memory_overhead:300000
+used_memory_dataset_perc:62.5%
+mem_fragmentation_ratio:1.25
+maxmemory_policy:noeviction`
+    const keyspaceReply = "# Keyspace\r\ndb0:keys=50,expires=3,avg_ttl=0\r\ndb2:keys=7,expires=0,avg_ttl=0\r\n"
+    const cpuReply = "# CPU\r\nused_cpu_sys:10.5\r\nused_cpu_user:20.3\r\nused_cpu_sys_children:0.1\r\n"
+
+    const runMemory = async (f) => {
+      client.info.mockReset()
+      client.info.mockResolvedValueOnce(memoryReply).mockResolvedValueOnce(keyspaceReply)
+      return f.memory()
+    }
+    const runCpu = async (f) => {
+      client.info.mockReset()
+      client.info.mockResolvedValueOnce(cpuReply)
+      return f.cpu()
+    }
+
+    it("passes the parsed INFO MEMORY map and the keyspace to onInfo", async () => {
+      const onInfo = vi.fn()
+      await runMemory(makeFetcher(client, { onInfo }))
+
+      expect(onInfo).toHaveBeenCalledTimes(1)
+      const [kind, data] = onInfo.mock.calls[0]
+      expect(kind).toBe("memory")
+      expect(data.memory).toMatchObject({ used_memory: "800000", maxmemory_policy: "noeviction" })
+      expect(data.keyspace).toEqual({ 0: { keys: 50, expires: 3 }, 2: { keys: 7, expires: 0 } })
+    })
+
+    it("passes the parsed INFO CPU map to onInfo", async () => {
+      const onInfo = vi.fn()
+      await runCpu(makeFetcher(client, { onInfo }))
+
+      expect(onInfo).toHaveBeenCalledWith("cpu", { used_cpu_sys: "10.5", used_cpu_user: "20.3", used_cpu_sys_children: "0.1" })
+    })
+
+    it("returns the same rows with and without onInfo", async () => {
+      const withoutHook = makeFetcher(client)
+      const withHook = makeFetcher(client, { onInfo: vi.fn() })
+
+      expect(await runMemory(withHook)).toEqual(await runMemory(withoutHook))
+      expect(await runCpu(withHook)).toEqual(await runCpu(withoutHook))
+    })
+
+    it("does not add INFO calls when onInfo is set", async () => {
+      const withHook = makeFetcher(client, { onInfo: vi.fn() })
+
+      await runMemory(withHook)
+      expect(client.info).toHaveBeenCalledTimes(2)
+      await runCpu(withHook)
+      expect(client.info).toHaveBeenCalledTimes(1)
+    })
+
+    it("still returns the rows when onInfo throws", async () => {
+      const expectedMemory = await runMemory(makeFetcher(client))
+      const expectedCpu = await runCpu(makeFetcher(client))
+      const throwing = makeFetcher(client, { onInfo: () => { throw new Error("hook failed") } })
+      const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+
+      try {
+        await expect(runMemory(throwing)).resolves.toEqual(expectedMemory)
+        await expect(runCpu(throwing)).resolves.toEqual(expectedCpu)
+        expect(stderr.mock.calls.map(([line]) => String(line)).join("")).toContain("hook failed")
+      } finally {
+        stderr.mockRestore()
+      }
+    })
+  })
+
   describe("commandlog_slow", () => {
     it("should parse slow command log entries", async () => {
       const mockEntries = [
