@@ -1,18 +1,19 @@
 import { createSlice } from "@reduxjs/toolkit"
 import { type JSONObject } from "@common/src/json-utils"
 import { VALKEY } from "@common/src/constants.ts"
+import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
 import type { RootState } from "@/store.ts"
 
 export const selectCpuUsage =
-  (connectionId: string) =>
+  (id: string) =>
     (state: RootState) =>
-      R.path([VALKEY.CPU.name, connectionId, "data"], state)
+      R.path([VALKEY.CPU.name, toNodeId(id), "data"], state)
 
 export const selectCpuUsageLoading =
-  (connectionId: string) =>
+  (id: string) =>
     (state: RootState) =>
-      R.pathOr(false, [VALKEY.CPU.name, connectionId, "loading"], state)
+      R.pathOr(false, [VALKEY.CPU.name, toNodeId(id), "loading"], state)
 
 interface CpuDataPoint {
   timestamp: number
@@ -20,7 +21,7 @@ interface CpuDataPoint {
 }
 
 interface CpuState {
-  [connectionId: string]: {
+  [nodeId: string]: {
     data: CpuDataPoint[]
     error?: JSONObject | null
     loading?: boolean
@@ -34,38 +35,41 @@ const cpuSlice = createSlice({
   initialState: initialCpuState,
   reducers: {
     cpuUsageRequested: (state, action) => {
-      const { connectionId } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      const { connectionId, nodeId: explicitNodeId } = action.payload
+      const nodeId = explicitNodeId ?? toNodeId(connectionId)
+      if (!state[nodeId]) {
+        state[nodeId] = {
           data: [],
           loading: false,
         }
       }
-      state[connectionId].loading = true
+      state[nodeId].loading = true
     },
     cpuUsageFulfilled: (state, action) => {
-      const { connectionId, parsedResponse } = action.payload
-      if (!state[connectionId]) {
-        state[connectionId] = {
+      const { nodeId: explicitNodeId, connectionId, parsedResponse } = action.payload
+      const nodeId = explicitNodeId ?? toNodeId(connectionId)
+      if (!state[nodeId]) {
+        state[nodeId] = {
           data: [],
           loading: false,
         }
       }
       // Validate that parsedResponse is an array
       if (Array.isArray(parsedResponse)) {
-        state[connectionId].data = parsedResponse
+        state[nodeId].data = parsedResponse
       } else {
         console.error("Invalid CPU usage response format:", parsedResponse)
-        state[connectionId].data = []
-        state[connectionId].error = { message: "Invalid data format received" }
+        state[nodeId].data = []
+        state[nodeId].error = { message: "Invalid data format received" }
       }
-      state[connectionId].loading = false
+      state[nodeId].loading = false
     },
     cpuUsageError: (state, action) => {
-      const { connectionId, error } = action.payload
-      if (state[connectionId]) {
-        state[connectionId].error = error
-        state[connectionId].loading = false
+      const { nodeId: explicitNodeId, connectionId, error } = action.payload
+      const nodeId = explicitNodeId ?? toNodeId(connectionId)
+      if (state[nodeId]) {
+        state[nodeId].error = error
+        state[nodeId].loading = false
       }
     },
   },
