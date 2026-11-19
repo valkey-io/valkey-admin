@@ -69,7 +69,7 @@ wait_replicas_listed() {
     sleep 1
   done
   echo "" >&2
-  echo "💩 ERROR: CLUSTER SLOTS lists ${ids:-0} of 6 nodes; the replicas did not attach in time." >&2
+  echo "ERROR: CLUSTER SLOTS lists ${ids:-0} of 6 nodes; the replicas did not attach in time." >&2
   exit 1
 }
 
@@ -84,7 +84,7 @@ state="$(printf '%s\n' "$info" | awk -F: '/^cluster_state/ {print $2}')"
 
 if [ "${state:-}" = "ok" ]; then
   wait_replicas_listed
-  echo "🫡 Cluster already healthy."
+  echo "Cluster already healthy."
   report_config
   exit 0
 fi
@@ -100,7 +100,7 @@ if ! out=$(
   elif printf '%s' "$msg" | grep -qi "already.*cluster"; then
     echo "Cluster create skipped: cluster already exists."
   else
-    echo "💩 Cluster create failed:"
+    echo "Cluster create failed:"
     printf '%s\n' "$msg"
   fi
   echo "Proceeding to verify cluster state..."
@@ -119,7 +119,7 @@ while [ "$i" -lt 120 ]; do
   if [ "$state" = "ok" ] && [ "$known" = "6" ] && [ "$size" = "3" ] && [ "$slots" = "16384" ] && [ "$masters" = "3" ]; then
     wait_replicas_listed
     echo ""
-    echo "🫡 SUCCESS: Valkey cluster is ready."
+    echo "SUCCESS: Valkey cluster is ready."
     report_config
     exit 0
   fi
@@ -129,5 +129,5 @@ while [ "$i" -lt 120 ]; do
 done
 
 echo ""
-echo "💩 ERROR: Cluster did not stabilize in time." >&2
+echo "ERROR: Cluster did not stabilize in time." >&2
 exit 1

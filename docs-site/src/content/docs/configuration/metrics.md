@@ -255,8 +255,10 @@ The OpenTelemetry SDK reads these standard variables:
 | `OTEL_EXPORTER_OTLP_HEADERS` | Request headers as `key=value` pairs separated by commas, for example `authorization=Bearer <token>`. The values are not written to the log. |
 | `OTEL_EXPORTER_OTLP_TIMEOUT` | Request timeout in milliseconds. |
 | `OTEL_EXPORTER_OTLP_CERTIFICATE` | Path to a PEM CA certificate for an `https` endpoint with a private CA. |
-| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Client certificate and key for mTLS. The SDK reads them, but Valkey Admin does not test them. |
+| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Client certificate and key for mTLS. |
 | `OTEL_RESOURCE_ATTRIBUTES` | Extra resource attributes, for example `service.namespace=prod-cache`. It cannot change `service.name` or `service.instance.id`. |
+
+Valkey Admin passes these variables to the SDK unchanged and does not test how the SDK uses them.
 
 These variables have no effect:
 

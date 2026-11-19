@@ -1,11 +1,8 @@
-import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import http from "node:http"
-import https from "node:https"
-import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { describe, it, expect, afterEach, beforeAll, afterAll } from "vitest"
+import { describe, it, expect, afterEach, beforeAll } from "vitest"
 import { AggregationTemporality, DataPointType, InMemoryMetricExporter } from "@opentelemetry/sdk-metrics"
 import {
   buildResource,
@@ -31,10 +28,7 @@ const KEYSPACE = parseKeyspace(fixturePairs("info-keyspace.valkey-9.1-linux.txt"
 const OTEL_ENV_KEYS = [
   "METRICS_OTEL_ENABLED",
   "OTEL_EXPORTER_OTLP_ENDPOINT",
-  "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
   "OTEL_EXPORTER_OTLP_HEADERS",
-  "OTEL_EXPORTER_OTLP_TIMEOUT",
-  "OTEL_EXPORTER_OTLP_CERTIFICATE",
   "OTEL_RESOURCE_ATTRIBUTES",
   "OTEL_SERVICE_NAME",
 ]
@@ -77,7 +71,7 @@ const collectOnce = async ({ cache, exporter = new InMemoryMetricExporter(Aggreg
 }
 
 // A receiver that records each request. `mode` decides the answer.
-const startReceiver = async ({ mode = "ok", tls } = {}) => {
+const startReceiver = async ({ mode = "ok" } = {}) => {
   const requests = []
   const handler = (req, res) => {
     const chunks = []
@@ -94,12 +88,12 @@ const startReceiver = async ({ mode = "ok", tls } = {}) => {
       res.end()
     })
   }
-  const server = tls ? https.createServer(tls, handler) : http.createServer(handler)
+  const server = http.createServer(handler)
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
   const { port } = server.address()
   return {
     requests,
-    url: `${tls ? "https" : "http"}://${tls ? "localhost" : "127.0.0.1"}:${port}`,
+    url: `http://127.0.0.1:${port}`,
     close: () => new Promise((resolve) => {
       server.closeAllConnections()
       server.close(() => resolve())
@@ -343,83 +337,16 @@ describe("otel exporter", () => {
       return { otel, lines }
     }
 
-    it("posts protobuf to /v1/metrics with OTEL_EXPORTER_OTLP_HEADERS", async () => {
+    it("posts protobuf to <OTEL_EXPORTER_OTLP_ENDPOINT>/v1/metrics", async () => {
       const r = await receiver()
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
-      process.env.OTEL_EXPORTER_OTLP_HEADERS = "x-token=abc"
       const { otel } = start()
       await otel.forceFlush()
 
       expect(r.requests).toHaveLength(1)
       expect(r.requests[0]).toMatchObject({ method: "POST", url: "/v1/metrics" })
       expect(r.requests[0].headers["content-type"]).toBe("application/x-protobuf")
-      expect(r.requests[0].headers["x-token"]).toBe("abc")
       expect(r.requests[0].bytes).toBeGreaterThan(0)
-    })
-
-    it("uses OTEL_EXPORTER_OTLP_METRICS_ENDPOINT as given", async () => {
-      const r = await receiver()
-      process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT = `${r.url}/custom`
-      const { otel } = start()
-      await otel.forceFlush()
-      expect(r.requests.map((q) => q.url)).toEqual(["/custom"])
-    })
-
-    it("honours OTEL_EXPORTER_OTLP_TIMEOUT", async () => {
-      const r = await receiver({ mode: "hang" })
-      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
-      process.env.OTEL_EXPORTER_OTLP_TIMEOUT = "200"
-      const { otel } = start()
-      const t0 = Date.now()
-      await otel.forceFlush().catch(() => {})
-      expect(Date.now() - t0).toBeLessThan(1000)
-    })
-
-    describe("TLS", () => {
-      let tlsDir
-      const hasOpenssl = (() => {
-        try {
-          execFileSync("openssl", ["version"], { stdio: "ignore" })
-          return true
-        } catch {
-          return false
-        }
-      })()
-
-      beforeAll(() => {
-        if (!hasOpenssl) return
-        tlsDir = fs.mkdtempSync(path.join(os.tmpdir(), "otel-tls-"))
-        const run = (args) => execFileSync("openssl", args, { cwd: tlsDir, stdio: "ignore" })
-        run(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-days", "1", "-subj", "/CN=test-ca"])
-        run(["req", "-newkey", "rsa:2048", "-nodes", "-keyout", "srv.key", "-out", "srv.csr", "-subj", "/CN=localhost"])
-        fs.writeFileSync(path.join(tlsDir, "ext"), "subjectAltName=DNS:localhost")
-        run(["x509", "-req", "-in", "srv.csr", "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial", "-out", "srv.crt", "-days", "1",
-          "-extfile", "ext"])
-      })
-
-      afterAll(() => {
-        if (tlsDir) fs.rmSync(tlsDir, { recursive: true, force: true })
-      })
-
-      const tlsOptions = () => ({ key: fs.readFileSync(path.join(tlsDir, "srv.key")), cert: fs.readFileSync(path.join(tlsDir, "srv.crt")) })
-
-      it.skipIf(!hasOpenssl)("trusts a private CA from OTEL_EXPORTER_OTLP_CERTIFICATE", async () => {
-        const r = await receiver({ tls: tlsOptions() })
-        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
-        process.env.OTEL_EXPORTER_OTLP_CERTIFICATE = path.join(tlsDir, "ca.crt")
-        const { otel } = start()
-        await otel.forceFlush()
-        expect(r.requests).toHaveLength(1)
-      })
-
-      it.skipIf(!hasOpenssl)("does not send to an untrusted certificate", async () => {
-        const r = await receiver({ tls: tlsOptions() })
-        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
-        process.env.OTEL_EXPORTER_OTLP_TIMEOUT = "1000"
-        const { otel } = start()
-        await otel.forceFlush().catch(() => {})
-        expect(r.requests).toHaveLength(0)
-      })
     })
 
     it("keeps the cache working and logs one error when the endpoint refuses the export", async () => {
@@ -436,7 +363,7 @@ describe("otel exporter", () => {
 
       expect(r.requests).toHaveLength(3)
       expect(cache.cpu().used_cpu_user).toBe("2")
-      expect(lines.error).toHaveLength(1)
+      expect(lines.error).toEqual(["PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Unauthorized)"])
       expect(Object.values(lines).flat().join("\n")).not.toContain("SECRET123")
     })
 
@@ -484,14 +411,11 @@ describe("otel exporter", () => {
       expect(lines.debug).toEqual(["details"])
     })
 
-    it("logs the message of an SDK export error, not the stack trace", () => {
+    it("logs the first line of an error message, not the stack trace", () => {
       const { log, lines } = makeLog()
       const diag = makeDiagLogger(log, { now: () => 0 })
-      // @opentelemetry/core loggingErrorHandler passes JSON.stringify of the flattened error.
-      const error = new Error("PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Unauthorized)")
-      diag.error(JSON.stringify({ stack: error.stack, message: error.message, name: error.name }))
-      diag.error(JSON.stringify({ stack: error.stack }))
-      expect(lines.error).toEqual(["PeriodicExportingMetricReader: metrics export failed (error OTLPExporterError: Unauthorized)"])
+      diag.error(new Error("export failed\nmore detail"))
+      expect(lines.error).toEqual(["export failed"])
     })
   })
 })

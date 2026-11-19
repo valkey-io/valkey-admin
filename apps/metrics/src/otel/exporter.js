@@ -1,4 +1,5 @@
 import { diag, DiagLogLevel } from "@opentelemetry/api"
+import { setGlobalErrorHandler } from "@opentelemetry/core"
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto"
 import { detectResources, envDetector, resourceFromAttributes } from "@opentelemetry/resources"
 import { MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics"
@@ -62,31 +63,9 @@ export const buildResource = ({ env, nodeId }) => {
   return detectResources({ detectors: [envDetector] }).merge(resourceFromAttributes(own))
 }
 
-const describeObject = (arg) => {
-  if (typeof arg.message === "string") return arg.message
-  if (typeof arg.stack === "string") return arg.stack.replace(/^Error: /, "")
-  return JSON.stringify(arg)
-}
-
-// The SDK's error handler logs a failed export as JSON of the flattened error
-// ({ stack, message, ... }). Show its message, not the JSON.
-const describeString = (text) => {
-  if (!text.startsWith("{")) return text
-  try {
-    const parsed = JSON.parse(text)
-    return parsed && typeof parsed === "object" ? describeObject(parsed) : text
-  } catch {
-    return text
-  }
-}
-
-const describe = (arg) => {
-  if (arg instanceof Error) return arg.message
-  if (typeof arg === "string") return describeString(arg)
-  if (arg && typeof arg === "object") return describeObject(arg)
-  return String(arg)
-}
-// SDK errors can carry a stack trace. One line per error is enough in the log.
+// An error shows as its message, without the stack trace.
+const describe = (arg) => arg?.message ?? String(arg)
+// One line per error is enough in the log.
 const firstLine = (args) => args.map(describe).join(" ").split("\n")[0]
 
 /**
@@ -141,7 +120,11 @@ const createInstrument = (meter, { name, instrument, unit }) => CREATE_OBSERVABL
  * a gap during a fetch outage.
  */
 export const startOtelExporter = ({ intervalMs, resource, cache, log, exporter, now }) => {
-  diag.setLogger(makeDiagLogger(log, { now }), { logLevel: DiagLogLevel.WARN, suppressOverrideMessage: true })
+  const diagLogger = makeDiagLogger(log, { now })
+  diag.setLogger(diagLogger, { logLevel: DiagLogLevel.WARN, suppressOverrideMessage: true })
+  // The SDK reports a failed export to its global error handler. The default
+  // handler logs the error as JSON with its stack trace, so send it here instead.
+  setGlobalErrorHandler((err) => diagLogger.error(err))
 
   const reader = new PeriodicExportingMetricReader({
     exporter: exporter ?? new OTLPMetricExporter(),
