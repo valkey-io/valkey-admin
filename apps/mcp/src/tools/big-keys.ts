@@ -63,10 +63,12 @@ const outputSchema = responseSchema.omit({ nodeId: true }).extend({
 // Throws NotReadyError while collectors are starting, either as the whole
 // reply's error or when every node fails with that error.
 const fetchBigKeys = async (admin: AdminClient, { topN, scanLimit }: z.infer<typeof inputSchema>) => {
-  const details = await admin.details()
-  const payload: BigKeysRequestPayload = { connectionId: admin.connectionId, clusterId: details.clusterId, topN, scanLimit }
   const reply = await admin.request(
-    { type: VALKEY.BIGKEYS.bigKeysRequested, payload: { ...payload } },
+    VALKEY.BIGKEYS.bigKeysRequested,
+    ({ clusterId }) => {
+      const payload: BigKeysRequestPayload = { connectionId: admin.connectionId, clusterId, topN, scanLimit }
+      return { ...payload }
+    },
     [VALKEY.BIGKEYS.bigKeysFulfilled, VALKEY.BIGKEYS.bigKeysError],
   )
   if (reply.type === VALKEY.BIGKEYS.bigKeysError) {

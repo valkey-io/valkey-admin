@@ -27,7 +27,8 @@ const errorPayloadSchema = z.object({
 const fetchServerInfo = async (admin: AdminClient) => {
   const payload: StatsRequestPayload = { connectionId: admin.connectionId }
   const reply = await admin.request(
-    { type: VALKEY.STATS.setData, payload: { ...payload } },
+    VALKEY.STATS.setData,
+    () => ({ ...payload }),
     [VALKEY.STATS.setData, VALKEY.STATS.setError],
   )
   if (reply.type === VALKEY.STATS.setData) return outputSchema.parse(reply.payload)

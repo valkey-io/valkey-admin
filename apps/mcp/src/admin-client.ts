@@ -17,14 +17,11 @@ export type ConnectionReplyDetails = {
 
 export type AdminClient = {
   connectionId: string
-  details: () => Promise<ConnectionReplyDetails>
-  request: (action: AdminAction, replyTypes: string[]) => Promise<AdminAction>
-  close: () => void
-}
-
-type Session = {
-  ws: WebSocket
-  details: ConnectionReplyDetails
+  request: (
+    type: string,
+    payload: (details: ConnectionReplyDetails) => Record<string, unknown>,
+    replyTypes: string[],
+  ) => Promise<AdminAction>
 }
 
 const REPLY_TIMEOUT_MS = 10000
@@ -51,14 +48,11 @@ const parseAction = (data: WebSocket.RawData): AdminAction | undefined => {
   }
 }
 
-// Creates a client for one Valkey connection. The WebSocket and the Valkey
-// connection open on the first call and reopen on the next call after a drop.
+// Creates a client for one Valkey connection. Each request opens its own
+// WebSocket, connects to Valkey and closes the WebSocket after the reply.
 export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint): AdminClient => {
   const connectionId = buildNormalizedConnectionId(valkey.host, valkey.port)
   const nodeId = toNodeId(connectionId)
-  let session: Promise<Session> | undefined
-  let closed = false
-  const pending = new Map<string, Promise<unknown>>()
 
   // Opens the WebSocket with the MCP origin and, when the server started this process, its token.
   const open = () =>
@@ -95,7 +89,6 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       }
       const timer = setTimeout(() => {
         cleanup()
-        ws.terminate()
         reject(new Error(`No reply from Valkey Admin for ${action.type}`))
       }, REPLY_TIMEOUT_MS)
       const cleanup = () => {
@@ -108,73 +101,44 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       ws.send(JSON.stringify(action))
     })
 
-  // Opens a WebSocket and asks the server to connect to Valkey, as the UI's connect form does.
-  // Keeps the connection details from the reply, such as the cluster ID.
-  const connect = async (): Promise<Session> => {
-    const ws = await open()
-    try {
-      const reply = await send(ws, {
-        type: VALKEY.CONNECTION.connectPending,
-        payload: {
-          connectionId,
-          connectionDetails: {
-            host: valkey.host,
-            port: String(valkey.port),
-            username: valkey.username,
-            password: valkey.password,
-            tls: valkey.useTLS,
-            verifyTlsCertificate: true,
-            endpointType: "node",
-            db: 0,
-          },
+  // Asks the server to connect to Valkey, as the UI's connect form does, and
+  // returns the connection details from the reply, such as the cluster ID.
+  const connect = async (ws: WebSocket): Promise<ConnectionReplyDetails> => {
+    const reply = await send(ws, {
+      type: VALKEY.CONNECTION.connectPending,
+      payload: {
+        connectionId,
+        connectionDetails: {
+          host: valkey.host,
+          port: String(valkey.port),
+          username: valkey.username,
+          password: valkey.password,
+          tls: valkey.useTLS,
+          verifyTlsCertificate: true,
+          endpointType: "node",
+          db: 0,
         },
-      }, CONNECT_REPLIES)
-      if (reply.type === VALKEY.CONNECTION.connectRejected) {
-        throw new Error(String(reply.payload?.errorMessage ?? "Valkey Admin rejected the connection"))
-      }
-      return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionReplyDetails }
-    } catch (error) {
-      ws.close()
-      throw error
+      },
+    }, CONNECT_REPLIES)
+    if (reply.type === VALKEY.CONNECTION.connectRejected) {
+      throw new Error(String(reply.payload?.errorMessage ?? "Valkey Admin rejected the connection"))
     }
-  }
-
-  // Returns the open session, connecting first if needed. A failed connect is forgotten so the next call retries.
-  const connection = async (): Promise<Session> => {
-    const current = session
-    if (current && (await current).ws.readyState !== WebSocket.OPEN && session === current) {
-      session = undefined
-    }
-    if (closed) throw new Error("The Valkey Admin client is closed")
-    session ??= connect().catch((error: Error) => {
-      session = undefined
-      throw error
-    })
-    return session
+    return (reply.payload?.connectionDetails ?? {}) as ConnectionReplyDetails
   }
 
   return {
     connectionId,
-    details: async () => (await connection()).details,
-    request: async (action, replyTypes) => {
-      if (!READ_ONLY_ACTIONS.has(action.type)) {
-        throw new Error(`Action ${action.type} is not on the read-only allowlist`)
+    request: async (type, payload, replyTypes) => {
+      if (!READ_ONLY_ACTIONS.has(type)) {
+        throw new Error(`Action ${type} is not on the read-only allowlist`)
       }
-      const previous = pending.get(action.type) ?? Promise.resolve()
-      const result = previous.then(async () => {
-        const { ws, details } = await connection()
-        return send(ws, action, replyTypes, details)
-      })
-      const settled = result.catch(() => undefined)
-      pending.set(action.type, settled)
-      void settled.then(() => {
-        if (pending.get(action.type) === settled) pending.delete(action.type)
-      })
-      return result
-    },
-    close: () => {
-      closed = true
-      session?.then(({ ws }) => ws.close()).catch(() => undefined)
+      const ws = await open()
+      try {
+        const details = await connect(ws)
+        return await send(ws, { type, payload: payload(details) }, replyTypes, details)
+      } finally {
+        ws.close()
+      }
     },
   }
 }

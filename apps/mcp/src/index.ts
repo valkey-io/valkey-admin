@@ -5,10 +5,9 @@
 import { createServer } from "node:http"
 import { localhostHostValidation, localhostOriginValidation, toNodeHandler } from "@modelcontextprotocol/node"
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server"
-import { type AdminClient, createAdminClient } from "./admin-client"
+import { createAdminClient } from "./admin-client"
 import { bearerTokenValidation } from "./auth"
 import {
-  type ConnectionConfig,
   MCP_PATH,
   connectionForRequest,
   hasValkeyHeaders,
@@ -24,24 +23,12 @@ const HOSTNAME = "127.0.0.1"
 // Loads the configuration, starts the HTTP server and closes everything on SIGINT or SIGTERM.
 const main = () => {
   const config = loadConfig()
-  const clients = new Map<string, AdminClient>()
   const onerror = (error: Error) => console.error(error.message)
-
-  // Reuses one admin client per distinct connection, so calls for the same Valkey deployment share a WebSocket.
-  const adminClientFor = (connection: ConnectionConfig) => {
-    const key = JSON.stringify(connection)
-    let client = clients.get(key)
-    if (!client) {
-      client = createAdminClient(connection, config.admin)
-      clients.set(key, client)
-    }
-    return client
-  }
 
   // Builds an MCP server for each request, bound to the Valkey connection its target or headers name.
   const mcp = createMcpHandler(({ requestInfo }) => {
     const pathname = new URL(requestInfo?.url ?? MCP_PATH, "http://localhost").pathname
-    const admin = adminClientFor(connectionForRequest(config, pathname, requestInfo?.headers))
+    const admin = createAdminClient(connectionForRequest(config, pathname, requestInfo?.headers), config.admin)
     const server = new McpServer({ name: "valkey-admin", version: "0.1.0" })
     registerServerInfo(server, admin)
     registerBigKeys(server, admin)
@@ -72,7 +59,6 @@ const main = () => {
   })
 
   const shutdown = () => {
-    clients.forEach((client) => client.close())
     void mcp.close()
     httpServer.close()
   }

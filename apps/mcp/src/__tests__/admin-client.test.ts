@@ -48,7 +48,7 @@ describe("createAdminClient", () => {
     const client = createAdminClient(valkey, { url, origin: "valkey-admin-mcp://localhost" })
 
     for (const type of [VALKEY.COMMAND.sendRequested, VALKEY.CONNECTION.connectPending, "anything"]) {
-      await assert.rejects(client.request({ type }, []), /not on the read-only allowlist/)
+      await assert.rejects(client.request(type, () => ({}), []), /not on the read-only allowlist/)
     }
     assert.strictEqual(upgrades.length, 0)
   })
@@ -56,7 +56,7 @@ describe("createAdminClient", () => {
   it("connects with the MCP origin and token, sends the Valkey credentials and reports a rejection", async () => {
     const client = createAdminClient(valkey, { url, origin: "valkey-admin-mcp://localhost", token: "internal-token" })
 
-    await assert.rejects(client.request({ type: VALKEY.STATS.setData }, []), /WRONGPASS from test/)
+    await assert.rejects(client.request(VALKEY.STATS.setData, () => ({}), []), /WRONGPASS from test/)
 
     const upgrade = upgrades.at(-1)
     assert.strictEqual(upgrade?.headers.origin, "valkey-admin-mcp://localhost")
@@ -69,7 +69,6 @@ describe("createAdminClient", () => {
     assert.strictEqual(details.host, "valkey-prod")
     assert.strictEqual(details.username, "mcp_readonly")
     assert.strictEqual(details.password, "secret")
-    client.close()
   })
 
   it("does not put the token in the error when Valkey Admin is unreachable", async () => {
@@ -81,7 +80,7 @@ describe("createAdminClient", () => {
     })
 
     await assert.rejects(
-      client.request({ type: VALKEY.STATS.setData }, []),
+      client.request(VALKEY.STATS.setData, () => ({}), []),
       (error: Error) => /Cannot reach Valkey Admin/.test(error.message) && !error.message.includes("internal-token"),
     )
   })

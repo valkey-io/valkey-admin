@@ -78,23 +78,25 @@ const missingRequirements = ({ clusterId, keyEvictionPolicy, clusterSlotStatsEna
 // the server's tuples into named fields. Throws NotReadyError while every
 // node's collector is still starting.
 const fetchHotKeys = async (admin: AdminClient, { count }: z.infer<typeof inputSchema>) => {
-  const details = await admin.details()
-  const missing = missingRequirements(details)
-  if (missing.length > 0) {
-    const evictionNote = isLfuPolicy(details.keyEvictionPolicy)
-      ? ""
-      : ". Changing maxmemory-policy also changes which keys Valkey evicts when memory is full"
-    throw new Error(`Hot keys use cluster slot stats, which need ${missing.join(", ")}${evictionNote}`)
-  }
-  const payload: HotKeysRequestPayload = {
-    connectionId: admin.connectionId,
-    clusterId: details.clusterId,
-    lfuEnabled: true,
-    clusterSlotStatsEnabled: true,
-    count,
-  }
   const reply = await admin.request(
-    { type: VALKEY.HOTKEYS.hotKeysRequested, payload: { ...payload } },
+    VALKEY.HOTKEYS.hotKeysRequested,
+    (details) => {
+      const missing = missingRequirements(details)
+      if (missing.length > 0) {
+        const evictionNote = isLfuPolicy(details.keyEvictionPolicy)
+          ? ""
+          : ". Changing maxmemory-policy also changes which keys Valkey evicts when memory is full"
+        throw new Error(`Hot keys use cluster slot stats, which need ${missing.join(", ")}${evictionNote}`)
+      }
+      const payload: HotKeysRequestPayload = {
+        connectionId: admin.connectionId,
+        clusterId: details.clusterId,
+        lfuEnabled: true,
+        clusterSlotStatsEnabled: true,
+        count,
+      }
+      return { ...payload }
+    },
     [VALKEY.HOTKEYS.hotKeysFulfilled, VALKEY.HOTKEYS.hotKeysError],
   )
   if (reply.type === VALKEY.HOTKEYS.hotKeysError) {
