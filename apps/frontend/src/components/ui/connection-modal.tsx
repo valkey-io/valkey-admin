@@ -161,7 +161,7 @@ export function ConnectionModal({
                     </div>
                     {connectionDetails.endpointType === "node" && connectionDetails.host.includes("cfg") && (
                       <Typography className="col-span-2 -mt-2" variant="bodyXs">
-                        Hint: If this is a cluster configuration endpoint, switch Endpoint Type to Discovery.
+                        If this is a cluster configuration endpoint, switch Endpoint Type to Discovery.
                       </Typography>
                     )}
                   </div>

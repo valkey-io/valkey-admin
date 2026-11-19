@@ -83,7 +83,7 @@ describe("ConnectionForm", () => {
   })
 
   it("does not force-switch endpoint type to Discovery when host contains 'cfg'", async () => {
-    const hint = "Hint: If this is a cluster configuration endpoint, switch Endpoint Type to Discovery."
+    const hint = "If this is a cluster configuration endpoint, switch Endpoint Type to Discovery."
     renderForm()
 
     fireEvent.change(screen.getByLabelText("Host"), { target: { value: "clustercfg.example.com" } })
