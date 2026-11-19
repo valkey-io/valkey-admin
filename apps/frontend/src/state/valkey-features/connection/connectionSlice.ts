@@ -13,7 +13,7 @@ import {
   type EndpointType
 } from "@common/src/constants"
 import * as R from "ramda"
-import { buildConnectionId, normalizeEndpoint } from "@common/src/connection-id.ts"
+import { buildConnectionId, normalizeEndpoint, toNodeId } from "@common/src/connection-id.ts"
 import type { NodeRole } from "@/state/valkey-features/cluster/clusterSlice"
 import { secureStorage } from "@/utils/secureStorage"
 import { persistConnections } from "@/state/persistConnections"
@@ -366,6 +366,41 @@ const connectionSlice = createSlice({
     stripUnencryptedPasswords: (state) => {
       state.connections = R.map(stripUnencryptedPassword, state.connections as ValkeyConnectionsState)
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(VALKEY.HOTKEYS.hotKeysFulfilled, (state, action: PayloadAction<{
+      clusterId?: string
+      nodeId?: string
+      keyEvictionPolicy?: KeyEvictionPolicy
+      clusterSlotStatsEnabled?: boolean
+    }>) => {
+      const { clusterId, nodeId, keyEvictionPolicy, clusterSlotStatsEnabled } = action.payload ?? {}
+      if (keyEvictionPolicy === undefined && clusterSlotStatsEnabled === undefined) return
+
+      if (clusterId) {
+        Object.values(state.connections).forEach((conn) => {
+          if (conn.connectionDetails?.clusterId === clusterId) {
+            if (keyEvictionPolicy !== undefined) {
+              conn.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
+            }
+            if (clusterSlotStatsEnabled !== undefined) {
+              conn.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
+            }
+          }
+        })
+      } else if (nodeId) {
+        Object.entries(state.connections).forEach(([connId, conn]) => {
+          if (toNodeId(connId) === nodeId) {
+            if (keyEvictionPolicy !== undefined) {
+              conn.connectionDetails.keyEvictionPolicy = keyEvictionPolicy
+            }
+            if (clusterSlotStatsEnabled !== undefined) {
+              conn.connectionDetails.clusterSlotStatsEnabled = clusterSlotStatsEnabled
+            }
+          }
+        })
+      }
+    })
   },
 })
 

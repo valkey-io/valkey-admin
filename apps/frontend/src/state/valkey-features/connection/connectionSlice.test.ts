@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import { CONNECTED, CONNECTING, ERROR, DISCONNECTED, DISCONNECTING } from "@common/src/constants"
+import { CONNECTED, CONNECTING, ERROR, DISCONNECTED, DISCONNECTING, VALKEY } from "@common/src/constants"
 import connectionReducer, {
   connectPending,
   standaloneConnectFulfilled,
@@ -948,6 +948,90 @@ describe("connectionSlice", () => {
       const { default: reducer } = await import("./connectionSlice")
       const state = reducer(undefined, { type: "@@init" })
       expect(Object.keys(state.connections)).toEqual(["bad-abc-db0"])
+    })
+  })
+
+  describe("hotKeysFulfilled extraReducer", () => {
+    it("updates keyEvictionPolicy and clusterSlotStatsEnabled for cluster connections", () => {
+      const previousState = {
+        connections: {
+          "node-1-db0": {
+            status: CONNECTED,
+            errorMessage: null,
+            connectionDetails: {
+              host: "127.0.0.1",
+              port: "7000",
+              clusterId: "cluster-1",
+              keyEvictionPolicy: "allkeys-lru",
+              clusterSlotStatsEnabled: false,
+              tls: false,
+              verifyTlsCertificate: false,
+            },
+          },
+          "node-2-db0": {
+            status: CONNECTED,
+            errorMessage: null,
+            connectionDetails: {
+              host: "127.0.0.1",
+              port: "7001",
+              clusterId: "cluster-1",
+              keyEvictionPolicy: "allkeys-lru",
+              clusterSlotStatsEnabled: false,
+              tls: false,
+              verifyTlsCertificate: false,
+            },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        {
+          type: VALKEY.HOTKEYS.hotKeysFulfilled,
+          payload: {
+            clusterId: "cluster-1",
+            keyEvictionPolicy: "allkeys-lfu",
+            clusterSlotStatsEnabled: true,
+          },
+        },
+      )
+
+      expect(state.connections["node-1-db0"].connectionDetails.keyEvictionPolicy).toBe("allkeys-lfu")
+      expect(state.connections["node-1-db0"].connectionDetails.clusterSlotStatsEnabled).toBe(true)
+      expect(state.connections["node-2-db0"].connectionDetails.keyEvictionPolicy).toBe("allkeys-lfu")
+      expect(state.connections["node-2-db0"].connectionDetails.clusterSlotStatsEnabled).toBe(true)
+    })
+
+    it("updates keyEvictionPolicy for standalone connections by matching nodeId", () => {
+      const previousState = {
+        connections: {
+          "host-6379-db0": {
+            status: CONNECTED,
+            errorMessage: null,
+            connectionDetails: {
+              host: "localhost",
+              port: "6379",
+              keyEvictionPolicy: "noeviction",
+              clusterSlotStatsEnabled: false,
+              tls: false,
+              verifyTlsCertificate: false,
+            },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        {
+          type: VALKEY.HOTKEYS.hotKeysFulfilled,
+          payload: {
+            nodeId: "host-6379",
+            keyEvictionPolicy: "allkeys-lfu",
+          },
+        },
+      )
+
+      expect(state.connections["host-6379-db0"].connectionDetails.keyEvictionPolicy).toBe("allkeys-lfu")
     })
   })
 })
