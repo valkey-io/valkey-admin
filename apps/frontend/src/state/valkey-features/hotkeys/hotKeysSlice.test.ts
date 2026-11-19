@@ -54,7 +54,7 @@ describe("hotKeysSlice", () => {
           parsedResponse: {
             hotKeys: [["k", 1, null, 2]],
             monitorRunning: true,
-            checkAt: "now",
+            checkAt: 200,
             nodeId: "host-6379",
             lastCollectedAt: 100,
           },
@@ -75,7 +75,7 @@ describe("hotKeysSlice", () => {
             hotKeys: [],
             monitorRunning: false,
             checkAt: null,
-            nodeId: null,
+            nodeId: "",
             lastCollectedAt: null,
           },
           nodeErrors: [{ nodeId: "node-1", error: "down" }],
@@ -91,18 +91,18 @@ describe("hotKeysSlice", () => {
     it("keys a standalone error by nodeId", () => {
       const state = hotKeysReducer(
         initialState,
-        hotKeysError({ nodeId: "host-6379", error: { message: "boom" } }),
+        hotKeysError({ nodeId: "host-6379", error: "boom" }),
       )
 
       expect(state["host-6379"]).toBeDefined()
       expect(state["host-6379"].status).toBe(ERROR)
-      expect(state["host-6379"].error).toEqual({ message: "boom" })
+      expect(state["host-6379"].error).toBe("boom")
     })
 
     it("keys a cluster error by clusterId", () => {
       const state = hotKeysReducer(
         initialState,
-        hotKeysError({ clusterId: "cluster-1", error: { message: "boom" } }),
+        hotKeysError({ clusterId: "cluster-1", nodeId: "node-1", error: "boom" }),
       )
 
       expect(state["cluster-1"].status).toBe(ERROR)

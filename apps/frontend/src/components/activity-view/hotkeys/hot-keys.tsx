@@ -9,8 +9,7 @@ import { HotKeysHeatmapModal } from "./hot-keys-heatmap"
 import { MonitorNotRunningBanner, NodeErrorsBanner } from "./hot-keys-banners"
 import { HotKeysToolbar } from "./hot-keys-toolbar"
 import { HotKeysTable } from "./hot-keys-table"
-
-export type HotKeyEntry = [string, number, number | null, number, string?, number?]
+import type { HotKeyEntry } from "@common/src/hotkeys"
 
 interface HotKeysProps {
   data: HotKeyEntry[] | null

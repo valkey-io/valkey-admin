@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from "node:test"
 import assert from "node:assert"
 import { DEPLOYMENT_TYPE } from "valkey-common"
-import { isAllowedWebSocketOrigin } from "../websocket-origin"
+import { isAllowedWebSocketOrigin, setInternalClientToken } from "../websocket-origin"
 import type { IncomingMessage } from "http"
 
 const makeRequest = ({ url, ...headers }: Record<string, string | undefined>) =>
@@ -227,6 +227,58 @@ describe("isAllowedWebSocketOrigin", () => {
         makeRequest({ origin: "http://localhost:5173", host: "localhost:8080", url: "/?token=secret-token" }),
       ),
       true,
+    )
+  })
+})
+
+describe("internal client token", () => {
+  const original = { DEPLOYMENT_MODE: process.env.DEPLOYMENT_MODE, ELECTRON_WS_TOKEN: process.env.ELECTRON_WS_TOKEN }
+
+  afterEach(() => {
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+  })
+
+  it("allows a client that sends the internal token, with any or no origin", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    setInternalClientToken("internal-token")
+
+    assert.strictEqual(isAllowedWebSocketOrigin(makeRequest({ host: "127.0.0.1:8080", url: "/?token=internal-token" })), true)
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(
+        makeRequest({ origin: "valkey-admin-mcp://localhost", host: "127.0.0.1:8080", url: "/?token=internal-token" }),
+      ),
+      true,
+    )
+  })
+
+  it("rejects a wrong or missing internal token", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.WEB
+    setInternalClientToken("internal-token")
+
+    for (const url of ["/", "/?token=", "/?token=internal-toke", "/?token=internal-token2", "/?token=INTERNAL-TOKEN"]) {
+      assert.strictEqual(
+        isAllowedWebSocketOrigin(makeRequest({ origin: "valkey-admin-mcp://localhost", host: "127.0.0.1:8080", url })),
+        false,
+        `${url} must be rejected`,
+      )
+    }
+  })
+
+  it("keeps the Electron token working next to the internal token", () => {
+    process.env.DEPLOYMENT_MODE = DEPLOYMENT_TYPE.ELECTRON
+    process.env.ELECTRON_WS_TOKEN = "electron-token"
+    setInternalClientToken("internal-token")
+
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "file://", host: "localhost:8080", url: "/?token=electron-token" })),
+      true,
+    )
+    assert.strictEqual(
+      isAllowedWebSocketOrigin(makeRequest({ origin: "file://", host: "localhost:8080", url: "/?token=wrong" })),
+      false,
     )
   })
 })

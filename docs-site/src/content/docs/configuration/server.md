@@ -196,6 +196,58 @@ VALKEY_ADMIN_ALLOW_ANY_HOST=true
 - **Default:** unset (the `Host` rule applies)
 - **Read in:** `apps/server/src/websocket-origin.ts`
 
+## MCP Server
+
+The server can start the read-only [MCP server](/features/mcp/) as a child process in Web mode. It serves `/mcp` and `/mcp/*` on its own port and forwards those requests to the child, which listens on `127.0.0.1` only. The child connects back over WebSocket with a per-launch token, so its origin does not need to be in `VALKEY_ADMIN_ALLOWED_WS_ORIGINS`.
+
+When the server binds to a non-loopback address, as in Docker, it starts the MCP server only if both `VALKEY_ADMIN_MCP_TOKEN` and `VALKEY_ADMIN_MCP_TARGETS` are set, and otherwise logs which one is missing. The desktop app ignores these variables.
+
+### `VALKEY_ADMIN_MCP_ENABLED`
+
+Set to the literal string `true` to start the MCP server. Any other value leaves it off, and `/mcp` returns `404`.
+
+- **Default:** unset
+- **Read in:** `apps/server/src/mcp-process.ts`
+
+### `VALKEY_ADMIN_MCP_TOKEN`
+
+Bearer token that every MCP request must send as `Authorization: Bearer <token>`. It must be at least 32 characters. Generate one with `openssl rand -hex 32`.
+
+- **Default:** unset
+- **Read in:** `apps/mcp/src/config.ts`
+
+### `VALKEY_ADMIN_MCP_TARGETS`
+
+Comma-separated list of the Valkey deployments the MCP server may read, as `name=host:port`. Use `name=valkeys://host:port` for TLS. Names use letters, digits, `-` and `_`, and each target is served at `/mcp/<name>`. Requests that send `X-Valkey-*` connection headers are refused with `400`.
+
+```bash
+VALKEY_ADMIN_MCP_TARGETS=prod=valkey-prod:6379,cache=valkeys://valkey-cache:6380
+```
+
+- **Default:** unset
+- **Read in:** `apps/mcp/src/targets.ts`
+
+### `VALKEY_ADMIN_MCP_USERNAME`
+
+Valkey username the MCP server uses for every target. Use a [read-only user](/features/mcp/#read-only-valkey-user).
+
+- **Default:** unset
+- **Read in:** `apps/mcp/src/config.ts`
+
+### `VALKEY_ADMIN_MCP_PASSWORD`
+
+Valkey password the MCP server uses for every target.
+
+- **Default:** unset
+- **Read in:** `apps/mcp/src/config.ts`
+
+### `VALKEY_ADMIN_MCP_PORT`
+
+Loopback port the MCP server listens on. Clients use the server's own port, not this one.
+
+- **Default:** `8081`
+- **Read in:** `apps/server/src/mcp-process.ts`, `apps/mcp/src/config.ts`
+
 ## Initial Valkey Connection (Orchestrator Mode)
 
 These variables populate `initialConnectionDetails`, which the orchestrator uses to talk to Valkey directly. They are also forwarded to spawned metrics children in default mode, so setting them at the server level can act as a shared default.

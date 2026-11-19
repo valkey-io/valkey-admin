@@ -10,7 +10,7 @@ import { NodeErrorsBanner } from "../hotkeys/hot-keys-banners"
 import { NodeFilterDropdown } from "../hotkeys/node-filter-dropdown"
 import { BigKeysTable, type BigKeysSortKey } from "./big-keys-table"
 import { BigKeysDistributionModal } from "./big-keys-distribution"
-import type { BigKey } from "@/state/valkey-features/bigkeys/bigKeysSlice"
+import type { BigKey } from "@common/src/bigkeys"
 import { Button } from "@/components/ui/button"
 
 interface BigKeysProps {

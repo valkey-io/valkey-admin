@@ -46,6 +46,7 @@ import {
   setPreconfiguredClusterId
 } from "./metrics-orchestrator"
 import { ALLOW_ANY_HOST_ENV, isAllowAnyHost, isAllowedWebSocketOrigin } from "./websocket-origin"
+import { MCP_PATHS, proxyMcpRequest, startMcpServer, stopMcpServer } from "./mcp-process"
 import { allOwnerStates, findOwnerState } from "./owner"
 import {
   connectedNodesFor,
@@ -110,6 +111,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/orchestrator")) return orchestratorLimiter(req, res, next)
   return limiter(req, res, next)
 })
+
+app.all(MCP_PATHS, proxyMcpRequest)
 
 // Content Security Policy via helmet
 app.use(helmet({
@@ -243,6 +246,7 @@ server.listen(port, bindHost, () => {
     process.send({ type: "websocket-ready" }) // Send a ready message to the parent process
   }
   refreshAllClusterRegistriesLoop()
+  startMcpServer(bindHost, port)
 
   if (preConfiguredConnection) {
     startPreconfiguredMetricsServers().catch(exitOnMisconfiguration("preconfigured connection"))
@@ -411,6 +415,7 @@ wss.on("connection", (ws: AliveWebSocket) => {
 function shutdown() {
   console.log("Shutdown signal received")
   clearInterval(interval)
+  stopMcpServer()
 
   const forceExitTimeout = setTimeout(() => {
     console.error("Graceful shutdown timed out, forcing exit")

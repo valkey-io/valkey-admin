@@ -8,7 +8,7 @@ import { SortableTableHeader, StaticTableHeader, type SortOrder } from "../../ui
 import { Typography } from "../../ui/typography"
 import { CustomTooltip } from "../../ui/tooltip"
 import { TooltipIcon } from "../../ui/tooltip-icon"
-import type { HotKeyEntry } from "./hot-keys"
+import type { HotKeyEntry } from "@common/src/hotkeys"
 import { copyToClipboard } from "@/lib/utils"
 
 interface HotKeyRowProps {

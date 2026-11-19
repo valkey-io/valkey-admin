@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, COMMANDLOG_TYPE, type AggregateReplyId, type NodeError, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
@@ -40,8 +40,6 @@ type CommandLogsLargeResponse = {
 }
 
 type CommandLogResponse = (CommandLogsLargeResponse | CommandLogsSlowResponse) & { nodeId?: string }
-
-type NodeError = { nodeId: string; error: string }
 
 const sendCommandLogsFulfilled = (
   ws: WebSocket,

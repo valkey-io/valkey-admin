@@ -86,8 +86,7 @@ const tokensMatch = (a: string, b: string) => {
 }
 
 // The renderer appends the per-launch token as `?token=...` on the WS URL.
-const hasValidElectronToken = (req: IncomingMessage) => {
-  const expected = process.env[ELECTRON_WS_TOKEN_ENV]
+const hasValidToken = (req: IncomingMessage, expected: string | undefined) => {
   // Fail closed: if no token was provisioned, the token gate cannot be satisfied.
   if (!expected) return false
   try {
@@ -99,7 +98,17 @@ const hasValidElectronToken = (req: IncomingMessage) => {
   }
 }
 
+const hasValidElectronToken = (req: IncomingMessage) => hasValidToken(req, process.env[ELECTRON_WS_TOKEN_ENV])
+
+let internalClientToken: string | undefined
+
+export const setInternalClientToken = (token: string) => {
+  internalClientToken = token
+}
+
 export const isAllowedWebSocketOrigin = (req: IncomingMessage) => {
+  if (hasValidToken(req, internalClientToken)) return true
+
   // Browsers send Origin on WebSocket handshakes, so we can reject cross-site pages before accepting the upgrade.
   const originHeader = req.headers.origin
   const deploymentMode = process.env.DEPLOYMENT_MODE

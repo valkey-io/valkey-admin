@@ -1,6 +1,7 @@
-import { createAction, createSlice } from "@reduxjs/toolkit"
+import { createAction, createSlice, type PayloadAction } from "@reduxjs/toolkit"
 import { VALKEY, METRICS_SERVER_NOT_READY } from "@common/src/constants.ts"
 import * as R from "ramda"
+import type { StatsDataPayload, StatsErrorPayload } from "@common/src/stats.ts"
 
 interface ConnectionData {
   total_commands_processed: number | null
@@ -140,7 +141,7 @@ const infoSlice = createSlice({
       }
       state[connectionId].lastUpdated = timestamp
     },
-    setData: (state, action) => {
+    setData: (state, action: PayloadAction<StatsDataPayload>) => {
       const { connectionId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = createInitialConnectionState()
@@ -201,7 +202,7 @@ const infoSlice = createSlice({
         pubsub_patterns : R.path(["info", "pubsub_patterns"]),
       })(action.payload)
     },
-    error: (state, action) => {
+    error: (state, action: PayloadAction<StatsErrorPayload>) => {
       const { connectionId, error, errorKind } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = createInitialConnectionState()

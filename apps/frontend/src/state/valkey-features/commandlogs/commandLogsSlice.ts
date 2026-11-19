@@ -4,6 +4,7 @@ import { VALKEY } from "@common/src/constants.ts"
 import { toNodeId } from "@common/src/connection-id.ts"
 import * as R from "ramda"
 import { COMMANDLOG_TYPE } from "@common/src/constants.ts"
+import type { NodeError } from "@common/src/node-results.ts"
 import type { RootState } from "@/store.ts"
 
 type CommandLogType = typeof COMMANDLOG_TYPE.SLOW | typeof COMMANDLOG_TYPE.LARGE_REQUEST | typeof COMMANDLOG_TYPE.LARGE_REPLY
@@ -59,7 +60,7 @@ interface CommandLogState {
     count: number
     error?: JSONObject | null
     loading?: boolean
-    nodeErrors?: { nodeId: string; error: string }[]
+    nodeErrors?: NodeError[]
   }
 }
 
