@@ -26,6 +26,16 @@ const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"])
 
 const boundedInt = ({ min, max }) => z.number().int().min(min).max(max).optional()
 
+/**
+ * Whether `value` is a valid `poll_ms`: an integer in the `EPIC_FIELD_BOUNDS`
+ * range. The config loader and the OTel export both use it, so a value that
+ * `POST /update-config` refuses cannot come in through the YAML file either.
+ */
+export const isValidPollMs = (value) =>
+  Number.isInteger(value)
+  && value >= EPIC_FIELD_BOUNDS.poll_ms.min
+  && value <= EPIC_FIELD_BOUNDS.poll_ms.max
+
 const epicPatchSchema = z
   .strictObject(
     Object.fromEntries(

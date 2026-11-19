@@ -2,7 +2,13 @@ import fs from "node:fs"
 import http from "node:http"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { describe, it, expect, afterEach, beforeAll } from "vitest"
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest"
+import * as sdkMetrics from "@opentelemetry/sdk-metrics"
+
+vi.mock("@opentelemetry/sdk-metrics", async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, PeriodicExportingMetricReader: vi.fn(function (...args) { return new actual.PeriodicExportingMetricReader(...args) }) }
+})
 import { AggregationTemporality, DataPointType, InMemoryMetricExporter } from "@opentelemetry/sdk-metrics"
 import {
   buildResource,
@@ -156,6 +162,18 @@ describe("otel exporter", () => {
       expect(exportIntervalMs(cfgWith([{ name: "monitor" }, { name: "commandlog_slow", poll_ms: 10000 }]))).toBeNull()
       expect(exportIntervalMs(cfgWith([]))).toBeNull()
     })
+
+    it("skips a poll_ms that is not an integer from 1000 to 3600000", () => {
+      for (const value of [0, -5, 500, 999, 1.5, 3_600_001, "abc", "5000", NaN, Infinity, null, undefined]) {
+        expect(exportIntervalMs(cfgWith([{ name: "memory", poll_ms: value }])), String(value)).toBeNull()
+      }
+      expect(exportIntervalMs(cfgWith([{ name: "memory", poll_ms: 1000 }]))).toBe(1000)
+      expect(exportIntervalMs(cfgWith([{ name: "memory", poll_ms: 3_600_000 }]))).toBe(3_600_000)
+    })
+
+    it("falls back to the cpu epic when the memory poll_ms is invalid", () => {
+      expect(exportIntervalMs(cfgWith([{ name: "memory", poll_ms: "abc" }, { name: "cpu", poll_ms: 4000 }]))).toBe(4000)
+    })
   })
 
   describe("maybeStartOtel", () => {
@@ -178,6 +196,31 @@ describe("otel exporter", () => {
       expect(maybeStartOtel({ cfg: cfgWith([{ name: "monitor" }]), env, nodeId: NODE_ID, log })).toBeNull()
       expect(lines.warn).toHaveLength(1)
       expect(lines.error).toHaveLength(0)
+    })
+
+    it("logs one warning and starts nothing for an invalid poll_ms", async () => {
+      const r = await receiver()
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
+      for (const value of [0, -5, "abc"]) {
+        const { log, lines } = makeLog()
+        const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: "true" }
+        expect(maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: value }]), env, nodeId: NODE_ID, log }), String(value)).toBeNull()
+        expect(lines.warn, String(value)).toHaveLength(1)
+        expect(lines.warn[0]).toContain("valid poll_ms")
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      expect(r.requests).toHaveLength(0)
+    })
+
+    it("turns export off, and does not throw, when the SDK cannot start", () => {
+      sdkMetrics.PeriodicExportingMetricReader.mockImplementationOnce(function () {
+        throw new Error("exportIntervalMillis must be greater than 0")
+      })
+      const { log, lines } = makeLog()
+      const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: "true" }
+      expect(maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 5000 }]), env, nodeId: NODE_ID, log })).toBeNull()
+      expect(lines.error).toEqual(["OTel metrics export is off: it could not start: exportIntervalMillis must be greater than 0"])
+      expect(lines.info).toHaveLength(0)
     })
 
     it("returns onInfo and shutdown, and onInfo feeds the export", async () => {

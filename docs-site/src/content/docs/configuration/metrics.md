@@ -41,11 +41,13 @@ Each entry in the `epics` array describes one collection stream. The fields belo
 | Field | Description | Default |
 |-------|-------------|---------|
 | `name` | The epic's only identifier. It selects the collector implementation, prefixes the NDJSON files written under `DATA_DIR`, and labels the epic in logs and the orchestrator registry. One of `memory`, `cpu`, `slowlog_len`, `commandlog_slow`, `commandlog_large_request`, `commandlog_large_reply`, `monitor`. | required |
-| `poll_ms` | How often (ms) the collector runs. | varies per epic |
+| `poll_ms` | How often (ms) the collector runs. An integer from `1000` to `3600000`. | varies per epic |
 | `data_retention_mb` | Max disk space (MB) this epic's NDJSON files may use. Oldest files are evicted when the budget is exceeded. | `10` |
 | `data_retention_days` | Files older than this (by birthtime) are deleted during the daily cleanup sweep. | `30` |
 
 Names must match `^[a-z0-9_]+$`; the metrics process refuses to start on anything else, because the name becomes part of a file path. An epic whose name is not one of the values above collects nothing and is dropped at load with an error logged.
+
+An epic whose `poll_ms` is not an integer from `1000` to `3600000` is also dropped at load with an error logged. These are the same bounds that `POST /update-config` uses. A smaller value, such as `0`, would make the collector poll in a tight loop.
 
 The `Default` column shows the **fallback defaults applied by the YAML merge**. `apps/metrics/config.yml` overrides these with lower values per epic (3–15 MB, 5 days). See the file itself for the full per-epic configuration.
 
@@ -237,7 +239,7 @@ Turns on OTLP export. Export is on only for the literal string `"true"`. With an
 - **Default:** unset (export off)
 - **Read in:** `apps/metrics/src/otel/exporter.js`
 
-The export interval is the `poll_ms` of the `memory` epic, or of the `cpu` epic if there is no `memory` epic. If the config has neither, export does not start and the process logs a warning.
+The export interval is the `poll_ms` of the `memory` epic, or of the `cpu` epic if there is no `memory` epic. If the config has neither, export does not start and the process logs a warning. If the OpenTelemetry SDK cannot start, the process logs an error, turns export off and continues to collect.
 
 ### `OTEL_EXPORTER_OTLP_ENDPOINT`
 

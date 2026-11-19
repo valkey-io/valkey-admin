@@ -4,6 +4,7 @@ import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto"
 import { detectResources, envDetector, resourceFromAttributes } from "@opentelemetry/resources"
 import { MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics"
 import { APP_VERSION } from "valkey-common"
+import { isValidPollMs } from "../config-schema.js"
 import { CPU, MEMORY } from "../utils/constants.js"
 import { makeInfoCache } from "./info-cache.js"
 import {
@@ -29,11 +30,16 @@ export const isOtelEnabled = (env) => env?.METRICS_OTEL_ENABLED === "true"
 /**
  * The export interval is the poll interval of the data it exports, so each
  * export carries one new sample. `poll_ms` is read once at start, as the
- * collectors do.
+ * collectors do. An epic with an invalid `poll_ms` is skipped: a non-numeric
+ * interval would make the SDK export about once a millisecond, and a value of
+ * 0 or less makes the SDK throw at startup.
  */
 export const exportIntervalMs = (cfg) => {
   const epics = cfg?.epics ?? []
-  const pollMs = (name) => epics.find((epic) => epic.name === name)?.poll_ms
+  const pollMs = (name) => {
+    const value = epics.find((epic) => epic.name === name)?.poll_ms
+    return isValidPollMs(value) ? value : undefined
+  }
   return pollMs(MEMORY) ?? pollMs(CPU) ?? null
 }
 
@@ -171,12 +177,19 @@ export const maybeStartOtel = ({ cfg, env, nodeId, log }) => {
 
   const intervalMs = exportIntervalMs(cfg)
   if (intervalMs == null) {
-    log.warn(`METRICS_OTEL_ENABLED is "true", but the config has no "${MEMORY}" or "${CPU}" epic, so there is nothing to export.`)
+    log.warn(`METRICS_OTEL_ENABLED is "true", but the config has no "${MEMORY}" or "${CPU}" epic with a valid poll_ms, so there is nothing to export.`)
     return null
   }
 
   const cache = makeInfoCache()
-  const otel = startOtelExporter({ intervalMs, resource: buildResource({ env, nodeId }), cache, log })
+  let otel
+  try {
+    otel = startOtelExporter({ intervalMs, resource: buildResource({ env, nodeId }), cache, log })
+  } catch (err) {
+    // Export must never stop collection, so an SDK setup error turns export off.
+    log.error(`OTel metrics export is off: it could not start: ${describe(err)}`)
+    return null
+  }
   log.info(`OTel metrics export is on, every ${intervalMs} ms`)
 
   return {
