@@ -134,7 +134,6 @@ export function ConnectionModal({
                           onConnectionDetailsChange({
                             ...connectionDetails,
                             host,
-                            endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
                           })
                         }}
                         placeholder="localhost"
@@ -160,6 +159,11 @@ export function ConnectionModal({
                         value={connectionDetails.port}
                       />
                     </div>
+                    {connectionDetails.endpointType === "node" && connectionDetails.host.includes("cfg") && (
+                      <Typography className="col-span-2 -mt-2" variant="bodyXs">
+                        If this is a cluster configuration endpoint, switch Endpoint Type to Discovery.
+                      </Typography>
+                    )}
                   </div>
 
                   {/* Auth Type */}
