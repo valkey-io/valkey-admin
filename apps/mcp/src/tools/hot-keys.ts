@@ -6,9 +6,9 @@ import {
   type HotKeyEntry,
   type HotKeysErrorPayload,
   type HotKeysFulfilledPayload,
-  type HotKeysNodeError,
   type HotKeysRequestPayload,
-  type HotKeysResponse
+  type HotKeysResponse,
+  type NodeError
 } from "valkey-common"
 import { z } from "zod"
 import { METRICS_NOT_STARTED, NotReadyError, retryWhileNotReady } from "./not-ready"
@@ -33,7 +33,7 @@ const hotKeyTupleSchema = z.tuple([
 const nodeErrorSchema = z.object({
   nodeId: z.string(),
   error: z.string(),
-}) satisfies z.ZodType<HotKeysNodeError>
+}) satisfies z.ZodType<NodeError>
 
 const responseSchema = z.object({
   hotKeys: z.array(hotKeyTupleSchema),

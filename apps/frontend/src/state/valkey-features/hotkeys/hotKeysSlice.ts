@@ -6,9 +6,9 @@ import type {
   HotKeyEntry,
   HotKeysErrorPayload,
   HotKeysFulfilledPayload,
-  HotKeysNodeError,
   HotKeysRequestPayload
 } from "@common/src/hotkeys.ts"
+import type { NodeError } from "@common/src/node-results.ts"
 import type { RootState } from "@/store.ts"
 
 type HotKeysStatus = typeof PENDING | typeof FULFILLED | typeof ERROR
@@ -39,7 +39,7 @@ interface HotKeysState {
     nodeId?: string | null,
     lastCollectedAt?: number | null,
     error?: string | null,
-    nodeErrors?: HotKeysNodeError[],
+    nodeErrors?: NodeError[],
     status: HotKeysStatus,
   }
 }

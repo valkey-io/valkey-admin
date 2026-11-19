@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, type AggregateReplyId, type NodeError, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
@@ -9,11 +9,6 @@ type HotKeysResponse = {
   checkAt: number
   monitorRunning: boolean
   lastCollectedAt: number | null
-}
-
-type NodeError = {
-  nodeId: string
-  error: string
 }
 
 const sendHotKeysFulfilled = (

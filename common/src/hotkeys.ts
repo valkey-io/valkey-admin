@@ -1,3 +1,4 @@
+import type { NodeError } from "./node-results"
 import type { AggregateReplyId } from "./reply-id"
 
 export const isLfuPolicy = (policy?: string): boolean => policy?.includes("lfu") ?? false
@@ -19,11 +20,6 @@ export type HotKeyEntry = [
   slotId?: number,
 ]
 
-export interface HotKeysNodeError {
-  nodeId: string
-  error: string
-}
-
 export interface HotKeysResponse {
   hotKeys: HotKeyEntry[]
   nodeId?: string
@@ -34,7 +30,7 @@ export interface HotKeysResponse {
 
 export type HotKeysFulfilledPayload = AggregateReplyId & {
   parsedResponse: HotKeysResponse
-  nodeErrors?: HotKeysNodeError[]
+  nodeErrors?: NodeError[]
 }
 
 export interface HotKeysErrorPayload {

@@ -1,3 +1,4 @@
+import type { NodeError } from "./node-results"
 import type { AggregateReplyId } from "./reply-id"
 
 export interface BigKeysRequestPayload {
@@ -16,11 +17,6 @@ export interface BigKey {
   nodeId?: string
 }
 
-export interface BigKeysNodeError {
-  nodeId: string
-  error: string
-}
-
 export interface BigKeysResponse {
   nodeId: string
   keys: BigKey[]
@@ -31,7 +27,7 @@ export interface BigKeysResponse {
 
 export type BigKeysFulfilledPayload = AggregateReplyId & {
   parsedResponse: BigKeysResponse
-  nodeErrors?: BigKeysNodeError[]
+  nodeErrors?: NodeError[]
 }
 
 export interface BigKeysErrorPayload {

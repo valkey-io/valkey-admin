@@ -5,9 +5,9 @@ import {
   type BigKey,
   type BigKeysErrorPayload,
   type BigKeysFulfilledPayload,
-  type BigKeysNodeError,
   type BigKeysRequestPayload,
-  type BigKeysResponse
+  type BigKeysResponse,
+  type NodeError
 } from "valkey-common"
 import { z } from "zod"
 import { METRICS_NOT_STARTED, NotReadyError, retryWhileNotReady } from "./not-ready"
@@ -36,7 +36,7 @@ const bigKeySchema = z.object({
 const nodeErrorSchema = z.object({
   nodeId: z.string(),
   error: z.string(),
-}) satisfies z.ZodType<BigKeysNodeError>
+}) satisfies z.ZodType<NodeError>
 
 const responseSchema = z.object({
   nodeId: z.string(),

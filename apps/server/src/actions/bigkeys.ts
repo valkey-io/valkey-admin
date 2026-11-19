@@ -1,5 +1,5 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import { VALKEY, type AggregateReplyId, type NodeError, toNodeId, buildUrl } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
@@ -18,11 +18,6 @@ type BigKeysResponse = {
   scanned: number
   totalKeys: number
   scannedAt: number
-}
-
-type NodeError = {
-  nodeId: string
-  error: string
 }
 
 // Scan-policy defaults, always forwarded to the metrics nodes.

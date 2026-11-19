@@ -6,9 +6,9 @@ import type {
   BigKey,
   BigKeysErrorPayload,
   BigKeysFulfilledPayload,
-  BigKeysNodeError,
   BigKeysRequestPayload
 } from "@common/src/bigkeys.ts"
+import type { NodeError } from "@common/src/node-results.ts"
 import type { RootState } from "@/store.ts"
 
 type BigKeysStatus = typeof PENDING | typeof FULFILLED | typeof ERROR
@@ -43,7 +43,7 @@ interface BigKeysState {
     nodeId: string | null
     lastScannedAt: number | null
     error?: string | null
-    nodeErrors?: BigKeysNodeError[]
+    nodeErrors?: NodeError[]
     status: BigKeysStatus
   }
 }
