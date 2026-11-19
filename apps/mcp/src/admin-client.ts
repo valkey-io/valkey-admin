@@ -9,7 +9,7 @@ export type AdminAction = {
   payload?: Record<string, unknown>
 }
 
-export type ConnectionDetails = {
+export type ConnectionReplyDetails = {
   clusterId?: string
   keyEvictionPolicy?: string
   clusterSlotStatsEnabled?: boolean
@@ -17,14 +17,14 @@ export type ConnectionDetails = {
 
 export type AdminClient = {
   connectionId: string
-  details: () => Promise<ConnectionDetails>
+  details: () => Promise<ConnectionReplyDetails>
   request: (action: AdminAction, replyTypes: string[]) => Promise<AdminAction>
   close: () => void
 }
 
 type Session = {
   ws: WebSocket
-  details: ConnectionDetails
+  details: ConnectionReplyDetails
 }
 
 const REPLY_TIMEOUT_MS = 10000
@@ -73,14 +73,14 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
     })
 
   // True when a reply belongs to this connection, matched by connection, node or cluster ID.
-  const isForThisConnection = ({ payload }: AdminAction, { clusterId }: ConnectionDetails) =>
+  const isForThisConnection = ({ payload }: AdminAction, { clusterId }: ConnectionReplyDetails) =>
     payload?.connectionId === connectionId ||
     payload?.nodeId === nodeId ||
     (clusterId !== undefined && payload?.clusterId === clusterId)
 
   // Sends an action and resolves with the first reply of a listed type for this connection.
   // Rejects if the WebSocket closes or no reply arrives within REPLY_TIMEOUT_MS.
-  const send = (ws: WebSocket, action: AdminAction, replyTypes: string[], details: ConnectionDetails = {}) =>
+  const send = (ws: WebSocket, action: AdminAction, replyTypes: string[], details: ConnectionReplyDetails = {}) =>
     new Promise<AdminAction>((resolve, reject) => {
       const onMessage = (data: WebSocket.RawData) => {
         const reply = parseAction(data)
@@ -132,7 +132,7 @@ export const createAdminClient = (valkey: ConnectionConfig, admin: AdminEndpoint
       if (reply.type === VALKEY.CONNECTION.connectRejected) {
         throw new Error(String(reply.payload?.errorMessage ?? "Valkey Admin rejected the connection"))
       }
-      return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionDetails }
+      return { ws, details: (reply.payload?.connectionDetails ?? {}) as ConnectionReplyDetails }
     } catch (error) {
       ws.close()
       throw error

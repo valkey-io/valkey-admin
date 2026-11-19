@@ -13,7 +13,7 @@ import {
 import { z } from "zod"
 import { METRICS_NOT_STARTED, NotReadyError, retryWhileNotReady } from "./not-ready"
 import { toolResult } from "./tool-result"
-import type { AdminClient, ConnectionDetails } from "../admin-client"
+import type { AdminClient, ConnectionReplyDetails } from "../admin-client"
 import type { McpServer } from "@modelcontextprotocol/server"
 
 const inputSchema = z.object({
@@ -68,7 +68,7 @@ const outputSchema = z.object({
 })
 
 // Lists the settings the connection lacks for hot keys: cluster mode, slot stats and an LFU eviction policy.
-const missingRequirements = ({ clusterId, keyEvictionPolicy, clusterSlotStatsEnabled }: ConnectionDetails) => [
+const missingRequirements = ({ clusterId, keyEvictionPolicy, clusterSlotStatsEnabled }: ConnectionReplyDetails) => [
   ...(clusterId ? [] : ["cluster mode"]),
   ...(clusterSlotStatsEnabled ? [] : ["cluster-slot-stats-enabled yes"]),
   ...(isLfuPolicy(keyEvictionPolicy) ? [] : ["an LFU maxmemory-policy such as allkeys-lfu"]),
