@@ -1,5 +1,12 @@
-import { describe, it, expect } from "vitest"
-import { downsampleMinMaxOrdered } from "./helpers.js"
+import { describe, it, expect, afterEach } from "vitest"
+import {
+  downsampleMinMaxOrdered,
+  normalizeNodeScopedResponse,
+  parseInfo,
+  parseInfoToPairs,
+  parseKeyspace,
+  toFiniteNumber
+} from "./helpers.js"
 
 const mkSeries = (n, fn) =>
   Array.from({ length: n }, (_, i) => ({
@@ -65,5 +72,109 @@ describe("downsampleMinMaxOrdered", () => {
     const out = downsampleMinMaxOrdered({ maxPoints: 20 }, s)
     expect(Array.isArray(out)).toBe(true)
     expect(out.length).toBeGreaterThan(0)
+  })
+})
+
+describe("parseInfoToPairs", () => {
+  it("skips blank lines and section headers, and trims each line", () => {
+    expect(parseInfoToPairs("# Memory\r\nused_memory:100\r\n\r\n  maxmemory:0  \n")).toEqual([
+      ["used_memory", "100"],
+      ["maxmemory", "0"],
+    ])
+  })
+
+  it("keeps a value that holds a colon", () => {
+    expect(parseInfoToPairs("executable:/usr/bin/valkey-server\nbind:::1")).toEqual([
+      ["executable", "/usr/bin/valkey-server"],
+      ["bind", "::1"],
+    ])
+  })
+
+  it("skips a line without a colon", () => {
+    expect(parseInfoToPairs("used_memory:100\nnot-a-field")).toEqual([["used_memory", "100"]])
+  })
+
+  it("returns no pairs for an empty or absent reply", () => {
+    expect(parseInfoToPairs("")).toEqual([])
+    expect(parseInfoToPairs(undefined)).toEqual([])
+    expect(parseInfoToPairs(null)).toEqual([])
+  })
+})
+
+describe("parseInfo", () => {
+  it("returns a map of string values", () => {
+    expect(parseInfo("used_memory:100\nmaxmemory_policy:noeviction")).toEqual({
+      used_memory: "100",
+      maxmemory_policy: "noeviction",
+    })
+  })
+})
+
+describe("toFiniteNumber", () => {
+  it("parses a numeric string", () => {
+    expect(toFiniteNumber("10.5")).toBe(10.5)
+    expect(toFiniteNumber(" 7 ")).toBe(7)
+    expect(toFiniteNumber("0")).toBe(0)
+    expect(toFiniteNumber(3)).toBe(3)
+  })
+
+  it("is undefined for an absent, empty or non-numeric value", () => {
+    expect(toFiniteNumber(undefined)).toBeUndefined()
+    expect(toFiniteNumber(null)).toBeUndefined()
+    expect(toFiniteNumber("")).toBeUndefined()
+    expect(toFiniteNumber("  ")).toBeUndefined()
+    expect(toFiniteNumber("abc")).toBeUndefined()
+    expect(toFiniteNumber("Infinity")).toBeUndefined()
+  })
+})
+
+describe("parseKeyspace", () => {
+  it("parses keys and expires per database index", () => {
+    expect(parseKeyspace(parseInfoToPairs("# Keyspace\r\ndb0:keys=2,expires=1,avg_ttl=0\r\ndb3:keys=1,expires=0,avg_ttl=0")))
+      .toEqual({ 0: { keys: 2, expires: 1 }, 3: { keys: 1, expires: 0 } })
+  })
+
+  it("ignores rows that are not db<N>", () => {
+    expect(parseKeyspace([["dbx", "keys=1,expires=0"], ["foo", "keys=1"], ["db1", "keys=4,expires=2"]]))
+      .toEqual({ 1: { keys: 4, expires: 2 } })
+  })
+
+  it("ignores a row without a numeric keys or expires value", () => {
+    expect(parseKeyspace([["db2", "keys=abc,expires=1"], ["db4", "avg_ttl=0"]])).toEqual({})
+  })
+
+  it("returns an empty map for an empty reply", () => {
+    expect(parseKeyspace([])).toEqual({})
+  })
+})
+
+describe("normalizeNodeScopedResponse", () => {
+  const savedHost = process.env.VALKEY_HOST
+  const savedPort = process.env.VALKEY_PORT
+
+  afterEach(() => {
+    if (savedHost === undefined) delete process.env.VALKEY_HOST
+    else process.env.VALKEY_HOST = savedHost
+    if (savedPort === undefined) delete process.env.VALKEY_PORT
+    else process.env.VALKEY_PORT = savedPort
+  })
+
+  it("returns a string, an array or nullish as it is", () => {
+    expect(normalizeNodeScopedResponse("used_memory:1")).toBe("used_memory:1")
+    const list = [1, 2]
+    expect(normalizeNodeScopedResponse(list)).toBe(list)
+    expect(normalizeNodeScopedResponse(null)).toBeNull()
+  })
+
+  it("picks the entry for VALKEY_HOST:VALKEY_PORT", () => {
+    process.env.VALKEY_HOST = "b"
+    process.env.VALKEY_PORT = "6379"
+    expect(normalizeNodeScopedResponse({ "a:6379": "one", "b:6379": "two" })).toBe("two")
+  })
+
+  it("falls back to the first entry when the local node is missing", () => {
+    process.env.VALKEY_HOST = "c"
+    process.env.VALKEY_PORT = "6379"
+    expect(normalizeNodeScopedResponse({ "a:6379": "one", "b:6379": "two" })).toBe("one")
   })
 })

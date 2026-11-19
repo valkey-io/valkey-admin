@@ -1,9 +1,15 @@
 import * as R from "ramda"
 import { InfoOptions } from "@valkey/valkey-glide"
 import { COMMANDLOG_LARGE_REQUEST, COMMANDLOG_SLOW, COMMANDLOG_TYPE, COMMANDLOG_LARGE_REPLY } from "../utils/constants.js"
-import { parseCommandLogs } from "../utils/helpers.js"
+import {
+  normalizeNodeScopedResponse,
+  parseCommandLogs,
+  parseInfo,
+  parseInfoToPairs,
+  parseKeyspace,
+  toFiniteNumber
+} from "../utils/helpers.js"
 import { createLogger } from "../utils/logger.js"
-import { parseKeyspace } from "../otel/metric-registry.js"
 
 // todo a proper schema; all this parsing logic with `kv` and `kvPairsToRows` feels extremely fragile
 const kvPairsToRows = R.curry((ts, pairs) =>
@@ -11,59 +17,12 @@ const kvPairsToRows = R.curry((ts, pairs) =>
 const log = createLogger("fetchers")
 const debugMetrics = process.env.DEBUG_METRICS === "1"
 
-// Cluster responses may be keyed by node address; this builds the expected key for the local Valkey node.
-const getPreferredNodeKey = () => {
-  const host = process.env.VALKEY_HOST
-  const port = process.env.VALKEY_PORT
-  return host && port ? `${host}:${port}` : null
-}
-
-// Cluster clients may return a per-node map; pick the entry for this sidecar's local Valkey node.
-const normalizeNodeScopedResponse = (result) => {
-  if (Array.isArray(result) || typeof result === "string" || result == null) {
-    return result
-  }
-
-  if (typeof result === "object") {
-    const preferredNodeKey = getPreferredNodeKey()
-    if (preferredNodeKey && preferredNodeKey in result) {
-      return result[preferredNodeKey]
-    }
-
-    // If the local node key is missing, keep going with the first node entry instead of pushing the map downstream.
-    const firstValue = Object.values(result)[0]
-    return firstValue ?? result
-  }
-
-  return result
-}
-
-const parseInfoToPairs = (raw) =>
-  R.pipe(
-    R.defaultTo(""),
-    R.split(/\r?\n/),
-    R.into(
-      [],
-      R.compose(
-        R.map(R.trim),
-        R.reject(R.either(R.isEmpty, R.startsWith("#"))),
-        R.filter(R.includes(":")),
-        R.map((line) => line.split(":", 2)),
-      ),
-    ),
-  )(raw)
-
-// INFO KEYSPACE reports per-database stats like `db0:keys=...`; this app reads the default database only.
-const parseKeyCount = R.pipe(
-  parseInfoToPairs,
-  R.find(([key]) => key === "db0"),
-  R.defaultTo([]),
-  R.nth(1),
-  (value) => {
-    const match = String(value).match(/keys=(\d+)/)
-    return match ? Number(match[1]) : null
-  },
-)
+// Keeps the pairs whose value is a finite number, with the value as a number.
+const finitePairs = (pairs) => R.reduce((acc, [key, value]) => {
+  const parsed = toFiniteNumber(value)
+  if (parsed !== undefined) acc.push([key, parsed])
+  return acc
+}, [], pairs)
 
 export const makeFetcher = (client, { onInfo } = {}) => {
   // Hands the parsed INFO maps to the OTel export. The hook must never cost a
@@ -90,9 +49,11 @@ export const makeFetcher = (client, { onInfo } = {}) => {
         log.info("[memory] raw keyspace preview", String(keyspaceInfo).split(/\r?\n/).slice(0, 10).join("\n"))
       }
       const ts = Date.now()
-      const metrics = Object.fromEntries(parseInfoToPairs(memoryInfo))
-      notify("memory", () => ({ memory: metrics, keyspace: parseKeyspace(parseInfoToPairs(keyspaceInfo)) }))
-      const keysCount = parseKeyCount(keyspaceInfo)
+      const metrics = parseInfo(memoryInfo)
+      const keyspace = parseKeyspace(parseInfoToPairs(keyspaceInfo))
+      notify("memory", () => ({ memory: metrics, keyspace }))
+      // The dashboard reads the default database only.
+      const keysCount = keyspace["0"]?.keys
       const derivedPairs = [
         ["used_memory", metrics.used_memory],
         ["allocator_active", metrics.allocator_active],
@@ -107,16 +68,12 @@ export const makeFetcher = (client, { onInfo } = {}) => {
         ["keys_count", keysCount],
         [
           "keys_bytes_per_key",
-          keysCount && Number(keysCount) > 0 && metrics.used_memory_dataset
-            ? Number(metrics.used_memory_dataset) / Number(keysCount)
+          keysCount > 0 && metrics.used_memory_dataset
+            ? Number(metrics.used_memory_dataset) / keysCount
             : null,
         ],
       ]
-      const rows = R.pipe(
-        R.filter(([, value]) => value != null && Number.isFinite(Number(value))),
-        R.map(([key, value]) => [key, Number(value)]),
-        kvPairsToRows(ts),
-      )(derivedPairs)
+      const rows = R.pipe(finitePairs, kvPairsToRows(ts))(derivedPairs)
       if (debugMetrics) {
         log.info("[memory] normalized row count", rows.length)
         log.info("[memory] normalized row preview", rows.slice(0, 10))
@@ -129,17 +86,9 @@ export const makeFetcher = (client, { onInfo } = {}) => {
         await client.info([InfoOptions.Cpu]),
       )
       const ts = Date.now()
-      notify("cpu", () => Object.fromEntries(parseInfoToPairs(raw)))
+      notify("cpu", () => parseInfo(raw))
 
-      return R.pipe(
-        parseInfoToPairs,
-        R.reduce((acc, [key, value]) => {
-          const parsedValue = Number((value || "").trim())
-          if (Number.isFinite(parsedValue)) acc.push([key, parsedValue])
-          return acc
-        }, []),
-        kvPairsToRows(ts),
-      )(raw)
+      return R.pipe(parseInfoToPairs, finitePairs, kvPairsToRows(ts))(raw)
     },
 
     commandlog_slow: async (count = 50) => {

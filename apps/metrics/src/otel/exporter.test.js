@@ -16,16 +16,12 @@ import {
   startOtelExporter
 } from "./exporter.js"
 import { makeInfoCache } from "./info-cache.js"
-import { parseKeyspace } from "./metric-registry.js"
+import { parseInfo, parseInfoToPairs, parseKeyspace } from "../utils/helpers.js"
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "__fixtures__")
-const toPairs = (raw) => raw
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter((line) => line && !line.startsWith("#") && line.includes(":"))
-  .map((line) => line.split(":", 2))
-const fixtureMap = (name) => Object.fromEntries(toPairs(fs.readFileSync(path.join(fixturesDir, name), "utf8")))
-const fixturePairs = (name) => toPairs(fs.readFileSync(path.join(fixturesDir, name), "utf8"))
+const readFixture = (name) => fs.readFileSync(path.join(fixturesDir, name), "utf8")
+const fixtureMap = (name) => parseInfo(readFixture(name))
+const fixturePairs = (name) => parseInfoToPairs(readFixture(name))
 
 const MEMORY = fixtureMap("info-memory.valkey-9.1-linux.txt")
 const CPU_LINUX = fixtureMap("info-cpu.valkey-9.1-linux.txt")

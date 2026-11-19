@@ -8,24 +8,16 @@ import {
   MEMORY_METRICS,
   cpuObservations,
   keyspaceObservations,
-  memoryObservations,
-  parseKeyspace
+  memoryObservations
 } from "./metric-registry.js"
+import { parseInfo } from "../utils/helpers.js"
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "__fixtures__")
 const readFixture = (name) => fs.readFileSync(path.join(fixturesDir, name), "utf8")
 
-// Same parsing as fetchers.js: `key:value` lines, comments and blanks skipped.
-const toPairs = (raw) => raw
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter((line) => line && !line.startsWith("#") && line.includes(":"))
-  .map((line) => line.split(":", 2))
-
-const memoryInfo = Object.fromEntries(toPairs(readFixture("info-memory.valkey-9.1-linux.txt")))
-const cpuLinux = Object.fromEntries(toPairs(readFixture("info-cpu.valkey-9.1-linux.txt")))
-const cpuMacos = Object.fromEntries(toPairs(readFixture("info-cpu.valkey-9.1-macos.txt")))
-const keyspacePairs = toPairs(readFixture("info-keyspace.valkey-9.1-linux.txt"))
+const memoryInfo = parseInfo(readFixture("info-memory.valkey-9.1-linux.txt"))
+const cpuLinux = parseInfo(readFixture("info-cpu.valkey-9.1-linux.txt"))
+const cpuMacos = parseInfo(readFixture("info-cpu.valkey-9.1-macos.txt"))
 
 // The design tables "Memory" and "Memory breakdown", row by row.
 const DESIGN_MEMORY = [
@@ -159,25 +151,6 @@ describe("metric-registry", () => {
 
     it("only uses cpu.mode as an attribute", () => {
       cpuObservations(cpuLinux).forEach((o) => expect(Object.keys(o.attributes)).toEqual(["cpu.mode"]))
-    })
-  })
-
-  describe("parseKeyspace", () => {
-    it("parses keys and expires per database index", () => {
-      expect(parseKeyspace(keyspacePairs)).toEqual({ 0: { keys: 2, expires: 1 }, 3: { keys: 1, expires: 0 } })
-    })
-
-    it("ignores rows that are not db<N>", () => {
-      expect(parseKeyspace([["dbx", "keys=1,expires=0"], ["foo", "keys=1"], ["db1", "keys=4,expires=2"]]))
-        .toEqual({ 1: { keys: 4, expires: 2 } })
-    })
-
-    it("ignores a row without a numeric keys or expires value", () => {
-      expect(parseKeyspace([["db2", "keys=abc,expires=1"], ["db4", "avg_ttl=0"]])).toEqual({})
-    })
-
-    it("returns an empty map for an empty reply", () => {
-      expect(parseKeyspace([])).toEqual({})
     })
   })
 

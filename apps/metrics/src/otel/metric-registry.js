@@ -1,4 +1,5 @@
 import * as R from "ramda"
+import { toFiniteNumber } from "../utils/helpers.js"
 
 /**
  * Maps the INFO fields the collector already polls to OpenTelemetry metrics.
@@ -86,13 +87,6 @@ export const DB_INDEX = "valkey.db.index"
 
 const NO_ATTRIBUTES = Object.freeze({})
 
-// INFO values are strings. An absent or empty field must not become 0, so it is skipped.
-const toFiniteNumber = (raw) => {
-  if (raw == null || String(raw).trim() === "") return undefined
-  const value = Number(raw)
-  return Number.isFinite(value) ? value : undefined
-}
-
 /** `[{ name, value, attributes }]` for the memory metrics present in `memory`. */
 export const memoryObservations = (memory = {}) =>
   R.reduce((acc, metric) => {
@@ -109,25 +103,6 @@ export const cpuObservations = (cpu = {}) =>
     if (value !== undefined) acc.push({ name: metric.name, value, attributes: { [CPU_MODE]: mode } })
     return acc
   }, [], [["user", metric.user], ["system", metric.system]]), CPU_METRICS)
-
-const DB_ROW = /^db(\d+)$/
-
-/**
- * `INFO KEYSPACE` pairs (`["db0", "keys=1,expires=0,avg_ttl=0"]`) to
- * `{ "0": { keys, expires } }`. Rows that are not `db<N>`, or that have no
- * numeric `keys` and `expires`, are skipped.
- */
-export const parseKeyspace = (pairs = []) =>
-  R.reduce((acc, [key, value]) => {
-    const match = DB_ROW.exec(String(key))
-    if (!match) return acc
-    const fields = Object.fromEntries(String(value).split(",").map((part) => part.split("=", 2)))
-    const keys = toFiniteNumber(fields.keys)
-    const expires = toFiniteNumber(fields.expires)
-    if (keys === undefined || expires === undefined) return acc
-    acc[String(Number(match[1]))] = { keys, expires }
-    return acc
-  }, {}, pairs)
 
 /**
  * The keyspace points to report, and the updated set of indexes seen so far.
