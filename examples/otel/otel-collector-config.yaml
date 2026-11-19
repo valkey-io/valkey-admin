@@ -26,6 +26,9 @@ exporters:
     endpoint: 0.0.0.0:8889
     # A collector that stops (its node left the cluster, or the server
     # stopped it) stops pushing. Its series are dropped after this time.
+    # Keep this longer than the largest poll_ms of the memory and cpu epics,
+    # because a collector pushes once per poll_ms. If it is shorter, the
+    # series are dropped between two pushes and show gaps.
     metric_expiration: 1m
     resource_to_telemetry_conversion:
       # Keep resource attributes in target_info rather than on every series.
