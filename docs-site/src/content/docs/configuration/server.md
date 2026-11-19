@@ -287,7 +287,7 @@ Unlike the variables above, this one is **not** inherited from the server. The s
 
 ### `METRICS_OTEL_ENABLED` and `OTEL_*`
 
-Set `METRICS_OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` on the server to turn on OTLP export in every collector that it spawns. The children inherit every `OTEL_*` variable unchanged. See [Metrics: OpenTelemetry Export](/configuration/metrics/#opentelemetry-export).
+Set `METRICS_OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` on the server to turn on OTLP export in every collector that it spawns. The children inherit every `OTEL_*` variable unchanged, so `OTEL_SDK_DISABLED=true` on the server turns export off in every child. See [Metrics: OpenTelemetry Export](/configuration/metrics/#opentelemetry-export).
 
 - **Default:** unset (export off)
 

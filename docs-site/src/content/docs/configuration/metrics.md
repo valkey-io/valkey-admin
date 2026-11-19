@@ -236,6 +236,8 @@ These variables turn on the OTLP export of memory, keyspace and CPU metrics. See
 
 Turns on OTLP export. Export is on only for the literal string `"true"`. With any other value, the metrics process creates nothing for OpenTelemetry and sends no OTLP request.
 
+The standard `OTEL_SDK_DISABLED=true` turns export off even when `METRICS_OTEL_ENABLED` is `"true"`. Its value is read in any letter case, as the OpenTelemetry SDK reads it.
+
 - **Default:** unset (export off)
 - **Read in:** `apps/metrics/src/otel/exporter.js`
 
@@ -259,8 +261,9 @@ The OpenTelemetry SDK reads these standard variables:
 | `OTEL_EXPORTER_OTLP_CERTIFICATE` | Path to a PEM CA certificate for an `https` endpoint with a private CA. |
 | `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Client certificate and key for mTLS. |
 | `OTEL_RESOURCE_ATTRIBUTES` | Extra resource attributes, for example `service.namespace=prod-cache`. It cannot change `service.name` or `service.instance.id`. |
+| `OTEL_SDK_DISABLED` | `true` turns export off. See [`METRICS_OTEL_ENABLED`](#metrics_otel_enabled). |
 
-Valkey Admin passes these variables to the SDK unchanged and does not test how the SDK uses them.
+Valkey Admin passes these variables to the SDK unchanged and does not test how the SDK uses them. The exception is `OTEL_SDK_DISABLED`, which Valkey Admin reads itself.
 
 These variables have no effect:
 

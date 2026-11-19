@@ -50,6 +50,8 @@ OTEL_RESOURCE_ATTRIBUTES=service.namespace=prod-cache
 | Desktop | In the environment that launches the app. See [Desktop deployment](/deployment/desktop/#opentelemetry-export). |
 | Kubernetes | On the metrics sidecar container. See [Kubernetes deployment](/deployment/kubernetes/#opentelemetry-export). |
 
+To turn export off again without removing these variables, set `OTEL_SDK_DISABLED=true`.
+
 See [Metrics configuration](/configuration/metrics/#opentelemetry-export) for all the variables.
 
 ## Exported Metrics

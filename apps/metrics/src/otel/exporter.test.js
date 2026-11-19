@@ -37,6 +37,7 @@ const OTEL_ENV_KEYS = [
   "OTEL_EXPORTER_OTLP_HEADERS",
   "OTEL_RESOURCE_ATTRIBUTES",
   "OTEL_SERVICE_NAME",
+  "OTEL_SDK_DISABLED",
 ]
 
 const cfgWith = (epics) => ({ epics })
@@ -147,6 +148,15 @@ describe("otel exporter", () => {
         expect(isOtelEnabled({ METRICS_OTEL_ENABLED: value })).toBe(false)
       }
     })
+
+    it("is off when OTEL_SDK_DISABLED is true in any letter case", () => {
+      for (const value of ["true", "TRUE", " True "]) {
+        expect(isOtelEnabled({ METRICS_OTEL_ENABLED: "true", OTEL_SDK_DISABLED: value }), value).toBe(false)
+      }
+      for (const value of [undefined, "", "false", "1", "yes"]) {
+        expect(isOtelEnabled({ METRICS_OTEL_ENABLED: "true", OTEL_SDK_DISABLED: value }), String(value)).toBe(true)
+      }
+    })
   })
 
   describe("exportIntervalMs", () => {
@@ -196,6 +206,17 @@ describe("otel exporter", () => {
       expect(maybeStartOtel({ cfg: cfgWith([{ name: "monitor" }]), env, nodeId: NODE_ID, log })).toBeNull()
       expect(lines.warn).toHaveLength(1)
       expect(lines.error).toHaveLength(0)
+    })
+
+    it("starts nothing and sends nothing when OTEL_SDK_DISABLED is true", async () => {
+      const r = await receiver()
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
+      const { log, lines } = makeLog()
+      const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: "true", OTEL_SDK_DISABLED: "true" }
+      expect(maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log })).toBeNull()
+      expect(Object.values(lines).flat()).toEqual([])
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      expect(r.requests).toHaveLength(0)
     })
 
     it("logs one warning and starts nothing for an invalid poll_ms", async () => {

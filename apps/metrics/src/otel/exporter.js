@@ -24,8 +24,13 @@ const SHUTDOWN_TIMEOUT_MS = 2000
 const ERROR_LOG_INTERVAL_MS = 60_000
 const METER_NAME = "valkey-admin-metrics"
 
-/** Export is on only for the literal string "true". */
-export const isOtelEnabled = (env) => env?.METRICS_OTEL_ENABLED === "true"
+/**
+ * Export is on only when METRICS_OTEL_ENABLED is the literal string "true" and
+ * OTEL_SDK_DISABLED is not "true". OTEL_SDK_DISABLED is read as the SDK reads
+ * it: trimmed, and in any letter case.
+ */
+export const isOtelEnabled = (env) =>
+  env?.METRICS_OTEL_ENABLED === "true" && env?.OTEL_SDK_DISABLED?.trim().toLowerCase() !== "true"
 
 /**
  * The export interval is the poll interval of the data it exports, so each
