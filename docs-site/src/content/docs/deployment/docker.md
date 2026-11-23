@@ -114,6 +114,17 @@ services:
 
 See the [Metrics Configuration](/configuration/metrics/) page for available options.
 
+## OpenTelemetry Export
+
+To send metrics to Prometheus or another backend through an OpenTelemetry Collector, set these variables on the Valkey Admin container:
+
+```yaml
+    environment:
+      METRICS_OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+```
+
+The server passes them to every metrics collector it starts. See [OpenTelemetry Export](/features/otel-export/) for the Collector config and the exported metrics.
 ## AI Assistants (MCP)
 
 To let AI assistants read your Valkey deployments, enable the read-only MCP server. It is served under `/mcp/<target>` on port `8080`:

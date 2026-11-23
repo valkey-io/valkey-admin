@@ -44,6 +44,20 @@ The desktop app records three categories of commands that are most likely to aff
 
 See [Activity](/features/activity/) for threshold configuration and analysis guidance.
 
+### OpenTelemetry Export
+
+The desktop app can push metrics to an OpenTelemetry Collector. Its collectors read the variables only from the environment that launches the app. An app started from the Dock, Finder or a desktop launcher does not get your shell environment, so launch it from a terminal:
+
+```sh
+# macOS
+open -a "Valkey Admin" --env METRICS_OTEL_ENABLED=true --env OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
+# Linux (AppImage)
+METRICS_OTEL_ENABLED=true OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 ./Valkey-Admin.AppImage
+```
+
+Quit the app first if it is already running. The desktop app exports only the node that you connect to, not the other nodes of a cluster. See [OpenTelemetry Export](/features/otel-export/).
+
 ### Keyboard Shortcuts
 
 The desktop app adds a **Shortcuts** menu to the native application menu bar, providing quick keyboard navigation to any section of the app.

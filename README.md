@@ -11,6 +11,7 @@ Full documentation lives at **[valkey-admin.valkey.io](https://valkey-admin.valk
 - **[Send Command](https://valkey-admin.valkey.io/features/send-command/)** — Execute Valkey commands with response formatting and command history.
 - **[Cluster Topology](https://valkey-admin.valkey.io/features/cluster-topology/)** — Visual map of shards, primaries, and replicas with per-node metrics.
 - **[Activity](https://valkey-admin.valkey.io/features/activity/)** — Hot Keys monitoring plus Command Logs (slow commands, large requests, large replies) aggregated across the cluster.
+- **[OpenTelemetry Export](https://valkey-admin.valkey.io/features/otel-export/)** — Push memory, keyspace and CPU metrics over OTLP to Prometheus and other backends. Turn it on with `METRICS_OTEL_ENABLED=true`.
 - **[AI Assistants (MCP)](https://valkey-admin.valkey.io/features/mcp/)** — Read-only MCP server that lets assistants such as Claude Code and Cursor read server info, big keys, and hot keys.
 
 ## Compatibility

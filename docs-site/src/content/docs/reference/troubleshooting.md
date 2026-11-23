@@ -123,4 +123,15 @@ A raw WebSocket client sent a `connectionId` that was not built from the normali
 
 ---
 
+## The log says `[otel] PeriodicExportingMetricReader: metrics export timed out` or `metrics export failed`
+
+A metrics collector could not deliver its OpenTelemetry export. Collection, the dashboard and the NDJSON files are not affected. Each collector logs the first error, then at most one line a minute with the count of errors in between.
+
+- `timed out` means that no export finished in time. The endpoint did not answer, it closed the connection, or it throttled the export (HTTP `429`, `502`, `503` or `504`). The SDK retries a throttled or dropped export until the timeout, so these causes usually show as `timed out`. When the retries end before the timeout, the line says `failed` instead.
+- `failed (error OTLPExporterError: Unauthorized)` or another status means that the endpoint refused the export.
+
+**Fix:** Check that the OTel Collector runs and that `OTEL_EXPORTER_OTLP_ENDPOINT` is the base URL of its OTLP/HTTP receiver (port `4318`), with no `/v1/metrics` at the end. If the Collector runs, look in its log for a throttled or dropped request, for example from a full queue or a `memory_limiter` processor. For a refused export, check `OTEL_EXPORTER_OTLP_HEADERS`. For an `https` endpoint with a private CA, set `OTEL_EXPORTER_OTLP_CERTIFICATE`. See [OpenTelemetry Export](/features/otel-export/).
+
+---
+
 For a list of capabilities and operational caveats that aren't bugs (no built-in auth, no RBAC, mTLS, ElastiCache Serverless, etc.), see [Known Limitations](/reference/limitations/).

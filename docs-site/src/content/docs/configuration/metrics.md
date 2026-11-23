@@ -41,11 +41,13 @@ Each entry in the `epics` array describes one collection stream. The fields belo
 | Field | Description | Default |
 |-------|-------------|---------|
 | `name` | The epic's only identifier. It selects the collector implementation, prefixes the NDJSON files written under `DATA_DIR`, and labels the epic in logs and the orchestrator registry. One of `memory`, `cpu`, `slowlog_len`, `commandlog_slow`, `commandlog_large_request`, `commandlog_large_reply`, `monitor`. | required |
-| `poll_ms` | How often (ms) the collector runs. | varies per epic |
+| `poll_ms` | How often (ms) the collector runs. An integer from `1000` to `3600000`. | varies per epic |
 | `data_retention_mb` | Max disk space (MB) this epic's NDJSON files may use. Oldest files are evicted when the budget is exceeded. | `10` |
 | `data_retention_days` | Files older than this (by birthtime) are deleted during the daily cleanup sweep. | `30` |
 
 Names must match `^[a-z0-9_]+$`; the metrics process refuses to start on anything else, because the name becomes part of a file path. An epic whose name is not one of the values above collects nothing and is dropped at load with an error logged.
+
+An epic whose `poll_ms` is not an integer from `1000` to `3600000` is also dropped at load with an error logged. These are the same bounds that `POST /update-config` uses. A smaller value, such as `0`, would make the collector poll in a tight loop.
 
 The `Default` column shows the **fallback defaults applied by the YAML merge**. `apps/metrics/config.yml` overrides these with lower values per epic (3–15 MB, 5 days). See the file itself for the full per-epic configuration.
 
@@ -225,6 +227,51 @@ How often (in milliseconds) the collector flushes a batch of samples.
 Maximum number of samples in a single batch. The collector flushes whichever comes first — `BATCH_MS` or `BATCH_MAX`.
 
 - **Overrides:** `collector.batch_max`
+
+## OpenTelemetry Export
+
+These variables turn on the OTLP export of memory, keyspace and CPU metrics. See [OpenTelemetry Export](/features/otel-export/) for the metric list, the resource attributes and the limitations.
+
+### `METRICS_OTEL_ENABLED`
+
+Turns on OTLP export. Export is on only for the literal string `"true"`. With any other value, the metrics process creates nothing for OpenTelemetry and sends no OTLP request. If the value is set to something other than `"true"` or `"false"`, for example `True` or `1`, the process logs one warning at startup, so you can see why no metrics arrive.
+
+The standard `OTEL_SDK_DISABLED=true` turns export off even when `METRICS_OTEL_ENABLED` is `"true"`. Its value is read in any letter case, as the OpenTelemetry SDK reads it.
+
+- **Default:** unset (export off)
+- **Read in:** `apps/metrics/src/otel/exporter.js`
+
+The export interval is the `poll_ms` of the `memory` epic, or of the `cpu` epic if there is no `memory` epic. If the config has neither, export does not start and the process logs a warning. If the OpenTelemetry SDK cannot start, the process logs an error, turns export off and continues to collect.
+
+### `OTEL_EXPORTER_OTLP_ENDPOINT`
+
+Base URL of the OTLP/HTTP receiver, for example `http://otel-collector:4318`. The process sends to `<endpoint>/v1/metrics`.
+
+- **Default:** `http://localhost:4318`
+
+### Other `OTEL_*` variables
+
+The OpenTelemetry SDK reads these standard variables:
+
+| Variable | Use |
+|----------|-----|
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Full metrics URL. Used as given, with no `/v1/metrics` added. Wins over `OTEL_EXPORTER_OTLP_ENDPOINT`. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Request headers as `key=value` pairs separated by commas, for example `authorization=Bearer <token>`. The values are not written to the log. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` | Request timeout in milliseconds. |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` | Path to a PEM CA certificate for an `https` endpoint with a private CA. |
+| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Client certificate and key for mTLS. |
+| `OTEL_RESOURCE_ATTRIBUTES` | Extra resource attributes, for example `service.namespace=prod-cache`. It cannot change `service.name` or `service.instance.id`. |
+| `OTEL_SDK_DISABLED` | `true` turns export off. See [`METRICS_OTEL_ENABLED`](#metrics_otel_enabled). |
+
+Valkey Admin passes these variables to the SDK unchanged and does not test how the SDK uses them. The exception is `OTEL_SDK_DISABLED`, which Valkey Admin reads itself.
+
+These variables have no effect:
+
+- `OTEL_EXPORTER_OTLP_PROTOCOL`: the protocol is always OTLP over HTTP with protobuf.
+- `OTEL_METRIC_EXPORT_INTERVAL` and `OTEL_METRIC_EXPORT_TIMEOUT`: the interval comes from `poll_ms`.
+- `OTEL_SERVICE_NAME`: `service.name` is always `valkey`.
+
+Export errors are logged with the `[otel]` prefix, at most once a minute with a count of the errors in between. Collection and the NDJSON files are not affected. On shutdown, the process waits at most 2 seconds for the last export.
 
 ## Logging & Debug
 

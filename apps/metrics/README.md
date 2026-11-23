@@ -8,6 +8,8 @@ Standalone service to poll info, memory and other data from Valkey cluster and s
 
 `docker compose up --build`
 
+To push the metrics to an OpenTelemetry Collector over OTLP, set `METRICS_OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` (for example `http://localhost:4318`). See [OpenTelemetry Export](https://valkey-admin.valkey.io/features/otel-export/) and `examples/otel/`.
+
 To examine the metrics with curl:
 `curl -s "http://localhost:3000/commandlog?type=<slow|large_request|large_reply>" | jq`
 `curl -s http://localhost:3000/cpu | jq`

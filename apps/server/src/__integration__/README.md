@@ -17,6 +17,7 @@ docker compose -f docker/docker-compose.test.yml down -v
 - **Cluster:** `valkey-7001..7006` on ports `7001..7006`. Initialized by the `cluster-init` service and seeded by `populate`. Used by `cluster-topology`, `connection`, `key-browser`, `monitoring`, and `send-command` integration tests via `defaultConnectionDetails()`.
 - **Standalone:** `valkey-standalone` on port `6379`. No cluster mode. Used by the "two databases" test in `connection.integration.test.ts` via `defaultStandaloneConnectionDetails(db)` to verify that `(host, port, db)` triples produce isolated clients.
 - **ACL users:** Every node has the users `appuser`/`admin` (all commands) and `restricted`/`restricted` (all commands except `ACL` and `COMMANDLOG`). The standalone node also keeps the passwordless `default` user. `cluster_init.sh` sets the cluster users on every run, and the standalone node gets them from its `--user` arguments. `identity-isolation.integration.test.ts` uses the two users to check that users who connect as different Valkey users share no client and no metrics collector.
+- **OpenTelemetry Collector:** `otel-collector` runs with `examples/otel/otel-collector-config.yaml` and exposes Prometheus metrics on port `8889`. The app runs with `METRICS_OTEL_ENABLED=true`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` and `OTEL_RESOURCE_ATTRIBUTES=service.namespace=integration`, so every metrics collector it spawns pushes OTLP to it. `otel-export.integration.test.ts` reads `http://localhost:8889/metrics`.
 
 ## Note
 

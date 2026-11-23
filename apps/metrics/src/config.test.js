@@ -255,6 +255,58 @@ describe("config", () => {
       consoleError.mockRestore()
     })
 
+    it("should drop an epic whose poll_ms is not an integer from 1000 to 3600000", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [
+          { name: "memory", poll_ms: 0 },
+          { name: "cpu", poll_ms: -5 },
+          { name: "commandlog_slow", poll_ms: "abc" },
+          { name: "commandlog_large_reply", poll_ms: 1.5 },
+          { name: "commandlog_large_request", poll_ms: 999 },
+          { name: "slowlog_len", poll_ms: 3_600_001 },
+          { name: "monitor" },
+        ],
+      })
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { getConfig } = await import("./config.js")
+      const config = getConfig()
+
+      expect(config.epics.map((e) => e.name)).toEqual(["monitor"])
+      expect(consoleError).toHaveBeenCalledTimes(6)
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining("Ignoring epic \"memory\": poll_ms must be an integer from 1000 to 3600000, not 0"),
+      )
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("not \"abc\""))
+      consoleError.mockRestore()
+    })
+
+    it("should keep an epic with a valid poll_ms, as a number", async () => {
+      YAML.parse.mockReturnValue({
+        epics: [
+          { name: "memory", poll_ms: 1000 },
+          { name: "cpu", poll_ms: "5000" },
+          { name: "slowlog_len", poll_ms: 3_600_000 },
+          { name: "commandlog_slow" },
+          { name: "monitor", monitoringDuration: 10000 },
+        ],
+      })
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { getConfig } = await import("./config.js")
+      const config = getConfig()
+
+      expect(config.epics.map(({ name, poll_ms }) => [name, poll_ms])).toEqual([
+        ["memory", 1000],
+        ["cpu", 5000],
+        ["slowlog_len", 3_600_000],
+        ["commandlog_slow", undefined],
+        ["monitor", undefined],
+      ])
+      expect(consoleError).not.toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
     it("should apply default values when parsed config is empty", async () => {
       YAML.parse.mockReturnValue({})
 

@@ -1,0 +1,49 @@
+# OpenTelemetry Collector configuration for Valkey Admin metrics export.
+#
+# Each Valkey Admin metrics collector pushes OTLP/HTTP (protobuf) to this
+# Collector when METRICS_OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT
+# points here. The Collector then exposes the metrics to Prometheus on :8889.
+#
+# Run it with the stock image; no rebuild is needed to change this file:
+#   docker run --rm -p 4317:4317 -p 4318:4318 -p 8889:8889 \
+#     -v "$PWD/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+#     otel/opentelemetry-collector-contrib:0.137.0
+
+receivers:
+  otlp:
+    protocols:
+      # The collectors use HTTP. gRPC is here for other senders.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # A collector that stops (its node left the cluster, or the server
+    # stopped it) stops pushing. Its series are dropped after this time.
+    # Keep this longer than the largest poll_ms of the memory and cpu epics,
+    # because a collector pushes once per poll_ms. If it is shorter, the
+    # series are dropped between two pushes and show gaps.
+    metric_expiration: 1m
+    resource_to_telemetry_conversion:
+      # Keep resource attributes in target_info rather than on every series.
+      enabled: false
+
+  # Add more exporters here to send the same metrics to other backends,
+  # then list them in the pipeline below. For example:
+  # otlphttp/vendor:
+  #   endpoint: https://otlp.example.com
+  #   headers:
+  #     authorization: "Bearer ${env:VENDOR_TOKEN}"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
