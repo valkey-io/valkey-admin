@@ -234,7 +234,7 @@ These variables turn on the OTLP export of memory, keyspace and CPU metrics. See
 
 ### `METRICS_OTEL_ENABLED`
 
-Turns on OTLP export. Export is on only for the literal string `"true"`. With any other value, the metrics process creates nothing for OpenTelemetry and sends no OTLP request.
+Turns on OTLP export. Export is on only for the literal string `"true"`. With any other value, the metrics process creates nothing for OpenTelemetry and sends no OTLP request. If the value is set to something other than `"true"` or `"false"`, for example `True` or `1`, the process logs one warning at startup, so you can see why no metrics arrive.
 
 The standard `OTEL_SDK_DISABLED=true` turns export off even when `METRICS_OTEL_ENABLED` is `"true"`. Its value is read in any letter case, as the OpenTelemetry SDK reads it.
 

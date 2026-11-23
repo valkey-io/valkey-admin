@@ -38,10 +38,10 @@ Point Prometheus at `http://<collector-host>:8889/metrics`.
 Set these variables where the collectors run:
 
 ```sh
-METRICS_OTEL_ENABLED=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector-host>:4318
+export METRICS_OTEL_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector-host>:4318
 # Optional: group the series of one deployment
-OTEL_RESOURCE_ATTRIBUTES=service.namespace=prod-cache
+export OTEL_RESOURCE_ATTRIBUTES=service.namespace=prod-cache
 ```
 
 | Mode | Where to set the variables |
@@ -106,7 +106,7 @@ Each point has the attribute `valkey.db.index`, the database index as a string (
 
 Each point has the attribute `cpu.mode`, `user` or `system`. The three scopes overlap, because the main thread is one of the process's threads. So each scope is its own metric, and a sum over one metric is correct.
 
-- `rate(valkey_cpu_main_thread_time_seconds_total[1m])` near 1 means that the main thread is saturated. This is the closest match to the ElastiCache `EngineCPUUtilization` metric. Servers on an OS without per-thread CPU accounting, such as macOS, do not report it.
+- `sum without (cpu_mode) (rate(valkey_cpu_main_thread_time_seconds_total[1m]))` near 1 means that the main thread is saturated. Add the `user` and `system` time: together they are the CPU time of the thread, and each one alone can stay below 1 while the thread is saturated. `sum without (cpu_mode)` keeps one series per node. This is the closest match to the ElastiCache `EngineCPUUtilization` metric. Servers on an OS without per-thread CPU accounting, such as macOS, do not report it.
 - `valkey.cpu.time` also counts the I/O threads and the background threads.
 - `valkey.cpu.children.time` grows only when a fork exits, so a `BGSAVE` shows as one step.
 
@@ -154,6 +154,7 @@ With the default configuration, a standalone node exports at most 58 series (16 
 - **No cluster id.** The collector does not set `service.namespace`. In Web mode, one server can watch more than one cluster, and every collector inherits the same `OTEL_RESOURCE_ATTRIBUTES`. So all clusters get the same `job` label, and you cannot group the series by cluster. Each node still has its own `instance` label. A later version will run one collector per cluster and set the cluster id.
 - **Connections of UI users export too.** In Web mode, every collector inherits `METRICS_OTEL_ENABLED` from the server. This includes the collectors for nodes that users connect to in the UI, not only the preconfigured connection.
 - **Duplicate series.** When two Valkey users connect to the same node, Valkey Admin runs one collector for each, and both export the same series. Their samples interleave, so a counter can step back, and `rate()` shows a false spike. To prevent this, connect each node with one Valkey user. A later version will run one collector per cluster.
+- **CPU counters start when the collector starts.** The `valkey.cpu.*` values count from the start of the Valkey process. The OpenTelemetry SDK sets the start time of each series to the first export of the collector, so the first point has a start time equal to its timestamp and a value that already holds the CPU time of the whole Valkey process. The OpenTelemetry data model defines this as a reset at an unknown start time, and a consumer that follows it counts no rate for that point. Prometheus and the Collector's `cumulativetodelta` processor (with its default `initial_value: auto`) handle it correctly. With `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta`, the first delta after each collector start holds the lifetime CPU time of the Valkey process, so a backend that adds up deltas shows one spike. Collectors start when Valkey Admin starts, when a user connects, and when the reconcile loop adds a node. A Valkey restart while the collector runs is shown correctly: the counter drops, and the SDK starts a new series with a new start time.
 - **A stale `valkey.memory.max`.** If `maxmemory` changes from a limit to 0 at runtime, the last limit keeps being exported until the collector restarts.
 - **Stopped collectors.** When a collector stops (its node left the cluster, or Valkey Admin stopped), its series stay on the Collector's Prometheus endpoint until `metric_expiration`. The example config sets 1 minute.
 - **Gaps when `poll_ms` is 1 minute or more.** A collector pushes once per `poll_ms`. If `poll_ms` is equal to or longer than `metric_expiration`, the Collector drops the series between two pushes, so they show gaps. With the example config (1 minute) and `poll_ms` 70000, each series was missing for the first 70 s and then for about 5 s of every 70 s. Set `metric_expiration` longer than the largest `poll_ms` of the `memory` and `cpu` epics. A longer value also keeps the series of a stopped collector visible for longer.

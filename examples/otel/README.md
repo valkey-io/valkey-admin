@@ -13,8 +13,8 @@ docker run --rm -p 4317:4317 -p 4318:4318 -p 8889:8889 \
 Then start Valkey Admin with export turned on:
 
 ```sh
-METRICS_OTEL_ENABLED=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector-host>:4318
+export METRICS_OTEL_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector-host>:4318
 ```
 
 Point Prometheus at `http://<collector-host>:8889/metrics`. To send the same metrics to another backend, add an exporter to the config and list it in the `metrics` pipeline. You do not need to rebuild an image.

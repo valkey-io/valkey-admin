@@ -189,16 +189,41 @@ describe("otel exporter", () => {
   describe("maybeStartOtel", () => {
     it("starts nothing and sends nothing when export is off", async () => {
       const r = await receiver()
-      for (const value of [undefined, "1", "TRUE", "false"]) {
-        const { log, lines } = makeLog()
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
+      for (const value of [undefined, "", "false", "1", "TRUE", "True"]) {
+        const { log } = makeLog()
         const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: value, OTEL_EXPORTER_OTLP_ENDPOINT: r.url }
-        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = r.url
-        expect(maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log })).toBeNull()
-        expect(Object.values(lines).flat()).toEqual([])
+        expect(maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log }), String(value)).toBeNull()
       }
       await new Promise((resolve) => setTimeout(resolve, 3000))
       expect(r.requests).toHaveLength(0)
     }, 10_000)
+
+    it("logs nothing when METRICS_OTEL_ENABLED is unset, empty or false", () => {
+      for (const value of [undefined, "", "false"]) {
+        const { log, lines } = makeLog()
+        const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: value }
+        maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log })
+        expect(Object.values(lines).flat(), String(value)).toEqual([])
+      }
+    })
+
+    it("logs one warning when METRICS_OTEL_ENABLED is set to another value", () => {
+      for (const value of ["True", "TRUE", "1", "yes", " true"]) {
+        const { log, lines } = makeLog()
+        const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: value }
+        maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log })
+        expect(lines.warn, value).toEqual([`METRICS_OTEL_ENABLED is ${JSON.stringify(value)}, not "true", so OTel metrics export is off.`])
+        expect(lines.error).toHaveLength(0)
+      }
+    })
+
+    it("does not warn about METRICS_OTEL_ENABLED when OTEL_SDK_DISABLED turns export off", () => {
+      const { log, lines } = makeLog()
+      const env = { ...RESOURCE_ENV, METRICS_OTEL_ENABLED: "true", OTEL_SDK_DISABLED: "true" }
+      maybeStartOtel({ cfg: cfgWith([{ name: "memory", poll_ms: 1000 }]), env, nodeId: NODE_ID, log })
+      expect(Object.values(lines).flat()).toEqual([])
+    })
 
     it("logs one warning and starts nothing when there is no memory or cpu epic", () => {
       const { log, lines } = makeLog()

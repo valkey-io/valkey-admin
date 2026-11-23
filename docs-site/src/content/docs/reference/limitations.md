@@ -26,7 +26,7 @@ For runtime issues and fixes, see the [Troubleshooting guide](/reference/trouble
 
 ## OpenTelemetry export
 
-See [OpenTelemetry Export: Limitations](/features/otel-export/#limitations). In short: a fetch outage shows as a flat line, replicas export only in Kubernetes, the desktop app exports only the connected node, all clusters of one server share one `service.namespace`, and two Valkey users on one node give duplicate series.
+See [OpenTelemetry Export: Limitations](/features/otel-export/#limitations). In short: a fetch outage shows as a flat line, replicas export only in Kubernetes, the desktop app exports only the connected node, all clusters of one server share one `service.namespace`, the CPU counters start when the collector starts, and two Valkey users on one node give duplicate series.
 
 ## Architecture
 

@@ -178,7 +178,15 @@ export const startOtelExporter = ({ intervalMs, resource, cache, log, exporter, 
  * export. Returns `null` otherwise, and nothing OTel-related is created.
  */
 export const maybeStartOtel = ({ cfg, env, nodeId, log }) => {
-  if (!isOtelEnabled(env)) return null
+  if (!isOtelEnabled(env)) {
+    // A value such as "True" or "1" turns nothing on, so say why no metrics arrive.
+    // Unset, empty and "false" are the usual ways to keep export off, so they stay silent.
+    const value = env?.METRICS_OTEL_ENABLED
+    if (value !== undefined && value !== "" && value !== "true" && value !== "false") {
+      log.warn(`METRICS_OTEL_ENABLED is ${JSON.stringify(value)}, not "true", so OTel metrics export is off.`)
+    }
+    return null
+  }
 
   const intervalMs = exportIntervalMs(cfg)
   if (intervalMs == null) {
