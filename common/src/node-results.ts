@@ -11,6 +11,11 @@
 
 import type { AggregateReplyId } from "./reply-id"
 
+export interface NodeError {
+  nodeId: string
+  error: string
+}
+
 export interface NodeResult {
   nodeId: string
   success: boolean

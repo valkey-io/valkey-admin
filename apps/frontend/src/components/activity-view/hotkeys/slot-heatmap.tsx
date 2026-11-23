@@ -11,7 +11,7 @@ import { StaticTableHeader } from "../../ui/sortable-table-header"
 import { HeatmapLegend } from "./heatmap-legend"
 import { NodeFilterDropdown } from "./node-filter-dropdown"
 import { getColor, snapToBucket, toRatio } from "./heatmap-scale"
-import type { HotKeyEntry } from "./hot-keys"
+import type { HotKeyEntry } from "@common/src/hotkeys"
 
 interface SlotGroup {
   slotId: number

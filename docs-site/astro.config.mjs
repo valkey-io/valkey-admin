@@ -8,6 +8,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Valkey Admin',
+			components: { Search: './src/components/Search.astro' },
 			head: [
 				{
 					tag: 'script',
@@ -36,6 +37,7 @@ export default defineConfig({
 						{ label: 'Cluster Topology', slug: 'features/cluster-topology' },
 						{ label: 'Activity', slug: 'features/activity' },
 						{ label: 'OpenTelemetry Export', slug: 'features/otel-export' },
+						{ label: 'AI Assistants (MCP)', slug: 'features/mcp' },
 					],
 				},
 				{

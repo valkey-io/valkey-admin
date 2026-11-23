@@ -6,7 +6,7 @@ import { Button } from "../../ui/button"
 import { TabGroup } from "../../ui/tab-group"
 import { NodeHeatmap } from "./node-heatmap"
 import { SlotHeatmap } from "./slot-heatmap"
-import type { HotKeyEntry } from "./hot-keys"
+import type { HotKeyEntry } from "@common/src/hotkeys"
 
 type HeatmapTab = "nodes" | "slots"
 

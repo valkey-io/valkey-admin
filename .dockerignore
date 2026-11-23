@@ -1,0 +1,7 @@
+.git
+**/node_modules
+**/dist
+**/.DS_Store
+**/.env
+apps/server/data
+apps/metrics/data

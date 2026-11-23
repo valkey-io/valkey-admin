@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "./radio-group.tsx"
 import type { ConnectionDetails } from "@/state/valkey-features/connection/connectionSlice.ts"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { secureStorage } from "@/utils/secureStorage"
 
 interface ConnectionModalProps {
   open: boolean
@@ -134,7 +135,6 @@ export function ConnectionModal({
                           onConnectionDetailsChange({
                             ...connectionDetails,
                             host,
-                            endpointType: host.includes("cfg") ? "cluster-endpoint" : connectionDetails.endpointType,
                           })
                         }}
                         placeholder="localhost"
@@ -160,6 +160,11 @@ export function ConnectionModal({
                         value={connectionDetails.port}
                       />
                     </div>
+                    {connectionDetails.endpointType === "node" && connectionDetails.host.includes("cfg") && (
+                      <Typography className="col-span-2 -mt-2" variant="bodyXs">
+                        If this is a cluster configuration endpoint, switch Endpoint Type to Discovery.
+                      </Typography>
+                    )}
                   </div>
 
                   {/* Auth Type */}
@@ -255,6 +260,11 @@ export function ConnectionModal({
                           type="password"
                           value={connectionDetails.password}
                         />
+                        {!secureStorage.isElectron() && (
+                          <Typography className="text-muted-foreground mt-1 block text-xs" variant="bodyXs">
+                            Passwords aren't saved in web mode.
+                          </Typography>
+                        )}
                       </div>
                     </div>
                   )}

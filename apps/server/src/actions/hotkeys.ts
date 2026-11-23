@@ -1,19 +1,22 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import {
+  VALKEY,
+  type AggregateReplyId,
+  type HotKeysResponse,
+  type NodeError,
+  toNodeId,
+  buildUrl
+} from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
 
-type HotKeysResponse = {
+// One node's reply from the metrics server. Its tuples have no nodeId; the merge below adds it for HotKeysResponse.
+type MetricsHotKeysResponse = {
   nodeId: string
-  hotKeys: [[]]
+  hotKeys: [string, number, number | null, number, number?][]
   checkAt: number
   monitorRunning: boolean
   lastCollectedAt: number | null
-}
-
-type NodeError = {
-  nodeId: string
-  error: string
 }
 
 const sendHotKeysFulfilled = (
@@ -86,7 +89,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
           const errorBody = await initialResponse.json() as { error?: string }
           return { nodeId, error: errorBody.error ?? `HTTP ${initialResponse.status}` } as NodeError
         }
-        const initialParsedResponse: HotKeysResponse = await initialResponse.json() as HotKeysResponse
+        const initialParsedResponse = await initialResponse.json() as MetricsHotKeysResponse
         // Reads monitor data and returns when to fetch results (`checkAt`).
         if (initialParsedResponse.checkAt) {
           // Monitor collects data in memory for the full duration, then writes
@@ -96,11 +99,11 @@ export const hotKeysRequested = withDeps<Deps, void>(
           const delay = initialParsedResponse.checkAt - Date.now()
           await new Promise((resolve) => setTimeout(resolve, Math.max(delay, 0)))
 
-          let result: HotKeysResponse = initialParsedResponse
+          let result = initialParsedResponse
           for (let attempt = 0; attempt < 3; attempt++) {
             await new Promise((resolve) => setTimeout(resolve, 1000))
             const dataResponse = await fetch(url)
-            result = await dataResponse.json() as HotKeysResponse
+            result = await dataResponse.json() as MetricsHotKeysResponse
             if (result.hotKeys?.length > 0) return result
           }
           return result
@@ -114,12 +117,12 @@ export const hotKeysRequested = withDeps<Deps, void>(
     })
 
     const settled = await Promise.all(promises)
-    const results = settled.filter((r): r is HotKeysResponse => !!r && "hotKeys" in r)
+    const results = settled.filter((r): r is MetricsHotKeysResponse => !!r && "hotKeys" in r)
     const nodeErrors = settled.filter((r): r is NodeError => !!r && "error" in r)
 
     if (results.length === 0) {
       if (nodes) {
-        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" } as unknown as HotKeysResponse
+        const emptyResponse: HotKeysResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" }
         sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
         return
       }
@@ -129,21 +132,21 @@ export const hotKeysRequested = withDeps<Deps, void>(
         sendHotKeysError(ws, toNodeId(connectionId), nodeErrors[0].error)
       } else {
         const nodeId = toNodeId(connectionId)
-        const emptyResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId } as unknown as HotKeysResponse
+        const emptyResponse: HotKeysResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId }
         sendHotKeysFulfilled(ws, { nodeId }, emptyResponse)
       }
       return
     }
 
     if (!nodes) {
-      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0])
+      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0] as unknown as HotKeysResponse)
       return
     }
 
     type HotKeyTuple = [string, number, number | null, number, string, number?]
     const aggregatedHotKeys = R.pipe(
-      R.chain(({ hotKeys, nodeId: nId }: HotKeysResponse) =>
-        (hotKeys as unknown as [string, number, number | null, number, number?][]).map(
+      R.chain(({ hotKeys, nodeId: nId }: MetricsHotKeysResponse) =>
+        hotKeys.map(
           ([key, count, size, ttl, slotId]) => [key, count, size, ttl, nId, slotId] as HotKeyTuple,
         ),
       ),

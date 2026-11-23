@@ -1,29 +1,15 @@
 import { type WebSocket } from "ws"
-import { VALKEY, type AggregateReplyId, toNodeId, buildUrl } from "valkey-common"
+import {
+  VALKEY,
+  type AggregateReplyId,
+  type BigKey,
+  type BigKeysResponse,
+  type NodeError,
+  toNodeId,
+  buildUrl
+} from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
-
-type BigKey = {
-  key: string
-  sizeBytes: number
-  type: string
-  ttl: number
-  freq: number | null
-  nodeId?: string
-}
-
-type BigKeysResponse = {
-  nodeId: string
-  keys: BigKey[]
-  scanned: number
-  totalKeys: number
-  scannedAt: number
-}
-
-type NodeError = {
-  nodeId: string
-  error: string
-}
 
 // Scan-policy defaults, always forwarded to the metrics nodes.
 // batchSize is left to the metrics layer's own default.

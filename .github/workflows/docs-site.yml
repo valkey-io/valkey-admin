@@ -1,0 +1,35 @@
+name: Docs site
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-site.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the docs site
+        run: npm run build
+      - name: Check the Pagefind index version served by other sites is compatible with this site
+        run: ./scripts/index-copies.sh check

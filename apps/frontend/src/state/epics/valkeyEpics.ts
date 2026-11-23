@@ -7,6 +7,7 @@ import { DISCONNECTED, LOCAL_STORAGE, NOT_CONNECTED, RETRY_CONFIG, retryDelay,
   CLUSTER_DATA_POLL_INTERVAL_MS, MILLISECONDS_IN_AN_HOUR, VALKEY } from "@common/src/constants.ts"
 import { toast } from "sonner"
 import { buildNormalizedConnectionId } from "@common/src/connection-id"
+import { isLfuPolicy, type HotKeysRequestPayload } from "@common/src/hotkeys.ts"
 import { getSocket } from "./wsEpics"
 import {
   standaloneConnectFulfilled,
@@ -525,12 +526,13 @@ export const getHotKeysEpic = (store: Store) =>
       const socket = getSocket()
       const state = store.getState()
       const connection = state.valkeyConnection.connections[connectionId]
-      const lfuEnabled = connection.connectionDetails.keyEvictionPolicy?.includes("lfu") ?? false
+      const lfuEnabled = isLfuPolicy(connection.connectionDetails.keyEvictionPolicy)
       const clusterSlotStatsEnabled = connection.connectionDetails.clusterSlotStatsEnabled ?? false
 
+      const payload: HotKeysRequestPayload = { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, count }
       socket.next({
         type: action.type,
-        payload: { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled, count },
+        payload,
       })
 
     }),

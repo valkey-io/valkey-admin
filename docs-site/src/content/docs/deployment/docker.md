@@ -125,14 +125,37 @@ To send metrics to Prometheus or another backend through an OpenTelemetry Collec
 ```
 
 The server passes them to every metrics collector it starts. See [OpenTelemetry Export](/features/otel-export/) for the Collector config and the exported metrics.
+## AI Assistants (MCP)
+
+To let AI assistants read your Valkey deployments, enable the read-only MCP server. It is served under `/mcp/<target>` on port `8080`:
+
+```yaml
+services:
+  valkey-admin:
+    image: valkey/valkey-admin:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DEPLOYMENT_MODE: Web
+      VALKEY_ADMIN_MCP_ENABLED: "true"
+      VALKEY_ADMIN_MCP_TOKEN: ${VALKEY_ADMIN_MCP_TOKEN}
+      VALKEY_ADMIN_MCP_TARGETS: prod=valkey-prod:6379
+      VALKEY_ADMIN_MCP_USERNAME: mcp_readonly
+      VALKEY_ADMIN_MCP_PASSWORD: ${VALKEY_ADMIN_MCP_PASSWORD}
+    restart: unless-stopped
+```
+
+Target hosts are resolved inside the container: use `host.docker.internal` for Valkey on your machine (on Linux with Docker Engine, add `--add-host=host.docker.internal:host-gateway`). See [AI Assistants (MCP)](/features/mcp/) to connect an assistant.
 
 ## Resource Sizing
 
 In Docker (Web) mode, Valkey Admin spawns a metrics server process per primary node for each Valkey identity connected to it. See [Resource Sizing](/deployment/resource-sizing/) for formulas, recommendations, and retention guidance.
 
-## Configuration Reference
-
 See the [Configuration](/configuration/server/) section for all available environment variables.
+
+## Password Persistence
+
+In Docker (Web) mode, passwords are not saved across sessions for security reasons, as browsers do not provide a secure encrypted credential store. You will need to enter the connection password when reconnecting. In desktop mode (macOS and Linux), passwords are encrypted using the operating system's native keychain.
 
 ## Next Steps
 

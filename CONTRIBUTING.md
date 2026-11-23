@@ -36,6 +36,7 @@ To ensure a maintainable and scalable codebase, please adhere to the following a
 * **Frontend (`apps/frontend`):** React/Electron UI. It talks to the local app backend primarily through websocket actions and consumes RTK state through selectors.
 * **Server (`apps/server`):** Local Node backend. It serves the frontend with Express REST/static routes and handles websocket actions for Valkey connection, command, dashboard, config, and monitoring workflows.
 * **Metrics (`apps/metrics`):** Metrics sidecar/service. It exposes REST endpoints for collected time-series data and writes/streams metric snapshots.
+* **MCP (`apps/mcp`):** Read-only MCP server for AI assistants. It reaches Valkey only through the server's websocket actions, like another frontend, and sends only an allowlist of read actions.
 * **Common (`common/`):** Shared constants, types, formatting, parsing, and pure utilities used across apps.
 
 Keep boundaries clear:
@@ -133,6 +134,8 @@ For the full-featured desktop application:
 2. **Start Valkey cluster:** `./tools/valkey-cluster/scripts/build_run_cluster.sh`
 3. **Start dev servers:** `npm run dev` or use `./quickstart-web.sh`
 4. **Connect:** Open http://localhost:5173 and manually add connection to `localhost:7001`
+
+`npm run dev` also starts the MCP server on `http://localhost:8081/mcp`. See `apps/mcp/README.md`.
 
 ### All local Valkey deployments
 
