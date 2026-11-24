@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
 
 interface KeyInfo {
   name: string;
@@ -334,6 +335,13 @@ const keyBrowserSlice = createSlice({
         delete state[connectionId].elementsLoading[key]
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(connectionBroken, (state, { payload: { connectionId } }) => {
+      if (state[connectionId]) {
+        state[connectionId].elementsLoading = {}
+      }
+    })
   },
 })
 
