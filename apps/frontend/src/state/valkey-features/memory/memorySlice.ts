@@ -31,6 +31,7 @@ interface MemoryState {
     data: MemoryData | null
     error?: JSONObject | null
     loading?: boolean
+    requestId?: string
   }
 }
 
@@ -41,7 +42,7 @@ const memorySlice = createSlice({
   initialState: initialMemoryState,
   reducers: {
     memoryUsageRequested: (state, action) => {
-      const { connectionId } = action.payload
+      const { connectionId, requestId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
           data: null,
@@ -49,14 +50,19 @@ const memorySlice = createSlice({
         }
       }
       state[connectionId].loading = true
+      state[connectionId].requestId = requestId
     },
     memoryUsageFulfilled: (state, action) => {
-      const { connectionId, parsedResponse } = action.payload
+      const { connectionId, parsedResponse, requestId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
           data: null,
           loading: false,
         }
+      }
+      // Drop out-of-order response if a newer request was dispatched
+      if (requestId && state[connectionId].requestId && requestId !== state[connectionId].requestId) {
+        return
       }
       // validating that parsedResponse is an object (not an array, not null)
       if (parsedResponse && typeof parsedResponse === "object" && !Array.isArray(parsedResponse)) {
@@ -69,8 +75,11 @@ const memorySlice = createSlice({
       state[connectionId].loading = false
     },
     memoryUsageError: (state, action) => {
-      const { connectionId, error } = action.payload
+      const { connectionId, error, requestId } = action.payload
       if (state[connectionId]) {
+        if (requestId && state[connectionId].requestId && requestId !== state[connectionId].requestId) {
+          return
+        }
         state[connectionId].error = error
         state[connectionId].loading = false
       }

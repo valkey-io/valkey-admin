@@ -31,14 +31,14 @@ export default function CpuMemoryUsage() {
   // for cpu
   useEffect(() => {
     if (id) {
-      dispatch(cpuUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(cpuTimeRange) }))
+      dispatch(cpuUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(cpuTimeRange), requestId: `${id}-cpu-${Date.now()}` }))
     }
   }, [id, clusterId, dispatch, cpuTimeRange])
 
   // for memory
   useEffect(() => {
     if (id) {
-      dispatch(memoryUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(memoryTimeRange) }))
+      dispatch(memoryUsageRequested({ connectionId: id, clusterId, timeRange: timeRangeToMs(memoryTimeRange), requestId: `${id}-mem-${Date.now()}` }))
     }
   }, [id, clusterId, dispatch, memoryTimeRange])
 

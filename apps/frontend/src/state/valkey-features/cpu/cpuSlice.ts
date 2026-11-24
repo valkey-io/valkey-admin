@@ -24,6 +24,7 @@ interface CpuState {
     data: CpuDataPoint[]
     error?: JSONObject | null
     loading?: boolean
+    requestId?: string
   }
 }
 
@@ -34,7 +35,7 @@ const cpuSlice = createSlice({
   initialState: initialCpuState,
   reducers: {
     cpuUsageRequested: (state, action) => {
-      const { connectionId } = action.payload
+      const { connectionId, requestId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
           data: [],
@@ -42,14 +43,19 @@ const cpuSlice = createSlice({
         }
       }
       state[connectionId].loading = true
+      state[connectionId].requestId = requestId
     },
     cpuUsageFulfilled: (state, action) => {
-      const { connectionId, parsedResponse } = action.payload
+      const { connectionId, parsedResponse, requestId } = action.payload
       if (!state[connectionId]) {
         state[connectionId] = {
           data: [],
           loading: false,
         }
+      }
+      // Drop out-of-order response if a newer request was dispatched
+      if (requestId && state[connectionId].requestId && requestId !== state[connectionId].requestId) {
+        return
       }
       // Validate that parsedResponse is an array
       if (Array.isArray(parsedResponse)) {
@@ -62,8 +68,11 @@ const cpuSlice = createSlice({
       state[connectionId].loading = false
     },
     cpuUsageError: (state, action) => {
-      const { connectionId, error } = action.payload
+      const { connectionId, error, requestId } = action.payload
       if (state[connectionId]) {
+        if (requestId && state[connectionId].requestId && requestId !== state[connectionId].requestId) {
+          return
+        }
         state[connectionId].error = error
         state[connectionId].loading = false
       }
