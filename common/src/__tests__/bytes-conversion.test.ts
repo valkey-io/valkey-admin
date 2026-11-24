@@ -27,4 +27,10 @@ describe("formatBytes", () => {
   it("returns a dash for negative values", () => {
     assert.strictEqual(formatBytes(-1), "—")
   })
+
+  it("returns a dash for values that are not finite numbers", () => {
+    assert.strictEqual(formatBytes(NaN), "—")
+    assert.strictEqual(formatBytes(undefined as unknown as number), "—")
+    assert.strictEqual(formatBytes(Infinity), "—")
+  })
 })
