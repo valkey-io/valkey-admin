@@ -266,6 +266,7 @@ const connectionSlice = createSlice({
           connectionState.connectionDetails.databasesCount
         }
 
+        delete connectionState.reconnect
         connectionState.connectionHistory ??= []
         connectionState.connectionHistory.push({
           timestamp: Date.now(),
