@@ -62,6 +62,9 @@ export const VALKEY = {
     updateKeyRequested: "updateKeyRequested",
     updateKeyFulfilled: "updateKeyFulfilled",
     updateKeyFailed: "updateKeyFailed",
+    getKeyElementsRequested: "getKeyElementsRequested",
+    getKeyElementsFulfilled: "getKeyElementsFulfilled",
+    getKeyElementsFailed: "getKeyElementsFailed",
   } as const),
   CLUSTER: makeNamespace( "valkeyCluster", {
     addCluster: "addCluster",

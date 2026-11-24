@@ -55,3 +55,6 @@ export const selectKeyCollectionSize = (id: string, keyName: string | null | und
   const keys = selectKeys(id)(state)
   return keys.find((k) => k.name === keyName)?.collectionSize
 }
+
+export const selectElementsLoadingForKey = (id: string, key: string) => (state: RootState) =>
+  R.pathOr(false, [VALKEY.KEYS.name, id, "elementsLoading", key], state)

@@ -6,6 +6,7 @@ import { Input } from "../../ui/input"
 import { EditActionButtons } from "../../ui/edit-action-buttons"
 import DeleteModal from "../../ui/delete-modal"
 import { Typography } from "../../ui/typography"
+import LoadMoreElements from "./load-more-elements"
 import { useAppDispatch } from "@/hooks/hooks"
 import { updateKeyRequested } from "@/state/valkey-features/keys/keyBrowserSlice"
 import { cn } from "@/lib/utils"
@@ -24,6 +25,7 @@ interface KeyDetailsHashProps {
     size: number;
     collectionSize?: number;
     elements: ElementInfo[];
+    cursor?: string;
   };
   connectionId: string;
   readOnly:boolean;
@@ -88,6 +90,7 @@ export default function KeyDetailsHash(
       keyType: "hash",
       fields: [...existingFields, ...newFieldsToAdd],
       deletedHashFields: Array.from(deletedHashFields),
+      count: selectedKeyInfo.elements.length + newFieldsToAdd.length,
     }))
     setIsEditable(false)
     setEditedHashValue({})
@@ -145,16 +148,18 @@ export default function KeyDetailsHash(
   return (
     <div className="flex items-center justify-center w-full p-4">
       <div className="w-full">
-        <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
-          <Typography className="text-left" variant="label">Key</Typography>
-          <Typography className="col-span-2 text-left" variant="label">Value</Typography>
-          <div className="flex justify-end gap-1">
-            <EditActionButtons
-              isEditable={isEditable}
-              onEdit={handleEdit}
-              onSave={handleSave}
-              readOnly={readOnly}
-            />
+        <div className="sticky top-0 z-10 bg-background">
+          <div className={cn("grid grid-cols-4 gap-4 items-center py-1 px-4", "bg-muted/60 text-foreground")}>
+            <Typography className="text-left" variant="label">Key</Typography>
+            <Typography className="col-span-2 text-left" variant="label">Value</Typography>
+            <div className="flex justify-end gap-1">
+              <EditActionButtons
+                isEditable={isEditable}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                readOnly={readOnly}
+              />
+            </div>
           </div>
         </div>
         {selectedKeyInfo.elements
@@ -238,6 +243,7 @@ export default function KeyDetailsHash(
             </Button>
           </div>
         )}
+        {!isEditable && <LoadMoreElements connectionId={connectionId} keyInfo={selectedKeyInfo} />}
       </div>
     </div>
   )

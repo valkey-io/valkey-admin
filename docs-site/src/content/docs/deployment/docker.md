@@ -90,7 +90,7 @@ For cluster connections, Valkey Admin discovers all primary nodes and spawns met
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KEY_VALUE_SIZE_LIMIT_BYTES` | `2048` | Maximum value size (bytes) the Key Browser will render. Values larger than this show a size warning instead of their contents. |
+| `KEY_VALUE_SIZE_LIMIT_BYTES` | `2048` | Maximum value size (bytes) the Key Browser will render. Values larger than this show a size warning instead of their contents. Does not apply to hash, list, set and sorted set keys, which are paginated. |
 
 See the [Server Configuration](/configuration/server/) page for all available environment variables.
 
