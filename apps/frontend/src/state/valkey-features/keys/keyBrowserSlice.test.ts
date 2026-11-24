@@ -17,6 +17,8 @@ import keyBrowserReducer, {
   updateKeyFailed,
   defaultConnectionState
 } from "./keyBrowserSlice"
+import { selectTotalKeys } from "./keyBrowserSelectors"
+import type { RootState } from "@/store"
 
 describe("keyBrowserSlice", () => {
   const initialState = {}
@@ -623,6 +625,37 @@ describe("keyBrowserSlice", () => {
         }),
       )
       expect(state["conn-1"].keys).toHaveLength(0)
+    })
+  })
+
+  describe("selectTotalKeys", () => {
+    it("should return defaultConnectionState.totalKeys (0) when state has no entry for connection", () => {
+      const emptyState = {} as unknown as RootState
+      expect(selectTotalKeys("conn-1")(emptyState)).toBe(defaultConnectionState.totalKeys)
+      expect(selectTotalKeys("conn-1")(emptyState)).toBe(0)
+    })
+
+    it("should return defaultConnectionState.totalKeys when totalKeys is not defined on connection", () => {
+      const stateWithoutTotalKeys = {
+        keyBrowser: {
+          "conn-1": {
+            keys: [{ name: "key1", type: "string", size: 10 }],
+          },
+        },
+      } as unknown as RootState
+      expect(selectTotalKeys("conn-1")(stateWithoutTotalKeys)).toBe(defaultConnectionState.totalKeys)
+      expect(selectTotalKeys("conn-1")(stateWithoutTotalKeys)).toBe(0)
+    })
+
+    it("should return stored totalKeys when defined", () => {
+      const state = {
+        keyBrowser: {
+          "conn-1": {
+            totalKeys: 42,
+          },
+        },
+      } as unknown as RootState
+      expect(selectTotalKeys("conn-1")(state)).toBe(42)
     })
   })
 })
