@@ -18,6 +18,7 @@ import keyBrowserReducer, {
   defaultConnectionState
 } from "./keyBrowserSlice"
 import { selectTotalKeys } from "./keyBrowserSelectors"
+import type { RootState } from "@/store"
 
 describe("keyBrowserSlice", () => {
   const initialState = {}
@@ -629,7 +630,7 @@ describe("keyBrowserSlice", () => {
 
   describe("selectTotalKeys", () => {
     it("should return defaultConnectionState.totalKeys (0) when state has no entry for connection", () => {
-      const emptyState = {} as any
+      const emptyState = {} as unknown as RootState
       expect(selectTotalKeys("conn-1")(emptyState)).toBe(defaultConnectionState.totalKeys)
       expect(selectTotalKeys("conn-1")(emptyState)).toBe(0)
     })
@@ -641,7 +642,7 @@ describe("keyBrowserSlice", () => {
             keys: [{ name: "key1", type: "string", size: 10 }],
           },
         },
-      } as any
+      } as unknown as RootState
       expect(selectTotalKeys("conn-1")(stateWithoutTotalKeys)).toBe(defaultConnectionState.totalKeys)
       expect(selectTotalKeys("conn-1")(stateWithoutTotalKeys)).toBe(0)
     })
@@ -653,7 +654,7 @@ describe("keyBrowserSlice", () => {
             totalKeys: 42,
           },
         },
-      } as any
+      } as unknown as RootState
       expect(selectTotalKeys("conn-1")(state)).toBe(42)
     })
   })
