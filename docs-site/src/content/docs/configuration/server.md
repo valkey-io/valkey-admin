@@ -371,7 +371,7 @@ Maximum number of command log entries (slow logs, large requests, large replies)
 
 ### `KEY_VALUE_SIZE_LIMIT_BYTES`
 
-Maximum value size (in bytes) the Key Browser will render. Keys larger than this show a size warning instead of their contents.
+Maximum value size (in bytes) the Key Browser will render. Keys larger than this show a size warning instead of their contents. Hash, list, set and sorted set keys are not subject to this limit because they load one page of elements at a time.
 
 - **Default:** `2048`
 - **Read in:** `apps/server/src/keys-browser.ts`

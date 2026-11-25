@@ -8,7 +8,9 @@ import {
   deleteKeyRequested,
   addKeyRequested,
   addKeyFailed,
-  updateKeyRequested
+  updateKeyRequested,
+  getKeyElementsRequested,
+  getKeyElementsFailed
 } from "../valkey-features/keys/keyBrowserSlice"
 import { action$, select } from "../middleware/rxjsMiddleware/rxjsMiddleware"
 
@@ -69,5 +71,16 @@ export const keyBrowserEpic = () =>
         console.debug("Sending updateKey request to server...")
         socket.next(action)
       }),
+    ),
+
+    action$.pipe(
+      select(getKeyElementsRequested),
+      tap((action) => getSocket().next(action)),
+    ),
+
+    action$.pipe(
+      select(getKeyElementsFailed),
+      tap(({ payload }) => toast.error(`Failed to load more elements: ${payload.error}`)),
+      ignoreElements(),
     ),
   )

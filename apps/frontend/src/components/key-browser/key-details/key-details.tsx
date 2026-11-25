@@ -26,6 +26,7 @@ interface BaseKeyInfo {
   collectionSize?: number;
   elementsWarning?: string;
   isBinary?: boolean;
+  cursor?: string;
 }
 
 interface ElementInfo {
@@ -97,9 +98,9 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
     <div className="pl-2 h-full">
       <Panel className="dark:border-tw-dark-border">
         {selectedKey && selectedKeyInfo ? (
-          <div className="h-full p-4 text-sm font-light overflow-y-auto">
+          <div className="h-full p-4 text-sm font-light flex flex-col">
             {/* Header Section */}
-            <div className="flex justify-between items-center mb-2 border-b pb-4 border-tw-dark-border">
+            <div className="flex justify-between items-center mb-2 border-b pb-4 border-tw-dark-border shrink-0">
               <Typography className="flex items-center gap-2" variant="label">
                 <Key size={16} />
                 {selectedKey}
@@ -158,79 +159,81 @@ export default function KeyDetails({ selectedKey, selectedKeyInfo, connectionId,
               </div>
             </div>
 
-            {selectedKeyInfo.elementsWarning ? (
-              <Alert variant="warning">
-                <TriangleAlert className="w-4 h-4" />
-                <AlertDescription>{selectedKeyInfo.elementsWarning}
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                {/* show different key types */}
-                {selectedKeyInfo.type === "string" && (
-                  <KeyDetailsString
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {selectedKeyInfo.elementsWarning ? (
+                <Alert variant="warning">
+                  <TriangleAlert className="w-4 h-4" />
+                  <AlertDescription>{selectedKeyInfo.elementsWarning}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  {/* show different key types */}
+                  {selectedKeyInfo.type === "string" && (
+                    <KeyDetailsString
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "hash" && (
-                  <KeyDetailsHash
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+                  {selectedKeyInfo.type === "hash" && (
+                    <KeyDetailsHash
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "list" && (
-                  <KeyDetailsList
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+                  {selectedKeyInfo.type === "list" && (
+                    <KeyDetailsList
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "set" && (
-                  <KeyDetailsSet
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+                  {selectedKeyInfo.type === "set" && (
+                    <KeyDetailsSet
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "zset" && (
-                  <KeyDetailsZSet
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+                  {selectedKeyInfo.type === "zset" && (
+                    <KeyDetailsZSet
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "stream" && (
-                  <KeyDetailsStream
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
+                  {selectedKeyInfo.type === "stream" && (
+                    <KeyDetailsStream
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
 
-                {selectedKeyInfo.type === "ReJSON-RL" && (
-                  <KeyDetailsJson
-                    connectionId={connectionId}
-                    readOnly={readOnly}
-                    selectedKey={selectedKey}
-                    selectedKeyInfo={selectedKeyInfo}
-                  />
-                )}
-              </>
-            )}
+                  {selectedKeyInfo.type === "ReJSON-RL" && (
+                    <KeyDetailsJson
+                      connectionId={connectionId}
+                      readOnly={readOnly}
+                      selectedKey={selectedKey}
+                      selectedKeyInfo={selectedKeyInfo}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ) : (
           <div className="h-full p-4 flex items-center justify-center">

@@ -3,7 +3,7 @@ import { describe, it, mock, beforeEach } from "node:test"
 import assert from "node:assert"
 import { ConnectionError } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
-import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle, updateKey } from "../keys-browser"
+import { getKeyInfo, deleteKey, addKey, getKeyInfoSingle, updateKey, getKeyElements } from "../keys-browser"
 
 // Test helper functions
 function createMockWs() {
@@ -880,5 +880,243 @@ describe("updateKey", () => {
       )
       assert.strictEqual(writes.length, 0)
     })
+  })
+})
+
+function createCommandClient(handler: (cmd: string[]) => any) {
+  return { customCommand: mock.fn(async (cmd: string[]) => handler(cmd)) }
+}
+
+function callsFor(client: { customCommand: any }, command: string): string[][] {
+  return client.customCommand.mock.calls
+    .map((call: any) => call.arguments[0] as string[])
+    .filter((cmd: string[]) => cmd[0] === command)
+}
+
+const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `item${from + i}`)
+
+describe("getKeyInfo paged collections", () => {
+  it("returns the first hash page with the next scan cursor", async () => {
+    const client = createCommandClient((cmd) => ({
+      TYPE: "hash",
+      TTL: -1,
+      MEMORY: 200,
+      HLEN: 500,
+      HSCAN: ["17", range(0, 100)],
+    } as Record<string, any>)[cmd[0]])
+
+    const result = await getKeyInfo(client as any, "myhash")
+
+    assert.deepStrictEqual(callsFor(client, "HSCAN"), [["HSCAN", "myhash", "0", "COUNT", "50"]])
+    assert.strictEqual(result.collectionSize, 500)
+    assert.strictEqual(result.cursor, "17")
+    assert.strictEqual(result.elements.length, 50)
+    assert.deepStrictEqual(result.elements[0], { key: "item0", value: "item1" })
+  })
+
+  it("keeps scanning until the page is full and drops repeated hash fields", async () => {
+    const scans: Record<string, any> = {
+      "0": ["5", ["f1", "v1"]],
+      "5": ["9", ["f1", "v1", "f2", "v2"]],
+      "9": ["0", ["f3", "v3"]],
+    }
+    const client = createCommandClient((cmd) => {
+      if (cmd[0] === "HSCAN") return scans[cmd[2]]
+      return ({ TYPE: "hash", TTL: -1, MEMORY: 200, HLEN: 3 } as Record<string, any>)[cmd[0]]
+    })
+
+    const result = await getKeyInfo(client as any, "myhash")
+
+    assert.deepStrictEqual(callsFor(client, "HSCAN").map((cmd) => cmd[2]), ["0", "5", "9"])
+    assert.deepStrictEqual(result.elements, [
+      { key: "f1", value: "v1" },
+      { key: "f2", value: "v2" },
+      { key: "f3", value: "v3" },
+    ])
+    assert.strictEqual(result.cursor, undefined)
+  })
+
+  it("returns the first list page with the next position as the cursor", async () => {
+    const client = createCommandClient((cmd) => ({
+      TYPE: "list",
+      TTL: -1,
+      MEMORY: 200,
+      LLEN: 120,
+      LRANGE: range(0, 50),
+    } as Record<string, any>)[cmd[0]])
+
+    const result = await getKeyInfo(client as any, "mylist")
+
+    assert.deepStrictEqual(callsFor(client, "LRANGE"), [["LRANGE", "mylist", "0", "49"]])
+    assert.strictEqual(result.collectionSize, 120)
+    assert.strictEqual(result.cursor, "50")
+    assert.strictEqual(result.elements.length, 50)
+  })
+
+  it("returns no cursor when the whole list fits in one page", async () => {
+    const client = createMockClient({ TYPE: "list", TTL: -1, MEMORY: 100, LLEN: 2, LRANGE: ["a", "b"] })
+
+    const result = await getKeyInfo(client as any, "mylist")
+
+    assert.deepStrictEqual(result.elements, ["a", "b"])
+    assert.strictEqual(result.cursor, undefined)
+  })
+
+  it("pages sorted sets by position with scores", async () => {
+    const members = [{ key: "m1", value: 1 }, { key: "m2", value: 1 }]
+    const client = createCommandClient((cmd) => ({
+      TYPE: "zset",
+      TTL: -1,
+      MEMORY: 200,
+      ZCARD: 80,
+      ZRANGE: members,
+    } as Record<string, any>)[cmd[0]])
+
+    const result = await getKeyInfo(client as any, "myzset")
+
+    assert.deepStrictEqual(callsFor(client, "ZRANGE"), [["ZRANGE", "myzset", "0", "49", "WITHSCORES"]])
+    assert.deepStrictEqual(result.elements, members)
+    assert.strictEqual(result.cursor, "2")
+  })
+
+  it("loads the first page of a paged key larger than the size limit", async () => {
+    const client = createMockClient({
+      TYPE: "set",
+      TTL: -1,
+      MEMORY: 10_000_000,
+      SCARD: 3,
+      SSCAN: ["0", ["a", "b", "c"]],
+    })
+
+    const result = await getKeyInfo(client as any, "bigset")
+
+    assert.strictEqual(result.elementsWarning, undefined)
+    assert.deepStrictEqual(result.elements, ["a", "b", "c"])
+  })
+
+  it("still shows the size warning for a string larger than the size limit", async () => {
+    const client = createMockClient({ TYPE: "string", TTL: -1, MEMORY: 10_000_000, GET: "value" })
+
+    const result = await getKeyInfo(client as any, "bigstring")
+
+    assert.ok(result.elementsWarning)
+    assert.strictEqual(result.elements, undefined)
+  })
+
+  it("re-fetches as many elements as requested when given a count", async () => {
+    const client = createCommandClient((cmd) => ({
+      TYPE: "list",
+      TTL: -1,
+      MEMORY: 200,
+      LLEN: 500,
+      LRANGE: range(0, 120),
+    } as Record<string, any>)[cmd[0]])
+
+    const result = await getKeyInfo(client as any, "mylist", undefined, 120)
+
+    assert.deepStrictEqual(callsFor(client, "LRANGE"), [["LRANGE", "mylist", "0", "119"]])
+    assert.strictEqual(result.cursor, "120")
+  })
+
+  it("never fetches less than one page when the count is smaller", async () => {
+    const client = createCommandClient((cmd) => ({
+      TYPE: "list",
+      TTL: -1,
+      MEMORY: 200,
+      LLEN: 500,
+      LRANGE: range(0, 50),
+    } as Record<string, any>)[cmd[0]])
+
+    await getKeyInfo(client as any, "mylist", undefined, 3)
+
+    assert.deepStrictEqual(callsFor(client, "LRANGE"), [["LRANGE", "mylist", "0", "49"]])
+  })
+})
+
+describe("getKeyElements", () => {
+  let mockWs: any
+  let messages: string[]
+
+  beforeEach(() => {
+    const ws = createMockWs()
+    mockWs = ws.mockWs
+    messages = ws.messages
+  })
+
+  it("fetches the next list page from the cursor position", async () => {
+    const client = createMockClient({ LLEN: 120, LRANGE: range(50, 100) })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "mylist", keyType: "list", cursor: "50" })
+
+    assert.deepStrictEqual(callsFor(client, "LRANGE"), [["LRANGE", "mylist", "50", "99"]])
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload, {
+      connectionId: "conn-1",
+      key: "mylist",
+      cursor: "50",
+      nextCursor: "100",
+      elements: range(50, 100),
+      collectionSize: 120,
+    })
+  })
+
+  it("returns no next cursor on the last sorted set page", async () => {
+    const members = [{ key: "m51", value: 2 }, { key: "m52", value: 3 }]
+    const client = createMockClient({ ZCARD: 52, ZRANGE: members })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "myzset", keyType: "zset", cursor: "50" })
+
+    assert.deepStrictEqual(callsFor(client, "ZRANGE"), [["ZRANGE", "myzset", "50", "99", "WITHSCORES"]])
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload.elements, members)
+    assert.strictEqual(message.payload.nextCursor, undefined)
+  })
+
+  it("continues a set scan from the given cursor", async () => {
+    const client = createMockClient({ SCARD: 3, SSCAN: ["0", ["c"]] })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "myset", keyType: "set", cursor: "42" })
+
+    assert.deepStrictEqual(callsFor(client, "SSCAN"), [["SSCAN", "myset", "42", "COUNT", "50"]])
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload.elements, ["c"])
+    assert.strictEqual(message.payload.nextCursor, undefined)
+  })
+
+  it("returns an empty page with no next cursor when the cursor is past the end", async () => {
+    const client = createMockClient({ LLEN: 10, LRANGE: [] })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "mylist", keyType: "list", cursor: "50" })
+
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload.elements, [])
+    assert.strictEqual(message.payload.nextCursor, undefined)
+  })
+
+  it("sends a failure for a key type that is not paged", async () => {
+    const client = createMockClient({})
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "mystring", keyType: "string", cursor: "0" })
+
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFailed)
+    assert.deepStrictEqual(message.payload, {
+      connectionId: "conn-1",
+      key: "mystring",
+      error: "Pagination not supported for key type: string",
+    })
+    assert.strictEqual(client.customCommand.mock.calls.length, 0)
+  })
+
+  it("sends a failure when Valkey returns an error", async () => {
+    const client = createCommandClient(() => {
+      throw new Error("WRONGTYPE Operation against a key holding the wrong kind of value")
+    })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "mylist", keyType: "list", cursor: "0" })
+
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFailed)
+    assert.strictEqual(message.payload.key, "mylist")
+    assert.match(message.payload.error, /WRONGTYPE/)
+    assert.strictEqual(getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled), undefined)
   })
 })

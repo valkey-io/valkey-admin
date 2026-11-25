@@ -29,81 +29,84 @@ interface EnrichedKeyInfo {
   elements?: any; // this can be array, object, or string depending on the key type.
   elementsWarning?: string; // alternative for elements when they cannot be displayed.
   isBinary?: boolean;
+  cursor?: string;
 }
 
-async function getScanKeyInfo(
+const pagedSizeCommands = new Map([
+  ["hash", "HLEN"],
+  ["set", "SCARD"],
+  ["list", "LLEN"],
+  ["zset", "ZCARD"],
+])
+
+interface ElementPage {
+  collectionSize: number;
+  elements: unknown[];
+  cursor?: string;
+}
+
+async function scanPage(
   client: GlideClient | GlideClusterClient,
-  keyInfo: EnrichedKeyInfo,
-  commands: { sizeCmd: string; elementsCmd: string[] },
-): Promise<EnrichedKeyInfo> {
-  try {
-    const results = new Set<string | { key: string; value: string }>()
-    const isHash = keyInfo.type.toLowerCase() === "hash"
-    let cursor = "0"
-    
-    // This Promise.all 1) gets the Key's collection size, and 2) fills the result set with the collection's values.
-    // The side-effect promise is used result set is filled with a SCAN style command (requiring repeated queries with the cursor).
-    const [collectionSize] = await Promise.all([
-      client.customCommand([commands.sizeCmd, keyInfo.name]),
-      (async () => {
-        do {
-          const [newCursor, elements] = await client.customCommand([...commands.elementsCmd, cursor]) as [string, GlideReturnType[]]
-
-          if (isHash) {
-            // Hash key types require constructing an object from a flat array.
-            // i.e. converting [key1, value1...] to [{key: key1, value}]
-            for (let i = 0; i < elements.length; i += 2){
-              results.add({ 
-                key: elements[i] as string, 
-                value: elements[i + 1] as string,
-              })
-            }
-          } else {
-            elements.forEach((element) => results.add(element as string))
-          }
-          cursor = newCursor
-        } while (cursor !== "0")
-      })(),
-    ])
-
-    return {
-      ...keyInfo,
-      collectionSize: collectionSize as number,
-      elements: Array.from(results),
+  key: string,
+  isHash: boolean,
+  cursor: string,
+  count: number,
+): Promise<Omit<ElementPage, "collectionSize">> {
+  const results = new Map<string, unknown>()
+  let next = cursor
+  do {
+    const [newCursor, raw] = await client.customCommand([
+      isHash ? "HSCAN" : "SSCAN", key, next, "COUNT", count.toString(),
+    ]) as [string, GlideReturnType[]]
+    if (isHash) {
+      for (let i = 0; i < raw.length; i += 2) {
+        results.set(raw[i] as string, { key: raw[i] as string, value: raw[i + 1] as string })
+      }
+    } else {
+      raw.forEach((member) => results.set(member as string, member as string))
     }
-  } catch (err) {
-    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
-    return {
-      ...keyInfo,
-      elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE,
-    }
+    next = newCursor
+  } while (next !== "0" && results.size < count)
+
+  return { elements: Array.from(results.values()), cursor: next === "0" ? undefined : next }
+}
+
+async function fetchElementPage(
+  client: GlideClient | GlideClusterClient,
+  key: string,
+  type: string,
+  cursor = "0",
+  count: number = VALKEY_CLIENT.ELEMENT_PAGE_SIZE,
+): Promise<ElementPage> {
+  const keyType = type.toLowerCase()
+  const sizeCmd = pagedSizeCommands.get(keyType)
+  if (!sizeCmd) throw new Error(`Pagination not supported for key type: ${type}`)
+  const pageSize = Number.isInteger(count) ? Math.max(count, VALKEY_CLIENT.ELEMENT_PAGE_SIZE) : VALKEY_CLIENT.ELEMENT_PAGE_SIZE
+  const getSize = client.customCommand([sizeCmd, key]) as Promise<number>
+
+  if (keyType === "hash" || keyType === "set") {
+    const [collectionSize, page] = await Promise.all([getSize, scanPage(client, key, keyType === "hash", cursor, pageSize)])
+    return { collectionSize, ...page }
   }
+
+  const start = Number(cursor)
+  const rangeArgs = keyType === "list"
+    ? ["LRANGE", key, start.toString(), (start + pageSize - 1).toString()]
+    : ["ZRANGE", key, start.toString(), (start + pageSize - 1).toString(), "WITHSCORES"]
+  const [collectionSize, page] = await Promise.all([getSize, client.customCommand(rangeArgs)]) as [number, unknown[] | null]
+  const elements = page ?? []
+  const next = start + elements.length
+
+  return { collectionSize, elements, cursor: elements.length > 0 && next < collectionSize ? next.toString() : undefined }
 }
 
-async function getPaginatedListInfo(
+async function getPagedKeyInfo(
   client: GlideClient | GlideClusterClient,
   keyInfo: EnrichedKeyInfo,
-  commands: { sizeCmd: string; elementsCmd: string[] },
+  count?: number,
 ): Promise<EnrichedKeyInfo> {
   try {
-    const [firstPage, collectionSize] = await Promise.all([
-      client.customCommand([...commands.elementsCmd, "0", (VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString()]),
-      client.customCommand([commands.sizeCmd, keyInfo.name]),
-    ]) as [string[], number]
-
-    const results: string[] = [...firstPage]
-    let offset = results.length
-
-    while (offset < collectionSize) {
-      const elements = await client.customCommand([
-        ...commands.elementsCmd, offset.toString(), (offset + VALKEY_CLIENT.ELEMENT_PAGE_SIZE - 1).toString(),
-      ]) as string[]
-      if (!elements || elements.length === 0) break
-      results.push(...elements)
-      offset += elements.length
-    }
-
-    return { ...keyInfo, collectionSize, elements: results }
+    return { ...keyInfo, ...await fetchElementPage(client, keyInfo.name, keyInfo.type, "0", count) }
   } catch (err) {
     console.log(`Could not get elements for key ${keyInfo.name}:`, err)
     return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
@@ -137,96 +140,6 @@ async function getPaginatedStreamInfo(
         results.push(...entries)
         if (entries.length < VALKEY_CLIENT.ELEMENT_PAGE_SIZE) break
         cursor = `(${entries[entries.length - 1][0] as string}`
-      }
-    }
-
-    return { ...keyInfo, collectionSize, elements: results }
-  } catch (err) {
-    console.log(`Could not get elements for key ${keyInfo.name}:`, err)
-    return { ...keyInfo, elementsWarning: VALKEY_CLIENT.MESSAGES.NOT_READABLE }
-  }
-}
-
-type ZSetMember = { key: string; value: string | number }
-
-async function getPaginatedZSetInfo(
-  client: GlideClient | GlideClusterClient,
-  keyInfo: EnrichedKeyInfo,
-  commands: { sizeCmd: string; elementsCmd: string[] },
-): Promise<EnrichedKeyInfo> {
-  // Builds one "page" query: members from `min` score upward, capped at PAGE_SIZE
-  const buildZRangeByScoreArgs = (min: string): string[] => [
-    ...commands.elementsCmd, min, "+inf", "BYSCORE", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(), "WITHSCORES",
-  ]
-
-  try {
-    // Grab the first page and the total member count at the same time.
-    const [firstPage, collectionSize] = await Promise.all([
-      client.customCommand(buildZRangeByScoreArgs("-inf")),
-      client.customCommand([commands.sizeCmd, keyInfo.name]),
-    ]) as [ZSetMember[], number]
-
-    const seen = new Set<string>() // member names we've already kept
-    const results: ZSetMember[] = []
-    // Adds only members we haven't seen yet; returns how many were new.
-    const addMembers = (page: ZSetMember[]): number => {
-      let added = 0
-      for (const member of page) {
-        if (!seen.has(member.key)) {
-          seen.add(member.key)
-          results.push(member)
-          added++
-        }
-      }
-      return added
-    }
-
-    // When a single score has more tied members than fit in one page, BYSCORE can't
-    // advance without dropping the rest of the tie. Finish that score by walking its
-    // members lexicographically with BYLEX, resuming just past the last one we kept.
-    // BYLEX can't return scores (WITHSCORES is rejected), but every member in this
-    // range shares `score`, so we re-attach it ourselves.
-    const drainTiedScore = async (score: string, lastScannedAtScoreKey: string, keptAtScore: number): Promise<void> => {
-      const tiedCount = await client.customCommand(["ZCOUNT", keyInfo.name, score, score]) as number
-      let remaining = tiedCount - keptAtScore
-      let lexCursor = `(${lastScannedAtScoreKey}` // exclusive, so we don't re-read the last kept member
-      while (remaining > 0) {
-        const members = await client.customCommand([
-          ...commands.elementsCmd, lexCursor, "+", "BYLEX", "LIMIT", "0", VALKEY_CLIENT.ELEMENT_PAGE_SIZE.toString(),
-        ]) as string[]
-        if (!members || members.length === 0) break
-        for (const member of members) {
-          if (remaining === 0) break // the page crossed into a higher score; stop before it
-          seen.add(member)
-          results.push({ key: member, value: score })
-          remaining--
-        }
-        lexCursor = `(${members[members.length - 1]}`
-      }
-    }
-
-    addMembers(firstPage)
-    let lastPage = firstPage
-
-    // Keep paging until we have every member, or a page comes back not full (the end).
-    while (results.length < collectionSize && lastPage.length === VALKEY_CLIENT.ELEMENT_PAGE_SIZE) {
-      // Next page starts at the last score we saw. Including that score (not skipping it)
-      // means members tied on that score aren't lost — `seen` removes the repeats
-      const lastScore = String(lastPage[lastPage.length - 1].value)
-      const page = await client.customCommand(buildZRangeByScoreArgs(lastScore)) as ZSetMember[]
-      if (!page || page.length === 0) break
-
-      if (addMembers(page) === 0) {
-        // A full page with no new members means this score is tied beyond the page size.
-        // Drain the rest of it lexicographically with BYLEX, then resume past the score.
-        const scannedAtScoreCount = results.reduce((n, m) => (String(m.value) === lastScore ? n + 1 : n), 0)
-        await drainTiedScore(lastScore, page[page.length - 1].key, scannedAtScoreCount)
-        const matchingLastScoreCount = await client.customCommand(buildZRangeByScoreArgs(`(${lastScore}`)) as ZSetMember[]
-        if (!matchingLastScoreCount || matchingLastScoreCount.length === 0) break
-        addMembers(matchingLastScoreCount)
-        lastPage = matchingLastScoreCount
-      } else {
-        lastPage = page
       }
     }
 
@@ -383,6 +296,7 @@ export async function getKeyInfo(
   client: GlideClient | GlideClusterClient,
   key: string,
   metadata?: KeyMetadata,
+  count?: number,
 ): Promise<EnrichedKeyInfo> {
   try {
     const { type: keyType, ttl, size: memoryUsage } = metadata ?? await fetchSingleKeyMetadata(client, key)
@@ -394,19 +308,18 @@ export async function getKeyInfo(
       size: memoryUsage || -1,
     }
 
+    if (pagedSizeCommands.has(keyType.toLowerCase())) {
+      return await getPagedKeyInfo(client, keyInfo, count)
+    }
+
     // Get collection size and elements for each type
     const elementCommands: Record<
       string,
       { sizeCmd: string; elementsCmd: string[] }
     > = {
-      list: { sizeCmd: "LLEN", elementsCmd: ["LRANGE", key] },
-      zset: { sizeCmd: "ZCARD", elementsCmd: ["ZRANGE", key] },
       stream: { sizeCmd: "XLEN", elementsCmd: ["XRANGE", key] },
       "rejson-rl": { sizeCmd: "", elementsCmd: ["JSON.GET", key] },
       string: { sizeCmd: "", elementsCmd: ["GET", key] },
-      // Scan
-      set: { sizeCmd: "SCARD", elementsCmd: ["SSCAN", keyInfo.name] },
-      hash: { sizeCmd: "HLEN", elementsCmd: ["HSCAN", keyInfo.name] },
     }
 
     const commands = elementCommands[keyType.toLowerCase()]
@@ -425,15 +338,8 @@ export async function getKeyInfo(
     }
 
     switch (keyType.toLowerCase()) {
-      case "set":
-      case "hash":
-        return await getScanKeyInfo(client, keyInfo, commands)
-      case "list":
-        return await getPaginatedListInfo(client, keyInfo, commands)
       case "stream":
         return await getPaginatedStreamInfo(client, keyInfo, commands)
-      case "zset":
-        return await getPaginatedZSetInfo(client, keyInfo, commands)
       case "rejson-rl":
         return await getPaginatedJsonInfo(client, keyInfo, commands)
       default:
@@ -661,6 +567,42 @@ export async function getKeyInfoSingle(
         }),
       )
     }
+  }
+}
+
+export async function getKeyElements(
+  client: GlideClient | GlideClusterClient,
+  ws: WebSocket,
+  payload: { connectionId: string; key: string; keyType: string; cursor: string },
+) {
+  const { connectionId, key, keyType, cursor } = payload
+  try {
+    const page = await fetchElementPage(client, key, keyType, cursor)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.KEYS.getKeyElementsFulfilled,
+        payload: {
+          connectionId,
+          key,
+          cursor,
+          nextCursor: page.cursor,
+          elements: page.elements,
+          collectionSize: page.collectionSize,
+        },
+      }),
+    )
+  } catch (err) {
+    console.error(`Error getting elements for key ${key}:`, err)
+    ws.send(
+      JSON.stringify({
+        type: VALKEY.KEYS.getKeyElementsFailed,
+        payload: {
+          connectionId,
+          key,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      }),
+    )
   }
 }
 
@@ -1197,6 +1139,7 @@ export async function updateKey(
     newSetItems?: string[]; // for set type - new items to add
     zsetUpdates?: { member: string; score: number }[]; // for zset type
     ttl?: number;
+    count?: number;
   },
 ) {
   const connectionId = payload.connectionId
@@ -1251,7 +1194,7 @@ export async function updateKey(
         throw new Error(`Unsupported key type for update: ${payload.keyType}`)
     }
 
-    const keyInfo = await getKeyInfo(client, payload.key)
+    const keyInfo = await getKeyInfo(client, payload.key, undefined, payload.count)
 
     ws.send(
       JSON.stringify({

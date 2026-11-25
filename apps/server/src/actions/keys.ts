@@ -1,5 +1,5 @@
 import { VALKEY } from "valkey-common"
-import { addKey, deleteKey, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser"
+import { addKey, deleteKey, getKeyElements, getKeyInfoSingle, getKeys, updateKey } from "../keys-browser"
 import { type Deps, withDeps } from "./utils"
 
 type GetKeysPayload = {
@@ -50,6 +50,33 @@ export const getKeyTypeRequested = withDeps<Deps, void>(
           payload: {
             connectionId,
             key,
+            error: "Invalid connection Id",
+          },
+        }),
+      )
+    }
+  },
+)
+
+interface GetKeyElementsPayload extends KeyPayload {
+  keyType: string;
+  cursor: string;
+}
+
+export const getKeyElementsRequested = withDeps<Deps, void>(
+  async ({ ws, clients, connectionId, action }) => {
+    const payload = action.payload as unknown as GetKeyElementsPayload
+    const connection = clients.get(connectionId)
+
+    if (connection) {
+      await getKeyElements(connection.client, ws, payload)
+    } else {
+      ws.send(
+        JSON.stringify({
+          type: VALKEY.KEYS.getKeyElementsFailed,
+          payload: {
+            connectionId,
+            key: payload.key,
             error: "Invalid connection Id",
           },
         }),

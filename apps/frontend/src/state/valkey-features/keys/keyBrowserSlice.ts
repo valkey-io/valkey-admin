@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
 
 interface KeyInfo {
   name: string;
@@ -9,6 +10,7 @@ interface KeyInfo {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements?: any;
   elementsWarning?: string;
+  cursor?: string;
 }
 
 interface KeyBrowserState {
@@ -18,6 +20,7 @@ interface KeyBrowserState {
     loading: boolean;
     error: string | null;
     keyTypeLoading: { [key: string]: boolean };
+    elementsLoading: { [key: string]: boolean };
     totalKeys: number;
   };
 }
@@ -29,6 +32,7 @@ export const createConnectionState = (): KeyBrowserState[string] => ({
   loading: false,
   error: null,
   keyTypeLoading: {},
+  elementsLoading: {},
   totalKeys: 0,
 })
 
@@ -237,6 +241,7 @@ const keyBrowserSlice = createSlice({
         newSetItems?: string[];
         zsetUpdates?: { key: string; value: number }[];
         ttl?: number;
+        count?: number;
       }>,
     ) => {
       const { connectionId } = action.payload
@@ -278,7 +283,65 @@ const keyBrowserSlice = createSlice({
         state[connectionId].error = error
       }
     },
-
+    getKeyElementsRequested: (
+      state,
+      action: PayloadAction<{
+        connectionId: string;
+        key: string;
+        keyType: string;
+        cursor: string;
+      }>,
+    ) => {
+      const { connectionId, key } = action.payload
+      if (!state[connectionId]) {
+        state[connectionId] = createConnectionState()
+      }
+      state[connectionId].elementsLoading[key] = true
+    },
+    getKeyElementsFulfilled: (
+      state,
+      action: PayloadAction<{
+        connectionId: string;
+        key: string;
+        cursor: string;
+        nextCursor?: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        elements: any[];
+        collectionSize: number;
+      }>,
+    ) => {
+      const { connectionId, key, cursor, nextCursor, elements, collectionSize } = action.payload
+      const connection = state[connectionId]
+      if (!connection) return
+      delete connection.elementsLoading[key]
+      const target = connection.keys.find((k) => k.name === key)
+      if (!target || !Array.isArray(target.elements) || target.cursor !== cursor) return
+      const idOf = (element: string | { key: string }) => typeof element === "string" ? element : element.key
+      const seen = target.type === "list" ? null : new Set(target.elements.map(idOf))
+      target.elements.push(...(seen ? elements.filter((element) => !seen.has(idOf(element))) : elements))
+      target.cursor = nextCursor
+      target.collectionSize = collectionSize
+    },
+    getKeyElementsFailed: (
+      state,
+      action: PayloadAction<{
+        connectionId: string;
+        key: string;
+        error: string;
+      }>,
+    ) => {
+      const { connectionId, key } = action.payload
+      if (state[connectionId]) {
+        delete state[connectionId].elementsLoading[key]
+      }
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(connectionBroken, (state, { payload: { connectionId } }) => {
+      if (state[connectionId]) {
+        state[connectionId].elementsLoading = {}
+      }
+    })
   },
 })
 
@@ -299,4 +362,7 @@ export const {
   updateKeyRequested,
   updateKeyFulfilled,
   updateKeyFailed,
+  getKeyElementsRequested,
+  getKeyElementsFulfilled,
+  getKeyElementsFailed,
 } = keyBrowserSlice.actions

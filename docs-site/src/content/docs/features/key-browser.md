@@ -59,7 +59,7 @@ View members of a set with pagination.
 #### Sorted Set Entries
 Display entries with their scores, paginated for large collections.
 
-All collection types (hash, list, set, sorted set) use pagination to handle large data structures efficiently. Only a page of elements is loaded at a time, preventing the browser from blocking on keys with millions of members.
+Hash, list, set and sorted set keys load their first 50 elements when opened. Use **Load more** at the bottom of the table to fetch the next page; the footer shows how many elements are loaded out of the total. Because only a page is loaded at a time, these keys are not subject to `KEY_VALUE_SIZE_LIMIT_BYTES`, and the browser does not block on keys with millions of members. Saving an edit keeps the elements you have already loaded.
 
 ### Editing Keys
 

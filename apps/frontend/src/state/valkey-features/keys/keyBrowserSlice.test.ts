@@ -15,10 +15,14 @@ import keyBrowserReducer, {
   updateKeyRequested,
   updateKeyFulfilled,
   updateKeyFailed,
+  getKeyElementsRequested,
+  getKeyElementsFulfilled,
+  getKeyElementsFailed,
   defaultConnectionState
 } from "./keyBrowserSlice"
 import { selectTotalKeys } from "./keyBrowserSelectors"
 import type { RootState } from "@/store"
+import { connectionBroken } from "@/state/valkey-features/connection/connectionSlice"
 
 describe("keyBrowserSlice", () => {
   const initialState = {}
@@ -625,6 +629,135 @@ describe("keyBrowserSlice", () => {
         }),
       )
       expect(state["conn-1"].keys).toHaveLength(0)
+    })
+  })
+
+  describe("getKeyElements", () => {
+    const stateWithKey = (key: { type: string; elements: unknown[]; cursor?: string }) => ({
+      "conn-1": {
+        ...defaultConnectionState,
+        keys: [{ name: "k", collectionSize: 10, ...key }],
+        elementsLoading: { k: true },
+      },
+    })
+
+    it("marks the key as loading when more elements are requested", () => {
+      const state = keyBrowserReducer(
+        initialState,
+        getKeyElementsRequested({ connectionId: "conn-1", key: "k", keyType: "list", cursor: "50" }),
+      )
+
+      expect(state["conn-1"].elementsLoading["k"]).toBe(true)
+    })
+
+    it("appends the page, stores the next cursor and total, and clears loading", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a", "b"], cursor: "2" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "2",
+          nextCursor: "4",
+          elements: ["c", "d"],
+          collectionSize: 12,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["a", "b", "c", "d"])
+      expect(state["conn-1"].keys[0].cursor).toBe("4")
+      expect(state["conn-1"].keys[0].collectionSize).toBe(12)
+      expect(state["conn-1"].elementsLoading["k"]).toBeUndefined()
+    })
+
+    it("clears the cursor when the last page arrives", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a"], cursor: "1" }),
+        getKeyElementsFulfilled({ connectionId: "conn-1", key: "k", cursor: "1", elements: ["b"], collectionSize: 2 }),
+      )
+
+      expect(state["conn-1"].keys[0].cursor).toBeUndefined()
+    })
+
+    it("keeps repeated values in lists", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a", "b"], cursor: "2" }),
+        getKeyElementsFulfilled({ connectionId: "conn-1", key: "k", cursor: "2", elements: ["a", "b"], collectionSize: 4 }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["a", "b", "a", "b"])
+    })
+
+    it("drops hash fields that are already loaded", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "hash", elements: [{ key: "f1", value: "v1" }], cursor: "7" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "7",
+          elements: [{ key: "f1", value: "v1" }, { key: "f2", value: "v2" }],
+          collectionSize: 2,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual([{ key: "f1", value: "v1" }, { key: "f2", value: "v2" }])
+    })
+
+    it("drops set members that are already loaded", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "set", elements: ["a", "b"], cursor: "7" }),
+        getKeyElementsFulfilled({ connectionId: "conn-1", key: "k", cursor: "7", elements: ["b", "c"], collectionSize: 3 }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["a", "b", "c"])
+    })
+
+    it("drops sorted set members that are already loaded", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "zset", elements: [{ key: "m1", value: 1 }], cursor: "1" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "1",
+          elements: [{ key: "m1", value: 1 }, { key: "m2", value: 2 }],
+          collectionSize: 2,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual([{ key: "m1", value: 1 }, { key: "m2", value: 2 }])
+    })
+
+    it("ignores a page for a cursor that is no longer current", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a", "b", "c", "d"], cursor: "100" }),
+        getKeyElementsFulfilled({ connectionId: "conn-1", key: "k", cursor: "50", nextCursor: "52", elements: ["x", "y"], collectionSize: 200 }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["a", "b", "c", "d"])
+      expect(state["conn-1"].keys[0].cursor).toBe("100")
+      expect(state["conn-1"].keys[0].collectionSize).toBe(10)
+      expect(state["conn-1"].elementsLoading["k"]).toBeUndefined()
+    })
+
+    it("clears loading when the request fails", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a"], cursor: "1" }),
+        getKeyElementsFailed({ connectionId: "conn-1", key: "k", error: "boom" }),
+      )
+
+      expect(state["conn-1"].elementsLoading["k"]).toBeUndefined()
+      expect(state["conn-1"].keys[0].elements).toEqual(["a"])
+    })
+
+    it("clears loading for only the broken connection when the socket drops", () => {
+      const previousState = {
+        "conn-1": { ...defaultConnectionState, elementsLoading: { k: true } },
+        "conn-2": { ...defaultConnectionState, elementsLoading: { k: true } },
+      }
+
+      const state = keyBrowserReducer(previousState, connectionBroken({ connectionId: "conn-1" }))
+
+      expect(state["conn-1"].elementsLoading).toEqual({})
+      expect(state["conn-2"].elementsLoading).toEqual({ k: true })
     })
   })
 
