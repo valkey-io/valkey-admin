@@ -31,7 +31,7 @@ For the full walkthrough see the [connection docs](https://valkey-admin.valkey.i
 
 ## Getting Started
 
-**Documentation:** [valkey-admin.valkey.io](https://valkey-admin.valkey.io/introduction/)
+**Documentation:** [valkey-admin.valkey.io](https://valkey-admin.valkey.io/)
 
 **Install:**
 

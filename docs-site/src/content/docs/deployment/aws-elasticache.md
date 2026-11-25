@@ -77,7 +77,7 @@ Parameters:
     Description: ARN of the ACM certificate for HTTPS
   DomainName:
     Type: String
-    Description: Domain name for the Cognito callback URL (e.g., valkey-admin.example.com)
+    Description: Domain name users open the UI on; used for the Cognito callback URL and the allowed WebSocket origin (e.g., valkey-admin.example.com)
   NumShards:
     Type: Number
     Default: 3
@@ -397,6 +397,7 @@ Resources:
           docker run -d --name valkey-admin \
             -p 8080:8080 \
             -e DEPLOYMENT_MODE=Web \
+            -e VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://${DomainName} \
             --restart unless-stopped \
             public.ecr.aws/valkey/valkey-admin:latest
       Tags:
@@ -485,6 +486,8 @@ Outputs:
     Description: Cognito User Pool ID (use to create users)
     Value: !Ref CognitoUserPool
 ```
+
+`VALKEY_ADMIN_ALLOWED_WS_ORIGINS` is required because users reach the UI through your domain name. Without it, the page loads but the server refuses the WebSocket with `403` and the UI cannot connect. See [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](/configuration/server/#valkey_admin_allowed_ws_origins).
 
 ## Security Notes
 
