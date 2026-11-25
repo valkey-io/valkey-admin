@@ -384,6 +384,7 @@ Resources:
           docker run -d --name valkey-admin \
             -p 8080:8080 \
             -e DEPLOYMENT_MODE=Web \
+            -e VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://${DomainName} \
             --restart unless-stopped \
             public.ecr.aws/valkey/valkey-admin:latest
       Tags:
@@ -472,6 +473,8 @@ Outputs:
     Description: Cognito User Pool ID (use to create users)
     Value: !Ref CognitoUserPool
 ```
+
+`VALKEY_ADMIN_ALLOWED_WS_ORIGINS` is required because users reach the UI through your domain name. Without it, the page loads but the server refuses the WebSocket with `403` and the UI cannot connect. See [`VALKEY_ADMIN_ALLOWED_WS_ORIGINS`](https://valkey-admin.valkey.io/configuration/server/#valkey_admin_allowed_ws_origins).
 
 ### Security Notes
 
