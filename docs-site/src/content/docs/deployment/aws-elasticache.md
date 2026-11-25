@@ -77,7 +77,7 @@ Parameters:
     Description: ARN of the ACM certificate for HTTPS
   DomainName:
     Type: String
-    Description: Domain name for the Cognito callback URL (e.g., valkey-admin.example.com)
+    Description: Domain name users open the UI on; used for the Cognito callback URL and the allowed WebSocket origin (e.g., valkey-admin.example.com)
   NumShards:
     Type: Number
     Default: 3
