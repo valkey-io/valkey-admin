@@ -21,23 +21,23 @@ export default function LoadMoreElements({ connectionId, keyInfo }: LoadMoreElem
   const loading = useAppSelector(selectElementsLoadingForKey(connectionId, keyInfo.name))
   const { name, type, cursor, collectionSize, elements } = keyInfo
 
-  if (cursor === undefined) return null
-
   return (
     <div className="flex items-center justify-between py-3 px-4">
       <Typography variant="bodySm">
         Showing {elements.length.toLocaleString()}
         {collectionSize !== undefined && ` of ${collectionSize.toLocaleString()}`}
       </Typography>
-      <Button
-        disabled={loading}
-        onClick={() => dispatch(getKeyElementsRequested({ connectionId, key: name, keyType: type, cursor }))}
-        size="sm"
-        variant="outline"
-      >
-        {loading && <Loader2 className="animate-spin" />}
-        Load more
-      </Button>
+      {cursor !== undefined && (
+        <Button
+          disabled={loading}
+          onClick={() => dispatch(getKeyElementsRequested({ connectionId, key: name, keyType: type, cursor }))}
+          size="sm"
+          variant="outline"
+        >
+          {loading && <Loader2 className="animate-spin" />}
+          Load more
+        </Button>
+      )}
     </div>
   )
 }
