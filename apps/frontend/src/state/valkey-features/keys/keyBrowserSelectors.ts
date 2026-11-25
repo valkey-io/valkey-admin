@@ -7,7 +7,7 @@ export const selectKeys = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState.keys, [VALKEY.KEYS.name, id, "keys"], state)
 
 export const selectTotalKeys = (id: string) => (state: RootState) =>
-  R.pathOr(defaultConnectionState.keys, [VALKEY.KEYS.name, id, "totalKeys"], state)
+  R.pathOr(defaultConnectionState.totalKeys, [VALKEY.KEYS.name, id, "totalKeys"], state)
 
 export const selectCursor = (id: string) => (state: RootState) =>
   R.pathOr(defaultConnectionState.cursor, [VALKEY.KEYS.name, id, "cursor"], state)

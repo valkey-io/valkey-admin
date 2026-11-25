@@ -360,6 +360,29 @@ describe("connectionSlice", () => {
 
       expect(state.connections["conn-1"].connectionDetails.databasesCount).toBe(32)
     })
+
+    it("should clear reconnect state on successful connection", () => {
+      const previousState = {
+        connections: {
+          "conn-1": {
+            status: CONNECTING,
+            errorMessage: null,
+            connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+            reconnect: { isRetrying: true, currentAttempt: 2, maxRetries: 8 },
+          },
+        } as ValkeyConnectionsState,
+      }
+
+      const state = connectionReducer(
+        previousState,
+        standaloneConnectFulfilled({
+          connectionId: "conn-1",
+          connectionDetails: { host: "localhost", port: "6379", username: "", password: "", tls: false, verifyTlsCertificate: false },
+        }),
+      )
+
+      expect(state.connections["conn-1"].reconnect).toBeUndefined()
+    })
   })
 
   describe("clusterConnectFulfilled", () => {
