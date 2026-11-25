@@ -717,8 +717,8 @@ export const metricsReadinessRetryEpic = (store: Store) =>
                 filter((a) => a.payload.connectionId === connectionId),
                 tap(() => {
                   const clusterId = selectConnectionDetails(connectionId)(store.getState())?.clusterId
-                  store.dispatch(cpuUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR }))
-                  store.dispatch(memoryUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR }))
+                  store.dispatch(cpuUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR, requestId: `${connectionId}-cpu-${Date.now()}` }))
+                  store.dispatch(memoryUsageRequested({ connectionId, clusterId, timeRange: MILLISECONDS_IN_AN_HOUR, requestId: `${connectionId}-mem-${Date.now()}` }))
                 }),
               ),
             ),
