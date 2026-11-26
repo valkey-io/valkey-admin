@@ -87,7 +87,7 @@ The MCP server itself listens on port `8081` and binds to `127.0.0.1` only.
 | `VALKEY_PASSWORD` | none | Header mode: default Valkey password |
 | `VALKEY_TLS` | `false` | Header mode: default TLS setting |
 
-The `VALKEY_*` connection variables apply only in header mode, to requests that send no `X-Valkey-*` headers. When the Valkey Admin server starts the MCP server, the MCP server inherits them from the server's own environment.
+The `VALKEY_*` connection variables apply only in header mode, to requests that send no `X-Valkey-*` headers. When the Valkey Admin server starts the MCP server, the MCP server inherits `VALKEY_HOST`, `VALKEY_PORT` and `VALKEY_TLS` from the server's own environment, but not `VALKEY_USERNAME` or `VALKEY_PASSWORD`, so requests without headers connect without credentials.
 
 ## Tools
 

@@ -15,6 +15,7 @@ export const MCP_TARGETS_ENV = "VALKEY_ADMIN_MCP_TARGETS"
 export const MCP_PATHS = ["/mcp", "/mcp/*"]
 
 const MCP_HOST = "127.0.0.1"
+const VALKEY_CREDENTIAL_ENV = new Set(["VALKEY_USERNAME", "VALKEY_PASSWORD"])
 const WILDCARD_HOSTS = new Set(["0.0.0.0", "::", "[::]"])
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"])
 
@@ -24,6 +25,9 @@ let stopping = false
 const mcpPort = () => Number(process.env.VALKEY_ADMIN_MCP_PORT) || 8081
 
 const isMcpEnabled = () => process.env[MCP_ENABLED_ENV] === "true"
+
+const inheritedEnv = () =>
+  Object.fromEntries(Object.entries(process.env).filter(([name]) => !VALKEY_CREDENTIAL_ENV.has(name)))
 
 const adminUrl = (bindHost: string, port: number) => {
   const host = WILDCARD_HOSTS.has(bindHost) ? "127.0.0.1" : bindHost
@@ -56,7 +60,7 @@ export const startMcpServer = (bindHost: string, port: number) => {
 
   const proc = spawn(process.execPath, [fileURLToPath(new URL("../../mcp/dist/index.js", import.meta.url))], {
     env: {
-      ...process.env,
+      ...inheritedEnv(),
       VALKEY_ADMIN_URL: adminUrl(bindHost, port),
       VALKEY_ADMIN_WS_TOKEN: token,
       VALKEY_ADMIN_MCP_PORT: String(mcpPort()),
