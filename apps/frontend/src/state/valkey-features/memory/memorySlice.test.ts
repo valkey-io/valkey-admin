@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import memoryReducer, {
   memoryUsageRequested,
   memoryUsageFulfilled,
-  memoryUsageError,
+  memoryUsageError
 } from "./memorySlice"
 
 describe("memorySlice", () => {

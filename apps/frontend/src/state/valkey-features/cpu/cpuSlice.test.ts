@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import cpuReducer, {
   cpuUsageRequested,
   cpuUsageFulfilled,
-  cpuUsageError,
+  cpuUsageError
 } from "./cpuSlice"
 
 describe("cpuSlice", () => {
