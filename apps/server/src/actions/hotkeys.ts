@@ -5,10 +5,12 @@ import {
   type HotKeysResponse,
   type NodeError,
   toNodeId,
-  buildUrl
+  buildUrl,
+  type KeyEvictionPolicy
 } from "valkey-common"
 import * as R from "ramda"
 import { withDeps, Deps, collectorFeaturesDisabled, KUBERNETES_METRICS_UNAVAILABLE } from "./utils"
+import { getKeyEvictionPolicy, getClusterSlotStatsEnabled } from "../utils"
 
 // One node's reply from the metrics server. Its tuples have no nodeId; the merge below adds it for HotKeysResponse.
 type MetricsHotKeysResponse = {
@@ -24,6 +26,7 @@ const sendHotKeysFulfilled = (
   replyId: AggregateReplyId, // Hotkeys aggregates all cluster nodes into one result
   parsedResponse: HotKeysResponse,
   nodeErrors?: NodeError[],
+  configUpdates?: { keyEvictionPolicy?: KeyEvictionPolicy; clusterSlotStatsEnabled?: boolean },
 ) => {
   ws.send(
     JSON.stringify({
@@ -32,6 +35,8 @@ const sendHotKeysFulfilled = (
         ...replyId,
         parsedResponse,
         ...(nodeErrors?.length ? { nodeErrors } : {}),
+        ...(configUpdates?.keyEvictionPolicy !== undefined && { keyEvictionPolicy: configUpdates.keyEvictionPolicy }),
+        ...(configUpdates?.clusterSlotStatsEnabled !== undefined && { clusterSlotStatsEnabled: configUpdates.clusterSlotStatsEnabled }),
       },
     }),
   )
@@ -57,13 +62,60 @@ const sendHotKeysError = (
 }
 
 export const hotKeysRequested = withDeps<Deps, void>(
-  async ({ ws, metricsServerMap, action, clusterNodesRegistry }) => {
+  async ({ ws, metricsServerMap, action, clusterNodesRegistry, clients }) => {
     const { connectionId, clusterId, lfuEnabled, clusterSlotStatsEnabled } = action.payload
     if (collectorFeaturesDisabled()) {
       sendHotKeysError(ws, toNodeId(connectionId), KUBERNETES_METRICS_UNAVAILABLE, clusterId)
       return
     }
     const count = Number(action.payload.count) || Number(process.env.HOT_KEYS_COUNT) || 50
+
+    let client = clients?.get(connectionId)?.client
+    if (!client && clusterId && clients) {
+      for (const entry of clients.values()) {
+        if (entry.clusterId === clusterId) {
+          client = entry.client
+          break
+        }
+      }
+    }
+
+    let liveKeyEvictionPolicy: KeyEvictionPolicy | undefined
+    let liveClusterSlotStatsEnabled: boolean | undefined
+
+    if (client) {
+      try {
+        const isCluster = Boolean(clusterId) || client.constructor.name === "GlideClusterClient"
+        if (isCluster) {
+          const [evictionPolicy, slotStats] = await Promise.all([
+            getKeyEvictionPolicy(client),
+            getClusterSlotStatsEnabled(client as never),
+          ])
+          liveKeyEvictionPolicy = evictionPolicy
+          liveClusterSlotStatsEnabled = slotStats
+        } else {
+          liveKeyEvictionPolicy = await getKeyEvictionPolicy(client)
+          liveClusterSlotStatsEnabled = false
+        }
+      } catch (err) {
+        console.warn("[Hot keys] Failed to query live config:", err)
+      }
+    }
+
+    const effectiveLfuEnabled = liveKeyEvictionPolicy !== undefined
+      ? liveKeyEvictionPolicy.includes("lfu")
+      : Boolean(lfuEnabled)
+
+    const effectiveClusterSlotStatsEnabled = liveClusterSlotStatsEnabled !== undefined
+      ? liveClusterSlotStatsEnabled
+      : Boolean(clusterSlotStatsEnabled)
+
+    const useHotSlots = effectiveClusterSlotStatsEnabled && effectiveLfuEnabled
+
+    const configUpdates = {
+      keyEvictionPolicy: liveKeyEvictionPolicy,
+      clusterSlotStatsEnabled: liveClusterSlotStatsEnabled,
+    }
 
     const nodes =
       typeof clusterId === "string" 
@@ -79,7 +131,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
         return { nodeId, error: "Metrics server not started" } as NodeError
       }
       const url = buildUrl(metricsServerURI, "/hot-keys", {
-        ...(clusterSlotStatsEnabled && lfuEnabled ? { useHotSlots: "true" } : {}),
+        ...(useHotSlots ? { useHotSlots: "true" } : {}),
         count,
       })
       try {
@@ -123,7 +175,7 @@ export const hotKeysRequested = withDeps<Deps, void>(
     if (results.length === 0) {
       if (nodes) {
         const emptyResponse: HotKeysResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId: "" }
-        sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors)
+        sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, emptyResponse, nodeErrors, configUpdates)
         return
       }
       // Standalone: surface the node's error if it failed; otherwise emit an
@@ -133,13 +185,13 @@ export const hotKeysRequested = withDeps<Deps, void>(
       } else {
         const nodeId = toNodeId(connectionId)
         const emptyResponse: HotKeysResponse = { hotKeys: [], monitorRunning: false, checkAt: 0, nodeId }
-        sendHotKeysFulfilled(ws, { nodeId }, emptyResponse)
+        sendHotKeysFulfilled(ws, { nodeId }, emptyResponse, undefined, configUpdates)
       }
       return
     }
 
     if (!nodes) {
-      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0] as unknown as HotKeysResponse)
+      sendHotKeysFulfilled(ws, { nodeId: toNodeId(connectionId) }, results[0] as unknown as HotKeysResponse, undefined, configUpdates)
       return
     }
 
@@ -164,5 +216,5 @@ export const hotKeysRequested = withDeps<Deps, void>(
     const aggregatedResponse = {
       hotKeys: aggregatedHotKeys, monitorRunning, checkAt, nodeId, lastCollectedAt,
     } as unknown as HotKeysResponse
-    sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, aggregatedResponse, nodeErrors)
+    sendHotKeysFulfilled(ws, { clusterId: clusterId as string }, aggregatedResponse, nodeErrors, configUpdates)
   })
