@@ -28,7 +28,7 @@ const getCommandLogRows = async (commandlogType) => {
     }
   }
   catch (e) {
-    console.error(`[commandlog] ${commandlogType} error:`, e.message)
+    console.error("[commandlog] %s error: %s", commandlogType, e.message)
     return { error: e.message }
   }
 }
