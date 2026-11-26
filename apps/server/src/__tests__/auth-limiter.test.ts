@@ -5,8 +5,10 @@ import { GlideClient, ClosingError } from "@valkey/valkey-glide"
 import { EndpointError, VALKEY, normalizeEndpoint } from "valkey-common"
 import {
   AUTH_FAILURE_LIMIT,
+  AuthLockedError,
   authLimitKey,
   isAuthError,
+  withAuthLimit,
   _resetAuthLimiter
 } from "../auth-limiter"
 import { connectToValkey, discoverTopology } from "../connection"
@@ -141,5 +143,78 @@ describe("auth-limiter", () => {
     assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT)
     assert.strictEqual(lastType(), VALKEY.TOPOLOGY.discoveryEndpointRejected)
     assert.match(lastPayload().errorMessage, /Too many failed authentication attempts/)
+  })
+
+  it("limits a burst of concurrent connects to the failure limit", async () => {
+    // Every connect starts before any probe fails, as in a scripted burst.
+    let failAll!: () => void
+    const allStarted = new Promise<void>((resolve) => { failAll = resolve })
+    GlideClient.createClient = (async () => {
+      createCalls++
+      await allStarted
+      throw wrongPass()
+    }) as any
+    const burst = Array.from({ length: AUTH_FAILURE_LIMIT * 3 }, (_, i) => connect(DETAILS, `conn-${i}`))
+    await new Promise((resolve) => setImmediate(resolve))
+    failAll()
+    await Promise.all(burst)
+
+    assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT, "only the free slots reach Valkey")
+    const rejections = messages.filter((m) => m.type === VALKEY.CONNECTION.connectRejected)
+    assert.strictEqual(rejections.length, AUTH_FAILURE_LIMIT * 3)
+    assert.strictEqual(
+      rejections.filter((m) => /Too many failed authentication attempts/.test(m.payload.errorMessage)).length,
+      AUTH_FAILURE_LIMIT * 2,
+    )
+
+    await connect(DETAILS, "conn-after")
+    assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT, "the key stays locked after the burst")
+  })
+})
+
+describe("withAuthLimit", () => {
+  const endpoint = normalizeEndpoint(DETAILS.host, DETAILS.port)
+  const authFail = async () => { throw wrongPass() }
+  const attempt = (fn: () => Promise<unknown>) => withAuthLimit(DETAILS, endpoint, fn).then(() => "ok", (err) => err)
+  let realNow: () => number
+  let now: number
+
+  beforeEach(() => {
+    _resetAuthLimiter()
+    realNow = Date.now
+    now = 1_000_000_000
+    Date.now = () => now
+  })
+
+  afterEach(() => {
+    Date.now = realNow
+  })
+
+  it("counts an attempt in progress against the limit", async () => {
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => { finish = resolve })
+    const inFlight = Array.from({ length: AUTH_FAILURE_LIMIT }, () => attempt(() => pending))
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError, "no free slot while all are in progress")
+    finish()
+    assert.deepStrictEqual(await Promise.all(inFlight), Array(AUTH_FAILURE_LIMIT).fill("ok"))
+    assert.strictEqual(await attempt(async () => {}), "ok", "successful attempts give their slots back")
+  })
+
+  it("gives the slot back when the attempt fails for another reason", async () => {
+    for (let i = 0; i < AUTH_FAILURE_LIMIT * 2; i++) {
+      await attempt(async () => { throw new Error("Connection refused") })
+    }
+    for (let i = 0; i < AUTH_FAILURE_LIMIT; i++) await attempt(authFail)
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError)
+  })
+
+  it("does not take a slot from a new window when an old attempt ends", async () => {
+    let finish!: () => void
+    const slow = attempt(() => new Promise<void>((resolve) => { finish = resolve }))
+    now += 61_000
+    for (let i = 0; i < AUTH_FAILURE_LIMIT; i++) await attempt(authFail)
+    finish()
+    assert.strictEqual(await slow, "ok")
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError, "the new window keeps all its failures")
   })
 })
