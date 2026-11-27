@@ -3,7 +3,9 @@ import * as R from "ramda"
 import WebSocket from "ws"
 import { VALKEY } from "valkey-common"
 import { isValidDatabaseIndex, normalizeEndpoint, sanitizeUrl, toNodeId, buildUrl, type Endpoint } from "valkey-common"
-import { assertIamTransport, mintGcpAccessToken, registerGcpTokenRefresh, unregisterGcpTokenRefresh } from "valkey-common"
+import {
+  assertIamTransport, mintGcpAccessToken, registerGcpTokenRefresh, signElastiCacheIamToken, unregisterGcpTokenRefresh
+} from "valkey-common"
 import { KeyEvictionPolicy } from "common/dist"
 import { 
   getClusterSlotStatsEnabled, 
@@ -24,7 +26,8 @@ import {
   type NodeInfo } from "./metrics-orchestrator"
 import { scopedId, subscribe } from "./node-watchers"
 import { clearCpuSamples } from "./node-utilization"
-import { createAuthProbeClient, createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
+import { createClusterValkeyClient, createStandaloneValkeyClient } from "./valkey-client"
+import { openAuthProbe, type AuthProbe, type AuthProbeOptions, type ProbeCredentials } from "./auth-probe"
 import { withAuthLimit } from "./auth-limiter"
 import { removeOwnerStateIfUnused, type OwnerState } from "./owner"
 
@@ -149,6 +152,26 @@ async function buildCredentials(details: ConnectionDetails): Promise<ServerCrede
   return password ? { username, password } : undefined
 }
 
+/**
+ * The credentials the AUTH probe sends. Glide signs ElastiCache IAM tokens in
+ * its native core, but the probe is not Glide (see `auth-probe.ts`), so the
+ * server signs the token here. Same transport rule as `buildCredentials`.
+ */
+async function buildProbeCredentials(details: ConnectionDetails): Promise<ProbeCredentials | undefined> {
+  const { username, password, tls, verifyTlsCertificate, authType, awsRegion, awsReplicationGroupId } = details
+  const caCertPath = serverCaCertPath()
+  assertIamTransport({ authType, tls, verifyTlsCertificate }, caCertPath)
+  if (authType === "iam") {
+    return { username: username!, password: await signElastiCacheIamToken(username!, awsReplicationGroupId!, awsRegion) }
+  }
+  if (authType === "gcp-iam") {
+    return { username: "default", password: await mintGcpAccessToken(tls, verifyTlsCertificate, caCertPath) }
+  }
+  // Glide sends no AUTH without a password, and then the connection runs as
+  // `default`. The probe does the same.
+  return password ? { username, password } : undefined
+}
+
 /** What the AUTH probe learned about the node: standalone, or a cluster with its topology. */
 export type ProbedTopology =
   | { cluster: false }
@@ -165,9 +188,10 @@ export type ProbedTopology =
  * probe, not a later client, runs `INFO cluster` and `CLUSTER SLOTS`.
  */
 export async function proveCredentials(details: ConnectionDetails, endpoint: Endpoint): Promise<ProbedTopology> {
-  const credentials = await buildCredentials(details)
+  const credentials = await buildProbeCredentials(details)
   return verifyCredentials(details, {
-    addresses: [{ host: endpoint.host, port: endpoint.port }],
+    host: endpoint.host,
+    port: endpoint.port,
     credentials,
     useTLS: details.tls,
     verifyTlsCertificate: details.verifyTlsCertificate,
@@ -182,24 +206,25 @@ export async function proveCredentials(details: ConnectionDetails, endpoint: End
 
 /**
  * Prove that Valkey accepts `details`' credentials on this node: open a
- * short-lived client, run `inspect` on it, then close it. Throws on rejection.
- * Counted by the failed-AUTH limit. Valkey Admin does not compare secrets
- * itself; it holds the cluster password in memory only to start collectors.
+ * short-lived probe (`openAuthProbe`), run `inspect` on it, then close it.
+ * Throws on rejection. Counted by the failed-AUTH limit. Valkey Admin does not
+ * compare secrets itself; it holds the cluster password in memory only to
+ * start collectors.
  *
  * Every connect and discovery runs this first. The working clients use
  * static node discovery, which does not reject bad credentials at creation.
  */
 async function verifyCredentials<T>(
   details: ConnectionDetails,
-  options: Parameters<typeof createAuthProbeClient>[0],
-  inspect: (probe: GlideClient) => Promise<T>,
+  options: AuthProbeOptions,
+  inspect: (probe: AuthProbe) => Promise<T>,
 ): Promise<T> {
-  const probe = await withAuthLimit(details, options.addresses[0], () => createAuthProbeClient(options))
+  const probe = await withAuthLimit(details, { host: options.host, port: options.port }, () => openAuthProbe(options))
   try {
     return await inspect(probe)
   } finally {
     try { probe.close() } catch (err) {
-      console.warn("Error closing AUTH probe client:", err)
+      console.warn("Error closing AUTH probe:", err)
     }
   }
 }
@@ -602,7 +627,7 @@ export async function discoverTopology(
   }
 }
 
-export async function belongsToCluster(client: GlideClient): Promise<boolean> {
+export async function belongsToCluster(client: Pick<GlideClient, "info">): Promise<boolean> {
   const response = await client.info([InfoOptions.Cluster])
   const parsed = parseInfo(response)
   return parsed["cluster_enabled"] === "1"
@@ -653,7 +678,7 @@ function sendStandaloneConnectFulfilled(ws: WebSocket, payload: StandaloneConnec
 }
 
 export async function discoverCluster(
-  client: GlideClient | GlideClusterClient, 
+  client: Pick<GlideClient | GlideClusterClient | AuthProbe, "customCommand">,
   payload: { connectionDetails: NodeInfo, connectionId?: string;},
 )  {
   try {

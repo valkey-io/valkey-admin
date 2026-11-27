@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient, ClosingError } from "@valkey/valkey-glide"
+import { GlideClient } from "@valkey/valkey-glide"
 import { VALKEY } from "valkey-common"
 import { allOwnerStates, getEnvOwnerState } from "../owner"
 import { createSocketBinding, resolveAction, unbindConnection } from "../socket-binding"
@@ -11,6 +11,7 @@ import { connectedNodesFor } from "../socket-binding"
 import { teardownConnection } from "../connection"
 import { _resetAuthLimiter } from "../auth-limiter"
 import { _reset as resetNodeWatchers } from "../node-watchers"
+import { mockAuthProbe, wrongPassReply } from "./auth-probe-mock"
 import type { Handler } from "../actions/utils"
 
 /**
@@ -27,9 +28,6 @@ const DETAILS = {
   endpointType: "node",
   db: 0,
 }
-
-const wrongPass = () =>
-  new ClosingError("Connection error: WRONGPASS: invalid username-password pair or user is disabled.")
 
 const standaloneMock = () => ({
   info: mock.fn(async () => "cluster_enabled:0"),
@@ -60,6 +58,7 @@ describe("owner state lifecycle", () => {
   let ws: any
   let sent: any[]
   let original: typeof GlideClient.createClient
+  let probe: ReturnType<typeof mockAuthProbe>
 
   beforeEach(() => {
     _resetAuthLimiter()
@@ -67,18 +66,21 @@ describe("owner state lifecycle", () => {
     sent = []
     ws = { send: (m: string) => sent.push(JSON.parse(m)), readyState: 1, OPEN: 1 }
     original = GlideClient.createClient
+    probe = mockAuthProbe(() => ({}))
     mock.method(console, "error", () => {})
     mock.method(console, "warn", () => {})
     mock.method(console, "log", () => {})
   })
 
   afterEach(() => {
+    probe.restore()
     GlideClient.createClient = original
     mock.restoreAll()
   })
 
   it("adds no owner entry for connects that Valkey rejects", async () => {
-    GlideClient.createClient = (async () => { throw wrongPass() }) as any
+    probe.restore()
+    probe = mockAuthProbe(() => { throw wrongPassReply() })
     const before = allOwnerStates().length
     const binding = createSocketBinding()
     for (let i = 0; i < 200; i++) {
@@ -92,7 +94,8 @@ describe("owner state lifecycle", () => {
   })
 
   it("adds no owner entry for topology discovery", async () => {
-    GlideClient.createClient = (async () => { throw wrongPass() }) as any
+    probe.restore()
+    probe = mockAuthProbe(() => { throw wrongPassReply() })
     const before = allOwnerStates().length
     const binding = createSocketBinding()
     for (let i = 0; i < 200; i++) {

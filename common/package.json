@@ -17,6 +17,11 @@
     "test": "tsx --test src/__tests__/*.test.ts"
   },
   "dependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@aws-sdk/credential-provider-node": "^3.972.30",
+    "@aws-sdk/util-format-url": "^3.972.9",
+    "@smithy/protocol-http": "^5.3.13",
+    "@smithy/signature-v4": "^5.3.13",
     "google-auth-library": "^11.0.2"
   },
   "devDependencies": {

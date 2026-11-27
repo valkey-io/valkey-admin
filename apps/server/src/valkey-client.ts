@@ -23,7 +23,7 @@ const clientInfoTag = `valkey-admin-${deploymentSuffix()}:${APP_VERSION}`
 // devices that would block the event loop) and oversized files before reading.
 const MAX_CA_CERT_BYTES = 1024 * 1024
 
-const readCaCertificate = (caCertPath: string): Buffer => {
+export const readCaCertificate = (caCertPath: string): Buffer => {
   const stats = statSync(caCertPath)
   if (!stats.isFile()) {
     throw new Error(`CA certificate path is not a regular file: ${caCertPath}`)
@@ -36,6 +36,18 @@ const readCaCertificate = (caCertPath: string): Buffer => {
   return readFileSync(caCertPath)
 }
 
+// Surface any insecure TLS connection: disabling certificate validation exposes the
+// connection to MITM, so it must never happen silently (see #445).
+export const warnIfTlsUnverified = (useTLS: boolean, verifyTlsCertificate: boolean): void => {
+  if (useTLS && verifyTlsCertificate === false) {
+    console.warn(
+      "WARNING: TLS certificate validation is DISABLED (insecure: true). "
+        + "The connection is vulnerable to man-in-the-middle attacks. "
+        + "Set VALKEY_VERIFY_CERT=true (or enable certificate verification) to secure it.",
+    )
+  }
+}
+
 const buildSharedOptions = ({
   addresses,
   credentials,
@@ -44,15 +56,7 @@ const buildSharedOptions = ({
   caCertPath,
   databaseId,
 }: ClientOptions) => {
-  // Surface any insecure TLS connection: disabling certificate validation exposes the
-  // connection to MITM, so it must never happen silently (see #445).
-  if (useTLS && verifyTlsCertificate === false) {
-    console.warn(
-      "WARNING: TLS certificate validation is DISABLED (insecure: true). "
-        + "The connection is vulnerable to man-in-the-middle attacks. "
-        + "Set VALKEY_VERIFY_CERT=true (or enable certificate verification) to secure it.",
-    )
-  }
+  warnIfTlsUnverified(useTLS, verifyTlsCertificate)
 
   // Glide's TLS runs in its Rust core, so a private CA (the connection's
   // `caCertPath`) must be passed via `rootCertificates`; Node's trust store
@@ -108,19 +112,4 @@ export const createOrchestratorValkeyClient = ({
     ...buildSharedOptions(options),
     clientName: "valkey_admin_orchestrator_client",
     nodeDiscoveryMode: NodeDiscoveryMode.Static,
-  })
-
-/**
- * Short-lived client that only proves credentials. It uses Glide's default
- * node discovery, because with `NodeDiscoveryMode.Static` `createClient` does
- * not reject a wrong password or a disabled user: it returns a client and
- * keeps retrying in the background. Here `createClient` rejects with
- * WRONGPASS / NOAUTH when Valkey refuses the credentials.
- */
-export const createAuthProbeClient = ({
-  ...options
-}: ClientOptions) =>
-  GlideClient.createClient({
-    ...buildSharedOptions({ ...options, databaseId: undefined }),
-    clientName: "valkey_admin_auth_probe",
   })

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient } from "@valkey/valkey-glide"
 import { CONNECTION_TEARDOWN_DELAY_MS, VALKEY } from "valkey-common"
 import {
   bindConnection,
@@ -14,6 +13,7 @@ import { createOwnerState, getEnvOwnerState, type OwnerState } from "../owner"
 import { teardownConnection } from "../connection"
 import { CONNECTION_ID_MISMATCH_MESSAGE, connectPending } from "../actions/connection"
 import { scopedId, subscribe, unsubscribe, _reset as resetNodeWatchers } from "../node-watchers"
+import { mockAuthProbe } from "./auth-probe-mock"
 
 const fakeClient = () => ({ close: mock.fn() }) as any
 
@@ -125,9 +125,7 @@ describe("connectPending resume", () => {
   it("asks for the password when a password connection resumes without one", async () => {
     const sent: any[] = []
     const ws = { send: (m: string) => sent.push(JSON.parse(m)) } as any
-    const original = GlideClient.createClient
-    const createClient = mock.fn(async () => { throw new Error("must not connect") })
-    GlideClient.createClient = createClient as any
+    const probe = mockAuthProbe(() => { throw new Error("must not connect") })
     try {
       const state = createOwnerState("password~default")
       await connectPending({ ws, ownerKey: state.ownerKey, ownerState: state, binding: createSocketBinding() } as any)(
@@ -137,12 +135,12 @@ describe("connectPending resume", () => {
           connectionDetails: { host: "h", port: "6379", username: "alice", tls: false, verifyTlsCertificate: false, db: 0 },
         }),
       )
-      assert.strictEqual(createClient.mock.calls.length, 0)
+      assert.strictEqual(probe.calls.length, 0)
       assert.strictEqual(sent.length, 1)
       assert.strictEqual(sent[0].type, VALKEY.CONNECTION.connectRejected)
       assert.strictEqual(sent[0].payload.requiresAuth, true)
     } finally {
-      GlideClient.createClient = original
+      probe.restore()
     }
   })
 })
@@ -154,9 +152,7 @@ describe("connectPending id check", () => {
   const run = async (connectionId: string, host: string, port: string) => {
     const sent: any[] = []
     const ws = { send: (m: string) => sent.push(JSON.parse(m)) } as any
-    const original = GlideClient.createClient
-    const createClient = mock.fn(async () => { throw new Error("must not connect") })
-    GlideClient.createClient = createClient as any
+    const probe = mockAuthProbe(() => { throw new Error("must not connect") })
     try {
       await connectPending({ ws, binding: createSocketBinding() } as any)(
         action(VALKEY.CONNECTION.connectPending, {
@@ -165,9 +161,9 @@ describe("connectPending id check", () => {
         }),
       )
     } finally {
-      GlideClient.createClient = original
+      probe.restore()
     }
-    return { sent, probes: createClient.mock.calls.length }
+    return { sent, probes: probe.calls.length }
   }
 
   it("rejects a connectionId that names another endpoint, before the AUTH probe", async () => {

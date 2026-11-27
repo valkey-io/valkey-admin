@@ -1,17 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient, ClosingError } from "@valkey/valkey-glide"
+import { ClosingError } from "@valkey/valkey-glide"
 import { EndpointError, VALKEY, normalizeEndpoint } from "valkey-common"
 import {
   AUTH_FAILURE_LIMIT,
+  AuthLockedError,
   authLimitKey,
   isAuthError,
+  withAuthLimit,
   _resetAuthLimiter
 } from "../auth-limiter"
 import { connectToValkey, discoverTopology } from "../connection"
 import { createOwnerState } from "../owner"
 import { _reset as resetNodeWatchers } from "../node-watchers"
+import { mockAuthProbe, wrongPassReply } from "./auth-probe-mock"
 import type { ConnectionDetails } from "../actions/connection"
 
 const DETAILS: ConnectionDetails = {
@@ -35,7 +38,8 @@ describe("auth-limiter", () => {
   let messages: any[]
   let ws: any
   let createCalls: number
-  let originalCreate: typeof GlideClient.createClient
+  let probeFails: () => Promise<never>
+  let probe: ReturnType<typeof mockAuthProbe>
   let realNow: () => number
   let now: number
 
@@ -55,11 +59,11 @@ describe("auth-limiter", () => {
     messages = []
     ws = { send: (m: string) => messages.push(JSON.parse(m)), readyState: 1, OPEN: 1 }
     createCalls = 0
-    originalCreate = GlideClient.createClient
-    GlideClient.createClient = (async () => {
+    probeFails = async () => { throw wrongPassReply() }
+    probe = mockAuthProbe(() => {
       createCalls++
-      throw wrongPass()
-    }) as any
+      return probeFails()
+    })
     realNow = Date.now
     now = 1_000_000_000
     Date.now = () => now
@@ -68,13 +72,14 @@ describe("auth-limiter", () => {
   })
 
   afterEach(() => {
-    GlideClient.createClient = originalCreate
+    probe.restore()
     Date.now = realNow
     mock.restoreAll()
   })
 
   it("classifies authentication errors only", () => {
     assert.strictEqual(isAuthError(wrongPass()), true)
+    assert.strictEqual(isAuthError(wrongPassReply()), true)
     assert.strictEqual(isAuthError(new Error("NOAUTH HELLO must be called with the client already authenticated")), true)
     assert.strictEqual(isAuthError(new Error("Connection refused")), false)
     assert.strictEqual(isAuthError(new Error("PermissionDenied: User x has no permissions to run the 'info' command")), false)
@@ -118,10 +123,7 @@ describe("auth-limiter", () => {
   })
 
   it("does not count errors that are not authentication failures", async () => {
-    GlideClient.createClient = (async () => {
-      createCalls++
-      throw new Error("Connection refused")
-    }) as any
+    probeFails = async () => { throw new Error("connect ECONNREFUSED 127.0.0.1:6379") }
     for (let i = 0; i < AUTH_FAILURE_LIMIT + 2; i++) await connect()
     assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT + 2)
   })
@@ -141,5 +143,77 @@ describe("auth-limiter", () => {
     assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT)
     assert.strictEqual(lastType(), VALKEY.TOPOLOGY.discoveryEndpointRejected)
     assert.match(lastPayload().errorMessage, /Too many failed authentication attempts/)
+  })
+
+  it("limits a burst of concurrent connects to the failure limit", async () => {
+    // Every connect starts before any probe fails, as in a scripted burst.
+    let failAll!: () => void
+    const allStarted = new Promise<void>((resolve) => { failAll = resolve })
+    probeFails = async () => {
+      await allStarted
+      throw wrongPassReply()
+    }
+    const burst = Array.from({ length: AUTH_FAILURE_LIMIT * 3 }, (_, i) => connect(DETAILS, `conn-${i}`))
+    await new Promise((resolve) => setImmediate(resolve))
+    failAll()
+    await Promise.all(burst)
+
+    assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT, "only the free slots reach Valkey")
+    const rejections = messages.filter((m) => m.type === VALKEY.CONNECTION.connectRejected)
+    assert.strictEqual(rejections.length, AUTH_FAILURE_LIMIT * 3)
+    assert.strictEqual(
+      rejections.filter((m) => /Too many failed authentication attempts/.test(m.payload.errorMessage)).length,
+      AUTH_FAILURE_LIMIT * 2,
+    )
+
+    await connect(DETAILS, "conn-after")
+    assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT, "the key stays locked after the burst")
+  })
+})
+
+describe("withAuthLimit", () => {
+  const endpoint = normalizeEndpoint(DETAILS.host, DETAILS.port)
+  const authFail = async () => { throw wrongPass() }
+  const attempt = (fn: () => Promise<unknown>) => withAuthLimit(DETAILS, endpoint, fn).then(() => "ok", (err) => err)
+  let realNow: () => number
+  let now: number
+
+  beforeEach(() => {
+    _resetAuthLimiter()
+    realNow = Date.now
+    now = 1_000_000_000
+    Date.now = () => now
+  })
+
+  afterEach(() => {
+    Date.now = realNow
+  })
+
+  it("counts an attempt in progress against the limit", async () => {
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => { finish = resolve })
+    const inFlight = Array.from({ length: AUTH_FAILURE_LIMIT }, () => attempt(() => pending))
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError, "no free slot while all are in progress")
+    finish()
+    assert.deepStrictEqual(await Promise.all(inFlight), Array(AUTH_FAILURE_LIMIT).fill("ok"))
+    assert.strictEqual(await attempt(async () => {}), "ok", "successful attempts give their slots back")
+  })
+
+  it("gives the slot back when the attempt fails for another reason", async () => {
+    for (let i = 0; i < AUTH_FAILURE_LIMIT * 2; i++) {
+      await attempt(async () => { throw new Error("Connection refused") })
+    }
+    for (let i = 0; i < AUTH_FAILURE_LIMIT; i++) await attempt(authFail)
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError)
+  })
+
+  it("does not take a slot from a new window when an old attempt ends", async () => {
+    let finish!: () => void
+    const slow = attempt(() => new Promise<void>((resolve) => { finish = resolve }))
+    now += 61_000
+    for (let i = 0; i < AUTH_FAILURE_LIMIT; i++) await attempt(authFail)
+    finish()
+    assert.strictEqual(await slow, "ok")
+    assert.ok(await attempt(async () => {}) instanceof AuthLockedError, "the new window keeps all its failures")
   })
 })

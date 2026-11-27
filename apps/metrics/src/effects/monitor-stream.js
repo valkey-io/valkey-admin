@@ -2,8 +2,7 @@ import { Subject, timer, race, firstValueFrom, defer, of } from "rxjs"
 import { exhaustMap, catchError, map } from "rxjs"
 import Valkey from "iovalkey"
 import { readFileSync } from "node:fs"
-import { mintGcpAccessToken } from "valkey-common"
-import { ElastiCacheIAMProvider } from "../utils/elasticache-iam-provider.js"
+import { mintGcpAccessToken, signElastiCacheIamToken } from "valkey-common"
 
 function getConnectionOptions() {
   const host = process.env.VALKEY_HOST
@@ -29,7 +28,7 @@ function getConnectionOptions() {
 async function getPassword() {
   const username = process.env.VALKEY_USERNAME
   if (process.env.VALKEY_AUTH_TYPE === "iam") {
-    return await new ElastiCacheIAMProvider(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION).getCredentials()
+    return await signElastiCacheIamToken(username, process.env.VALKEY_REPLICATION_GROUP_ID, process.env.VALKEY_AWS_REGION)
   }
   if (process.env.VALKEY_AUTH_TYPE === "gcp-iam") {
     return await mintGcpAccessToken(
