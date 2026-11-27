@@ -97,7 +97,7 @@ const startMonitor = async (cfg) => {
         lastError: String(err),
         willCompleteAt: null,
       })
-      console.error(`[${monitorEpic.name}] monitor error:`, err)
+      console.error(`[${monitorEpic.name}] monitor error:`, err.message)
     },
     complete: () => {
       updateCollectorMeta(monitorEpic.name, {

@@ -15,7 +15,7 @@ export const getHotSlots = async (client, limit = 50) => {
       })
       .filter(Boolean)
   } catch (error) {
-    console.error("ERROR:", error)
+    console.error("ERROR:", error.message)
     return []
   }
 }
