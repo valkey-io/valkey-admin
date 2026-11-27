@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { WebSocket } from "ws"
 import {
   GlideClient,
@@ -1139,6 +1140,8 @@ async function updateHashKey(
 /**
  * Sets, removes and appends list elements in one batch, then applies a new TTL if given.
  * Refuses updates to elements that currently hold binary data, since saving the escaped text would corrupt them.
+ * Deletes go by index: each deleted element is first overwritten with a unique placeholder, then every
+ * placeholder is removed with one LREM. Removing by value could hit an earlier copy of the same value instead.
  */
 async function updateListKey(
   client: GlideClient | GlideClusterClient,
@@ -1158,62 +1161,34 @@ async function updateListKey(
     }
   }
 
-  if (client instanceof GlideClient) {
-    const batch = new Batch(true)
+  const batch = client instanceof GlideClusterClient ? new ClusterBatch(true) : new Batch(true)
 
-    // first update items, while indexes still match the ones checked by LINDEX above
-    if (updates && updates.length > 0) {
-      updates.forEach(({ index, value }) =>
-        batch.customCommand(["LSET", key, index.toString(), value]),
-      )
-    }
+  // LSET never shifts elements, so updates and placeholders both use the indexes the client saw.
+  updates?.forEach(({ index, value }) =>
+    batch.customCommand(["LSET", key, index.toString(), value]),
+  )
 
-    // then delete items (sorted by index descending to avoid index shifting issues)
-    if (deletedListItems && deletedListItems.length > 0) {
-      const sortedDeletes = [...deletedListItems].sort((a, b) => b.index - a.index)
-      sortedDeletes.forEach(({ value }) => {
-        batch.customCommand(["LREM", key, "1", value])
-      })
-    }
+  if (deletedListItems && deletedListItems.length > 0) {
+    const placeholder = `__valkey-admin-deleted-${randomUUID()}__`
+    deletedListItems.forEach(({ index }) =>
+      batch.customCommand(["LSET", key, index.toString(), placeholder]),
+    )
+    batch.customCommand(["LREM", key, "0", placeholder])
+  }
 
-    // then add new items to the end of the list
-    if (newListItems && newListItems.length > 0) {
-      batch.customCommand(["RPUSH", key, ...newListItems])
-    }
+  // then add new items to the end of the list
+  if (newListItems && newListItems.length > 0) {
+    batch.customCommand(["RPUSH", key, ...newListItems])
+  }
 
-    if (ttl && ttl > 0) {
-      batch.customCommand(["EXPIRE", key, ttl.toString()])
-    }
+  if (ttl && ttl > 0) {
+    batch.customCommand(["EXPIRE", key, ttl.toString()])
+  }
 
-    await client.exec(batch, true)
-  } else if (client instanceof GlideClusterClient) {
-    const batch = new ClusterBatch(true)
-
-    if (updates && updates.length > 0) {
-      updates.forEach(({ index, value }) =>
-        batch.customCommand(["LSET", key, index.toString(), value]),
-      )
-    }
-
-    if (deletedListItems && deletedListItems.length > 0) {
-      const sortedDeletes = [...deletedListItems].sort((a, b) => b.index - a.index)
-      sortedDeletes.forEach(({ value }) => {
-        batch.customCommand(["LREM", key, "1", value])
-      })
-    }
-
-    // then add new items to the end of the list
-    if (newListItems && newListItems.length > 0) {
-      batch.customCommand(["RPUSH", key, ...newListItems])
-    }
-
-    if (ttl && ttl > 0) {
-      batch.customCommand(["EXPIRE", key, ttl.toString()])
-    }
-
-    await client.exec(batch, true)
+  if (client instanceof GlideClusterClient) {
+    await client.exec(batch as ClusterBatch, true)
   } else {
-    throw new Error("Unsupported client type")
+    await client.exec(batch as Batch, true)
   }
 }
 

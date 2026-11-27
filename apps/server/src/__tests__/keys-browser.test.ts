@@ -1052,6 +1052,76 @@ describe("updateKey", () => {
       assert.strictEqual(failed.payload.error, "Elements at index 1 hold binary data and cannot be edited as text.")
       assert.strictEqual(exec.mock.calls.length, 0)
     })
+
+    // Runs the batch's LSET/LREM/RPUSH commands against an in-memory list, so tests check the saved result.
+    function createListClient(initial: string[]) {
+      const list = [...initial]
+      const batches: string[][][] = []
+      const run = ([cmd, , ...args]: string[]) => {
+        if (cmd === "LSET") list[Number(args[0])] = args[1]
+        if (cmd === "RPUSH") list.push(...args)
+        if (cmd === "LREM") {
+          // count > 0 removes the first matches from the head; 0 removes every match (negative counts aren't used)
+          const [count, value] = args
+          let remaining = Number(count) || Infinity
+          for (let i = 0; i < list.length && remaining > 0;) {
+            if (list[i] === value) { list.splice(i, 1); remaining-- } else i++
+          }
+        }
+      }
+      const client = {
+        customCommand: mock.fn(async (cmd: string[]) => {
+          if (cmd[0] === "LINDEX") return Buffer.from(list[Number(cmd[2])])
+          if (cmd[0] === "TYPE") return "list"
+          if (cmd[0] === "LLEN") return list.length
+          if (cmd[0] === "LRANGE") return list.map((element) => Buffer.from(element))
+          return null
+        }),
+        exec: mock.fn(async (batch: any) => {
+          const commands = batch.commands.map((command: any) =>
+            command.argsArray.args.map((arg: Buffer | string) => arg.toString()) as string[])
+          batches.push(commands)
+          commands.forEach(run)
+          return []
+        }),
+      }
+      return { client, list, batches }
+    }
+
+    it("deletes by index when an edit copies the deleted value to an earlier index", async () => {
+      // [x, a, b]: set index 0 to "b", delete index 2. LREM by value would remove the new "b" at index 0.
+      const { client, list, batches } = createListClient(["x", "a", "b"])
+
+      await updateKey(client as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mylist",
+        keyType: "list",
+        listUpdates: [{ index: 0, value: "b" }],
+        deletedListItems: [{ index: 2, value: "b" }],
+      })
+
+      assert.deepStrictEqual(list, ["b", "a"])
+      assert.strictEqual(batches.length, 1, "edits and deletes are saved in one batch")
+      const [, , placeholder] = batches[0].find(([cmd]) => cmd === "LREM")!
+      assert.ok(!["x", "a", "b"].includes(placeholder))
+      assert.deepStrictEqual(batches[0].filter(([cmd]) => cmd === "LREM").length, 1)
+    })
+
+    it("edits, deletes duplicates and appends in one save", async () => {
+      // Index 0 becomes another copy of the deleted "a"s; only the elements at indexes 1 and 3 may go.
+      const { client, list } = createListClient(["x", "a", "b", "a", "c"])
+
+      await updateKey(client as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mylist",
+        keyType: "list",
+        listUpdates: [{ index: 0, value: "a" }, { index: 4, value: "d" }],
+        deletedListItems: [{ index: 1, value: "a" }, { index: 3, value: "a" }],
+        newListItems: ["e"],
+      })
+
+      assert.deepStrictEqual(list, ["a", "b", "d", "e"])
+    })
   })
 })
 
