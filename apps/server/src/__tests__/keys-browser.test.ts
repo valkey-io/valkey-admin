@@ -187,14 +187,133 @@ describe("getKeyInfo", () => {
       assert.strictEqual(result.name, "mystream")
       assert.strictEqual(result.type, "stream")
       assert.strictEqual(result.collectionSize, 2)
-      assert.ok(Array.isArray(result.elements))
-      // Stream entries are nested arrays: [[id, [field, value, ...]], ...]
-      const elements = result.elements as string[][]
-      assert.strictEqual(elements.length, 2)
-      assert.ok(Array.isArray(elements[0]))
-      assert.ok(Array.isArray(elements[1]))
+      // Plain RESP entries are normalized to the GLIDE shape: { key: id, value: [[field, value], ...] }
+      assert.deepStrictEqual(result.elements, [
+        { key: "1234567890-0", value: [["field1", "value1"], ["field2", "value2"]] },
+        { key: "1234567891-0", value: [["field3", "value3"]] },
+      ])
     })
 
+  })
+
+  describe("binary collection elements", () => {
+    it("should flag binary hash field names and values separately while keeping text fields", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 200,
+        HLEN: 3,
+        HSCAN: [Buffer.from("0"), [
+          Buffer.from("name"), Buffer.from("alice"),
+          Buffer.from([0x80, 0x81]), Buffer.from("v"),
+          Buffer.from("blob"), Buffer.from([0xff, 0x00]),
+        ]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myhash")
+
+      assert.strictEqual(result.elementsWarning, undefined)
+      assert.deepStrictEqual(result.elements, [
+        { key: "name", value: "alice" },
+        { key: "\\x80\\x81", value: "v" },
+        { key: "blob", value: "\\xff\\x00" },
+      ])
+      assert.deepStrictEqual(result.binaryKeyIndexes, [1])
+      assert.deepStrictEqual(result.binaryValueIndexes, [2])
+      assert.strictEqual(result.binaryIndexes, undefined)
+    })
+
+    it("should omit binary indexes and dedupe repeated SCAN fields for text-only hashes", async () => {
+      const mockClient = createMockClient({
+        TYPE: "hash",
+        TTL: -1,
+        MEMORY: 200,
+        HLEN: 1,
+        HSCAN: [Buffer.from("0"), [Buffer.from("f"), Buffer.from("v"), Buffer.from("f"), Buffer.from("v")]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myhash")
+
+      assert.deepStrictEqual(result.elements, [{ key: "f", value: "v" }])
+      assert.strictEqual(result.binaryKeyIndexes, undefined)
+      assert.strictEqual(result.binaryValueIndexes, undefined)
+    })
+
+    it("should escape binary set members", async () => {
+      const mockClient = createMockClient({
+        TYPE: "set",
+        TTL: -1,
+        MEMORY: 100,
+        SCARD: 2,
+        SSCAN: [Buffer.from("0"), [Buffer.from("apple"), Buffer.from([0xc3, 0x28])]],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myset")
+
+      assert.deepStrictEqual(result.elements, ["apple", "\\xc3("])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary list elements", async () => {
+      const mockClient = createMockClient({
+        TYPE: "list",
+        TTL: -1,
+        MEMORY: 100,
+        LLEN: 3,
+        LRANGE: [Buffer.from("one"), Buffer.from([0x80, 0x00]), Buffer.from("two")],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mylist")
+
+      assert.deepStrictEqual(result.elements, ["one", "\\x80\\x00", "two"])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary zset members and read scores from numbers or bytes", async () => {
+      const mockClient = createMockClient({
+        TYPE: "zset",
+        TTL: -1,
+        MEMORY: 100,
+        ZCARD: 2,
+        ZRANGE: [
+          { key: Buffer.from("a"), value: 1 },
+          { key: Buffer.from([0xfe, 0xff]), value: Buffer.from("2.5") },
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "myzset")
+
+      assert.deepStrictEqual(result.elements, [{ key: "a", value: 1 }, { key: "\\xfe\\xff", value: "2.5" }])
+      assert.deepStrictEqual(result.binaryIndexes, [1])
+    })
+
+    it("should escape binary stream fields and values and locate each one", async () => {
+      const mockClient = createMockClient({
+        TYPE: "stream",
+        TTL: -1,
+        MEMORY: 100,
+        XLEN: 2,
+        XRANGE: [
+          { key: Buffer.from("1-0"), value: [[Buffer.from("name"), Buffer.from("bob")]] },
+          { key: Buffer.from("2-0"), value: [
+            [Buffer.from("payload"), Buffer.from([0x89, 0x50])],
+            [Buffer.from([0xff]), Buffer.from("text")],
+          ] },
+        ],
+      })
+
+      const result = await getKeyInfo(mockClient as any, "mystream")
+
+      assert.deepStrictEqual(result.elements, [
+        { key: "1-0", value: [["name", "bob"]] },
+        { key: "2-0", value: [["payload", "\\x89P"], ["\\xff", "text"]] },
+      ])
+      assert.deepStrictEqual(result.binaryStreamParts, [
+        { entry: 1, field: 0, part: "value" },
+        { entry: 1, field: 1, part: "field" },
+      ])
+      assert.strictEqual(result.binaryIndexes, undefined)
+    })
   })
 
   describe("json keys", () => {
@@ -881,6 +1000,129 @@ describe("updateKey", () => {
       assert.strictEqual(writes.length, 0)
     })
   })
+
+  describe("hash keys", () => {
+    it("refuses to overwrite fields holding binary data and issues no write", async () => {
+      const mockClient = {
+        customCommand: mock.fn(async (cmd: string[]) =>
+          cmd[0] === "HMGET" ? [Buffer.from("text"), Buffer.from([0xff, 0xfe]), null] : null,
+        ),
+      }
+      const { mockWs: ws, messages } = createMockWs()
+
+      await updateKey(mockClient as any, ws as any, {
+        connectionId: "conn-123",
+        key: "myhash",
+        keyType: "hash",
+        fields: [
+          { field: "name", value: "a" },
+          { field: "blob", value: "b" },
+          { field: "new", value: "c" },
+        ],
+      })
+
+      const failed = getMessageOfType(messages, VALKEY.KEYS.updateKeyFailed)
+      assert.strictEqual(failed.payload.error, "Fields blob hold binary data and cannot be edited as text.")
+      const writes = mockClient.customCommand.mock.calls.filter(
+        (call: any) => ["HSET", "HDEL"].includes(call.arguments[0][0]),
+      )
+      assert.strictEqual(writes.length, 0)
+    })
+  })
+
+  describe("list keys", () => {
+    it("refuses to overwrite elements holding binary data and issues no write", async () => {
+      const exec = mock.fn(async () => [])
+      const mockClient = {
+        customCommand: mock.fn(async (cmd: string[]) =>
+          cmd[0] === "LINDEX" && cmd[2] === "1" ? Buffer.from([0x80, 0x00]) : Buffer.from("text"),
+        ),
+        exec,
+      }
+      const { mockWs: ws, messages } = createMockWs()
+
+      await updateKey(mockClient as any, ws as any, {
+        connectionId: "conn-123",
+        key: "mylist",
+        keyType: "list",
+        listUpdates: [{ index: 0, value: "a" }, { index: 1, value: "b" }],
+      })
+
+      const failed = getMessageOfType(messages, VALKEY.KEYS.updateKeyFailed)
+      assert.strictEqual(failed.payload.error, "Elements at index 1 hold binary data and cannot be edited as text.")
+      assert.strictEqual(exec.mock.calls.length, 0)
+    })
+
+    // Runs the batch's LSET/LREM/RPUSH commands against an in-memory list, so tests check the saved result.
+    function createListClient(initial: string[]) {
+      const list = [...initial]
+      const batches: string[][][] = []
+      const run = ([cmd, , ...args]: string[]) => {
+        if (cmd === "LSET") list[Number(args[0])] = args[1]
+        if (cmd === "RPUSH") list.push(...args)
+        if (cmd === "LREM") {
+          // count > 0 removes the first matches from the head; 0 removes every match (negative counts aren't used)
+          const [count, value] = args
+          let remaining = Number(count) || Infinity
+          for (let i = 0; i < list.length && remaining > 0;) {
+            if (list[i] === value) { list.splice(i, 1); remaining-- } else i++
+          }
+        }
+      }
+      const client = {
+        customCommand: mock.fn(async (cmd: string[]) => {
+          if (cmd[0] === "LINDEX") return Buffer.from(list[Number(cmd[2])])
+          if (cmd[0] === "TYPE") return "list"
+          if (cmd[0] === "LLEN") return list.length
+          if (cmd[0] === "LRANGE") return list.map((element) => Buffer.from(element))
+          return null
+        }),
+        exec: mock.fn(async (batch: any) => {
+          const commands = batch.commands.map((command: any) =>
+            command.argsArray.args.map((arg: Buffer | string) => arg.toString()) as string[])
+          batches.push(commands)
+          commands.forEach(run)
+          return []
+        }),
+      }
+      return { client, list, batches }
+    }
+
+    it("deletes by index when an edit copies the deleted value to an earlier index", async () => {
+      // [x, a, b]: set index 0 to "b", delete index 2. LREM by value would remove the new "b" at index 0.
+      const { client, list, batches } = createListClient(["x", "a", "b"])
+
+      await updateKey(client as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mylist",
+        keyType: "list",
+        listUpdates: [{ index: 0, value: "b" }],
+        deletedListItems: [{ index: 2, value: "b" }],
+      })
+
+      assert.deepStrictEqual(list, ["b", "a"])
+      assert.strictEqual(batches.length, 1, "edits and deletes are saved in one batch")
+      const [, , placeholder] = batches[0].find(([cmd]) => cmd === "LREM")!
+      assert.ok(!["x", "a", "b"].includes(placeholder))
+      assert.deepStrictEqual(batches[0].filter(([cmd]) => cmd === "LREM").length, 1)
+    })
+
+    it("edits, deletes duplicates and appends in one save", async () => {
+      // Index 0 becomes another copy of the deleted "a"s; only the elements at indexes 1 and 3 may go.
+      const { client, list } = createListClient(["x", "a", "b", "a", "c"])
+
+      await updateKey(client as any, mockWs, {
+        connectionId: "conn-123",
+        key: "mylist",
+        keyType: "list",
+        listUpdates: [{ index: 0, value: "a" }, { index: 4, value: "d" }],
+        deletedListItems: [{ index: 1, value: "a" }, { index: 3, value: "a" }],
+        newListItems: ["e"],
+      })
+
+      assert.deepStrictEqual(list, ["a", "b", "d", "e"])
+    })
+  })
 })
 
 function createCommandClient(handler: (cmd: string[]) => any) {
@@ -1081,6 +1323,34 @@ describe("getKeyElements", () => {
     const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
     assert.deepStrictEqual(message.payload.elements, ["c"])
     assert.strictEqual(message.payload.nextCursor, undefined)
+  })
+
+  it("flags binary elements with indexes relative to the page it returns", async () => {
+    const client = createMockClient({
+      ZCARD: 53,
+      ZRANGE: [{ key: Buffer.from("m50"), value: 1 }, { key: Buffer.from([0xc3, 0x28]), value: 2 }],
+    })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "myzset", keyType: "zset", cursor: "50" })
+
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload.elements, [{ key: "m50", value: 1 }, { key: "\\xc3(", value: 2 }])
+    assert.deepStrictEqual(message.payload.binaryIndexes, [1])
+    assert.strictEqual(message.payload.nextCursor, "52")
+  })
+
+  it("flags binary hash field names and values on a later page", async () => {
+    const client = createMockClient({
+      HLEN: 3,
+      HSCAN: [Buffer.from("0"), [Buffer.from([0xff]), Buffer.from("v"), Buffer.from("f"), Buffer.from([0x80])]],
+    })
+
+    await getKeyElements(client as any, mockWs, { connectionId: "conn-1", key: "myhash", keyType: "hash", cursor: "7" })
+
+    const message = getMessageOfType(messages, VALKEY.KEYS.getKeyElementsFulfilled)
+    assert.deepStrictEqual(message.payload.elements, [{ key: "\\xff", value: "v" }, { key: "f", value: "\\x80" }])
+    assert.deepStrictEqual(message.payload.binaryKeyIndexes, [0])
+    assert.deepStrictEqual(message.payload.binaryValueIndexes, [1])
   })
 
   it("returns an empty page with no next cursor when the cursor is past the end", async () => {

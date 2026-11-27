@@ -11,6 +11,11 @@ interface KeyInfo {
   elements?: any;
   elementsWarning?: string;
   cursor?: string;
+  isBinary?: boolean;
+  binaryIndexes?: number[];
+  binaryKeyIndexes?: number[];
+  binaryValueIndexes?: number[];
+  binaryStreamParts?: { entry: number; field: number; part: "field" | "value" }[];
 }
 
 interface KeyBrowserState {
@@ -308,6 +313,10 @@ const keyBrowserSlice = createSlice({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         elements: any[];
         collectionSize: number;
+        // Indexes of binary elements within this page's `elements`.
+        binaryIndexes?: number[];
+        binaryKeyIndexes?: number[];
+        binaryValueIndexes?: number[];
       }>,
     ) => {
       const { connectionId, key, cursor, nextCursor, elements, collectionSize } = action.payload
@@ -316,9 +325,28 @@ const keyBrowserSlice = createSlice({
       delete connection.elementsLoading[key]
       const target = connection.keys.find((k) => k.name === key)
       if (!target || !Array.isArray(target.elements) || target.cursor !== cursor) return
-      const idOf = (element: string | { key: string }) => typeof element === "string" ? element : element.key
-      const seen = target.type === "list" ? null : new Set(target.elements.map(idOf))
-      target.elements.push(...(seen ? elements.filter((element) => !seen.has(idOf(element))) : elements))
+      const pageBinary = new Set(action.payload.binaryIndexes)
+      const pageKeyBinary = new Set(action.payload.binaryKeyIndexes)
+      const pageValueBinary = new Set(action.payload.binaryValueIndexes)
+      // Binary members arrive escaped and can read like a text member, so the binary flag is part of the identity.
+      const idOf = (element: string | { key: string }, isBinary: boolean) =>
+        `${isBinary ? "b" : "t"}:${typeof element === "string" ? element : element.key}`
+      const loadedBinary = new Set([...(target.binaryIndexes ?? []), ...(target.binaryKeyIndexes ?? [])])
+      const seen = target.type === "list"
+        ? null
+        : new Set(target.elements.map((element: string | { key: string }, i: number) => idOf(element, loadedBinary.has(i))))
+      elements.forEach((element, i) => {
+        if (seen) {
+          const id = idOf(element, pageBinary.has(i) || pageKeyBinary.has(i))
+          if (seen.has(id)) return
+          seen.add(id)
+        }
+        // Page indexes are shifted to where the element lands in the loaded list.
+        const index = target.elements.push(element) - 1
+        if (pageBinary.has(i)) target.binaryIndexes = [...(target.binaryIndexes ?? []), index]
+        if (pageKeyBinary.has(i)) target.binaryKeyIndexes = [...(target.binaryKeyIndexes ?? []), index]
+        if (pageValueBinary.has(i)) target.binaryValueIndexes = [...(target.binaryValueIndexes ?? []), index]
+      })
       target.cursor = nextCursor
       target.collectionSize = collectionSize
     },
