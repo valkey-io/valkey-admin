@@ -633,7 +633,7 @@ describe("keyBrowserSlice", () => {
   })
 
   describe("getKeyElements", () => {
-    const stateWithKey = (key: { type: string; elements: unknown[]; cursor?: string }) => ({
+    const stateWithKey = (key: { type: string; elements: unknown[]; cursor?: string; binaryIndexes?: number[] }) => ({
       "conn-1": {
         ...defaultConnectionState,
         keys: [{ name: "k", collectionSize: 10, ...key }],
@@ -667,6 +667,60 @@ describe("keyBrowserSlice", () => {
       expect(state["conn-1"].keys[0].cursor).toBe("4")
       expect(state["conn-1"].keys[0].collectionSize).toBe(12)
       expect(state["conn-1"].elementsLoading["k"]).toBeUndefined()
+    })
+
+    it("shifts the page's binary indexes to where its elements land", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "list", elements: ["a", "\\xff"], binaryIndexes: [1], cursor: "2" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "2",
+          nextCursor: "4",
+          elements: ["\\x80", "d"],
+          binaryIndexes: [0],
+          collectionSize: 10,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["a", "\\xff", "\\x80", "d"])
+      expect(state["conn-1"].keys[0].binaryIndexes).toEqual([1, 2])
+    })
+
+    it("keeps a binary member that escapes to the same text as a loaded text member", () => {
+      // The bytes \x80 show as "\x80", which is also how the 4-character text member "\x80" reads.
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "set", elements: ["\\x80", "b"], cursor: "9" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "9",
+          elements: ["b", "\\x80"],
+          binaryIndexes: [1],
+          collectionSize: 3,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].elements).toEqual(["\\x80", "b", "\\x80"])
+      expect(state["conn-1"].keys[0].binaryIndexes).toEqual([2])
+    })
+
+    it("shifts hash field name and value indexes separately", () => {
+      const state = keyBrowserReducer(
+        stateWithKey({ type: "hash", elements: [{ key: "f1", value: "v1" }], cursor: "5" }),
+        getKeyElementsFulfilled({
+          connectionId: "conn-1",
+          key: "k",
+          cursor: "5",
+          elements: [{ key: "\\xff", value: "v2" }, { key: "f3", value: "\\x00" }],
+          binaryKeyIndexes: [0],
+          binaryValueIndexes: [1],
+          collectionSize: 3,
+        }),
+      )
+
+      expect(state["conn-1"].keys[0].binaryKeyIndexes).toEqual([1])
+      expect(state["conn-1"].keys[0].binaryValueIndexes).toEqual([2])
     })
 
     it("clears the cursor when the last page arrives", () => {
