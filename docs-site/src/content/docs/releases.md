@@ -5,6 +5,64 @@ sidebar:
   order: 0
 ---
 
+## v1.4.0
+
+Release Date: November 2026
+
+### Key Features
+
+**MCP server for AI assistants**: Valkey Admin includes a read-only [MCP](https://modelcontextprotocol.io) server. AI assistants that support MCP, such as Claude Code and Cursor, can read server info, big keys and hot keys through three tools: `get_server_info`, `get_big_keys` and `get_hot_keys`. The MCP server never connects to Valkey directly. It uses the Valkey Admin server's WebSocket API, like one more browser tab. Set `VALKEY_ADMIN_MCP_ENABLED=true`, `VALKEY_ADMIN_MCP_TOKEN` and `VALKEY_ADMIN_MCP_TARGETS`, and the server serves each target at `/mcp/<target>` on port `8080`. The assistant can reach only the listed targets, with the credentials in `VALKEY_ADMIN_MCP_USERNAME` and `VALKEY_ADMIN_MCP_PASSWORD`. The feature needs Web mode. See [AI Assistants (MCP)](/features/mcp/) and [MCP Server](/configuration/server/#mcp-server). ([#592](https://github.com/valkey-io/valkey-admin/pull/592), [#602](https://github.com/valkey-io/valkey-admin/pull/602))
+
+**OpenTelemetry metrics export**: Each metrics collector can push the memory, keyspace and CPU metrics of its Valkey node to an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) over OTLP/HTTP. From the Collector, the metrics go to Prometheus or to any other backend. Export uses the `INFO` replies that the collector already polls, so it sends no extra command to Valkey. Export is off by default. Set `METRICS_OTEL_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` where the collectors run. In Web and Docker mode, the collectors get these variables from the server. [`examples/otel/otel-collector-config.yaml`](https://github.com/valkey-io/valkey-admin/blob/main/examples/otel/otel-collector-config.yaml) is a Collector config for Valkey Admin. See [OpenTelemetry Export](/features/otel-export/) for the metric list and the limitations. ([#594](https://github.com/valkey-io/valkey-admin/pull/594))
+
+**Paginated collection keys**: Hash, list, set and sorted set keys show their first 50 elements when you open them. **Load more** gets the next 50, and the footer shows how many elements are loaded out of the total. Before, the Key Browser loaded the full key, or showed the `KEY_VALUE_SIZE_LIMIT_BYTES` warning. These four types now ignore that limit. Saving an edit keeps the pages that you loaded. See [Key Browser](/features/key-browser/). ([#599](https://github.com/valkey-io/valkey-admin/pull/599))
+
+![Load more keys](../../assets/releases/v1.4.0/paginated_keys.png)
+
+### Changed Defaults
+
+Review these before upgrading. See the [server](/configuration/server/) and [metrics](/configuration/metrics/) configuration references for details.
+
+| Setting | v1.3.0 | v1.4.0 | What to do |
+|---------|--------|--------|------------|
+| `poll_ms` in the collector `config.yml` | Any value was accepted. `0` made the collector poll in a tight loop | An epic whose `poll_ms` is not an integer from `1000` to `3600000` is dropped at load, and an error is logged | Set `poll_ms` to `1000` or more on every epic. These are the bounds that `POST /update-config` already used ([#594](https://github.com/valkey-io/valkey-admin/pull/594)) |
+| `KEY_VALUE_SIZE_LIMIT_BYTES` | Applied to every key type | Applies to string, JSON and stream keys only | Nothing. Hash, list, set and sorted set keys load one page at a time ([#599](https://github.com/valkey-io/valkey-admin/pull/599)) |
+| Endpoint Type for a host that contains `cfg` | Changed to Discovery when you typed the host, and the database was reset | Stays as you selected it. With Node selected, a hint suggests Discovery | Select **Discovery** yourself when the host is a cluster configuration endpoint ([#595](https://github.com/valkey-io/valkey-admin/pull/595)) |
+
+### Upgrade Notes
+
+- **ElastiCache CloudFormation template:** the app instance now starts with `VALKEY_ADMIN_ALLOWED_WS_ORIGINS=https://<DomainName>`. Stacks created from the v1.3.0 template load the page, but the server refuses the WebSocket with `403`. Update the stack with the new template, or add the variable to the `docker run` command on the instance. See [AWS ElastiCache deployment](/deployment/aws-elasticache/) ([#601](https://github.com/valkey-io/valkey-admin/pull/601))
+- **The MCP user is a separate Valkey identity.** Valkey Admin runs its own metrics collectors for it, about 150 MB of RAM per primary node, also when the UI already monitors the same deployment. Use the read-only ACL rule in [Read-only Valkey user](/features/mcp/#read-only-valkey-user), and see [Resource Sizing](/deployment/resource-sizing/) ([#592](https://github.com/valkey-io/valkey-admin/pull/592))
+
+### Improvements
+
+- In Web mode, the connection form tells you that passwords are not saved. The [Docker guide](/deployment/docker/) explains why ([#564](https://github.com/valkey-io/valkey-admin/pull/564))
+- The docs site search also shows results from the valkey.io, Valkey GLIDE and Spring Data Valkey docs ([#586](https://github.com/valkey-io/valkey-admin/pull/586))
+
+### Fixes
+
+- A connect that Valkey rejected leaked a credential-check client. The client sent `AUTH` about every 3 seconds until the server restarted, which filled Valkey's ACL log and increased the server's threads and memory. The check now uses one iovalkey connection with no reconnect, and always closes it ([valkey-glide#3352](https://github.com/valkey-io/valkey-glide/issues/3352), [#603](https://github.com/valkey-io/valkey-admin/pull/603))
+- Parallel authentication attempts could pass the failed-AUTH limit, because a failure was counted only after Valkey replied. An attempt that waits for a reply now counts against the limit, so at most 10 attempts for one node and Valkey identity can run at the same time ([#603](https://github.com/valkey-io/valkey-admin/pull/603))
+- The MCP server process got `VALKEY_USERNAME` and `VALKEY_PASSWORD` from the server environment, and collector error logs printed full error objects. The MCP process no longer gets these variables, and the collector logs only the error message ([#602](https://github.com/valkey-io/valkey-admin/pull/602))
+- After a standalone connection reconnected, the retry count was not reset. Later outages continued the count, and the UI could show "Unable to reconnect to Valkey instance" after one attempt ([#598](https://github.com/valkey-io/valkey-admin/pull/598))
+- Sizes of 1 TB or more showed as `undefined`, for example in cluster memory totals. Sizes now show in TB and PB ([#596](https://github.com/valkey-io/valkey-admin/pull/596))
+- The Key Browser key count could be an empty array instead of `0` before keys loaded ([#597](https://github.com/valkey-io/valkey-admin/pull/597))
+
+### Contributors
+
+@nassery318, @ArgusLi, @yanamolo, @RajGahoi, @danielfrankcom
+
+**Full Changelog**: [v1.3.0...v1.4.0](https://github.com/valkey-io/valkey-admin/compare/v1.3.0...v1.4.0)
+
+**Release**: [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases/tag/v1.4.0)
+
+**Container Images**:
+- Docker Hub: `docker pull valkey/valkey-admin:1.4.0`
+- GHCR: `docker pull ghcr.io/valkey-io/valkey-admin:1.4.0`
+- ECR Public: `docker pull public.ecr.aws/valkey/valkey-admin:1.4.0`
+
+---
+
 ## v1.3.0
 
 Release Date: October 2026
