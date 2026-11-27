@@ -117,6 +117,35 @@ const buildClusterMock = (overrides: { delayMs?: number, clusterDatabases?: stri
 // Options of AUTH probes opened inside `withMockedClients`.
 const authProbeCalls: any[] = []
 
+/**
+ * Fixed AWS credentials for the ElastiCache IAM tests. The AUTH probe signs a
+ * token with the default AWS provider chain, so without this the tests would
+ * pass or fail depending on the AWS setup of the machine that runs them. The
+ * empty config paths keep the chain away from `~/.aws`, and the metadata
+ * service is disabled so the chain never waits for it.
+ */
+const FAKE_AWS_ENV: Record<string, string> = {
+  AWS_ACCESS_KEY_ID: "AKIDEXAMPLE",
+  AWS_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+  AWS_SHARED_CREDENTIALS_FILE: "/nonexistent/aws-credentials",
+  AWS_CONFIG_FILE: "/nonexistent/aws-config",
+  AWS_EC2_METADATA_DISABLED: "true",
+}
+const AWS_ENV_TO_CLEAR = ["AWS_PROFILE", "AWS_SESSION_TOKEN", "AWS_ROLE_ARN", "AWS_WEB_IDENTITY_TOKEN_FILE"]
+
+const useFakeAwsCredentials = (): (() => void) => {
+  const keys = [...Object.keys(FAKE_AWS_ENV), ...AWS_ENV_TO_CLEAR]
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+  for (const key of AWS_ENV_TO_CLEAR) delete process.env[key]
+  Object.assign(process.env, FAKE_AWS_ENV)
+  return () => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+}
+
 async function withMockedClients<T>(
   standalone: unknown | (() => unknown),
   cluster: unknown | null,
@@ -168,7 +197,9 @@ describe("connectToValkey", () => {
   let connectedNodesByCluster: Map<string, string[]>
   let metricsServerMap: MetricsServerMap
   let owner: OwnerState
+  let restoreAwsEnv: () => void
   beforeEach(() => {
+    restoreAwsEnv = useFakeAwsCredentials()
     messages = []
     mockWs = {
       send: mock.fn((msg: string) => messages.push(msg)),
@@ -190,6 +221,7 @@ describe("connectToValkey", () => {
   })
 
   afterEach(async () => {
+    restoreAwsEnv()
     for (const connection of clients.values()) {
       await connection.client.close?.()
       await connection.client.quit?.()
@@ -360,9 +392,6 @@ describe("connectToValkey", () => {
   })
 
   it("signs an ElastiCache IAM token for the AUTH probe", async () => {
-    const saved = { id: process.env.AWS_ACCESS_KEY_ID, secret: process.env.AWS_SECRET_ACCESS_KEY }
-    process.env.AWS_ACCESS_KEY_ID = "AKIDEXAMPLE"
-    process.env.AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
     const iamDetails = {
       ...DEFAULT_PAYLOAD.connectionDetails,
       authType: "iam" as const,
@@ -372,22 +401,15 @@ describe("connectToValkey", () => {
       tls: true,
       verifyTlsCertificate: true,
     }
-    try {
-      await withMockedClients(buildStandaloneMock(), null, async () => {
-        await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: iamDetails })
-        const { credentials } = authProbeCalls[0]
-        assert.strictEqual(credentials.username, iamDetails.username)
-        const token = new URL(`https://${credentials.password}`)
-        assert.strictEqual(token.hostname, "my-cluster")
-        assert.strictEqual(token.searchParams.get("User"), iamDetails.username)
-        assert.match(token.searchParams.get("X-Amz-Credential") ?? "", /\/eu-west-1\/elasticache\/aws4_request$/)
-      })
-    } finally {
-      for (const [key, value] of [["AWS_ACCESS_KEY_ID", saved.id], ["AWS_SECRET_ACCESS_KEY", saved.secret]] as const) {
-        if (value === undefined) delete process.env[key]
-        else process.env[key] = value
-      }
-    }
+    await withMockedClients(buildStandaloneMock(), null, async () => {
+      await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: iamDetails })
+      const { credentials } = authProbeCalls[0]
+      assert.strictEqual(credentials.username, iamDetails.username)
+      const token = new URL(`https://${credentials.password}`)
+      assert.strictEqual(token.hostname, "my-cluster")
+      assert.strictEqual(token.searchParams.get("User"), iamDetails.username)
+      assert.match(token.searchParams.get("X-Amz-Credential") ?? "", /^AKIDEXAMPLE\/\d{8}\/eu-west-1\/elasticache\/aws4_request$/)
+    })
   })
 
   // A temporary CA file plus VALKEY_CA_CERT_PATH pointing at it, for tests that
