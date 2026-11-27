@@ -42,7 +42,7 @@ For the full walkthrough see the [connection docs](https://valkey-admin.valkey.i
 
 ## Releases
 
-Latest: **v1.3.0**. See [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases) for the full changelog.
+Latest: **v1.4.0**. See [GitHub Releases](https://github.com/valkey-io/valkey-admin/releases) for the full changelog.
 
 ## Getting Help
 
