@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach, mock } from "node:test"
 import assert from "node:assert"
-import { GlideClient, ClosingError } from "@valkey/valkey-glide"
+import { ClosingError } from "@valkey/valkey-glide"
 import { EndpointError, VALKEY, normalizeEndpoint } from "valkey-common"
 import {
   AUTH_FAILURE_LIMIT,
@@ -14,6 +14,7 @@ import {
 import { connectToValkey, discoverTopology } from "../connection"
 import { createOwnerState } from "../owner"
 import { _reset as resetNodeWatchers } from "../node-watchers"
+import { mockAuthProbe, wrongPassReply } from "./auth-probe-mock"
 import type { ConnectionDetails } from "../actions/connection"
 
 const DETAILS: ConnectionDetails = {
@@ -37,7 +38,8 @@ describe("auth-limiter", () => {
   let messages: any[]
   let ws: any
   let createCalls: number
-  let originalCreate: typeof GlideClient.createClient
+  let probeFails: () => Promise<never>
+  let probe: ReturnType<typeof mockAuthProbe>
   let realNow: () => number
   let now: number
 
@@ -57,11 +59,11 @@ describe("auth-limiter", () => {
     messages = []
     ws = { send: (m: string) => messages.push(JSON.parse(m)), readyState: 1, OPEN: 1 }
     createCalls = 0
-    originalCreate = GlideClient.createClient
-    GlideClient.createClient = (async () => {
+    probeFails = async () => { throw wrongPassReply() }
+    probe = mockAuthProbe(() => {
       createCalls++
-      throw wrongPass()
-    }) as any
+      return probeFails()
+    })
     realNow = Date.now
     now = 1_000_000_000
     Date.now = () => now
@@ -70,13 +72,14 @@ describe("auth-limiter", () => {
   })
 
   afterEach(() => {
-    GlideClient.createClient = originalCreate
+    probe.restore()
     Date.now = realNow
     mock.restoreAll()
   })
 
   it("classifies authentication errors only", () => {
     assert.strictEqual(isAuthError(wrongPass()), true)
+    assert.strictEqual(isAuthError(wrongPassReply()), true)
     assert.strictEqual(isAuthError(new Error("NOAUTH HELLO must be called with the client already authenticated")), true)
     assert.strictEqual(isAuthError(new Error("Connection refused")), false)
     assert.strictEqual(isAuthError(new Error("PermissionDenied: User x has no permissions to run the 'info' command")), false)
@@ -120,10 +123,7 @@ describe("auth-limiter", () => {
   })
 
   it("does not count errors that are not authentication failures", async () => {
-    GlideClient.createClient = (async () => {
-      createCalls++
-      throw new Error("Connection refused")
-    }) as any
+    probeFails = async () => { throw new Error("connect ECONNREFUSED 127.0.0.1:6379") }
     for (let i = 0; i < AUTH_FAILURE_LIMIT + 2; i++) await connect()
     assert.strictEqual(createCalls, AUTH_FAILURE_LIMIT + 2)
   })
@@ -149,11 +149,10 @@ describe("auth-limiter", () => {
     // Every connect starts before any probe fails, as in a scripted burst.
     let failAll!: () => void
     const allStarted = new Promise<void>((resolve) => { failAll = resolve })
-    GlideClient.createClient = (async () => {
-      createCalls++
+    probeFails = async () => {
       await allStarted
-      throw wrongPass()
-    }) as any
+      throw wrongPassReply()
+    }
     const burst = Array.from({ length: AUTH_FAILURE_LIMIT * 3 }, (_, i) => connect(DETAILS, `conn-${i}`))
     await new Promise((resolve) => setImmediate(resolve))
     failAll()

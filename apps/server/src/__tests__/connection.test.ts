@@ -21,6 +21,7 @@ import { ConnectionDetails } from "../actions/connection"
 import { type MetricsServerMap } from "../metrics-orchestrator"
 import { createOwnerState, type OwnerState } from "../owner"
 import { _reset as resetNodeWatchers } from "../node-watchers"
+import { mockAuthProbe, wrongPassReply } from "./auth-probe-mock"
 
 const DEFAULT_PAYLOAD = {
   connectionDetails: {
@@ -113,7 +114,7 @@ const buildClusterMock = (overrides: { delayMs?: number, clusterDatabases?: stri
   }
 }
 
-// Configs of AUTH probe clients opened inside `withMockedClients`.
+// Options of AUTH probes opened inside `withMockedClients`.
 const authProbeCalls: any[] = []
 
 async function withMockedClients<T>(
@@ -129,35 +130,32 @@ async function withMockedClients<T>(
     ? standalone as (config?: unknown) => unknown
     : () => standalone
 
-  // Every connect first opens a short-lived AUTH probe client
-  // (`valkey_admin_auth_probe`). Probe calls are answered by a separate mock and
-  // recorded in `authProbeCalls`, so `GlideClient.createClient` counts only the
-  // working clients, as before the probe existed. The probe also runs
-  // `INFO cluster` and `CLUSTER SLOTS`, which it answers like the standalone
-  // mock would, so the connect sees the same topology either way.
+  // Every connect first runs the AUTH probe (`openAuthProbe`). Probe calls are
+  // answered by `standaloneFactory` and recorded in `authProbeCalls`, so
+  // `GlideClient.createClient` counts only the working clients. The probe also
+  // runs `INFO cluster` and `CLUSTER SLOTS`, which it answers like the
+  // standalone mock would, so the connect sees the same topology either way.
   const realCreate = mock.fn(async (config?: unknown) => {
     if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
     return standaloneFactory(config) as any
   })
-  const dispatch = async (config: any) => {
-    if (config?.clientName === "valkey_admin_auth_probe") {
-      authProbeCalls.push(config)
-      const answers = standaloneFactory(config) as any
-      return { info: answers.info, customCommand: answers.customCommand, close: mock.fn() } as any
-    }
-    return realCreate(config)
-  }
-  GlideClient.createClient = Object.assign(dispatch, { mock: realCreate.mock }) as any
+  GlideClient.createClient = Object.assign(realCreate, { mock: realCreate.mock }) as any
+  authProbeCalls.length = 0
+  const probe = mockAuthProbe((options) => {
+    authProbeCalls.push(options)
+    const answers = standaloneFactory({ probe: true }) as any
+    return { info: answers.info, customCommand: answers.customCommand }
+  })
   if (cluster !== null) {
     GlideClusterClient.createClient = mock.fn(async () => {
       if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs))
       return cluster as any
     })
   }
-  authProbeCalls.length = 0
   try {
     return await fn()
   } finally {
+    probe.restore()
     GlideClient.createClient = originalCreateClient
     GlideClusterClient.createClient = originalCreateClusterClient
   }
@@ -361,6 +359,37 @@ describe("connectToValkey", () => {
     })
   })
 
+  it("signs an ElastiCache IAM token for the AUTH probe", async () => {
+    const saved = { id: process.env.AWS_ACCESS_KEY_ID, secret: process.env.AWS_SECRET_ACCESS_KEY }
+    process.env.AWS_ACCESS_KEY_ID = "AKIDEXAMPLE"
+    process.env.AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+    const iamDetails = {
+      ...DEFAULT_PAYLOAD.connectionDetails,
+      authType: "iam" as const,
+      awsRegion: "eu-west-1",
+      awsReplicationGroupId: "my-cluster",
+      password: undefined,
+      tls: true,
+      verifyTlsCertificate: true,
+    }
+    try {
+      await withMockedClients(buildStandaloneMock(), null, async () => {
+        await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionDetails: iamDetails })
+        const { credentials } = authProbeCalls[0]
+        assert.strictEqual(credentials.username, iamDetails.username)
+        const token = new URL(`https://${credentials.password}`)
+        assert.strictEqual(token.hostname, "my-cluster")
+        assert.strictEqual(token.searchParams.get("User"), iamDetails.username)
+        assert.match(token.searchParams.get("X-Amz-Credential") ?? "", /\/eu-west-1\/elasticache\/aws4_request$/)
+      })
+    } finally {
+      for (const [key, value] of [["AWS_ACCESS_KEY_ID", saved.id], ["AWS_SECRET_ACCESS_KEY", saved.secret]] as const) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    }
+  })
+
   // A temporary CA file plus VALKEY_CA_CERT_PATH pointing at it, for tests that
   // need a verified channel. Restores the env afterwards.
   const ENV_CA_PEM = "-----BEGIN CERTIFICATE-----\nenvca\n-----END CERTIFICATE-----\n"
@@ -403,6 +432,7 @@ describe("connectToValkey", () => {
       assert.strictEqual(config.credentials.password, "fake-gcp-token")
       assert.strictEqual(config.credentials.username, "default")
       assert.strictEqual(config.credentials.iamConfig, undefined)
+      assert.deepStrictEqual(authProbeCalls[0].credentials, { username: "default", password: "fake-gcp-token" })
     }))
   })
 
@@ -516,12 +546,12 @@ describe("connectToValkey", () => {
     try {
       await withServerCa(() => withMockedClients(standalone, cluster, async () => {
         await connectToValkey(ctx(), mockWs, tlsPayload)
-        for (const config of [authProbeCalls[0], (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]]) {
-          const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
-          assert.ok(Buffer.isBuffer(ca))
-          assert.match(ca.toString(), /envca/)
-          assert.doesNotMatch(ca.toString(), /clientca/)
-        }
+        assert.strictEqual(authProbeCalls[0].caCertPath, process.env.VALKEY_CA_CERT_PATH, "the probe uses the server's CA file")
+        const config = (GlideClusterClient.createClient as any).mock.calls[0].arguments[0]
+        const ca = config.advancedConfiguration.tlsAdvancedConfiguration.rootCertificates
+        assert.ok(Buffer.isBuffer(ca))
+        assert.match(ca.toString(), /envca/)
+        assert.doesNotMatch(ca.toString(), /clientca/)
       }))
     } finally {
       fs.rmSync(clientCaPath, { force: true })
@@ -593,8 +623,7 @@ describe("connectToValkey", () => {
 
   it("should handle connection errors", async () => {
     const error = new Error("Connection failed")
-    const originalCreateClient = GlideClient.createClient
-    GlideClient.createClient = mock.fn(async () => { throw error })
+    const probe = mockAuthProbe(() => { throw error })
 
     try {
       const result = await connectToValkey(ctx(), mockWs, DEFAULT_PAYLOAD)
@@ -608,7 +637,7 @@ describe("connectToValkey", () => {
       assert.strictEqual(sent.payload.connectionId, DEFAULT_PAYLOAD.connectionId)
       assert.ok(sent.payload.errorMessage)
     } finally {
-      GlideClient.createClient = originalCreateClient
+      probe.restore()
     }
   })
 
@@ -889,7 +918,7 @@ describe("connectToValkey", () => {
       const alice = { ...createOwnerState("password~user0"), connectedNodesByCluster: new Map() }
       const bob = { ...createOwnerState("password~bob"), connectedNodesByCluster: new Map() }
       // The probe takes a fresh mock; only working clients consume the queue.
-      const factory = (config: any) => config?.clientName === "valkey_admin_auth_probe" ? buildStandaloneMock() : clientsFor.shift()
+      const factory = (config: any) => config?.probe ? buildStandaloneMock() : clientsFor.shift()
       await withMockedClients(factory, null, async () => {
         await connectToValkey(alice, mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-O" })
         await connectToValkey(bob, mockWs, {
@@ -903,7 +932,6 @@ describe("connectToValkey", () => {
       assert.strictEqual(aliceClient.close.mock.calls.length, 0)
       assert.strictEqual(bobClient.close.mock.calls.length, 0)
     })
-    const wrongPass = () => new Error("WRONGPASS: invalid username-password pair or user is disabled.")
 
     it("authenticates the presented credentials before it reuses an existing client", async () => {
       const existing = buildStandaloneMock()
@@ -914,7 +942,7 @@ describe("connectToValkey", () => {
         const result = await connectToValkey(ctx(), mockWs, { ...DEFAULT_PAYLOAD, connectionId: "conn-R" })
 
         assert.strictEqual((GlideClient.createClient as any).mock.calls.length, 0, "reuse opens no working client")
-        assert.strictEqual(authProbeCalls.length, 1, "reuse must open exactly one probe client")
+        assert.strictEqual(authProbeCalls.length, 1, "reuse must run exactly one probe")
         assert.deepStrictEqual(authProbeCalls[0].credentials, {
           username: DEFAULT_PAYLOAD.connectionDetails.username,
           password: DEFAULT_PAYLOAD.connectionDetails.password,
@@ -927,8 +955,7 @@ describe("connectToValkey", () => {
     it("rejects a wrong password and leaves the existing client open", async () => {
       const existing = buildStandaloneMock()
       clients.set("conn-R", { client: existing })
-      const original = GlideClient.createClient
-      GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
+      const probe = mockAuthProbe(() => { throw wrongPassReply() })
       try {
         const result = await connectToValkey(ctx(), mockWs, {
           ...DEFAULT_PAYLOAD,
@@ -941,15 +968,14 @@ describe("connectToValkey", () => {
         assert.strictEqual(existing.close.mock.calls.length, 0, "the existing client must stay open")
         assert.strictEqual(clients.get("conn-R")?.client, existing)
       } finally {
-        GlideClient.createClient = original
+        probe.restore()
       }
     })
 
     it("does not close the existing client when a retry fails to authenticate", async () => {
       const existing = buildStandaloneMock()
       clients.set("conn-R", { client: existing })
-      const original = GlideClient.createClient
-      GlideClient.createClient = mock.fn(async () => { throw wrongPass() }) as any
+      const probe = mockAuthProbe(() => { throw wrongPassReply() })
       try {
         await connectToValkey(ctx(), mockWs, {
           ...DEFAULT_PAYLOAD,
@@ -960,7 +986,7 @@ describe("connectToValkey", () => {
         assert.strictEqual(existing.close.mock.calls.length, 0, "a failed retry must not close the client")
         assert.strictEqual(clients.get("conn-R")?.client, existing)
       } finally {
-        GlideClient.createClient = original
+        probe.restore()
       }
     })
   })

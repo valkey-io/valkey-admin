@@ -9,6 +9,7 @@ import { allOwnerStates } from "../owner"
 import { getWatcherCount, scopedId, subscribe, unsubscribe, unsubscribeAll, _reset as resetNodeWatchers } from "../node-watchers"
 import { __test__ } from "../metrics-orchestrator"
 import { _resetAuthLimiter } from "../auth-limiter"
+import { mockAuthProbe } from "./auth-probe-mock"
 
 /**
  * A browser socket can close while one of its connects is still running. The
@@ -62,8 +63,9 @@ const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve()
 
 describe("socket closes while a connect is running", () => {
   let original: typeof GlideClient.createClient
+  let probe: ReturnType<typeof mockAuthProbe> | undefined
   let killed: number[]
-  // `gate(n)` holds the n-th createClient call (1 = AUTH probe, 2 = working client) until released.
+  // `gate(n)` holds the n-th call (1 = AUTH probe, 2 = working client) until released.
   let held: Map<number, () => void>
   let calls: number
   let client: ReturnType<typeof clientMock>
@@ -90,6 +92,7 @@ describe("socket closes while a connect is running", () => {
   })
 
   afterEach(() => {
+    probe?.restore()
     GlideClient.createClient = original
     mock.timers.reset()
     mock.restoreAll()
@@ -97,11 +100,18 @@ describe("socket closes while a connect is running", () => {
 
   const holdCall = (n: number) => {
     const waits = new Map<number, Promise<void>>([[n, gate(n)]])
-    GlideClient.createClient = (async () => {
+    const nextCall = async () => {
       calls++
       const wait = waits.get(calls)
       if (wait) await wait
-      return calls === 1 ? { ...clientMock(), close: mock.fn() } : client
+    }
+    probe = mockAuthProbe(async () => {
+      await nextCall()
+      return clientMock()
+    })
+    GlideClient.createClient = (async () => {
+      await nextCall()
+      return client
     }) as any
   }
 

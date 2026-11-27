@@ -18,6 +18,7 @@
     "express-rate-limit": "^8.3.1",
     "google-auth-library": "^11.0.2",
     "helmet": "^8.2.0",
+    "iovalkey": "^0.3.3",
     "p-limit": "^6.1.0",
     "ramda": "^0.31.3",
     "valkey-common": "*",

@@ -105,7 +105,7 @@ For Kubernetes, add the variable to the app container in your manifest (`example
 
 ## Connection rejected: `GCP IAM authentication requires VALKEY_CA_CERT_PATH`
 
-A `gcp-iam` connection was requested and the server has no `VALKEY_CA_CERT_PATH`. The server mints an access token from its own Google Cloud identity and sends it as the AUTH password to the host you entered. That token is a bearer credential with the `cloud-platform` scope. The CA file is what limits where it can go: Glide uses that file as the only trust root, so the token can reach only a server with a certificate from your Memorystore CA. Without the file, any host with a publicly trusted certificate would receive it.
+A `gcp-iam` connection was requested and the server has no `VALKEY_CA_CERT_PATH`. The server mints an access token from its own Google Cloud identity and sends it as the AUTH password to the host you entered. That token is a bearer credential with the `cloud-platform` scope. The CA file is what limits where it can go: Valkey Admin uses that file as the only trust root, so the token can reach only a server with a certificate from your Memorystore CA. Without the file, any host with a publicly trusted certificate would receive it.
 
 If the preconfigured connection (`VALKEY_AUTH_TYPE=gcp-iam`) has the same problem, the server logs `Cannot start the preconfigured connection: GCP IAM authentication requires VALKEY_CA_CERT_PATH …` and exits.
 
@@ -120,6 +120,14 @@ The related messages `GCP IAM authentication requires TLS` and `… requires TLS
 A raw WebSocket client sent a `connectionId` that was not built from the normalized host and port of the request. The UI builds ids with `normalizeEndpoint` (host trimmed and lowercased, one trailing dot removed, port as a plain number) and never hits this. Connections saved by an earlier version are renamed on load.
 
 **Fix:** Build the id with `buildConnectionId(normalizeEndpoint(host, port), db)` from `valkey-common`. In the UI, edit the connection and connect again.
+
+---
+
+## A TLS connection passes the credential check and then fails
+
+Before every connect, the server proves the credentials with a short-lived probe connection. The probe does TLS in Node, and the working connection does TLS in Glide's Rust core. Both check the certificate chain and the host name against the same roots: the `VALKEY_CA_CERT_PATH` file when it is set, or else the OS trust store. In rare cases the two TLS stacks still disagree about one certificate. The probe then passes, and the working connection fails with a TLS or timeout error.
+
+**Fix:** Make sure the server certificate names the host you entered and is valid for server authentication. Make sure the CA certificate is marked as a CA and can sign certificates. Set `VALKEY_CA_CERT_PATH` to that CA. The probe uses Node's TLS because a rejected Glide client keeps retrying AUTH ([valkey-glide#3352](https://github.com/valkey-io/valkey-glide/issues/3352)).
 
 ---
 

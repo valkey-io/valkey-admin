@@ -19,6 +19,8 @@ docker compose -f docker/docker-compose.test.yml down -v
 - **ACL users:** Every node has the users `appuser`/`admin` (all commands) and `restricted`/`restricted` (all commands except `ACL` and `COMMANDLOG`). The standalone node also keeps the passwordless `default` user. `cluster_init.sh` sets the cluster users on every run, and the standalone node gets them from its `--user` arguments. `identity-isolation.integration.test.ts` uses the two users to check that users who connect as different Valkey users share no client and no metrics collector.
 - **OpenTelemetry Collector:** `otel-collector` runs with `examples/otel/otel-collector-config.yaml` and exposes Prometheus metrics on port `8889`. The app runs with `METRICS_OTEL_ENABLED=true`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` and `OTEL_RESOURCE_ATTRIBUTES=service.namespace=integration`, so every metrics collector it spawns pushes OTLP to it. `otel-export.integration.test.ts` reads `http://localhost:8889/metrics`.
 
+- **Failed-connect AUTH check:** `auth-probe-retry.integration.test.ts` sends connects with a wrong password to the standalone node. It reads Valkey's `ACL LOG` for that user and fails if any AUTH attempt arrives in the 30 seconds after the rejections. This guards against a probe that keeps retrying AUTH, as a Glide probe does ([valkey-glide#3352](https://github.com/valkey-io/valkey-glide/issues/3352)).
+
 ## Note
 
 Integration tests are run serially to prevent race conditions. Each `connectionId` is now `buildConnectionId(host, port, db)`, so tests targeting the same `host:port` with the default `db: 0` share an id. The two-database test intentionally uses two distinct `connectionId`s to exercise per-`db` keying.
