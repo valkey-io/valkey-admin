@@ -18,6 +18,7 @@ const sendMemoryUsageFulfilled = (
   ws: WebSocket,
   connectionId: string,
   parsedResponse: MemoryUsageResponse,
+  requestId?: string,
 ) => {
   ws.send(
     JSON.stringify({
@@ -25,6 +26,7 @@ const sendMemoryUsageFulfilled = (
       payload: {
         connectionId,
         parsedResponse,
+        requestId,
       },
     }),
   )
@@ -34,6 +36,7 @@ const sendMemoryUsageError = (
   ws: WebSocket,
   connectionId: string,
   error: unknown,
+  requestId?: string,
 ) => {
   console.error(error)
   ws.send(
@@ -42,6 +45,7 @@ const sendMemoryUsageError = (
       payload: {
         connectionId,
         error: error instanceof Error ? error.message : String(error),
+        requestId,
       },
     }),
   )
@@ -50,14 +54,15 @@ const sendMemoryUsageError = (
 type RequestPayload = {
   connectionId: string,
   clusterId: string,
-  timeRange?: number
+  timeRange?: number,
+  requestId?: string,
 }
 
 export const memoryUsageRequested = withDeps<Deps, void>(
   async ({ ws, metricsServerMap, action, connectedNodesByCluster }) => {
-    const { connectionId, clusterId, timeRange = 12 * MILLISECONDS_IN_AN_HOUR } = action.payload as unknown as RequestPayload
+    const { connectionId, clusterId, timeRange = 12 * MILLISECONDS_IN_AN_HOUR, requestId } = action.payload as unknown as RequestPayload
     if (collectorFeaturesDisabled()) {
-      sendMemoryUsageError(ws, connectionId, new Error(KUBERNETES_METRICS_UNAVAILABLE))
+      sendMemoryUsageError(ws, connectionId, new Error(KUBERNETES_METRICS_UNAVAILABLE), requestId)
       return
     }
     const connectionIds = clusterId ? connectedNodesByCluster.get(clusterId as string) ?? [] : [connectionId]
@@ -67,7 +72,7 @@ export const memoryUsageRequested = withDeps<Deps, void>(
       const metricsServerURI = metricsServerMap.get(toNodeId(connectionId))?.metricsURI
 
       if (!metricsServerURI) {
-        sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"))
+        sendMemoryUsageError(ws, connectionId, new Error("Metrics server URI not found"), requestId)
         return
       }
 
@@ -79,9 +84,9 @@ export const memoryUsageRequested = withDeps<Deps, void>(
         const response = await fetchWithTimeout(url)
         const parsedResponse: MemoryUsageResponse = await response.json() as MemoryUsageResponse
 
-        sendMemoryUsageFulfilled(ws, connectionId, parsedResponse)
+        sendMemoryUsageFulfilled(ws, connectionId, parsedResponse, requestId)
       } catch (error) {
-        sendMemoryUsageError(ws, connectionId, error)
+        sendMemoryUsageError(ws, connectionId, error, requestId)
       }
     })
     await Promise.all(promises)
